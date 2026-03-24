@@ -8,23 +8,6 @@ F.Elements = F.Elements or {}
 F.Elements.Health = {}
 
 -- ============================================================
--- Number Abbreviation Helper
--- ============================================================
-
---- Abbreviate a number: >= 1M -> '1.2M', >= 1K -> '145K', else raw.
---- @param value number
---- @return string
-local function AbbreviateNumber(value)
-	if(value >= 1000000) then
-		return string.format('%.1fM', value / 1000000)
-	elseif(value >= 1000) then
-		return string.format('%dK', math.floor(value / 1000 + 0.5))
-	else
-		return tostring(math.floor(value + 0.5))
-	end
-end
-
--- ============================================================
 -- Health Element Setup
 -- ============================================================
 
@@ -125,16 +108,16 @@ function F.Elements.Health.Setup(self, width, height, config)
 				local pct = math.floor(cur / max * 100 + 0.5)
 				h.text:SetText(pct .. '%')
 			elseif(fmt == 'current') then
-				h.text:SetText(AbbreviateNumber(cur))
+				h.text:SetText(F.AbbreviateNumber(cur))
 			elseif(fmt == 'deficit') then
 				local deficit = max - cur
 				if(deficit <= 0) then
 					h.text:SetText('')
 				else
-					h.text:SetText('-' .. AbbreviateNumber(deficit))
+					h.text:SetText('-' .. F.AbbreviateNumber(deficit))
 				end
 			elseif(fmt == 'current-max') then
-				h.text:SetText(AbbreviateNumber(cur) .. '/' .. AbbreviateNumber(max))
+				h.text:SetText(F.AbbreviateNumber(cur) .. '/' .. F.AbbreviateNumber(max))
 			else
 				h.text:SetText('')
 			end
@@ -146,53 +129,38 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	if(config.healPrediction) then
-		-- Feature detect UnitHealPredictionCalculator
-		if(CreateFrame('UnitHealPredictionCalculator')) then
-			local calculator = CreateFrame('UnitHealPredictionCalculator')
+		-- Safe feature detection for UnitHealPredictionCalculator
+		-- CreateFrame throws on invalid type, so check the global namespace instead
+		local hasHealCalc = (type(UnitHealPredictionCalculator) == 'table') or
+			(C_Widget and C_Widget.IsFrameWidget and C_Widget.IsFrameWidget('UnitHealPredictionCalculator'))
+
+		local calculator
+		if(hasHealCalc) then
+			calculator = CreateFrame('UnitHealPredictionCalculator')
 			-- The calculator provides clamped heal/absorb values
 			-- that work with secret values natively
-
-			-- Prediction bars still need to be created for visual display
-			local myBar = self:CreateTexture(nil, 'OVERLAY')
-			myBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-			myBar:SetVertexColor(0, 0.8, 0.2, 0.4)
-
-			local otherBar = self:CreateTexture(nil, 'OVERLAY')
-			otherBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-			otherBar:SetVertexColor(0, 0.6, 0.2, 0.3)
-
-			local absorbBar = self:CreateTexture(nil, 'OVERLAY')
-			absorbBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-			absorbBar:SetVertexColor(1, 0.8, 0, 0.4)
-
-			self.HealthPrediction = {
-				myBar = myBar,
-				otherBar = otherBar,
-				absorbBar = absorbBar,
-				maxOverflow = 1.05,
-				_calculator = calculator,
-			}
-		else
-			-- Fallback: use oUF's standard HealthPrediction element
-			local myBar = self:CreateTexture(nil, 'OVERLAY')
-			myBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-			myBar:SetVertexColor(0, 0.8, 0.2, 0.4)
-
-			local otherBar = self:CreateTexture(nil, 'OVERLAY')
-			otherBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-			otherBar:SetVertexColor(0, 0.6, 0.2, 0.3)
-
-			local absorbBar = self:CreateTexture(nil, 'OVERLAY')
-			absorbBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-			absorbBar:SetVertexColor(1, 0.8, 0, 0.4)
-
-			self.HealthPrediction = {
-				myBar = myBar,
-				otherBar = otherBar,
-				absorbBar = absorbBar,
-				maxOverflow = 1.05,
-			}
 		end
+
+		-- Prediction bars for visual display
+		local myBar = self:CreateTexture(nil, 'OVERLAY')
+		myBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+		myBar:SetVertexColor(0, 0.8, 0.2, 0.4)
+
+		local otherBar = self:CreateTexture(nil, 'OVERLAY')
+		otherBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+		otherBar:SetVertexColor(0, 0.6, 0.2, 0.3)
+
+		local absorbBar = self:CreateTexture(nil, 'OVERLAY')
+		absorbBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+		absorbBar:SetVertexColor(1, 0.8, 0, 0.4)
+
+		self.HealthPrediction = {
+			myBar = myBar,
+			otherBar = otherBar,
+			absorbBar = absorbBar,
+			maxOverflow = 1.05,
+			_calculator = calculator,
+		}
 	end
 
 	-- --------------------------------------------------------

@@ -20,20 +20,6 @@ local DEBUFF_TYPE_COLORS = {
 }
 
 -- ============================================================
--- Duration formatting helpers
--- ============================================================
-
-local function FormatDuration(remaining)
-	if(remaining >= 3600) then
-		return string.format('%dh', math.floor(remaining / 3600))
-	elseif(remaining >= 60) then
-		return string.format('%dm', math.floor(remaining / 60))
-	else
-		return string.format('%.1f', remaining)
-	end
-end
-
--- ============================================================
 -- Duration OnUpdate handler
 -- Stored on the frame so it can be set/cleared via SetScript.
 -- ============================================================
@@ -56,7 +42,7 @@ local function DurationOnUpdate(frame, elapsed)
 		return
 	end
 
-	icon.duration:SetText(FormatDuration(remaining))
+	icon.duration:SetText(F.FormatDuration(remaining))
 end
 
 -- ============================================================
@@ -83,7 +69,14 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 		if(iconTexture) then
 			self.texture:SetTexture(iconTexture)
 		elseif(spellID) then
-			local _, _, tex = GetSpellInfo(spellID)
+			local tex
+			if(C_Spell and C_Spell.GetSpellInfo) then
+				local info = C_Spell.GetSpellInfo(spellID)
+				if(info) then tex = info.iconID end
+			elseif(GetSpellInfo) then
+				local _, _, icon = GetSpellInfo(spellID)
+				tex = icon
+			end
 			self.texture:SetTexture(tex)
 		end
 	end
@@ -112,7 +105,7 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 			self._durationElapsed = 0
 			local remaining = expirationTime - GetTime()
 			if(remaining > 0) then
-				self.duration:SetText(FormatDuration(remaining))
+				self.duration:SetText(F.FormatDuration(remaining))
 				self._frame:SetScript('OnUpdate', DurationOnUpdate)
 			else
 				self.duration:SetText('')

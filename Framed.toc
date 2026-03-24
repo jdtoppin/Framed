@@ -19,6 +19,7 @@ Libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua
 Init.lua
 Core/Constants.lua
 Core/SecretValues.lua
+Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
 

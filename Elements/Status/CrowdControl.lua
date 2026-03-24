@@ -50,20 +50,6 @@ local function IsCrowdControl(spellID)
 end
 
 -- ============================================================
--- Duration Formatting
--- ============================================================
-
-local function FormatDuration(seconds)
-	if(seconds >= 60) then
-		return string.format('%dm', math.ceil(seconds / 60))
-	elseif(seconds >= 1) then
-		return string.format('%d', math.ceil(seconds))
-	else
-		return string.format('%.1f', seconds)
-	end
-end
-
--- ============================================================
 -- Update
 -- ============================================================
 
@@ -107,7 +93,7 @@ local function Update(self, event, unit)
 		if(foundExpiry and foundExpiry > 0) then
 			local remaining = foundExpiry - GetTime()
 			if(remaining > 0) then
-				element.duration:SetText(FormatDuration(remaining))
+				element.duration:SetText(F.FormatDuration(remaining))
 				element.duration:Show()
 			else
 				element.duration:Hide()
@@ -134,7 +120,7 @@ local function OnUpdate(frame, elapsed)
 
 	local remaining = element._expiry - GetTime()
 	if(remaining > 0) then
-		element.duration:SetText(FormatDuration(remaining))
+		element.duration:SetText(F.FormatDuration(remaining))
 	else
 		element.duration:Hide()
 		element._expiry = nil

@@ -10,7 +10,7 @@ local C = F.Constants
 -- Check at load time; no pcall.
 -- ============================================================
 
-local hasNativeInterpolation = Enum.StatusBarInterpolation ~= nil
+local hasNativeInterpolation = Enum and Enum.StatusBarInterpolation ~= nil
 
 -- ============================================================
 -- Smooth Interpolation Config

@@ -95,7 +95,7 @@ function F.Elements.MouseoverHighlight.Setup(self, config)
 	config = config or {}
 	local color = config.color or { 1, 1, 1, 0.08 }
 
-	local overlay = self:CreateTexture(nil, 'HIGHLIGHT')
+	local overlay = self:CreateTexture(nil, 'OVERLAY')
 	overlay:SetAllPoints(self)
 	overlay:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 	overlay:SetVertexColor(color[1], color[2], color[3], color[4] or 0.08)

@@ -8,23 +8,6 @@ F.Elements = F.Elements or {}
 F.Elements.Power = {}
 
 -- ============================================================
--- Number Abbreviation Helper
--- ============================================================
-
---- Abbreviate a number: >= 1M -> '1.2M', >= 1K -> '145K', else raw.
---- @param value number
---- @return string
-local function AbbreviateNumber(value)
-	if(value >= 1000000) then
-		return string.format('%.1fM', value / 1000000)
-	elseif(value >= 1000) then
-		return string.format('%dK', math.floor(value / 1000 + 0.5))
-	else
-		return tostring(math.floor(value + 0.5))
-	end
-end
-
--- ============================================================
 -- Power Element Setup
 -- ============================================================
 
@@ -110,16 +93,16 @@ function F.Elements.Power.Setup(self, width, height, config)
 				local pct = math.floor(cur / max * 100 + 0.5)
 				p.text:SetText(pct .. '%')
 			elseif(fmt == 'current') then
-				p.text:SetText(AbbreviateNumber(cur))
+				p.text:SetText(F.AbbreviateNumber(cur))
 			elseif(fmt == 'deficit') then
 				local deficit = max - cur
 				if(deficit <= 0) then
 					p.text:SetText('')
 				else
-					p.text:SetText('-' .. AbbreviateNumber(deficit))
+					p.text:SetText('-' .. F.AbbreviateNumber(deficit))
 				end
 			elseif(fmt == 'current-max') then
-				p.text:SetText(AbbreviateNumber(cur) .. '/' .. AbbreviateNumber(max))
+				p.text:SetText(F.AbbreviateNumber(cur) .. '/' .. F.AbbreviateNumber(max))
 			else
 				p.text:SetText('')
 			end

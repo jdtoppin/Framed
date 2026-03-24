@@ -57,17 +57,15 @@ local CC_SPELL_TYPES = {
 
 	-- ---- Mind Control ----
 	[605]    = CC_TYPE.MC,      -- Mind Control (Priest)
-	[15487]  = CC_TYPE.MC,      -- Dominate Mind (Priest)
 
 	-- ---- Fears ----
 	[5484]   = CC_TYPE.FEAR,    -- Howl of Terror (Warlock)
 	[5782]   = CC_TYPE.FEAR,    -- Fear (Warlock)
 	[8122]   = CC_TYPE.FEAR,    -- Psychic Scream (Priest)
-	[31224]  = CC_TYPE.FEAR,    -- Cloak of Shadows — no, skip
 	[113792] = CC_TYPE.FEAR,    -- Psychic Terror (Priest talent)
 
 	-- ---- Silences ----
-	[15487]  = CC_TYPE.SILENCE, -- Silence (Priest) — shares ID with Dominate Mind effect, treat as MC above
+	[15487]  = CC_TYPE.SILENCE, -- Silence (Priest)
 	[47476]  = CC_TYPE.SILENCE, -- Strangulate (Death Knight)
 	[81261]  = CC_TYPE.SILENCE, -- Solar Beam (Druid)
 	[196364] = CC_TYPE.SILENCE, -- Unstable Affliction silence component
@@ -85,20 +83,6 @@ local CC_SPELL_TYPES = {
 	[162480] = CC_TYPE.ROOT,    -- Steel Trap (Hunter)
 	[212638] = CC_TYPE.ROOT,    -- Tracker's Net (Hunter)
 }
-
--- ============================================================
--- Duration Formatting
--- ============================================================
-
-local function FormatDuration(seconds)
-	if(seconds >= 60) then
-		return string.format('%dm', math.ceil(seconds / 60))
-	elseif(seconds >= 1) then
-		return string.format('%d', math.ceil(seconds))
-	else
-		return string.format('%.1f', seconds)
-	end
-end
 
 -- ============================================================
 -- Update
@@ -152,7 +136,7 @@ local function Update(self, event, unit)
 		if(bestExpiry and bestExpiry > 0) then
 			local remaining = bestExpiry - GetTime()
 			if(remaining > 0) then
-				element.duration:SetText(FormatDuration(remaining))
+				element.duration:SetText(F.FormatDuration(remaining))
 				element.duration:Show()
 			else
 				element.duration:Hide()
@@ -181,7 +165,7 @@ local function OnUpdate(frame, elapsed)
 
 	local remaining = element._expiry - GetTime()
 	if(remaining > 0) then
-		element.duration:SetText(FormatDuration(remaining))
+		element.duration:SetText(F.FormatDuration(remaining))
 	else
 		element.duration:Hide()
 		element._expiry = nil
