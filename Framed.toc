@@ -34,3 +34,6 @@ Widgets/Dialog.lua
 Widgets/StatusBar.lua
 Widgets/SpellList.lua
 Widgets/AnchorPicker.lua
+
+# Elements — Status (custom oUF elements)
+Elements/Status/StatusText.lua
