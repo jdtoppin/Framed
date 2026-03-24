@@ -1,10 +1,11 @@
 local addonName, Framed = ...
-local oUF = Framed.oUF
-local C = Framed.Constants
-local Widgets = Framed.Widgets
+local F = Framed
+local oUF = F.oUF
+local C = F.Constants
+local Widgets = F.Widgets
 
-Framed.Elements = Framed.Elements or {}
-Framed.Elements.Absorbs = {}
+F.Elements = F.Elements or {}
+F.Elements.Absorbs = {}
 
 -- ============================================================
 -- Absorbs Element Setup
@@ -20,30 +21,30 @@ Framed.Elements.Absorbs = {}
 --- @param self Frame  The oUF unit frame
 --- @param healthBar StatusBar  The health bar created by Health.lua
 --- @param config? table  Optional config; defaults applied if nil
-function Framed.Elements.Absorbs.Setup(self, healthBar, config)
+function F.Elements.Absorbs.Setup(self, healthBar, config)
 
-    -- --------------------------------------------------------
-    -- Config defaults
-    -- --------------------------------------------------------
+	-- --------------------------------------------------------
+	-- Config defaults
+	-- --------------------------------------------------------
 
-    config = config or {}
-    config.color = config.color or { 1, 0.8, 0, 0.4 }  -- gold, semi-transparent
+	config = config or {}
+	config.color = config.color or { 1, 0.8, 0, 0.4 }  -- gold, semi-transparent
 
-    -- --------------------------------------------------------
-    -- HealthPrediction: update or create minimal structure
-    -- Health.lua owns full initialization when healPrediction is enabled.
-    -- Absorbs.lua only creates the minimal absorb-only structure when needed.
-    -- --------------------------------------------------------
+	-- --------------------------------------------------------
+	-- HealthPrediction: update or create minimal structure
+	-- Health.lua owns full initialization when healPrediction is enabled.
+	-- Absorbs.lua only creates the minimal absorb-only structure when needed.
+	-- --------------------------------------------------------
 
-    if not self.HealthPrediction then
-        local absorbBar = self:CreateTexture(nil, "OVERLAY")
-        absorbBar:SetTexture("Interface\\BUTTONS\\WHITE8x8")
-        self.HealthPrediction = {
-            absorbBar   = absorbBar,
-            maxOverflow = 1.05,
-        }
-    end
+	if(not self.HealthPrediction) then
+		local absorbBar = self:CreateTexture(nil, 'OVERLAY')
+		absorbBar:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+		self.HealthPrediction = {
+			absorbBar   = absorbBar,
+			maxOverflow = 1.05,
+		}
+	end
 
-    local absorbBar = self.HealthPrediction.absorbBar
-    absorbBar:SetVertexColor(unpack(config.color))
+	local absorbBar = self.HealthPrediction.absorbBar
+	absorbBar:SetVertexColor(unpack(config.color))
 end

@@ -1,10 +1,11 @@
 local addonName, Framed = ...
-local oUF = Framed.oUF
-local C = Framed.Constants
-local Widgets = Framed.Widgets
+local F = Framed
+local oUF = F.oUF
+local C = F.Constants
+local Widgets = F.Widgets
 
-Framed.Elements = Framed.Elements or {}
-Framed.Elements.Range = {}
+F.Elements = F.Elements or {}
+F.Elements.Range = {}
 
 -- ============================================================
 -- Range Element Setup
@@ -16,22 +17,22 @@ Framed.Elements.Range = {}
 --- Configure oUF's Range element on a unit frame.
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config; defaults applied if nil
-function Framed.Elements.Range.Setup(self, config)
+function F.Elements.Range.Setup(self, config)
 
-    -- --------------------------------------------------------
-    -- Config defaults
-    -- --------------------------------------------------------
+	-- --------------------------------------------------------
+	-- Config defaults
+	-- --------------------------------------------------------
 
-    config = config or {}
-    config.outsideAlpha = config.outsideAlpha or 0.4
+	config = config or {}
+	config.outsideAlpha = config.outsideAlpha or 0.4
 
-    -- --------------------------------------------------------
-    -- Assign to oUF — activates the Range element
-    -- oUF polls range and sets frame alpha accordingly.
-    -- --------------------------------------------------------
+	-- --------------------------------------------------------
+	-- Assign to oUF — activates the Range element
+	-- oUF polls range and sets frame alpha accordingly.
+	-- --------------------------------------------------------
 
-    self.Range = {
-        insideAlpha  = 1,
-        outsideAlpha = config.outsideAlpha,
-    }
+	self.Range = {
+		insideAlpha  = 1,
+		outsideAlpha = config.outsideAlpha,
+	}
 end
