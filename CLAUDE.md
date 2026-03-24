@@ -14,11 +14,11 @@ WoW unit frames and raid frames addon. GPL v3.
 
 ## Conventions
 
-- Namespace: `local addonName, Framed = ...` in every file
+- Namespace: `local addonName, Framed = ...` in every file, with `local F = Framed` shorthand
 - File size: ~500 lines max
 - Settings never reach into frame internals — use Config API + EventBus
 - No pcall for error suppression
-- Secret values: ALWAYS use Framed.IsValueNonSecret() — never bare issecretvalue()
+- Secret values: ALWAYS use F.IsValueNonSecret() — never bare issecretvalue()
 - One wrapper in Core/SecretValues.lua, used everywhere. Never create per-file wrappers or polyfills.
 - Follow Blizzard API naming for code/files, player terminology for UI labels
 

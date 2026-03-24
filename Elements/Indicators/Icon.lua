@@ -1,4 +1,5 @@
 local addonName, Framed = ...
+local F = Framed
 local C = Framed.Constants
 local Widgets = Framed.Widgets
 
@@ -99,8 +100,8 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 
     -- Duration text
     if self._config.showDuration and self.duration then
-        local durationSafe = Framed.IsValueNonSecret(duration)
-        local expirationSafe = Framed.IsValueNonSecret(expirationTime)
+        local durationSafe = F.IsValueNonSecret(duration)
+        local expirationSafe = F.IsValueNonSecret(expirationTime)
         if not durationSafe or not expirationSafe or duration == 0 then
             self.duration:SetText("")
             self._durationActive = false
@@ -136,8 +137,8 @@ end
 function IconMethods:SetCooldown(duration, expirationTime)
     if not self.cooldown then return end
 
-    local durationSafe = Framed.IsValueNonSecret(duration)
-    local expirationSafe = Framed.IsValueNonSecret(expirationTime)
+    local durationSafe = F.IsValueNonSecret(duration)
+    local expirationSafe = F.IsValueNonSecret(expirationTime)
 
     if not durationSafe or not expirationSafe then
         -- Secret values: use object-based API if available, otherwise skip
