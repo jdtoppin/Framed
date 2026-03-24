@@ -1,0 +1,20 @@
+## Interface: 120000
+## Title: Framed
+## Notes: Modern, customizable unit frames and raid frames
+## Author: jdtoppin
+## Version: 0.1.0-alpha
+## SavedVariables: FramedDB
+## SavedVariablesPerCharacter: FramedCharDB
+## License: GPL v3
+
+## X-Website: https://github.com/jdtoppin/Framed
+## X-Credits: oUF by oUF-wow contributors (MIT), UI inspired by AbstractFramework by enderneko (GPLv3)
+
+# Libraries
+Libs/oUF/oUF.xml
+
+# Core
+Init.lua
+Core/Constants.lua
+Core/EventBus.lua
+Core/Config.lua
