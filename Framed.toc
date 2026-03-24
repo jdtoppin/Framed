@@ -11,7 +11,9 @@
 ## X-Credits: oUF by oUF-wow contributors (MIT), UI inspired by AbstractFramework by enderneko (GPLv3)
 
 # Libraries
+Libs/LibStub/LibStub.lua
 Libs/oUF/oUF.xml
+Libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua
 
 # Core
 Init.lua
@@ -35,9 +37,34 @@ Widgets/StatusBar.lua
 Widgets/SpellList.lua
 Widgets/AnchorPicker.lua
 
-# Elements — Status (custom oUF elements)
+# Elements - Core
+Elements/Core/Health.lua
+Elements/Core/Power.lua
+Elements/Core/Castbar.lua
+Elements/Core/Portrait.lua
+Elements/Core/Name.lua
+Elements/Core/Absorbs.lua
+Elements/Core/Threat.lua
+Elements/Core/Range.lua
+
+# Elements - Status
+Elements/Status/RoleIcon.lua
+Elements/Status/LeaderIcon.lua
+Elements/Status/ReadyCheck.lua
+Elements/Status/RaidIcon.lua
+Elements/Status/CombatIcon.lua
 Elements/Status/StatusText.lua
 Elements/Status/TargetHighlight.lua
 Elements/Status/MouseoverHighlight.lua
 Elements/Status/LossOfControl.lua
 Elements/Status/CrowdControl.lua
+
+# Elements - Indicators
+Elements/Indicators/Icon.lua
+Elements/Indicators/Icons.lua
+Elements/Indicators/FrameBar.lua
+Elements/Indicators/Bar.lua
+Elements/Indicators/Border.lua
+Elements/Indicators/Color.lua
+Elements/Indicators/Overlay.lua
+Elements/Indicators/Glow.lua
