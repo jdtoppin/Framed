@@ -39,3 +39,5 @@ Widgets/AnchorPicker.lua
 Elements/Status/StatusText.lua
 Elements/Status/TargetHighlight.lua
 Elements/Status/MouseoverHighlight.lua
+Elements/Status/LossOfControl.lua
+Elements/Status/CrowdControl.lua
