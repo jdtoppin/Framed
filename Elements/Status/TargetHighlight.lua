@@ -1,29 +1,30 @@
 local addonName, Framed = ...
-local oUF = Framed.oUF
-local C = Framed.Constants
-local Widgets = Framed.Widgets
+local F = Framed
+local oUF = F.oUF
+local C = F.Constants
+local Widgets = F.Widgets
 
-Framed.Elements = Framed.Elements or {}
-Framed.Elements.TargetHighlight = {}
+F.Elements = F.Elements or {}
+F.Elements.TargetHighlight = {}
 
 -- ============================================================
 -- Update
 -- ============================================================
 
 local function Update(self, event, unit)
-    local element = self.FramedTargetHighlight
-    if not element then return end
+	local element = self.FramedTargetHighlight
+	if(not element) then return end
 
-    -- PLAYER_TARGET_CHANGED is a unitless event; always re-check against
-    -- this frame's unit.
-    local frameUnit = self.unit
-    if not frameUnit then return end
+	-- PLAYER_TARGET_CHANGED is a unitless event; always re-check against
+	-- this frame's unit.
+	local frameUnit = self.unit
+	if(not frameUnit) then return end
 
-    if UnitIsUnit(frameUnit, "target") then
-        element:Show()
-    else
-        element:Hide()
-    end
+	if(UnitIsUnit(frameUnit, 'target')) then
+		element:Show()
+	else
+		element:Hide()
+	end
 end
 
 -- ============================================================
@@ -31,7 +32,7 @@ end
 -- ============================================================
 
 local function ForceUpdate(element)
-    return Update(element.__owner, "ForceUpdate", element.__owner.unit)
+	return Update(element.__owner, 'ForceUpdate', element.__owner.unit)
 end
 
 -- ============================================================
@@ -39,31 +40,31 @@ end
 -- ============================================================
 
 local function Enable(self, unit)
-    local element = self.FramedTargetHighlight
-    if not element then return end
+	local element = self.FramedTargetHighlight
+	if(not element) then return end
 
-    element.__owner   = self
-    element.ForceUpdate = ForceUpdate
+	element.__owner   = self
+	element.ForceUpdate = ForceUpdate
 
-    -- PLAYER_TARGET_CHANGED is unitless (true)
-    self:RegisterEvent("PLAYER_TARGET_CHANGED", Update, true)
+	-- PLAYER_TARGET_CHANGED is unitless (true)
+	self:RegisterEvent('PLAYER_TARGET_CHANGED', Update, true)
 
-    return true
+	return true
 end
 
 local function Disable(self)
-    local element = self.FramedTargetHighlight
-    if not element then return end
+	local element = self.FramedTargetHighlight
+	if(not element) then return end
 
-    element:Hide()
-    self:UnregisterEvent("PLAYER_TARGET_CHANGED", Update)
+	element:Hide()
+	self:UnregisterEvent('PLAYER_TARGET_CHANGED', Update)
 end
 
 -- ============================================================
 -- Register with oUF
 -- ============================================================
 
-oUF:AddElement("FramedTargetHighlight", Update, Enable, Disable)
+oUF:AddElement('FramedTargetHighlight', Update, Enable, Disable)
 
 -- ============================================================
 -- Setup
@@ -74,25 +75,25 @@ oUF:AddElement("FramedTargetHighlight", Update, Enable, Disable)
 --- Assigns result to self.FramedTargetHighlight, activating the element.
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config: color, thickness
-function Framed.Elements.TargetHighlight.Setup(self, config)
-    config = config or {}
-    local color     = config.color     or C.Colors.accent
-    local thickness = config.thickness or 2
+function F.Elements.TargetHighlight.Setup(self, config)
+	config = config or {}
+	local color     = config.color     or C.Colors.accent
+	local thickness = config.thickness or 2
 
-    -- Container frame that sits above everything in the unit frame
-    local border = CreateFrame("Frame", nil, self, "BackdropTemplate")
-    border:SetAllPoints(self)
-    border:SetFrameLevel(self:GetFrameLevel() + 10)
+	-- Container frame that sits above everything in the unit frame
+	local border = CreateFrame('Frame', nil, self, 'BackdropTemplate')
+	border:SetAllPoints(self)
+	border:SetFrameLevel(self:GetFrameLevel() + 10)
 
-    -- Apply a backdrop: transparent background, accent-colored 2px edge
-    border:SetBackdrop({
-        bgFile   = nil,
-        edgeFile = "Interface\\BUTTONS\\WHITE8x8",
-        edgeSize = thickness,
-    })
-    border:SetBackdropColor(0, 0, 0, 0)
-    border:SetBackdropBorderColor(color[1], color[2], color[3], color[4] or 1)
-    border:Hide()
+	-- Apply a backdrop: transparent background, accent-colored 2px edge
+	border:SetBackdrop({
+		bgFile   = nil,
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = thickness,
+	})
+	border:SetBackdropColor(0, 0, 0, 0)
+	border:SetBackdropBorderColor(color[1], color[2], color[3], color[4] or 1)
+	border:Hide()
 
-    self.FramedTargetHighlight = border
+	self.FramedTargetHighlight = border
 end

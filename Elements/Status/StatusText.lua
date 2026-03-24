@@ -1,10 +1,11 @@
 local addonName, Framed = ...
-local oUF = Framed.oUF
-local C = Framed.Constants
-local Widgets = Framed.Widgets
+local F = Framed
+local oUF = F.oUF
+local C = F.Constants
+local Widgets = F.Widgets
 
-Framed.Elements = Framed.Elements or {}
-Framed.Elements.StatusText = {}
+F.Elements = F.Elements or {}
+F.Elements.StatusText = {}
 
 -- ============================================================
 -- Status color constants
@@ -28,48 +29,48 @@ local SUMMON_DECLINED = 3
 -- ============================================================
 
 local function Update(self, event, unit)
-    local element = self.FramedStatusText
-    if not element then return end
+	local element = self.FramedStatusText
+	if(not element) then return end
 
-    if unit ~= self.unit then return end
+	if(unit ~= self.unit) then return end
 
-    local text, color
+	local text, color
 
-    if UnitIsDeadOrGhost(unit) then
-        if UnitIsGhost(unit) then
-            text  = "GHOST"
-            color = COLOR_GHOST
-        else
-            text  = "DEAD"
-            color = COLOR_DEAD
-        end
-    elseif not UnitIsConnected(unit) then
-        text  = "OFFLINE"
-        color = COLOR_OFFLINE
-    elseif UnitIsAFK(unit) then
-        text  = "AFK"
-        color = COLOR_AFK
-    elseif C_IncomingSummon and C_IncomingSummon.IncomingSummonStatus then
-        local status = C_IncomingSummon.IncomingSummonStatus(unit)
-        if status == SUMMON_PENDING then
-            text  = "SUMMON"
-            color = C.Colors.accent
-        elseif status == SUMMON_ACCEPTED then
-            text  = "ACCEPTED"
-            color = COLOR_ACCEPTED
-        elseif status == SUMMON_DECLINED then
-            text  = "DECLINED"
-            color = COLOR_DECLINED
-        end
-    end
+	if(UnitIsDeadOrGhost(unit)) then
+		if(UnitIsGhost(unit)) then
+			text  = 'GHOST'
+			color = COLOR_GHOST
+		else
+			text  = 'DEAD'
+			color = COLOR_DEAD
+		end
+	elseif(not UnitIsConnected(unit)) then
+		text  = 'OFFLINE'
+		color = COLOR_OFFLINE
+	elseif(UnitIsAFK(unit)) then
+		text  = 'AFK'
+		color = COLOR_AFK
+	elseif(C_IncomingSummon and C_IncomingSummon.IncomingSummonStatus) then
+		local status = C_IncomingSummon.IncomingSummonStatus(unit)
+		if(status == SUMMON_PENDING) then
+			text  = 'SUMMON'
+			color = C.Colors.accent
+		elseif(status == SUMMON_ACCEPTED) then
+			text  = 'ACCEPTED'
+			color = COLOR_ACCEPTED
+		elseif(status == SUMMON_DECLINED) then
+			text  = 'DECLINED'
+			color = COLOR_DECLINED
+		end
+	end
 
-    if text then
-        element:SetText(text)
-        element:SetTextColor(color[1], color[2], color[3], 1)
-        element:Show()
-    else
-        element:Hide()
-    end
+	if(text) then
+		element:SetText(text)
+		element:SetTextColor(color[1], color[2], color[3], 1)
+		element:Show()
+	else
+		element:Hide()
+	end
 end
 
 -- ============================================================
@@ -77,7 +78,7 @@ end
 -- ============================================================
 
 local function ForceUpdate(element)
-    return Update(element.__owner, "ForceUpdate", element.__owner.unit)
+	return Update(element.__owner, 'ForceUpdate', element.__owner.unit)
 end
 
 -- ============================================================
@@ -85,37 +86,37 @@ end
 -- ============================================================
 
 local function Enable(self, unit)
-    local element = self.FramedStatusText
-    if not element then return end
+	local element = self.FramedStatusText
+	if(not element) then return end
 
-    element.__owner   = self
-    element.ForceUpdate = ForceUpdate
+	element.__owner   = self
+	element.ForceUpdate = ForceUpdate
 
-    self:RegisterEvent("UNIT_HEALTH",            Update)
-    self:RegisterEvent("UNIT_CONNECTION",         Update)
-    self:RegisterEvent("PLAYER_FLAGS_CHANGED",    Update)
-    self:RegisterEvent("INCOMING_SUMMON_CHANGED", Update, true)
+	self:RegisterEvent('UNIT_HEALTH',            Update)
+	self:RegisterEvent('UNIT_CONNECTION',         Update)
+	self:RegisterEvent('PLAYER_FLAGS_CHANGED',    Update)
+	self:RegisterEvent('INCOMING_SUMMON_CHANGED', Update, true)
 
-    return true
+	return true
 end
 
 local function Disable(self)
-    local element = self.FramedStatusText
-    if not element then return end
+	local element = self.FramedStatusText
+	if(not element) then return end
 
-    element:Hide()
+	element:Hide()
 
-    self:UnregisterEvent("UNIT_HEALTH",            Update)
-    self:UnregisterEvent("UNIT_CONNECTION",         Update)
-    self:UnregisterEvent("PLAYER_FLAGS_CHANGED",    Update)
-    self:UnregisterEvent("INCOMING_SUMMON_CHANGED", Update)
+	self:UnregisterEvent('UNIT_HEALTH',            Update)
+	self:UnregisterEvent('UNIT_CONNECTION',         Update)
+	self:UnregisterEvent('PLAYER_FLAGS_CHANGED',    Update)
+	self:UnregisterEvent('INCOMING_SUMMON_CHANGED', Update)
 end
 
 -- ============================================================
 -- Register with oUF
 -- ============================================================
 
-oUF:AddElement("FramedStatusText", Update, Enable, Disable)
+oUF:AddElement('FramedStatusText', Update, Enable, Disable)
 
 -- ============================================================
 -- Setup
@@ -125,19 +126,19 @@ oUF:AddElement("FramedStatusText", Update, Enable, Disable)
 --- Assigns result to self.FramedStatusText, activating the element.
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config: size, point
-function Framed.Elements.StatusText.Setup(self, config)
-    config = config or {}
-    config.size  = config.size  or C.Font.sizeSmall
-    config.point = config.point or { "CENTER", self, "CENTER", 0, 0 }
+function F.Elements.StatusText.Setup(self, config)
+	config = config or {}
+	config.size  = config.size  or C.Font.sizeSmall
+	config.point = config.point or { 'CENTER', self, 'CENTER', 0, 0 }
 
-    -- FontString sits in the OVERLAY layer so it renders above bars/textures
-    local fs = Widgets.CreateFontString(self, config.size, C.Colors.textActive)
-    fs:SetFont(STANDARD_TEXT_FONT, config.size, "OUTLINE")
+	-- FontString sits in the OVERLAY layer so it renders above bars/textures
+	local fs = Widgets.CreateFontString(self, config.size, C.Colors.textActive)
+	fs:SetFont(STANDARD_TEXT_FONT, config.size, 'OUTLINE')
 
-    local p = config.point
-    fs:SetPoint(p[1], p[2], p[3], p[4] or 0, p[5] or 0)
-    fs:SetJustifyH("CENTER")
-    fs:Hide()
+	local p = config.point
+	fs:SetPoint(p[1], p[2], p[3], p[4] or 0, p[5] or 0)
+	fs:SetJustifyH('CENTER')
+	fs:Hide()
 
-    self.FramedStatusText = fs
+	self.FramedStatusText = fs
 end

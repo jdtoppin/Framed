@@ -1,10 +1,11 @@
 local addonName, Framed = ...
-local oUF = Framed.oUF
-local C = Framed.Constants
-local Widgets = Framed.Widgets
+local F = Framed
+local oUF = F.oUF
+local C = F.Constants
+local Widgets = F.Widgets
 
-Framed.Elements = Framed.Elements or {}
-Framed.Elements.ReadyCheck = {}
+F.Elements = F.Elements or {}
+F.Elements.ReadyCheck = {}
 
 -- ============================================================
 -- ReadyCheck Element Setup
@@ -15,29 +16,29 @@ Framed.Elements.ReadyCheck = {}
 --- the check completes.
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config table; defaults applied if nil
-function Framed.Elements.ReadyCheck.Setup(self, config)
+function F.Elements.ReadyCheck.Setup(self, config)
 
-    -- --------------------------------------------------------
-    -- Config defaults
-    -- --------------------------------------------------------
+	-- --------------------------------------------------------
+	-- Config defaults
+	-- --------------------------------------------------------
 
-    config = config or {}
-    config.size  = config.size  or 16
-    config.point = config.point or { "CENTER", self, "CENTER", 0, 0 }
+	config = config or {}
+	config.size  = config.size  or 16
+	config.point = config.point or { 'CENTER', self, 'CENTER', 0, 0 }
 
-    -- --------------------------------------------------------
-    -- Icon texture
-    -- --------------------------------------------------------
+	-- --------------------------------------------------------
+	-- Icon texture
+	-- --------------------------------------------------------
 
-    local icon = self:CreateTexture(nil, "OVERLAY")
-    Widgets.SetSize(icon, config.size, config.size)
+	local icon = self:CreateTexture(nil, 'OVERLAY')
+	Widgets.SetSize(icon, config.size, config.size)
 
-    local p = config.point
-    Widgets.SetPoint(icon, p[1], p[2], p[3], p[4], p[5])
+	local p = config.point
+	Widgets.SetPoint(icon, p[1], p[2], p[3], p[4], p[5])
 
-    -- --------------------------------------------------------
-    -- Assign to oUF — activates the ReadyCheckIndicator element
-    -- --------------------------------------------------------
+	-- --------------------------------------------------------
+	-- Assign to oUF — activates the ReadyCheckIndicator element
+	-- --------------------------------------------------------
 
-    self.ReadyCheckIndicator = icon
+	self.ReadyCheckIndicator = icon
 end
