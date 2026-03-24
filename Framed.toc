@@ -18,3 +18,19 @@ Init.lua
 Core/Constants.lua
 Core/EventBus.lua
 Core/Config.lua
+
+# Widgets
+Widgets/Base.lua
+Widgets/Frame.lua
+Widgets/Button.lua
+Widgets/Tooltip.lua
+Widgets/Slider.lua
+Widgets/Switch.lua
+Widgets/Dropdown.lua
+Widgets/EditBox.lua
+Widgets/ScrollFrame.lua
+Widgets/ColorPicker.lua
+Widgets/Dialog.lua
+Widgets/StatusBar.lua
+Widgets/SpellList.lua
+Widgets/AnchorPicker.lua
