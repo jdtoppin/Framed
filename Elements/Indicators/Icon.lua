@@ -99,9 +99,9 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 
     -- Duration text
     if self._config.showDuration and self.duration then
-        local durationSecret = duration and issecretvalue and issecretvalue(duration)
-        local expirationSecret = expirationTime and issecretvalue and issecretvalue(expirationTime)
-        if durationSecret or expirationSecret or not duration or not expirationTime or duration == 0 then
+        local durationSafe = Framed.IsValueNonSecret(duration)
+        local expirationSafe = Framed.IsValueNonSecret(expirationTime)
+        if not durationSafe or not expirationSafe or duration == 0 then
             self.duration:SetText("")
             self._durationActive = false
             self._frame:SetScript("OnUpdate", nil)
@@ -136,10 +136,10 @@ end
 function IconMethods:SetCooldown(duration, expirationTime)
     if not self.cooldown then return end
 
-    local durationSecret = duration and issecretvalue and issecretvalue(duration)
-    local expirationSecret = expirationTime and issecretvalue and issecretvalue(expirationTime)
+    local durationSafe = Framed.IsValueNonSecret(duration)
+    local expirationSafe = Framed.IsValueNonSecret(expirationTime)
 
-    if durationSecret or expirationSecret then
+    if not durationSafe or not expirationSafe then
         -- Secret values: use object-based API if available, otherwise skip
         if self.cooldown.SetCooldownFromDurationObject then
             -- Would need a duration object — skip if we don't have one

@@ -70,10 +70,10 @@ local function Update(self, event, unit)
         if not auraData then break end
 
         local spellId = auraData.spellId
-        if spellId and not issecretvalue(spellId) and CC_SPELLS[spellId] then
+        if Framed.IsValueNonSecret(spellId) and CC_SPELLS[spellId] then
             -- Check that this debuff was applied by the player
             local sourceUnit = auraData.sourceUnit
-            if sourceUnit and not issecretvalue(sourceUnit) and UnitIsUnit(sourceUnit, "player") then
+            if Framed.IsValueNonSecret(sourceUnit) and UnitIsUnit(sourceUnit, "player") then
                 -- Take the first matching CC (or highest-expiry one)
                 if foundIcon == nil then
                     foundIcon   = auraData.icon

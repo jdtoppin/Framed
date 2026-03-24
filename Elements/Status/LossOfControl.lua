@@ -121,7 +121,7 @@ local function Update(self, event, unit)
 
         -- Guard against secret/restricted values on 12.0+
         local spellId = auraData.spellId
-        if spellId and not issecretvalue(spellId) then
+        if Framed.IsValueNonSecret(spellId) then
             local ccType = CC_SPELL_TYPES[spellId]
             if ccType then
                 -- Lower CC_TYPE value = higher priority
