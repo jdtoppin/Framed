@@ -14,14 +14,34 @@ _G['Framed'] = Framed
 local eventFrame = CreateFrame('Frame')
 eventFrame:RegisterEvent('ADDON_LOADED')
 eventFrame:RegisterEvent('PLAYER_LOGIN')
+eventFrame:RegisterEvent('ACTIVE_TALENT_GROUP_CHANGED')
 
 eventFrame:SetScript('OnEvent', function(self, event, arg1)
 	if(event == 'ADDON_LOADED' and arg1 == addonName) then
 		F.Config:Initialize()
 		self:UnregisterEvent('ADDON_LOADED')
 	elseif(event == 'PLAYER_LOGIN') then
+		-- Spawn all unit frames
+		F.Units.Player.Spawn()
+		F.Units.Target.Spawn()
+		F.Units.TargetTarget.Spawn()
+		F.Units.Focus.Spawn()
+		F.Units.Pet.Spawn()
+		F.Units.Party.Spawn()
+		F.Units.Raid.Spawn()
+		F.Units.Boss.Spawn()
+		F.Units.Arena.Spawn()
+
+		-- Disable Blizzard's default frames
+		F.DisableBlizzardFrames()
+
+		-- Apply click-cast bindings
+		F.ClickCasting.RefreshAll()
+
 		F.EventBus:Fire('PLAYER_LOGIN')
 		self:UnregisterEvent('PLAYER_LOGIN')
+	elseif(event == 'ACTIVE_TALENT_GROUP_CHANGED') then
+		F.ClickCasting.RefreshAll()
 	end
 end)
 
