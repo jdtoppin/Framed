@@ -1,9 +1,10 @@
 local addonName, Framed = ...
-local C = Framed.Constants
-local Widgets = Framed.Widgets
+local F = Framed
+local C = F.Constants
+local Widgets = F.Widgets
 
-Framed.Indicators = Framed.Indicators or {}
-Framed.Indicators.Border = {}
+F.Indicators = F.Indicators or {}
+F.Indicators.Border = {}
 
 -- ============================================================
 -- Border methods
@@ -19,69 +20,69 @@ local BorderMethods = {}
 --- @param b number
 --- @param a? number
 function BorderMethods:SetColor(r, g, b, a)
-    a = a or 1
-    self._top:SetColorTexture(r, g, b, a)
-    self._bottom:SetColorTexture(r, g, b, a)
-    self._left:SetColorTexture(r, g, b, a)
-    self._right:SetColorTexture(r, g, b, a)
-    self._top:Show()
-    self._bottom:Show()
-    self._left:Show()
-    self._right:Show()
+	a = a or 1
+	self._top:SetColorTexture(r, g, b, a)
+	self._bottom:SetColorTexture(r, g, b, a)
+	self._left:SetColorTexture(r, g, b, a)
+	self._right:SetColorTexture(r, g, b, a)
+	self._top:Show()
+	self._bottom:Show()
+	self._left:Show()
+	self._right:Show()
 end
 
 --- Set border thickness in pixels and re-anchor edges.
 --- @param px number Thickness (default 2)
 function BorderMethods:SetThickness(px)
-    px = px or 2
-    self._thickness = px
+	px = px or 2
+	self._thickness = px
 
-    local top    = self._top
-    local bottom = self._bottom
-    local left   = self._left
-    local right  = self._right
-    local parent = self._parent
+	local top    = self._top
+	local bottom = self._bottom
+	local left   = self._left
+	local right  = self._right
+	local parent = self._parent
 
-    -- Top edge: full width, `px` pixels tall, anchored to top
-    top:SetPoint("TOPLEFT",  parent, "TOPLEFT",  0,   0)
-    top:SetPoint("TOPRIGHT", parent, "TOPRIGHT",  0,   0)
-    top:SetHeight(px)
+	-- Top edge: full width, `px` pixels tall, anchored to top
+	top:SetPoint('TOPLEFT',  parent, 'TOPLEFT',  0,   0)
+	top:SetPoint('TOPRIGHT', parent, 'TOPRIGHT',  0,   0)
+	top:SetHeight(px)
 
-    -- Bottom edge: full width, `px` pixels tall, anchored to bottom
-    bottom:SetPoint("BOTTOMLEFT",  parent, "BOTTOMLEFT",  0, 0)
-    bottom:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0, 0)
-    bottom:SetHeight(px)
+	-- Bottom edge: full width, `px` pixels tall, anchored to bottom
+	bottom:SetPoint('BOTTOMLEFT',  parent, 'BOTTOMLEFT',  0, 0)
+	bottom:SetPoint('BOTTOMRIGHT', parent, 'BOTTOMRIGHT', 0, 0)
+	bottom:SetHeight(px)
 
-    -- Left edge: inset between top/bottom edges, `px` pixels wide
-    left:SetPoint("TOPLEFT",    parent, "TOPLEFT",    0, -px)
-    left:SetPoint("BOTTOMLEFT", parent, "BOTTOMLEFT", 0,  px)
-    left:SetWidth(px)
+	-- Left edge: inset between top/bottom edges, `px` pixels wide
+	left:SetPoint('TOPLEFT',    parent, 'TOPLEFT',    0, -px)
+	left:SetPoint('BOTTOMLEFT', parent, 'BOTTOMLEFT', 0,  px)
+	left:SetWidth(px)
 
-    -- Right edge: inset between top/bottom edges, `px` pixels wide
-    right:SetPoint("TOPRIGHT",    parent, "TOPRIGHT",    0, -px)
-    right:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", 0,  px)
-    right:SetWidth(px)
+	-- Right edge: inset between top/bottom edges, `px` pixels wide
+	right:SetPoint('TOPRIGHT',    parent, 'TOPRIGHT',    0, -px)
+	right:SetPoint('BOTTOMRIGHT', parent, 'BOTTOMRIGHT', 0,  px)
+	right:SetWidth(px)
 end
 
 --- Hide all edges and reset color state.
 function BorderMethods:Clear()
-    self._top:Hide()
-    self._bottom:Hide()
-    self._left:Hide()
-    self._right:Hide()
+	self._top:Hide()
+	self._bottom:Hide()
+	self._left:Hide()
+	self._right:Hide()
 end
 
 --- Show all edges (restores visibility without changing color).
 function BorderMethods:Show()
-    self._top:Show()
-    self._bottom:Show()
-    self._left:Show()
-    self._right:Show()
+	self._top:Show()
+	self._bottom:Show()
+	self._left:Show()
+	self._right:Show()
 end
 
 --- Hide all edges (alias for Clear without the reset semantics).
 function BorderMethods:Hide()
-    self:Clear()
+	self:Clear()
 end
 
 -- ============================================================
@@ -92,36 +93,36 @@ end
 --- All edges are hidden by default; call SetColor to show them.
 --- @param parent Frame The frame to border
 --- @return table border
-function Framed.Indicators.Border.Create(parent)
-    local level = parent:GetFrameLevel() + 3
+function F.Indicators.Border.Create(parent)
+	local level = parent:GetFrameLevel() + 3
 
-    local function MakeEdge()
-        local t = parent:CreateTexture(nil, "OVERLAY")
-        t:SetColorTexture(1, 1, 1, 1)  -- default white; overridden by SetColor
-        t:Hide()
-        return t
-    end
+	local function MakeEdge()
+		local t = parent:CreateTexture(nil, 'OVERLAY')
+		t:SetColorTexture(1, 1, 1, 1)  -- default white; overridden by SetColor
+		t:Hide()
+		return t
+	end
 
-    local top    = MakeEdge()
-    local bottom = MakeEdge()
-    local left   = MakeEdge()
-    local right  = MakeEdge()
+	local top    = MakeEdge()
+	local bottom = MakeEdge()
+	local left   = MakeEdge()
+	local right  = MakeEdge()
 
-    local border = {
-        _parent    = parent,
-        _top       = top,
-        _bottom    = bottom,
-        _left      = left,
-        _right     = right,
-        _thickness = 2,
-    }
+	local border = {
+		_parent    = parent,
+		_top       = top,
+		_bottom    = bottom,
+		_left      = left,
+		_right     = right,
+		_thickness = 2,
+	}
 
-    for k, v in pairs(BorderMethods) do
-        border[k] = v
-    end
+	for k, v in next, BorderMethods do
+		border[k] = v
+	end
 
-    -- Apply default 2px thickness anchoring
-    border:SetThickness(2)
+	-- Apply default 2px thickness anchoring
+	border:SetThickness(2)
 
-    return border
+	return border
 end
