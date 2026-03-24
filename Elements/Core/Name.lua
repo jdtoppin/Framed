@@ -1,0 +1,137 @@
+local addonName, Framed = ...
+local oUF = Framed.oUF
+local C = Framed.Constants
+local Widgets = Framed.Widgets
+
+Framed.Elements = Framed.Elements or {}
+Framed.Elements.Name = {}
+
+-- ============================================================
+-- Name Truncation Helper
+-- ============================================================
+
+--- Truncate a string to maxLen characters, appending "..." if cut.
+--- @param str string
+--- @param maxLen number
+--- @return string
+local function Truncate(str, maxLen)
+    if not str then return "" end
+    if #str <= maxLen then return str end
+    return str:sub(1, maxLen) .. "..."
+end
+
+-- ============================================================
+-- Name Element Setup
+-- ============================================================
+
+--- Set up a name text element on a unit frame using oUF tags.
+--- @param self Frame  The oUF unit frame
+--- @param config? table  Optional config table; defaults applied if nil
+function Framed.Elements.Name.Setup(self, config)
+
+    -- --------------------------------------------------------
+    -- Config defaults
+    -- --------------------------------------------------------
+
+    config = config or {}
+    config.colorMode   = config.colorMode or "class"       -- "class", "white", "custom"
+    config.customColor = config.customColor or {1, 1, 1}
+    config.truncate    = config.truncate or 12
+    config.fontSize    = config.fontSize or C.Font.sizeNormal
+    config.anchor      = config.anchor or {"CENTER", self, "CENTER", 0, 0}
+
+    -- --------------------------------------------------------
+    -- Font string
+    -- --------------------------------------------------------
+
+    local nameText = Widgets.CreateFontString(self, config.fontSize, C.Colors.textActive)
+
+    -- --------------------------------------------------------
+    -- Positioning via anchor config
+    -- anchor = {point, relativeTo, relativePoint, x, y}
+    -- --------------------------------------------------------
+
+    local anchor = config.anchor
+    Widgets.SetPoint(nameText, anchor[1], anchor[2], anchor[3], anchor[4] or 0, anchor[5] or 0)
+
+    -- --------------------------------------------------------
+    -- Apply initial color for non-class modes
+    -- (class color is applied in PostUpdate after unit is known)
+    -- --------------------------------------------------------
+
+    if config.colorMode == "white" then
+        local tc = C.Colors.textActive
+        nameText:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+    elseif config.colorMode == "custom" then
+        local cc = config.customColor
+        nameText:SetTextColor(cc[1], cc[2], cc[3], cc[4] or 1)
+    end
+
+    -- --------------------------------------------------------
+    -- oUF tag: [name] auto-updates nameText on unit change.
+    -- --------------------------------------------------------
+
+    self:Tag(nameText, "[name]")
+
+    -- --------------------------------------------------------
+    -- PostUpdate: apply class color and truncation.
+    -- oUF calls this whenever the unit's info refreshes.
+    -- --------------------------------------------------------
+
+    -- Store config on nameText so the closure captures it cleanly
+    nameText._config = config
+
+    -- Register a post-update hook on the frame's OnAttributeChanged
+    -- to recolor and truncate whenever the unit changes.
+    -- We also hook UpdateAllElements via oUF's PostUpdateElement if available.
+
+    local function ApplyNameUpdate(unit)
+        if not unit then return end
+
+        -- Truncate the displayed text
+        local raw = nameText:GetText() or ""
+        local truncated = Truncate(raw, config.truncate)
+        nameText:SetText(truncated)
+
+        -- Class coloring
+        if config.colorMode == "class" then
+            local _, class = UnitClass(unit)
+            if class then
+                local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+                if classColor then
+                    nameText:SetTextColor(classColor.r, classColor.g, classColor.b, 1)
+                else
+                    -- Fallback: white if class color unavailable
+                    local tc = C.Colors.textActive
+                    nameText:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+                end
+            end
+        end
+    end
+
+    -- Hook into the frame's OnAttributeChanged to catch unit changes
+    self:HookScript("OnAttributeChanged", function(frame, name, value)
+        if name == "unit" and value then
+            ApplyNameUpdate(value)
+        end
+    end)
+
+    -- Also hook oUF's PostUpdate cycle through a custom element callback.
+    -- oUF fires PostUpdateElement for custom registered tags; we attach
+    -- our refresh to the frame's existing UpdateAllElements path.
+    if self.PostUpdateElement then
+        hooksecurefunc(self, "PostUpdateElement", function(frame, element)
+            if element == nameText then
+                local unit = frame:GetAttribute("unit")
+                ApplyNameUpdate(unit)
+            end
+        end)
+    end
+
+    -- --------------------------------------------------------
+    -- Store reference — not a standard oUF element name;
+    -- name display is driven by oUF tags rather than an element.
+    -- --------------------------------------------------------
+
+    self.Name = nameText
+end
