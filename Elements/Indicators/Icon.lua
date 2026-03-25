@@ -6,18 +6,8 @@ local Widgets = F.Widgets
 F.Indicators = F.Indicators or {}
 F.Indicators.Icon = {}
 
--- ============================================================
--- Debuff type colors for ColoredSquare display mode
--- ============================================================
-
-local DEBUFF_TYPE_COLORS = {
-	Magic    = { 0.2, 0.6, 1   },
-	Curse    = { 0.6, 0,   1   },
-	Disease  = { 0.6, 0.4, 0   },
-	Poison   = { 0,   0.6, 0.1 },
-	Physical = { 0.8, 0,   0   },
-	none     = { 0.8, 0,   0   },
-}
+-- Wrap C.Colors.dispel with a 'none' fallback without mutating the shared constant table
+local DEBUFF_TYPE_COLORS = setmetatable({ none = C.Colors.dispel.Physical }, { __index = C.Colors.dispel })
 
 -- ============================================================
 -- Duration OnUpdate handler
