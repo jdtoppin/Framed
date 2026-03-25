@@ -145,3 +145,7 @@ Settings/Panels/About.lua
 
 # Import / Export
 ImportExport/ImportExport.lua
+
+# Onboarding
+Onboarding/Wizard.lua
+Onboarding/Tour.lua

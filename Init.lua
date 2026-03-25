@@ -45,6 +45,14 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		F.AutoSwitch.Check()
 
 		F.EventBus:Fire('PLAYER_LOGIN')
+
+		-- First-run wizard
+		if(not F.Config:Get('general.wizardCompleted')) then
+			C_Timer.After(1, function()
+				F.Onboarding.ShowWizard()
+			end)
+		end
+
 		self:UnregisterEvent('PLAYER_LOGIN')
 	elseif(event == 'ACTIVE_TALENT_GROUP_CHANGED') then
 		F.ClickCasting.RefreshAll()
