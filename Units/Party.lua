@@ -25,7 +25,6 @@ function F.Units.Party.Spawn()
 	local header = oUF:SpawnHeader(
 		'FramedPartyHeader',
 		nil,
-		'party',
 		'showParty', true,
 		'showPlayer', true,
 		'showSolo', false,
@@ -36,6 +35,8 @@ function F.Units.Party.Spawn()
 		'sortMethod', 'INDEX'
 	)
 
+	-- Set visibility separately via the header mixin
+	header:SetVisibility('party')
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', 20, -200)
 
 	F.Units.Party.header = header
