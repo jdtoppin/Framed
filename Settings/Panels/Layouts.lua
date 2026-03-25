@@ -135,7 +135,7 @@ F.Settings.RegisterPanel({
 		-- "New Layout" button at the top of the section
 		local newBtn = Widgets.CreateButton(content, 'New Layout', 'accent', 120, BUTTON_H)
 		newBtn:ClearAllPoints()
-		Widgets.SetPoint(newBtn, 'TOPLEFT', layoutsPane, 'TOPLEFT', 0, yOffset)
+		Widgets.SetPoint(newBtn, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - BUTTON_H - C.Spacing.normal
 
 		-- Scrollable area for the layout list
@@ -275,13 +275,13 @@ F.Settings.RegisterPanel({
 			-- Row label
 			local rowLabel = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textNormal)
 			rowLabel:ClearAllPoints()
-			Widgets.SetPoint(rowLabel, 'TOPLEFT', autoPane, 'TOPLEFT', 0, yOffset)
+			Widgets.SetPoint(rowLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 			rowLabel:SetText(ct.label)
 
 			-- Assignment dropdown
 			local dd = Widgets.CreateDropdown(content, WIDGET_W)
 			dd:ClearAllPoints()
-			Widgets.SetPoint(dd, 'TOPLEFT', autoPane, 'TOPLEFT', 120, yOffset)
+			Widgets.SetPoint(dd, 'TOPLEFT', content, 'TOPLEFT', 120, yOffset)
 			dd:SetItems(getLayoutItems())
 
 			local currentAssignment = getAutoSwitch(ct.id)
@@ -304,7 +304,7 @@ F.Settings.RegisterPanel({
 				for specName, layoutName in next, overrides[specKey] do
 					local specRow = CreateFrame('Frame', nil, content)
 					specRow:ClearAllPoints()
-					Widgets.SetPoint(specRow, 'TOPLEFT', autoPane, 'TOPLEFT', C.Spacing.loose, yOffset)
+					Widgets.SetPoint(specRow, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.loose, yOffset)
 					specRow:SetHeight(DROPDOWN_H)
 
 					local specLabel = Widgets.CreateFontString(specRow, C.Font.sizeSmall, C.Colors.textSecondary)
@@ -340,7 +340,7 @@ F.Settings.RegisterPanel({
 			-- "Add spec override" link
 			local addSpecBtn = Widgets.CreateButton(content, '+ Add spec override', 'widget', 140, DROPDOWN_H - 4)
 			addSpecBtn:ClearAllPoints()
-			Widgets.SetPoint(addSpecBtn, 'TOPLEFT', autoPane, 'TOPLEFT', C.Spacing.loose, yOffset)
+			Widgets.SetPoint(addSpecBtn, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.loose, yOffset)
 			local capturedCTAdd = ct.id
 			addSpecBtn:SetOnClick(function()
 				-- Placeholder: in Phase 8 this opens a spec picker dropdown

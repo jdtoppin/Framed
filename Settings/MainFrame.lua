@@ -138,6 +138,11 @@ function Settings.CreateMainFrame()
 			if(F.Config) then
 				F.Config:Set('general.settingsSize', { w, h })
 			end
+			-- Update stored dimensions (anchors handle actual sizing)
+			if(Settings._contentParent) then
+				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - PREVIEW_W
+				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H
+			end
 		end)
 
 	-- ── ESC closes the window ─────────────────────────────────
@@ -204,23 +209,18 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(contentArea, 'TOPLEFT',     subHeader, 'BOTTOMLEFT',  0,  0)
 	Widgets.SetPoint(contentArea, 'BOTTOMRIGHT', frame,     'BOTTOMRIGHT', 0,  0)
 
-	-- Panel scroll container (fills content area minus preview strip)
-	local panelScroll = Widgets.CreateScrollFrame(
-		contentArea,
-		nil,
-		WINDOW_W - SIDEBAR_W - PREVIEW_W,
-		WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H)
-	panelScroll:ClearAllPoints()
-	Widgets.SetPoint(panelScroll, 'TOPLEFT',     contentArea, 'TOPLEFT',     0, 0)
-	Widgets.SetPoint(panelScroll, 'BOTTOMLEFT',  contentArea, 'BOTTOMLEFT',  0, 0)
+	-- Panel container (plain Frame — each panel manages its own scrolling)
+	-- Uses full anchor-based sizing (TOPLEFT + BOTTOMRIGHT) so child
+	-- SetAllPoints resolves correctly in the layout engine.
+	local panelContainer = CreateFrame('Frame', nil, contentArea)
+	panelContainer:ClearAllPoints()
+	Widgets.SetPoint(panelContainer, 'TOPLEFT',     contentArea, 'TOPLEFT',     0, 0)
+	Widgets.SetPoint(panelContainer, 'BOTTOMRIGHT', contentArea, 'BOTTOMRIGHT', -PREVIEW_W, 0)
 
-	Settings._contentParent = panelScroll:GetContentFrame()
-	local contentW = WINDOW_W - SIDEBAR_W - PREVIEW_W
-	local contentH = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H
-	Settings._contentParent:SetWidth(contentW)
-	Settings._contentParent:SetHeight(contentH)
-	Settings._contentParent._explicitWidth = contentW
-	Settings._contentParent._explicitHeight = contentH
+	Settings._contentParent = panelContainer
+	-- Store explicit dimensions for panels to read during create()
+	Settings._contentParent._explicitWidth  = WINDOW_W - SIDEBAR_W - PREVIEW_W
+	Settings._contentParent._explicitHeight = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H
 
 	-- ── Preview area (right strip) ────────────────────────────
 	local preview = Widgets.CreateBorderedFrame(contentArea, PREVIEW_W, WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H, C.Colors.background, C.Colors.border)
@@ -249,6 +249,11 @@ function Settings.CreateMainFrame()
 		local sz = F.Config:Get('general.settingsSize')
 		if(sz) then
 			frame:SetSize(sz[1], sz[2])
+			-- Update stored dimensions (anchors handle actual sizing)
+			if(Settings._contentParent) then
+				Settings._contentParent._explicitWidth  = sz[1] - SIDEBAR_W - PREVIEW_W
+				Settings._contentParent._explicitHeight = sz[2] - HEADER_HEIGHT - SUB_HEADER_H
+			end
 		end
 	end
 

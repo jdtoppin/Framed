@@ -36,9 +36,9 @@ local function createSection(content, title, width, yOffset)
 	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
 end
 
-local function placeWidget(widget, pane, yOffset, height)
+local function placeWidget(widget, content, yOffset, height)
 	widget:ClearAllPoints()
-	Widgets.SetPoint(widget, 'TOPLEFT', pane, 'TOPLEFT', 0, yOffset)
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	return yOffset - height - C.Spacing.normal
 end
 
@@ -89,7 +89,7 @@ F.Settings.RegisterPanel({
 			local check = Widgets.CreateCheckButton(content, cc.label, function(checked)
 				setLoC('types.' .. cc.id, checked)
 			end)
-			yOffset = placeWidget(check, typePane, yOffset, CHECK_H)
+			yOffset = placeWidget(check, content, yOffset, CHECK_H)
 
 			local savedEnabled = getLoC('types.' .. cc.id)
 			if(savedEnabled ~= nil) then
@@ -105,7 +105,7 @@ F.Settings.RegisterPanel({
 
 		-- Overlay alpha
 		local alphaSlider = Widgets.CreateSlider(content, 'Overlay Alpha', WIDGET_W, 0.0, 1.0, 0.05)
-		yOffset = placeWidget(alphaSlider, visPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(alphaSlider, content, yOffset, SLIDER_H)
 		local savedAlpha = getLoC('overlayAlpha')
 		alphaSlider:SetValue(savedAlpha or 0.6)
 		alphaSlider:SetAfterValueChanged(function(value)
@@ -114,7 +114,7 @@ F.Settings.RegisterPanel({
 
 		-- Icon size
 		local sizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 12, 64, 1)
-		yOffset = placeWidget(sizeSlider, visPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(sizeSlider, content, yOffset, SLIDER_H)
 		local savedSize = getLoC('iconSize')
 		sizeSlider:SetValue(savedSize or 32)
 		sizeSlider:SetAfterValueChanged(function(value)

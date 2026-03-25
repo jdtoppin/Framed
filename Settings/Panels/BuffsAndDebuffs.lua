@@ -28,16 +28,16 @@ local function createSection(content, title, width, yOffset)
 	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
 end
 
-local function placeWidget(widget, pane, yOffset, height)
+local function placeWidget(widget, content, yOffset, height)
 	widget:ClearAllPoints()
-	Widgets.SetPoint(widget, 'TOPLEFT', pane, 'TOPLEFT', 0, yOffset)
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	return yOffset - height - C.Spacing.normal
 end
 
-local function rowLabel(content, text, pane, yOffset)
+local function rowLabel(content, text, yOffset)
 	local lbl = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textNormal)
 	lbl:ClearAllPoints()
-	Widgets.SetPoint(lbl, 'TOPLEFT', pane, 'TOPLEFT', 0, yOffset)
+	Widgets.SetPoint(lbl, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	lbl:SetText(text)
 	return lbl
 end
@@ -92,7 +92,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Encounter Only', value = C.DebuffFilterMode and C.DebuffFilterMode.ENCOUNTER_ONLY or 'EncounterOnly' },
 			{ text = 'Raid',           value = C.DebuffFilterMode and C.DebuffFilterMode.RAID           or 'Raid' },
 		})
-		yOffset = placeWidget(filterSwitch, rdPane, yOffset, SWITCH_H)
+		yOffset = placeWidget(filterSwitch, content, yOffset, SWITCH_H)
 		local savedFilter = getAura('raidDebuffs.filterMode')
 		if(savedFilter) then filterSwitch:SetValue(savedFilter) end
 		filterSwitch:SetOnSelect(function(value)
@@ -100,7 +100,7 @@ F.Settings.RegisterPanel({
 		end)
 
 		-- Min priority dropdown
-		rowLabel(content, 'Min Priority', rdPane, yOffset - DROPDOWN_H / 2 + C.Spacing.base)
+		rowLabel(content, 'Min Priority', yOffset - DROPDOWN_H / 2 + C.Spacing.base)
 		local priorityDD = Widgets.CreateDropdown(content, WIDGET_W)
 		priorityDD:SetItems({
 			{ text = 'Trivial',   value = C.DebuffPriority and C.DebuffPriority.TRIVIAL   or 1 },
@@ -110,7 +110,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Critical',  value = C.DebuffPriority and C.DebuffPriority.CRITICAL  or 5 },
 			{ text = 'Survival',  value = C.DebuffPriority and C.DebuffPriority.SURVIVAL  or 6 },
 		})
-		yOffset = placeWidget(priorityDD, rdPane, yOffset, DROPDOWN_H)
+		yOffset = placeWidget(priorityDD, content, yOffset, DROPDOWN_H)
 		local savedPriority = getAura('raidDebuffs.minPriority')
 		if(savedPriority) then priorityDD:SetValue(savedPriority) end
 		priorityDD:SetOnSelect(function(value)
@@ -119,7 +119,7 @@ F.Settings.RegisterPanel({
 
 		-- Custom spell additions
 		local rdSpellList = Widgets.CreateSpellList(content, width, SPELL_LIST_H)
-		yOffset = placeWidget(rdSpellList, rdPane, yOffset, SPELL_LIST_H)
+		yOffset = placeWidget(rdSpellList, content, yOffset, SPELL_LIST_H)
 		local savedRDSpells = getAura('raidDebuffs.custom')
 		if(savedRDSpells) then rdSpellList:SetSpells(savedRDSpells) end
 		rdSpellList:SetOnChanged(function(spells)
@@ -128,7 +128,7 @@ F.Settings.RegisterPanel({
 
 		local rdInput = Widgets.CreateSpellInput(content, width)
 		rdInput:SetSpellList(rdSpellList)
-		yOffset = placeWidget(rdInput, rdPane, yOffset, SPELL_INPUT_H)
+		yOffset = placeWidget(rdInput, content, yOffset, SPELL_INPUT_H)
 
 		-- ============================================================
 		-- Dispellable
@@ -139,7 +139,7 @@ F.Settings.RegisterPanel({
 		local dispCheck = Widgets.CreateCheckButton(content, 'Enable dispellable glow', function(checked)
 			setAura('dispellable.enabled', checked)
 		end)
-		yOffset = placeWidget(dispCheck, dispPane, yOffset, CHECK_H)
+		yOffset = placeWidget(dispCheck, content, yOffset, CHECK_H)
 		local savedDispEnabled = getAura('dispellable.enabled')
 		if(savedDispEnabled ~= nil) then dispCheck:SetChecked(savedDispEnabled) end
 
@@ -149,7 +149,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Pixel', value = C.GlowType and C.GlowType.PIXEL or 'Pixel' },
 			{ text = 'Soft',  value = C.GlowType and C.GlowType.SOFT  or 'Soft' },
 		})
-		yOffset = placeWidget(glowDD, dispPane, yOffset, DROPDOWN_H)
+		yOffset = placeWidget(glowDD, content, yOffset, DROPDOWN_H)
 		local savedGlow = getAura('dispellable.glowType')
 		if(savedGlow) then glowDD:SetValue(savedGlow) end
 		glowDD:SetOnSelect(function(value)
@@ -163,7 +163,7 @@ F.Settings.RegisterPanel({
 		buffPane, yOffset = createSection(content, 'General Buffs', width, yOffset)
 
 		local buffMaxSlider = Widgets.CreateSlider(content, 'Max Icons', WIDGET_W, 1, 40, 1)
-		yOffset = placeWidget(buffMaxSlider, buffPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(buffMaxSlider, content, yOffset, SLIDER_H)
 		local savedBuffMax = getAura('buffs.maxIcons')
 		buffMaxSlider:SetValue(savedBuffMax or 16)
 		buffMaxSlider:SetAfterValueChanged(function(value)
@@ -171,7 +171,7 @@ F.Settings.RegisterPanel({
 		end)
 
 		local buffSizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 12, 48, 1)
-		yOffset = placeWidget(buffSizeSlider, buffPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(buffSizeSlider, content, yOffset, SLIDER_H)
 		local savedBuffSize = getAura('buffs.iconSize')
 		buffSizeSlider:SetValue(savedBuffSize or 20)
 		buffSizeSlider:SetAfterValueChanged(function(value)
@@ -182,7 +182,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Spell Icon',     value = C.IconDisplay and C.IconDisplay.SPELL_ICON     or 'SpellIcon' },
 			{ text = 'Colored Square', value = C.IconDisplay and C.IconDisplay.COLORED_SQUARE or 'ColoredSquare' },
 		})
-		yOffset = placeWidget(buffDisplaySwitch, buffPane, yOffset, SWITCH_H)
+		yOffset = placeWidget(buffDisplaySwitch, content, yOffset, SWITCH_H)
 		local savedBuffDisplay = getAura('buffs.displayType')
 		if(savedBuffDisplay) then buffDisplaySwitch:SetValue(savedBuffDisplay) end
 		buffDisplaySwitch:SetOnSelect(function(value)
@@ -196,7 +196,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Up',    value = 'UP' },
 			{ text = 'Down',  value = 'DOWN' },
 		})
-		yOffset = placeWidget(buffGrowDD, buffPane, yOffset, DROPDOWN_H)
+		yOffset = placeWidget(buffGrowDD, content, yOffset, DROPDOWN_H)
 		local savedBuffGrow = getAura('buffs.growDirection')
 		if(savedBuffGrow) then buffGrowDD:SetValue(savedBuffGrow) end
 		buffGrowDD:SetOnSelect(function(value)
@@ -210,7 +210,7 @@ F.Settings.RegisterPanel({
 		debuffPane, yOffset = createSection(content, 'General Debuffs', width, yOffset)
 
 		local debuffMaxSlider = Widgets.CreateSlider(content, 'Max Icons', WIDGET_W, 1, 40, 1)
-		yOffset = placeWidget(debuffMaxSlider, debuffPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(debuffMaxSlider, content, yOffset, SLIDER_H)
 		local savedDebuffMax = getAura('debuffs.maxIcons')
 		debuffMaxSlider:SetValue(savedDebuffMax or 8)
 		debuffMaxSlider:SetAfterValueChanged(function(value)
@@ -218,7 +218,7 @@ F.Settings.RegisterPanel({
 		end)
 
 		local debuffSizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 12, 48, 1)
-		yOffset = placeWidget(debuffSizeSlider, debuffPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(debuffSizeSlider, content, yOffset, SLIDER_H)
 		local savedDebuffSize = getAura('debuffs.iconSize')
 		debuffSizeSlider:SetValue(savedDebuffSize or 20)
 		debuffSizeSlider:SetAfterValueChanged(function(value)
@@ -229,7 +229,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Spell Icon',     value = C.IconDisplay and C.IconDisplay.SPELL_ICON     or 'SpellIcon' },
 			{ text = 'Colored Square', value = C.IconDisplay and C.IconDisplay.COLORED_SQUARE or 'ColoredSquare' },
 		})
-		yOffset = placeWidget(debuffDisplaySwitch, debuffPane, yOffset, SWITCH_H)
+		yOffset = placeWidget(debuffDisplaySwitch, content, yOffset, SWITCH_H)
 		local savedDebuffDisplay = getAura('debuffs.displayType')
 		if(savedDebuffDisplay) then debuffDisplaySwitch:SetValue(savedDebuffDisplay) end
 		debuffDisplaySwitch:SetOnSelect(function(value)
@@ -243,7 +243,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Up',    value = 'UP' },
 			{ text = 'Down',  value = 'DOWN' },
 		})
-		yOffset = placeWidget(debuffGrowDD, debuffPane, yOffset, DROPDOWN_H)
+		yOffset = placeWidget(debuffGrowDD, content, yOffset, DROPDOWN_H)
 		local savedDebuffGrow = getAura('debuffs.growDirection')
 		if(savedDebuffGrow) then debuffGrowDD:SetValue(savedDebuffGrow) end
 		debuffGrowDD:SetOnSelect(function(value)
@@ -259,12 +259,12 @@ F.Settings.RegisterPanel({
 		local mbCheck = Widgets.CreateCheckButton(content, 'Track missing buffs', function(checked)
 			setAura('missingBuffs.enabled', checked)
 		end)
-		yOffset = placeWidget(mbCheck, mbPane, yOffset, CHECK_H)
+		yOffset = placeWidget(mbCheck, content, yOffset, CHECK_H)
 		local savedMBEnabled = getAura('missingBuffs.enabled')
 		if(savedMBEnabled ~= nil) then mbCheck:SetChecked(savedMBEnabled) end
 
 		local mbSpellList = Widgets.CreateSpellList(content, width, SPELL_LIST_H)
-		yOffset = placeWidget(mbSpellList, mbPane, yOffset, SPELL_LIST_H)
+		yOffset = placeWidget(mbSpellList, content, yOffset, SPELL_LIST_H)
 		local savedMBSpells = getAura('missingBuffs.spells')
 		if(savedMBSpells) then mbSpellList:SetSpells(savedMBSpells) end
 		mbSpellList:SetOnChanged(function(spells)
@@ -273,7 +273,7 @@ F.Settings.RegisterPanel({
 
 		local mbInput = Widgets.CreateSpellInput(content, width)
 		mbInput:SetSpellList(mbSpellList)
-		yOffset = placeWidget(mbInput, mbPane, yOffset, SPELL_INPUT_H)
+		yOffset = placeWidget(mbInput, content, yOffset, SPELL_INPUT_H)
 
 		-- ============================================================
 		-- Targeted Spells
@@ -284,7 +284,7 @@ F.Settings.RegisterPanel({
 		local tsCheck = Widgets.CreateCheckButton(content, 'Enable targeted spell tracking', function(checked)
 			setAura('targetedSpells.enabled', checked)
 		end)
-		yOffset = placeWidget(tsCheck, tsPane, yOffset, CHECK_H)
+		yOffset = placeWidget(tsCheck, content, yOffset, CHECK_H)
 		local savedTSEnabled = getAura('targetedSpells.enabled')
 		if(savedTSEnabled ~= nil) then tsCheck:SetChecked(savedTSEnabled) end
 
@@ -293,7 +293,7 @@ F.Settings.RegisterPanel({
 			{ text = 'Border', value = 'Border' },
 			{ text = 'Both',   value = 'Both' },
 		})
-		yOffset = placeWidget(tsDisplaySwitch, tsPane, yOffset, SWITCH_H)
+		yOffset = placeWidget(tsDisplaySwitch, content, yOffset, SWITCH_H)
 		local savedTSDisplay = getAura('targetedSpells.displayMode')
 		if(savedTSDisplay) then tsDisplaySwitch:SetValue(savedTSDisplay) end
 		tsDisplaySwitch:SetOnSelect(function(value)
@@ -301,7 +301,7 @@ F.Settings.RegisterPanel({
 		end)
 
 		local tsSizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 12, 48, 1)
-		yOffset = placeWidget(tsSizeSlider, tsPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(tsSizeSlider, content, yOffset, SLIDER_H)
 		local savedTSSize = getAura('targetedSpells.iconSize')
 		tsSizeSlider:SetValue(savedTSSize or 20)
 		tsSizeSlider:SetAfterValueChanged(function(value)
@@ -317,12 +317,12 @@ F.Settings.RegisterPanel({
 		local paCheck = Widgets.CreateCheckButton(content, 'Enable private aura display', function(checked)
 			setAura('privateAuras.enabled', checked)
 		end)
-		yOffset = placeWidget(paCheck, paPane, yOffset, CHECK_H)
+		yOffset = placeWidget(paCheck, content, yOffset, CHECK_H)
 		local savedPAEnabled = getAura('privateAuras.enabled')
 		if(savedPAEnabled ~= nil) then paCheck:SetChecked(savedPAEnabled) end
 
 		local paSizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 12, 64, 1)
-		yOffset = placeWidget(paSizeSlider, paPane, yOffset, SLIDER_H)
+		yOffset = placeWidget(paSizeSlider, content, yOffset, SLIDER_H)
 		local savedPASize = getAura('privateAuras.iconSize')
 		paSizeSlider:SetValue(savedPASize or 32)
 		paSizeSlider:SetAfterValueChanged(function(value)

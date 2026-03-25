@@ -54,16 +54,16 @@ local function createSection(content, title, width, yOffset)
 	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
 end
 
---- Place a widget inside a section pane at the running yOffset.
+--- Place a widget at the running yOffset, anchored to the scroll content frame.
 --- Returns the next yOffset after accounting for the widget's height.
 --- @param widget  Frame   Widget to position
---- @param pane    Frame   Parent pane
+--- @param content Frame   Scroll content frame
 --- @param yOffset number  Running yOffset (negative, relative to content)
 --- @param height  number  Widget height
 --- @return number nextYOffset
-local function placeWidget(widget, pane, yOffset, height)
+local function placeWidget(widget, content, yOffset, height)
 	widget:ClearAllPoints()
-	Widgets.SetPoint(widget, 'TOPLEFT', pane, 'TOPLEFT', 0, yOffset)
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	return yOffset - height - C.Spacing.normal
 end
 
@@ -114,7 +114,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	widthSlider:SetAfterValueChanged(function(value)
 		setConfig('width', value)
 	end)
-	yOffset = placeWidget(widthSlider, framePane, yOffset, SLIDER_H)
+	yOffset = placeWidget(widthSlider, content, yOffset, SLIDER_H)
 
 	-- Height slider
 	local heightSlider = Widgets.CreateSlider(content, 'Height', WIDGET_W, 16, 100, 1)
@@ -122,7 +122,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	heightSlider:SetAfterValueChanged(function(value)
 		setConfig('height', value)
 	end)
-	yOffset = placeWidget(heightSlider, framePane, yOffset, SLIDER_H)
+	yOffset = placeWidget(heightSlider, content, yOffset, SLIDER_H)
 
 	if(isGroup) then
 		-- Spacing slider
@@ -131,7 +131,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		spacingSlider:SetAfterValueChanged(function(value)
 			setConfig('spacing', value)
 		end)
-		yOffset = placeWidget(spacingSlider, framePane, yOffset, SLIDER_H)
+		yOffset = placeWidget(spacingSlider, content, yOffset, SLIDER_H)
 
 		-- Orientation switch
 		local orientSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
@@ -142,7 +142,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		orientSwitch:SetOnSelect(function(value)
 			setConfig('orientation', value)
 		end)
-		yOffset = placeWidget(orientSwitch, framePane, yOffset, SWITCH_H)
+		yOffset = placeWidget(orientSwitch, content, yOffset, SWITCH_H)
 
 		-- Growth direction dropdown
 		local growthDropdown = Widgets.CreateDropdown(content, WIDGET_W)
@@ -156,7 +156,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		growthDropdown:SetOnSelect(function(value)
 			setConfig('growthDirection', value)
 		end)
-		yOffset = placeWidget(growthDropdown, framePane, yOffset, DROPDOWN_H)
+		yOffset = placeWidget(growthDropdown, content, yOffset, DROPDOWN_H)
 	end
 
 	-- ============================================================
@@ -176,7 +176,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	healthColorSwitch:SetOnSelect(function(value)
 		setConfig('healthColorMode', value)
 	end)
-	yOffset = placeWidget(healthColorSwitch, barsPane, yOffset, SWITCH_H)
+	yOffset = placeWidget(healthColorSwitch, content, yOffset, SWITCH_H)
 
 	-- Smooth interpolation checkbox
 	local smoothCheck = Widgets.CreateCheckButton(content, 'Smooth Interpolation')
@@ -184,7 +184,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	smoothCheck._callback = function(checked)
 		setConfig('smoothHealth', checked)
 	end
-	yOffset = placeWidget(smoothCheck, barsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(smoothCheck, content, yOffset, CHECK_H)
 
 	-- Show power bar checkbox
 	local showPowerCheck = Widgets.CreateCheckButton(content, 'Show Power Bar')
@@ -192,7 +192,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showPowerCheck._callback = function(checked)
 		setConfig('showPower', checked)
 	end
-	yOffset = placeWidget(showPowerCheck, barsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showPowerCheck, content, yOffset, CHECK_H)
 
 	-- Power bar height slider
 	local powerHeightSlider = Widgets.CreateSlider(content, 'Power Bar Height', WIDGET_W, 1, 20, 1)
@@ -200,7 +200,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	powerHeightSlider:SetAfterValueChanged(function(value)
 		setConfig('powerHeight', value)
 	end)
-	yOffset = placeWidget(powerHeightSlider, barsPane, yOffset, SLIDER_H)
+	yOffset = placeWidget(powerHeightSlider, content, yOffset, SLIDER_H)
 
 	-- Show cast bar checkbox
 	local showCastCheck = Widgets.CreateCheckButton(content, 'Show Cast Bar')
@@ -208,7 +208,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showCastCheck._callback = function(checked)
 		setConfig('showCastBar', checked)
 	end
-	yOffset = placeWidget(showCastCheck, barsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showCastCheck, content, yOffset, CHECK_H)
 
 	-- Show absorb bar checkbox
 	local showAbsorbCheck = Widgets.CreateCheckButton(content, 'Show Absorb Bar')
@@ -216,7 +216,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showAbsorbCheck._callback = function(checked)
 		setConfig('showAbsorbBar', checked)
 	end
-	yOffset = placeWidget(showAbsorbCheck, barsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showAbsorbCheck, content, yOffset, CHECK_H)
 
 	-- ============================================================
 	-- Section: Text
@@ -231,7 +231,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showNameCheck._callback = function(checked)
 		setConfig('showName', checked)
 	end
-	yOffset = placeWidget(showNameCheck, textPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showNameCheck, content, yOffset, CHECK_H)
 
 	-- Name color mode switch
 	local nameColorSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
@@ -243,7 +243,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameColorSwitch:SetOnSelect(function(value)
 		setConfig('nameColorMode', value)
 	end)
-	yOffset = placeWidget(nameColorSwitch, textPane, yOffset, SWITCH_H)
+	yOffset = placeWidget(nameColorSwitch, content, yOffset, SWITCH_H)
 
 	-- Name truncation slider
 	local nameTruncSlider = Widgets.CreateSlider(content, 'Name Truncation', WIDGET_W, 4, 20, 1)
@@ -251,7 +251,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameTruncSlider:SetAfterValueChanged(function(value)
 		setConfig('nameTruncation', value)
 	end)
-	yOffset = placeWidget(nameTruncSlider, textPane, yOffset, SLIDER_H)
+	yOffset = placeWidget(nameTruncSlider, content, yOffset, SLIDER_H)
 
 	-- Show health text checkbox
 	local showHealthTextCheck = Widgets.CreateCheckButton(content, 'Show Health Text')
@@ -259,7 +259,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showHealthTextCheck._callback = function(checked)
 		setConfig('showHealthText', checked)
 	end
-	yOffset = placeWidget(showHealthTextCheck, textPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showHealthTextCheck, content, yOffset, CHECK_H)
 
 	-- Health text format dropdown
 	local healthFormatDropdown = Widgets.CreateDropdown(content, WIDGET_W)
@@ -274,7 +274,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	healthFormatDropdown:SetOnSelect(function(value)
 		setConfig('healthTextFormat', value)
 	end)
-	yOffset = placeWidget(healthFormatDropdown, textPane, yOffset, DROPDOWN_H)
+	yOffset = placeWidget(healthFormatDropdown, content, yOffset, DROPDOWN_H)
 
 	-- Show power text checkbox
 	local showPowerTextCheck = Widgets.CreateCheckButton(content, 'Show Power Text')
@@ -282,7 +282,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showPowerTextCheck._callback = function(checked)
 		setConfig('showPowerText', checked)
 	end
-	yOffset = placeWidget(showPowerTextCheck, textPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showPowerTextCheck, content, yOffset, CHECK_H)
 
 	-- ============================================================
 	-- Section: Icons
@@ -297,7 +297,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showRoleCheck._callback = function(checked)
 		setConfig('showRoleIcon', checked)
 	end
-	yOffset = placeWidget(showRoleCheck, iconsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showRoleCheck, content, yOffset, CHECK_H)
 
 	-- Show leader icon checkbox
 	local showLeaderCheck = Widgets.CreateCheckButton(content, 'Show Leader Icon')
@@ -305,7 +305,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showLeaderCheck._callback = function(checked)
 		setConfig('showLeaderIcon', checked)
 	end
-	yOffset = placeWidget(showLeaderCheck, iconsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showLeaderCheck, content, yOffset, CHECK_H)
 
 	-- Show ready check checkbox
 	local showReadyCheckCheck = Widgets.CreateCheckButton(content, 'Show Ready Check')
@@ -313,7 +313,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showReadyCheckCheck._callback = function(checked)
 		setConfig('showReadyCheck', checked)
 	end
-	yOffset = placeWidget(showReadyCheckCheck, iconsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showReadyCheckCheck, content, yOffset, CHECK_H)
 
 	-- Show raid icon checkbox
 	local showRaidIconCheck = Widgets.CreateCheckButton(content, 'Show Raid Icon')
@@ -321,7 +321,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showRaidIconCheck._callback = function(checked)
 		setConfig('showRaidIcon', checked)
 	end
-	yOffset = placeWidget(showRaidIconCheck, iconsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showRaidIconCheck, content, yOffset, CHECK_H)
 
 	-- Show combat icon checkbox
 	local showCombatIconCheck = Widgets.CreateCheckButton(content, 'Show Combat Icon')
@@ -329,7 +329,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showCombatIconCheck._callback = function(checked)
 		setConfig('showCombatIcon', checked)
 	end
-	yOffset = placeWidget(showCombatIconCheck, iconsPane, yOffset, CHECK_H)
+	yOffset = placeWidget(showCombatIconCheck, content, yOffset, CHECK_H)
 
 	-- ── Resize content to fit all widgets ─────────────────────
 	local totalH = math.abs(yOffset) + C.Spacing.normal

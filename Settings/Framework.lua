@@ -126,8 +126,11 @@ function Settings.SetActivePanel(panelId)
 			local pFrame = info.create(Settings._contentParent)
 			if(pFrame) then
 				pFrame:ClearAllPoints()
-				pFrame:SetPoint('TOPLEFT',  Settings._contentParent, 'TOPLEFT',  0, 0)
-				pFrame:SetPoint('TOPRIGHT', Settings._contentParent, 'TOPRIGHT', 0, 0)
+				pFrame:SetAllPoints(Settings._contentParent)
+				-- Clear stored size so pixel updater's ReSize doesn't
+				-- call SetSize() and conflict with SetAllPoints anchoring
+				pFrame._width = nil
+				pFrame._height = nil
 				pFrame:Hide()
 				Settings._panelFrames[panelId] = pFrame
 			end

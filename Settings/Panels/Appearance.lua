@@ -26,9 +26,9 @@ local function createSection(content, title, width, yOffset)
 	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
 end
 
-local function placeWidget(widget, pane, yOffset, height)
+local function placeWidget(widget, content, yOffset, height)
 	widget:ClearAllPoints()
-	Widgets.SetPoint(widget, 'TOPLEFT', pane, 'TOPLEFT', 0, yOffset)
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	return yOffset - height - C.Spacing.normal
 end
 
@@ -77,7 +77,7 @@ F.Settings.RegisterPanel({
 
 		local colorPicker = Widgets.CreateColorPicker(content)
 		colorPicker:ClearAllPoints()
-		Widgets.SetPoint(colorPicker, 'TOPLEFT', colorPane, 'TOPLEFT', 0, yOffset)
+		Widgets.SetPoint(colorPicker, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 
 		-- Initialise from config
 		local savedColor = getConfig('accentColor')
@@ -103,7 +103,7 @@ F.Settings.RegisterPanel({
 		scalePane, yOffset = createSection(content, 'UI Scale', width, yOffset)
 
 		local scaleSlider = Widgets.CreateSlider(content, 'UI Scale', WIDGET_W, 0.5, 2.0, 0.1)
-		yOffset = placeWidget(scaleSlider, scalePane, yOffset, SLIDER_H)
+		yOffset = placeWidget(scaleSlider, content, yOffset, SLIDER_H)
 
 		local savedScale = getConfig('uiScale')
 		if(savedScale) then
@@ -122,7 +122,7 @@ F.Settings.RegisterPanel({
 		fontPane, yOffset = createSection(content, 'Font', width, yOffset)
 
 		local fontDropdown = Widgets.CreateTextureDropdown(content, WIDGET_W, 'font')
-		yOffset = placeWidget(fontDropdown, fontPane, yOffset, DROPDOWN_H)
+		yOffset = placeWidget(fontDropdown, content, yOffset, DROPDOWN_H)
 
 		local savedFont = getConfig('font')
 		if(savedFont) then
@@ -139,7 +139,7 @@ F.Settings.RegisterPanel({
 		barPane, yOffset = createSection(content, 'Bar Texture', width, yOffset)
 
 		local barDropdown = Widgets.CreateTextureDropdown(content, WIDGET_W, 'statusbar')
-		yOffset = placeWidget(barDropdown, barPane, yOffset, DROPDOWN_H)
+		yOffset = placeWidget(barDropdown, content, yOffset, DROPDOWN_H)
 
 		local savedBar = getConfig('barTexture')
 		if(savedBar) then
@@ -156,7 +156,7 @@ F.Settings.RegisterPanel({
 		wizardPane, yOffset = createSection(content, 'Setup Wizard', width, yOffset)
 
 		local wizardBtn = Widgets.CreateButton(content, 'Re-run Setup Wizard', 'widget', 180, BUTTON_H)
-		yOffset = placeWidget(wizardBtn, wizardPane, yOffset, BUTTON_H)
+		yOffset = placeWidget(wizardBtn, content, yOffset, BUTTON_H)
 
 		wizardBtn:SetOnClick(function()
 			if(F.SetupWizard and F.SetupWizard.Show) then
