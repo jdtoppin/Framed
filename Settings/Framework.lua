@@ -381,6 +381,8 @@ local function buildSidebarContent(sidebar)
 		yOffset = yOffset - C.Spacing.tight
 	end
 
+	-- Return total sidebar content height (positive value)
+	return math.abs(yOffset) + C.Spacing.tight
 end
 
 -- ============================================================
@@ -553,12 +555,27 @@ end
 -- Sidebar Build (deferred to first show)
 -- ============================================================
 
---- Build sidebar content. Called once on first show.
+--- Build sidebar content and resize the window to fit.
 function Settings.BuildSidebar()
 	if(sidebarBuilt or not mainFrame) then return end
 	sidebarBuilt = true
 
-	buildSidebarContent(mainFrame._sidebar)
+	local sidebarHeight = buildSidebarContent(mainFrame._sidebar)
+
+	-- Resize window to fit sidebar content + header + padding
+	local neededH = sidebarHeight + HEADER_HEIGHT + C.Spacing.tight
+	neededH = math.max(neededH, WINDOW_MIN_H)
+	neededH = math.min(neededH, WINDOW_MAX_H)
+
+	if(neededH ~= WINDOW_H) then
+		mainFrame:SetHeight(neededH)
+		-- Update contentParent dimensions
+		if(contentParent) then
+			local contentH = neededH - HEADER_HEIGHT - SUB_HEADER_H
+			contentParent:SetHeight(contentH)
+			contentParent._explicitHeight = contentH
+		end
+	end
 
 	-- Auto-select first registered panel
 	if(#registeredPanels > 0) then
