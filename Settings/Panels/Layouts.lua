@@ -9,7 +9,6 @@ local C = F.Constants
 -- ============================================================
 
 local ROW_H        = 28
-local PANE_TITLE_H = 20
 local DROPDOWN_H   = 22
 local BUTTON_H     = 22
 local WIDGET_W     = 220
@@ -28,11 +27,11 @@ local CONTENT_TYPES = {
 -- Helpers
 -- ============================================================
 
-local function createSection(content, title, width, yOffset)
-	local pane = Widgets.CreateTitledPane(content, title, width)
-	pane:ClearAllPoints()
-	Widgets.SetPoint(pane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
+local function placeHeading(content, text, level, yOffset)
+	local heading, height = Widgets.CreateHeading(content, text, level)
+	heading:ClearAllPoints()
+	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height
 end
 
 --- Return a list of {text, value} items for all known layouts.
@@ -129,8 +128,7 @@ F.Settings.RegisterPanel({
 		-- ============================================================
 		-- Section 1: Your Layouts
 		-- ============================================================
-		local layoutsPane
-		layoutsPane, yOffset = createSection(content, 'Layout Management', width, yOffset)
+		yOffset = placeHeading(content, 'Layout Management', 2, yOffset)
 
 		local layoutCard, layoutInner, layoutCardY
 		layoutCard, layoutInner, layoutCardY = Widgets.StartCard(content, width, yOffset)
@@ -270,8 +268,7 @@ F.Settings.RegisterPanel({
 		-- ============================================================
 		-- Section 2: Auto-Switch Assignments
 		-- ============================================================
-		local autoPane
-		autoPane, yOffset = createSection(content, 'Auto-Switch Layout Assignments', width, yOffset)
+		yOffset = placeHeading(content, 'Auto-Switch Layout Assignments', 2, yOffset)
 
 		-- Track all assignment dropdowns so they can be refreshed
 		local assignDropdowns = {}

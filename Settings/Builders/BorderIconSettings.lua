@@ -7,7 +7,6 @@ F.Settings = F.Settings or {}
 F.Settings.Builders = F.Settings.Builders or {}
 
 -- Layout constants
-local PANE_TITLE_H = 20
 local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
@@ -52,10 +51,10 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	end
 
 	-- ── Display section ─────────────────────────────────────
-	local displayPane = Widgets.CreateTitledPane(parent, 'Display Settings', width)
-	displayPane:ClearAllPoints()
-	Widgets.SetPoint(displayPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+	local displayHeading, displayHeadingH = Widgets.CreateHeading(parent, 'Display Settings', 2)
+	displayHeading:ClearAllPoints()
+	Widgets.SetPoint(displayHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	yOffset = yOffset - displayHeadingH
 
 	local displayCard, displayInner, displayCardY
 	displayCard, displayInner, displayCardY = Widgets.StartCard(parent, width, yOffset)
@@ -130,10 +129,10 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	yOffset = Widgets.EndCard(displayCard, parent, displayCardY)
 
 	-- ── Position section ────────────────────────────────────
-	local posPane = Widgets.CreateTitledPane(parent, 'Icon Position', width)
-	posPane:ClearAllPoints()
-	Widgets.SetPoint(posPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+	local posHeading, posHeadingH = Widgets.CreateHeading(parent, 'Icon Position', 2)
+	posHeading:ClearAllPoints()
+	Widgets.SetPoint(posHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	yOffset = yOffset - posHeadingH
 
 	local posCard, posInner, posCardY
 	posCard, posInner, posCardY = Widgets.StartCard(parent, width, yOffset)
@@ -154,10 +153,10 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	yOffset = Widgets.EndCard(posCard, parent, posCardY)
 
 	-- ── Stack Font section ──────────────────────────────────
-	local stackPane = Widgets.CreateTitledPane(parent, 'Stack Count Font', width)
-	stackPane:ClearAllPoints()
-	Widgets.SetPoint(stackPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+	local stackHeading, stackHeadingH = Widgets.CreateHeading(parent, 'Stack Count Font', 2)
+	stackHeading:ClearAllPoints()
+	Widgets.SetPoint(stackHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	yOffset = yOffset - stackHeadingH
 
 	local stackCard, stackInner, stackCardY
 	stackCard, stackInner, stackCardY = Widgets.StartCard(parent, width, yOffset)
@@ -172,10 +171,10 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	yOffset = Widgets.EndCard(stackCard, parent, stackCardY)
 
 	-- ── Duration Font section ───────────────────────────────
-	local durPane = Widgets.CreateTitledPane(parent, 'Duration Text Font', width)
-	durPane:ClearAllPoints()
-	Widgets.SetPoint(durPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+	local durHeading, durHeadingH = Widgets.CreateHeading(parent, 'Duration Text Font', 2)
+	durHeading:ClearAllPoints()
+	Widgets.SetPoint(durHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	yOffset = yOffset - durHeadingH
 
 	local durFontCard, durFontInner, durFontCardY
 	durFontCard, durFontInner, durFontCardY = Widgets.StartCard(parent, width, yOffset)

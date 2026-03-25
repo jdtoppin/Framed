@@ -8,7 +8,6 @@ local C = F.Constants
 -- Layout constants
 -- ============================================================
 
-local PANE_TITLE_H = 20
 local SLIDER_H     = 26
 local CHECK_H      = 14
 local WIDGET_W     = 220
@@ -29,11 +28,11 @@ local CC_TYPES = {
 -- Helpers
 -- ============================================================
 
-local function createSection(content, title, width, yOffset)
-	local pane = Widgets.CreateTitledPane(content, title, width)
-	pane:ClearAllPoints()
-	Widgets.SetPoint(pane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
+local function placeHeading(content, text, level, yOffset)
+	local heading, height = Widgets.CreateHeading(content, text, level)
+	heading:ClearAllPoints()
+	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height
 end
 
 local function placeWidget(widget, content, yOffset, height)
@@ -82,8 +81,7 @@ F.Settings.RegisterPanel({
 		local yOffset = -C.Spacing.normal
 
 		-- ── CC Type Toggles ────────────────────────────────────
-		local typePane
-		typePane, yOffset = createSection(content, 'CC Type Toggles', width, yOffset)
+		yOffset = placeHeading(content, 'CC Type Toggles', 2, yOffset)
 
 		local ccCard, ccInner, ccCardY
 		ccCard, ccInner, ccCardY = Widgets.StartCard(content, width, yOffset)
@@ -105,8 +103,7 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(ccCard, content, ccCardY)
 
 		-- ── Visual Settings ────────────────────────────────────
-		local visPane
-		visPane, yOffset = createSection(content, 'Visual Settings', width, yOffset)
+		yOffset = placeHeading(content, 'Visual Settings', 2, yOffset)
 
 		local visCard, visInner, visCardY
 		visCard, visInner, visCardY = Widgets.StartCard(content, width, yOffset)

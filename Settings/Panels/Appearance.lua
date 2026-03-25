@@ -11,20 +11,12 @@ local C = F.Constants
 local SLIDER_H     = 26
 local DROPDOWN_H   = 22
 local SWATCH_H     = 20
-local PANE_TITLE_H = 20
 local BUTTON_H     = 28
 local WIDGET_W     = 220
 
 -- ============================================================
 -- Section helpers (mirrors FrameSettingsBuilder pattern)
 -- ============================================================
-
-local function createSection(content, title, width, yOffset)
-	local pane = Widgets.CreateTitledPane(content, title, width)
-	pane:ClearAllPoints()
-	Widgets.SetPoint(pane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
-end
 
 local function placeWidget(widget, content, yOffset, height)
 	widget:ClearAllPoints()
@@ -78,8 +70,7 @@ F.Settings.RegisterPanel({
 		end
 
 		-- ── Settings Accent Color ──────────────────────────────
-		local colorPane
-		colorPane, yOffset = createSection(content, 'Settings Accent Color', width, yOffset)
+		yOffset = placeHeading(content, 'Settings Accent Color', 2, yOffset)
 
 		local accentCard, accentInner, accentY
 		accentCard, accentInner, accentY = Widgets.StartCard(content, width, yOffset)
@@ -107,8 +98,7 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(accentCard, content, accentY)
 
 		-- ── UI Scale ───────────────────────────────────────────
-		local scalePane
-		scalePane, yOffset = createSection(content, 'UI Scale', width, yOffset)
+		yOffset = placeHeading(content, 'UI Scale', 2, yOffset)
 
 		local scaleCard, scaleInner, scaleY
 		scaleCard, scaleInner, scaleY = Widgets.StartCard(content, width, yOffset)
@@ -132,8 +122,7 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(scaleCard, content, scaleY)
 
 		-- ── Global Font ────────────────────────────────────────
-		local fontPane
-		fontPane, yOffset = createSection(content, 'Global Font', width, yOffset)
+		yOffset = placeHeading(content, 'Global Font', 2, yOffset)
 
 		local fontCard, fontInner, fontY
 		fontCard, fontInner, fontY = Widgets.StartCard(content, width, yOffset)
@@ -154,8 +143,7 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(fontCard, content, fontY)
 
 		-- ── Health Bar Texture ─────────────────────────────────
-		local barPane
-		barPane, yOffset = createSection(content, 'Health Bar Texture', width, yOffset)
+		yOffset = placeHeading(content, 'Health Bar Texture', 2, yOffset)
 
 		local barCard, barInner, barY
 		barCard, barInner, barY = Widgets.StartCard(content, width, yOffset)
@@ -176,8 +164,7 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(barCard, content, barY)
 
 		-- ── Target Highlight Settings ──────────────────────────
-		local targetPane
-		targetPane, yOffset = createSection(content, 'Target Highlight Settings', width, yOffset)
+		yOffset = placeHeading(content, 'Target Highlight Settings', 2, yOffset)
 
 		local targetCard, targetInner, targetY
 		targetCard, targetInner, targetY = Widgets.StartCard(content, width, yOffset)
@@ -212,8 +199,7 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(targetCard, content, targetY)
 
 		-- ── Mouseover Highlight Color ──────────────────────────
-		local moPane
-		moPane, yOffset = createSection(content, 'Mouseover Highlight Color', width, yOffset)
+		yOffset = placeHeading(content, 'Mouseover Highlight Color', 2, yOffset)
 
 		local moCard, moInner, moY
 		moCard, moInner, moY = Widgets.StartCard(content, width, yOffset)
@@ -238,8 +224,7 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(moCard, content, moY)
 
 		-- ── Re-run Setup Wizard ────────────────────────────────
-		local wizardPane
-		wizardPane, yOffset = createSection(content, 'Setup Wizard', width, yOffset)
+		yOffset = placeHeading(content, 'Setup Wizard', 2, yOffset)
 
 		local wizardCard, wizardInner, wizardY
 		wizardCard, wizardInner, wizardY = Widgets.StartCard(content, width, yOffset)

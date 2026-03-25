@@ -8,7 +8,6 @@ local C = F.Constants
 -- Layout constants
 -- ============================================================
 
-local PANE_TITLE_H = 20
 local ROW_H        = 28
 local DROPDOWN_H   = 22
 local BUTTON_H     = 22
@@ -107,10 +106,10 @@ F.Settings.RegisterPanel({
 		end
 
 		-- ── Binding list ───────────────────────────────────────
-		local pane = Widgets.CreateTitledPane(content, 'Click Bindings', width)
-		pane:ClearAllPoints()
-		Widgets.SetPoint(pane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local bindingsHeading, bindingsHeadingH = Widgets.CreateHeading(content, 'Click Bindings', 2)
+		bindingsHeading:ClearAllPoints()
+		Widgets.SetPoint(bindingsHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - bindingsHeadingH
 
 		local bindCard, bindInner, bindCardY
 		bindCard, bindInner, bindCardY = Widgets.StartCard(content, width, yOffset)

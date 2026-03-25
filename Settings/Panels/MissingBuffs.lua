@@ -7,7 +7,6 @@ local C = F.Constants
 -- Layout constants
 -- ============================================================
 
-local PANE_TITLE_H = 20
 local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
@@ -64,10 +63,10 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- ── Highlight Type ─────────────────────────────────────
-		local highlightPane = Widgets.CreateTitledPane(content, 'Frame Highlight', width)
-		highlightPane:ClearAllPoints()
-		Widgets.SetPoint(highlightPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local highlightHeading, highlightHeadingH = Widgets.CreateHeading(content, 'Frame Highlight', 2)
+		highlightHeading:ClearAllPoints()
+		Widgets.SetPoint(highlightHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - highlightHeadingH
 
 		local hlCard, hlInner, hlCardY
 		hlCard, hlInner, hlCardY = Widgets.StartCard(content, width, yOffset)

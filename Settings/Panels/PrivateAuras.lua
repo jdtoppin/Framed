@@ -7,7 +7,6 @@ local C = F.Constants
 -- Layout constants
 -- ============================================================
 
-local PANE_TITLE_H = 20
 local SLIDER_H     = 26
 local WIDGET_W     = 220
 
@@ -62,10 +61,10 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- ── Display section ────────────────────────────────────
-		local displayPane = Widgets.CreateTitledPane(content, 'Icon Size', width)
-		displayPane:ClearAllPoints()
-		Widgets.SetPoint(displayPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local displayHeading, displayHeadingH = Widgets.CreateHeading(content, 'Icon Size', 2)
+		displayHeading:ClearAllPoints()
+		Widgets.SetPoint(displayHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - displayHeadingH
 
 		local sizeCard, sizeInner, sizeCardY
 		sizeCard, sizeInner, sizeCardY = Widgets.StartCard(content, width, yOffset)
@@ -81,10 +80,10 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(sizeCard, content, sizeCardY)
 
 		-- ── Position section ───────────────────────────────────
-		local posPane = Widgets.CreateTitledPane(content, 'Icon Position', width)
-		posPane:ClearAllPoints()
-		Widgets.SetPoint(posPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local posHeading, posHeadingH = Widgets.CreateHeading(content, 'Icon Position', 2)
+		posHeading:ClearAllPoints()
+		Widgets.SetPoint(posHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - posHeadingH
 
 		local posCard, posInner, posCardY
 		posCard, posInner, posCardY = Widgets.StartCard(content, width, yOffset)

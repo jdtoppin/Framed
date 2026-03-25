@@ -46,10 +46,10 @@ F.Settings.RegisterPanel({
 		local yOffset = -C.Spacing.normal
 
 		-- ── Version info ───────────────────────────────────────
-		local versionPane = Widgets.CreateTitledPane(content, 'Version', width)
-		versionPane:ClearAllPoints()
-		Widgets.SetPoint(versionPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 20 - C.Spacing.normal
+		local versionHeading, versionHeadingH = Widgets.CreateHeading(content, 'Version', 2)
+		versionHeading:ClearAllPoints()
+		Widgets.SetPoint(versionHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - versionHeadingH
 
 		local versionFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textNormal)
 		versionFS:ClearAllPoints()
@@ -58,10 +58,10 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - C.Font.sizeNormal - C.Spacing.loose
 
 		-- ── Credits ────────────────────────────────────────────
-		local creditsPane = Widgets.CreateTitledPane(content, 'Credits', width)
-		creditsPane:ClearAllPoints()
-		Widgets.SetPoint(creditsPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 20 - C.Spacing.normal
+		local creditsHeading, creditsHeadingH = Widgets.CreateHeading(content, 'Credits', 2)
+		creditsHeading:ClearAllPoints()
+		Widgets.SetPoint(creditsHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - creditsHeadingH
 
 		local creditLines = {
 			{ label = 'oUF',                 detail = 'Embedded unit frame framework (MIT). Authored by Haste & contributors.' },
@@ -86,10 +86,10 @@ F.Settings.RegisterPanel({
 		end
 
 		-- ── License ────────────────────────────────────────────
-		local licensePane = Widgets.CreateTitledPane(content, 'License', width)
-		licensePane:ClearAllPoints()
-		Widgets.SetPoint(licensePane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 20 - C.Spacing.normal
+		local licenseHeading, licenseHeadingH = Widgets.CreateHeading(content, 'License', 2)
+		licenseHeading:ClearAllPoints()
+		Widgets.SetPoint(licenseHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - licenseHeadingH
 
 		local licenseFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
 		licenseFS:ClearAllPoints()

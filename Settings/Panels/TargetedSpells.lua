@@ -7,7 +7,6 @@ local C = F.Constants
 -- Layout constants
 -- ============================================================
 
-local PANE_TITLE_H = 20
 local SLIDER_H     = 26
 local DROPDOWN_H   = 22
 local WIDGET_W     = 220
@@ -63,10 +62,10 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- ── Display Mode ───────────────────────────────────────
-		local modePane = Widgets.CreateTitledPane(content, 'Display Mode', width)
-		modePane:ClearAllPoints()
-		Widgets.SetPoint(modePane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local modeHeading, modeHeadingH = Widgets.CreateHeading(content, 'Display Mode', 2)
+		modeHeading:ClearAllPoints()
+		Widgets.SetPoint(modeHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - modeHeadingH
 
 		local modeCard, modeInner, modeCardY
 		modeCard, modeInner, modeCardY = Widgets.StartCard(content, width, yOffset)
@@ -85,10 +84,10 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(modeCard, content, modeCardY)
 
 		-- ── Icon Settings (shown for Icons or Both) ─────────────
-		local iconPane = Widgets.CreateTitledPane(content, 'Icon Settings', width)
-		iconPane:ClearAllPoints()
-		Widgets.SetPoint(iconPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local iconHeading, iconHeadingH = Widgets.CreateHeading(content, 'Icon Settings', 2)
+		iconHeading:ClearAllPoints()
+		Widgets.SetPoint(iconHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - iconHeadingH
 
 		local iconCard, iconInner, iconCardY
 		iconCard, iconInner, iconCardY = Widgets.StartCard(content, width, yOffset)
@@ -130,10 +129,10 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(iconCard, content, iconCardY)
 
 		-- ── Border Glow Settings (shown for BorderGlow or Both) ─
-		local glowPane = Widgets.CreateTitledPane(content, 'Border Glow Settings', width)
-		glowPane:ClearAllPoints()
-		Widgets.SetPoint(glowPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local glowHeading, glowHeadingH = Widgets.CreateHeading(content, 'Border Glow Settings', 2)
+		glowHeading:ClearAllPoints()
+		Widgets.SetPoint(glowHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - glowHeadingH
 
 		local glowCard, glowInner, glowCardY
 		glowCard, glowInner, glowCardY = Widgets.StartCard(content, width, yOffset)
@@ -174,10 +173,10 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(glowCard, content, glowCardY)
 
 		-- ── Display mode visibility ─────────────────────────────
-		local iconWidgets = { iconPane, sizeSlider, maxSlider, iconLvlSlider }
+		local iconWidgets = { iconHeading, sizeSlider, maxSlider, iconLvlSlider }
 		if(iconAnchorPicker) then iconWidgets[#iconWidgets + 1] = iconAnchorPicker end
 
-		local glowWidgets = { glowPane, glowDD }
+		local glowWidgets = { glowHeading, glowDD }
 		if(glowColorPicker) then glowWidgets[#glowWidgets + 1] = glowColorPicker end
 
 		local function updatePaneVisibility(mode)

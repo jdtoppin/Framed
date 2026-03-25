@@ -13,7 +13,6 @@ local C = F.Constants
 -- ============================================================
 
 -- ── Layout constants ───────────────────────────────────────
-local PANE_TITLE_H = 20      -- height of CreateTitledPane title row
 local DROPDOWN_H   = 22
 local BUTTON_H     = 22
 local SWITCH_H     = 22
@@ -84,10 +83,10 @@ F.Settings.RegisterPanel({
 		-- EXPORT SECTION
 		-- ══════════════════════════════════════════════════════
 
-		local exportPane = Widgets.CreateTitledPane(content, 'Export', width)
-		exportPane:ClearAllPoints()
-		Widgets.SetPoint(exportPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local exportHeading, exportHeadingH = Widgets.CreateHeading(content, 'Export', 2)
+		exportHeading:ClearAllPoints()
+		Widgets.SetPoint(exportHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - exportHeadingH
 
 		-- ── Scope label + dropdown ─────────────────────────
 		local scopeLabel = Widgets.CreateFontString(
@@ -220,10 +219,10 @@ F.Settings.RegisterPanel({
 		-- IMPORT SECTION
 		-- ══════════════════════════════════════════════════════
 
-		local importPane = Widgets.CreateTitledPane(content, 'Import', width)
-		importPane:ClearAllPoints()
-		Widgets.SetPoint(importPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		local importHeading, importHeadingH = Widgets.CreateHeading(content, 'Import', 2)
+		importHeading:ClearAllPoints()
+		Widgets.SetPoint(importHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - importHeadingH
 
 		-- ── Paste box ──────────────────────────────────────
 		local importBox = Widgets.CreateEditBox(

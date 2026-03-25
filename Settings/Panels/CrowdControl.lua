@@ -71,11 +71,11 @@ F.Settings.RegisterPanel({
 		descFS:SetWordWrap(true)
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
-		-- ── Section pane ───────────────────────────────────────
-		local pane = Widgets.CreateTitledPane(content, 'Tracked CC Spells', width)
-		pane:ClearAllPoints()
-		Widgets.SetPoint(pane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 20 - C.Spacing.normal
+		-- ── Section heading ────────────────────────────────────
+		local ccHeading, ccHeadingH = Widgets.CreateHeading(content, 'Tracked CC Spells', 2)
+		ccHeading:ClearAllPoints()
+		Widgets.SetPoint(ccHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - ccHeadingH
 
 		-- ── Spell list ─────────────────────────────────────────
 		local spellList = Widgets.CreateSpellList(content, width, 200)

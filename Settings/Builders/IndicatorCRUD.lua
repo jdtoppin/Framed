@@ -9,7 +9,6 @@ F.Settings.Builders = F.Settings.Builders or {}
 -- ============================================================
 -- Layout constants
 -- ============================================================
-local PANE_TITLE_H = 20
 local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
@@ -19,6 +18,22 @@ local LIST_HEIGHT  = 160
 local WIDGET_W     = 220
 local PAD          = 16
 local PAD_H        = 6
+
+-- ============================================================
+-- Layout helpers
+-- ============================================================
+local function placeWidget(widget, content, yOffset, height)
+	widget:ClearAllPoints()
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height - C.Spacing.normal
+end
+
+local function placeHeading(content, text, level, yOffset)
+	local heading, height = Widgets.CreateHeading(content, text, level)
+	heading:ClearAllPoints()
+	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height
+end
 
 -- ============================================================
 -- Healer spell data
@@ -280,101 +295,101 @@ local function buildIndicatorSettings(parent, width, yOffset, name, data, setInd
 		setIndicator(name, data)
 	end
 
-	-- Enabled
-	local enCB = Widgets.CreateCheckButton(parent, 'Enabled', function(checked) update('enabled', checked) end)
+	-- ── General card ──────────────────────────────────────
+	local genCard, genInner, genY = Widgets.StartCard(parent, width, yOffset)
+
+	local enCB = Widgets.CreateCheckButton(genInner, 'Enabled', function(checked) update('enabled', checked) end)
 	enCB:SetChecked(data.enabled ~= false)
-	enCB:ClearAllPoints()
-	Widgets.SetPoint(enCB, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - CHECK_H - C.Spacing.normal
+	genY = placeWidget(enCB, genInner, genY, CHECK_H)
 
-	-- Spell list
-	local spPane = Widgets.CreateTitledPane(parent, 'Tracked Spells', width)
-	spPane:ClearAllPoints()
-	Widgets.SetPoint(spPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+	yOffset = Widgets.EndCard(genCard, parent, genY)
 
-	local spList = Widgets.CreateSpellList(parent, width, 120)
-	spList:ClearAllPoints()
-	Widgets.SetPoint(spList, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	-- ── Tracked Spells card ───────────────────────────────
+	yOffset = placeHeading(parent, 'Tracked Spells', 2, yOffset)
+
+	local spCard, spInner, spY = Widgets.StartCard(parent, width, yOffset)
+
+	local spList = Widgets.CreateSpellList(spInner, width - 24, 120)
+	spY = placeWidget(spList, spInner, spY, 120)
 	spList:SetSpells(data.spells or {})
 	spList:SetOnChanged(function(spells) update('spells', spells) end)
-	yOffset = yOffset - 120 - C.Spacing.normal
 
-	local spInput = Widgets.CreateSpellInput(parent, width)
-	spInput:ClearAllPoints()
-	Widgets.SetPoint(spInput, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	local spInput = Widgets.CreateSpellInput(spInner, width - 24)
+	spY = placeWidget(spInput, spInner, spY, 50)
 	spInput:SetSpellList(spList)
 	spInput:SetOnAdd(function() update('spells', spList:GetSpells()) end)
-	yOffset = yOffset - 50 - C.Spacing.normal
 
+	yOffset = Widgets.EndCard(spCard, parent, spY)
+
+	-- ── Type-specific settings card ───────────────────────
 	local iType = data.type
 
-	-- Icons / Icon
 	if(iType == C.IndicatorType.ICONS or iType == C.IndicatorType.ICON) then
-		local sz = Widgets.CreateSlider(parent, 'Icon Size', WIDGET_W, 8, 48, 1)
+		yOffset = placeHeading(parent, 'Display Settings', 2, yOffset)
+		local dispCard, dispInner, dispY = Widgets.StartCard(parent, width, yOffset)
+
+		local sz = Widgets.CreateSlider(dispInner, 'Icon Size', WIDGET_W, 8, 48, 1)
 		sz:SetValue(data.iconSize or 16)
 		sz:SetAfterValueChanged(function(v) update('iconSize', v) end)
-		sz:ClearAllPoints()
-		Widgets.SetPoint(sz, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		dispY = placeWidget(sz, dispInner, dispY, SLIDER_H)
 
 		if(iType == C.IndicatorType.ICONS) then
-			local mx = Widgets.CreateSlider(parent, 'Max Displayed', WIDGET_W, 1, 10, 1)
+			local mx = Widgets.CreateSlider(dispInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
 			mx:SetValue(data.maxDisplayed or 3)
 			mx:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
-			mx:ClearAllPoints()
-			Widgets.SetPoint(mx, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-			yOffset = yOffset - SLIDER_H - C.Spacing.normal
+			dispY = placeWidget(mx, dispInner, dispY, SLIDER_H)
 
-			local ori = Widgets.CreateDropdown(parent, WIDGET_W)
+			local ori = Widgets.CreateDropdown(dispInner, WIDGET_W)
 			ori:SetItems({
 				{ text = 'Right', value = 'RIGHT' }, { text = 'Left', value = 'LEFT' },
 				{ text = 'Up', value = 'UP' }, { text = 'Down', value = 'DOWN' },
 			})
 			ori:SetValue(data.orientation or 'RIGHT')
 			ori:SetOnSelect(function(v) update('orientation', v) end)
-			ori:ClearAllPoints()
-			Widgets.SetPoint(ori, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-			yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+			dispY = placeWidget(ori, dispInner, dispY, DROPDOWN_H)
 		end
 
-	-- Glow
+		yOffset = Widgets.EndCard(dispCard, parent, dispY)
+
 	elseif(iType == C.IndicatorType.GLOW) then
-		local gdd = Widgets.CreateDropdown(parent, WIDGET_W)
+		yOffset = placeHeading(parent, 'Glow Settings', 2, yOffset)
+		local glowCard, glowInner, glowY = Widgets.StartCard(parent, width, yOffset)
+
+		local gdd = Widgets.CreateDropdown(glowInner, WIDGET_W)
 		gdd:SetItems({
 			{ text = 'Proc', value = C.GlowType.PROC }, { text = 'Pixel', value = C.GlowType.PIXEL },
 			{ text = 'Soft', value = C.GlowType.SOFT }, { text = 'Shine', value = C.GlowType.SHINE },
 		})
 		gdd:SetValue(data.glowType or C.GlowType.PROC)
 		gdd:SetOnSelect(function(v) update('glowType', v) end)
-		gdd:ClearAllPoints()
-		Widgets.SetPoint(gdd, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+		glowY = placeWidget(gdd, glowInner, glowY, DROPDOWN_H)
 
-	-- Bar / FrameBar
+		yOffset = Widgets.EndCard(glowCard, parent, glowY)
+
 	elseif(iType == C.IndicatorType.BAR or iType == C.IndicatorType.FRAME_BAR) then
-		local bh = Widgets.CreateSlider(parent, 'Bar Height', WIDGET_W, 2, 20, 1)
+		yOffset = placeHeading(parent, 'Bar Settings', 2, yOffset)
+		local barCard, barInner, barY = Widgets.StartCard(parent, width, yOffset)
+
+		local bh = Widgets.CreateSlider(barInner, 'Bar Height', WIDGET_W, 2, 20, 1)
 		bh:SetValue(data.barHeight or 4)
 		bh:SetAfterValueChanged(function(v) update('barHeight', v) end)
-		bh:ClearAllPoints()
-		Widgets.SetPoint(bh, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		barY = placeWidget(bh, barInner, barY, SLIDER_H)
+
+		yOffset = Widgets.EndCard(barCard, parent, barY)
 	end
 
-	-- Anchor picker (all types)
+	-- ── Position card ─────────────────────────────────────
 	if(Widgets.CreateAnchorPicker) then
-		local aPane = Widgets.CreateTitledPane(parent, 'Position', width)
-		aPane:ClearAllPoints()
-		Widgets.SetPoint(aPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+		yOffset = placeHeading(parent, 'Position', 2, yOffset)
+		local posCard, posInner, posY = Widgets.StartCard(parent, width, yOffset)
 
 		local anch = data.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 0, 0 }
-		local pick = Widgets.CreateAnchorPicker(parent, width)
+		local pick = Widgets.CreateAnchorPicker(posInner, width - 24)
 		pick:SetAnchor(anch[1], anch[4] or 0, anch[5] or 0)
-		pick:ClearAllPoints()
-		Widgets.SetPoint(pick, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+		posY = placeWidget(pick, posInner, posY, pick:GetHeight())
 		pick:SetOnChanged(function(pt, x, y) update('anchor', { pt, nil, pt, x, y }) end)
-		yOffset = yOffset - pick:GetHeight() - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(posCard, parent, posY)
 	end
 
 	return yOffset
@@ -397,37 +412,33 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	local listRowPool = {}
 
 	-- ── Create section ─────────────────────────────────────
-	local createPane = Widgets.CreateTitledPane(parent, 'Create Indicator', width)
-	createPane:ClearAllPoints()
-	Widgets.SetPoint(createPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+	yOffset = placeHeading(parent, 'Create Indicator', 2, yOffset)
 
-	local typeDD = Widgets.CreateDropdown(parent, 120)
+	local createCard, createInner, createY = Widgets.StartCard(parent, width, yOffset)
+
+	local typeDD = Widgets.CreateDropdown(createInner, 120)
 	typeDD:SetItems(getTypeItems())
 	typeDD:SetValue(C.IndicatorType.ICONS)
 	typeDD:ClearAllPoints()
-	Widgets.SetPoint(typeDD, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	Widgets.SetPoint(typeDD, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
 
-	local nameBox = Widgets.CreateEditBox(parent, nil, 120, BUTTON_H)
+	local nameBox = Widgets.CreateEditBox(createInner, nil, 120, BUTTON_H)
 	nameBox:ClearAllPoints()
 	Widgets.SetPoint(nameBox, 'LEFT', typeDD, 'RIGHT', C.Spacing.tight, 0)
 	nameBox:SetPlaceholder('Indicator name')
 
-	local createBtn = Widgets.CreateButton(parent, 'Create', 'accent', 60, BUTTON_H)
+	local createBtn = Widgets.CreateButton(createInner, 'Create', 'accent', 60, BUTTON_H)
 	createBtn:SetPoint('LEFT', nameBox, 'RIGHT', C.Spacing.tight, 0)
-	yOffset = yOffset - BUTTON_H - C.Spacing.normal
+	createY = createY - BUTTON_H - C.Spacing.normal
 
-	-- ── Import button ──────────────────────────────────────
-	local importBtn = Widgets.CreateButton(parent, 'Import Healer Spells', 'widget', 160, BUTTON_H)
-	importBtn:ClearAllPoints()
-	Widgets.SetPoint(importBtn, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - BUTTON_H - C.Spacing.normal
+	-- Import button
+	local importBtn = Widgets.CreateButton(createInner, 'Import Healer Spells', 'widget', 160, BUTTON_H)
+	createY = placeWidget(importBtn, createInner, createY, BUTTON_H)
+
+	yOffset = Widgets.EndCard(createCard, parent, createY)
 
 	-- ── Indicator list ─────────────────────────────────────
-	local listPane = Widgets.CreateTitledPane(parent, 'Indicators', width)
-	listPane:ClearAllPoints()
-	Widgets.SetPoint(listPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+	yOffset = placeHeading(parent, 'Indicators', 2, yOffset)
 
 	local listScroll = Widgets.CreateScrollFrame(parent, nil, width, LIST_HEIGHT)
 	listScroll:ClearAllPoints()
@@ -440,14 +451,14 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	emptyLabel:SetText('No indicators configured')
 
 	-- ── Settings section (dynamic) ─────────────────────────
-	local settingsPane = Widgets.CreateTitledPane(parent, 'Indicator Settings', width)
-	settingsPane:ClearAllPoints()
-	Widgets.SetPoint(settingsPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	settingsPane:Hide()
+	local settingsHeading, settingsHeadingH = Widgets.CreateHeading(parent, 'Indicator Settings', 2)
+	settingsHeading:ClearAllPoints()
+	Widgets.SetPoint(settingsHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	settingsHeading:Hide()
 
 	local settingsContainer = CreateFrame('Frame', nil, parent)
 	settingsContainer:ClearAllPoints()
-	Widgets.SetPoint(settingsContainer, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset - PANE_TITLE_H - C.Spacing.normal)
+	Widgets.SetPoint(settingsContainer, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset - settingsHeadingH)
 	Widgets.SetSize(settingsContainer, width, 1)
 	settingsContainer:Hide()
 
@@ -497,7 +508,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 				local children = { settingsContainer:GetChildren() }
 				for _, child in next, children do child:Hide(); child:ClearAllPoints() end
 
-				settingsPane:Show()
+				settingsHeading:Show()
 				settingsContainer:Show()
 
 				local cur = getIndicators()[capName]
@@ -515,7 +526,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 					removeIndicator(capName)
 					if(editingName == capName) then
 						editingName = nil
-						settingsPane:Hide()
+						settingsHeading:Hide()
 						settingsContainer:Hide()
 					end
 					layoutList()

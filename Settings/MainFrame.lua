@@ -105,6 +105,7 @@ function Settings.CreateMainFrame()
 	-- ── Outer window ──────────────────────────────────────────
 	local frame, header = Widgets.CreateHeaderedFrame(UIParent, 'Framed', WINDOW_W, WINDOW_H)
 	frame:SetFrameStrata('HIGH')
+	frame:EnableMouse(true)
 	frame:Hide()
 	Settings._mainFrame = frame
 
