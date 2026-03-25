@@ -35,18 +35,30 @@ function IconsMethods:SetIcons(auraList)
 		local icon = self._pool[i]
 		icon:ClearAllPoints()
 
-		-- Position based on grow direction
-		local offset = (i - 1) * (cfg.iconSize + cfg.spacing)
+		-- Position based on grow direction + grid
+		local numPerLine = cfg.numPerLine
+		local row, col
+
+		if(numPerLine > 0) then
+			col = (i - 1) % numPerLine
+			row = math.floor((i - 1) / numPerLine)
+		else
+			col = i - 1
+			row = 0
+		end
+
+		local offsetX = col * (cfg.iconSize + cfg.spacingX)
+		local offsetY = row * (cfg.iconSize + cfg.spacingY)
 		local growDirection = cfg.growDirection or 'RIGHT'
 
 		if(growDirection == 'RIGHT') then
-			icon:SetPoint('TOPLEFT', container, 'TOPLEFT', offset, 0)
+			icon:SetPoint('TOPLEFT', container, 'TOPLEFT', offsetX, -offsetY)
 		elseif(growDirection == 'LEFT') then
-			icon:SetPoint('TOPRIGHT', container, 'TOPRIGHT', -offset, 0)
+			icon:SetPoint('TOPRIGHT', container, 'TOPRIGHT', -offsetX, -offsetY)
 		elseif(growDirection == 'DOWN') then
-			icon:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -offset)
+			icon:SetPoint('TOPLEFT', container, 'TOPLEFT', offsetY, -offsetX)
 		elseif(growDirection == 'UP') then
-			icon:SetPoint('BOTTOMLEFT', container, 'BOTTOMLEFT', 0, offset)
+			icon:SetPoint('BOTTOMLEFT', container, 'BOTTOMLEFT', offsetY, offsetX)
 		end
 
 		icon:SetSpell(
@@ -133,6 +145,9 @@ end
 ---     maxIcons      number   (default 4),
 ---     iconSize      number   (default 14),
 ---     spacing       number   (default 1),
+---     spacingX      number   per-axis override (default spacing),
+---     spacingY      number   per-axis override (default spacing),
+---     numPerLine    number   icons per row/column before wrapping; 0 = no wrap (default 0),
 ---     growDirection string   'RIGHT'|'LEFT'|'DOWN'|'UP' (default 'RIGHT'),
 ---     displayType   string   C.IconDisplay value (default SpellIcon),
 ---     showCooldown  boolean  (default true),
@@ -147,6 +162,9 @@ function F.Indicators.Icons.Create(parent, config)
 		maxIcons      = config.maxIcons      or 4,
 		iconSize      = config.iconSize      or 14,
 		spacing       = config.spacing       or 1,
+		spacingX      = config.spacingX      or config.spacing or 1,
+		spacingY      = config.spacingY      or config.spacing or 1,
+		numPerLine    = config.numPerLine    or 0,  -- 0 = single row/column (no wrapping)
 		growDirection = config.growDirection or 'RIGHT',
 		displayType   = config.displayType   or C.IconDisplay.SPELL_ICON,
 		showCooldown  = config.showCooldown  ~= false,
@@ -157,12 +175,26 @@ function F.Indicators.Icons.Create(parent, config)
 	-- Container frame — sized to fit max icons in the grow direction
 	local totalWidth, totalHeight
 	local growDirection = cfg.growDirection
-	if(growDirection == 'RIGHT' or growDirection == 'LEFT') then
-		totalWidth  = cfg.maxIcons * cfg.iconSize + math.max(0, cfg.maxIcons - 1) * cfg.spacing
-		totalHeight = cfg.iconSize
-	else -- UP / DOWN
-		totalWidth  = cfg.iconSize
-		totalHeight = cfg.maxIcons * cfg.iconSize + math.max(0, cfg.maxIcons - 1) * cfg.spacing
+	local numPerLine = cfg.numPerLine
+	local maxIcons = cfg.maxIcons
+
+	if(numPerLine > 0 and maxIcons > numPerLine) then
+		local numLines = math.ceil(maxIcons / numPerLine)
+		if(growDirection == 'RIGHT' or growDirection == 'LEFT') then
+			totalWidth  = numPerLine * cfg.iconSize + math.max(0, numPerLine - 1) * cfg.spacingX
+			totalHeight = numLines * cfg.iconSize + math.max(0, numLines - 1) * cfg.spacingY
+		else -- UP / DOWN
+			totalWidth  = numLines * cfg.iconSize + math.max(0, numLines - 1) * cfg.spacingX
+			totalHeight = numPerLine * cfg.iconSize + math.max(0, numPerLine - 1) * cfg.spacingY
+		end
+	else
+		if(growDirection == 'RIGHT' or growDirection == 'LEFT') then
+			totalWidth  = maxIcons * cfg.iconSize + math.max(0, maxIcons - 1) * cfg.spacingX
+			totalHeight = cfg.iconSize
+		else
+			totalWidth  = cfg.iconSize
+			totalHeight = maxIcons * cfg.iconSize + math.max(0, maxIcons - 1) * cfg.spacingY
+		end
 	end
 
 	local frame = CreateFrame('Frame', nil, parent)
