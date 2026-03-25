@@ -1,0 +1,21 @@
+package-as: Framed
+
+enable-nolib-creation: no
+
+externals:
+  Libs/oUF:
+    url: https://github.com/oUF-wow/oUF.git
+    tag: latest
+  Libs/LibStub:
+    url: https://repos.wowace.com/wow/libstub/trunk
+  Libs/LibCustomGlow-1.0:
+    url: https://github.com/Stanzilla/LibCustomGlow.git
+    tag: latest
+  Libs/LibSharedMedia-3.0:
+    url: https://repos.wowace.com/wow/libsharedmedia-3-0/trunk/LibSharedMedia-3.0
+  Libs/LibSerialize:
+    url: https://github.com/rossnichols/LibSerialize.git
+    tag: latest
+  Libs/LibDeflate:
+    url: https://github.com/safeteeWoW/LibDeflate.git
+    tag: latest
