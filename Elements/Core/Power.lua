@@ -84,6 +84,13 @@ function F.Elements.Power.Setup(self, width, height, config)
 			end
 		end
 
+		-- Guard against secret values before Lua arithmetic.
+		-- The bar itself handles secrets natively via SetValue().
+		if(not F.IsValueNonSecret(cur) or not F.IsValueNonSecret(max)) then
+			if(p.text) then p.text:SetText('') end
+			return
+		end
+
 		-- Power text formatting
 		if(config.showText and p.text) then
 			local fmt = config.textFormat

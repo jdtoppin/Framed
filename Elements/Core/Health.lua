@@ -86,6 +86,13 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	health.PostUpdate = function(h, unit, cur, max)
+		-- Guard against secret values before Lua arithmetic.
+		-- The bar itself handles secrets natively via SetValue().
+		if(not F.IsValueNonSecret(cur) or not F.IsValueNonSecret(max)) then
+			if(h.text) then h.text:SetText('') end
+			return
+		end
+
 		-- Custom color mode
 		if(config.colorMode == 'custom') then
 			h:SetStatusBarColor(unpack(config.customColor))
@@ -129,10 +136,18 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	if(config.healPrediction) then
-		-- Safe feature detection for UnitHealPredictionCalculator
-		-- CreateFrame throws on invalid type, so check the global namespace instead
-		local hasHealCalc = (type(UnitHealPredictionCalculator) == 'table') or
-			(C_Widget and C_Widget.IsFrameWidget and C_Widget.IsFrameWidget('UnitHealPredictionCalculator'))
+		-- Safe feature detection: check if the type exists before creating.
+		-- NEVER call CreateFrame with an unverified type — it throws on invalid types.
+		local hasHealCalc = false
+		local healCalcFrame = nil
+
+		-- Only attempt creation if we have evidence the type exists
+		if(type(UnitHealPredictionCalculator) ~= 'nil') then
+			hasHealCalc = true
+		elseif(C_Widget and C_Widget.IsFrameWidget) then
+			-- Alternative check via C_Widget API
+			hasHealCalc = C_Widget.IsFrameWidget('UnitHealPredictionCalculator')
+		end
 
 		local calculator
 		if(hasHealCalc) then

@@ -420,8 +420,8 @@ function Settings.CreateMainFrame()
 	header:SetScript('OnDragStop', function(self)
 		frame:StopMovingOrSizing()
 		local point, _, relPoint, x, y = frame:GetPoint()
-		if(F.Config and F.Config.db) then
-			F.Config.db.account.settingsPos = { point, relPoint, x, y }
+		if(F.Config) then
+			F.Config:Set('general.settingsPos', { point, relPoint, x, y })
 		end
 	end)
 
@@ -440,8 +440,8 @@ function Settings.CreateMainFrame()
 		WINDOW_MAX_W, WINDOW_MAX_H,
 		nil,
 		function(f, w, h)
-			if(F.Config and F.Config.db) then
-				F.Config.db.account.settingsSize = { w, h }
+			if(F.Config) then
+				F.Config:Set('general.settingsSize', { w, h })
 			end
 		end)
 
@@ -542,13 +542,13 @@ function Settings.CreateMainFrame()
 	Widgets.AddToPixelUpdater_OnShow(frame)
 
 	-- ── Restore saved position / size ─────────────────────────
-	if(F.Config and F.Config.db) then
-		local pos = F.Config.db.account.settingsPos
+	if(F.Config) then
+		local pos = F.Config:Get('general.settingsPos')
 		if(pos) then
 			frame:ClearAllPoints()
 			frame:SetPoint(pos[1], UIParent, pos[2], pos[3], pos[4])
 		end
-		local sz = F.Config.db.account.settingsSize
+		local sz = F.Config:Get('general.settingsSize')
 		if(sz) then
 			frame:SetSize(sz[1], sz[2])
 		end
