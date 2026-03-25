@@ -102,8 +102,17 @@ function Widgets.CreateStatusBar(parent, width, height)
 	--- Set bar value. Animates smoothly if smooth is enabled.
 	--- @param val number
 	function bar:SetValue(val)
+		-- val may be a secret value — pass through to C-level API
+		if(not F.IsValueNonSecret(val)) then
+			-- Secret: pass directly to raw SetValue (C-level handles it)
+			self:SetValue_Raw(val)
+			return
+		end
+
 		local min, max = self:GetMinMaxValues()
-		val = math.max(min, math.min(max, val))
+		if(F.IsValueNonSecret(min) and F.IsValueNonSecret(max)) then
+			val = math.max(min, math.min(max, val))
+		end
 		self._targetValue = val
 
 		if(not self._smoothEnabled) then
@@ -152,9 +161,11 @@ function Widgets.CreateStatusBar(parent, width, height)
 
 	function bar:SetMinMaxValues(min, max)
 		rawSetMinMax(self, min, max)
-		-- Clamp stored values to new range
-		self._targetValue  = math.max(min, math.min(max, self._targetValue  or min))
-		self._currentValue = math.max(min, math.min(max, self._currentValue or min))
+		-- Clamp stored values to new range (only if values are non-secret)
+		if(F.IsValueNonSecret(min) and F.IsValueNonSecret(max)) then
+			self._targetValue  = math.max(min, math.min(max, self._targetValue  or min))
+			self._currentValue = math.max(min, math.min(max, self._currentValue or min))
+		end
 	end
 
 	-- --------------------------------------------------------
