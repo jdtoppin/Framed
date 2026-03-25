@@ -7,6 +7,7 @@ F.Settings.RegisterPanel({
 	section = 'UNIT_FRAMES',
 	order   = 30,
 	create  = function(parent)
+		F.Settings.SetEditingUnitType('targettarget')
 		return F.FrameSettingsBuilder.Create(parent, 'targettarget')
 	end,
 })

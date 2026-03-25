@@ -22,6 +22,7 @@ Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua
 Init.lua
 Core/Constants.lua
 Core/SecretValues.lua
+Core/DispelCapability.lua
 Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua

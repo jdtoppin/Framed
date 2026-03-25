@@ -49,6 +49,25 @@ function Settings.RegisterPanel(info)
 end
 
 -- ============================================================
+-- Editing Unit Type
+-- ============================================================
+
+--- Get the unit type whose aura panels are currently being configured.
+--- Set by FrameSettingsBuilder or unit frame panel navigation.
+--- Falls back to 'party' if nothing is explicitly selected.
+--- @return string
+function Settings.GetEditingUnitType()
+	return Settings._editingUnitType or 'party'
+end
+
+--- Set the unit type being edited. Called when switching between
+--- unit frame types (e.g., Player → Party → Raid in the sidebar).
+--- @param unitType string
+function Settings.SetEditingUnitType(unitType)
+	Settings._editingUnitType = unitType
+end
+
+-- ============================================================
 -- Window Constants
 -- ============================================================
 

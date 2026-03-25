@@ -7,6 +7,7 @@ F.Settings.RegisterPanel({
 	section = 'GROUP_FRAMES',
 	order   = 10,
 	create  = function(parent)
+		F.Settings.SetEditingUnitType('party')
 		return F.FrameSettingsBuilder.Create(parent, 'party')
 	end,
 })
