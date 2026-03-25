@@ -200,7 +200,6 @@ function Preview.CreatePreviewFrame(parent, unitType, width, height)
 	frame._deadText = deadText
 
 	-- Show the dead text in sync with the overlay
-	local originalSetTexture = deadOverlay.Show
 	hooksecurefunc(deadOverlay, 'Show', function() deadText:Show() end)
 	hooksecurefunc(deadOverlay, 'Hide', function() deadText:Hide() end)
 

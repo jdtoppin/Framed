@@ -45,19 +45,6 @@ local DEFAULT_CONFIG = {
 }
 
 -- ============================================================
--- Deep Copy Helper
--- ============================================================
-
-local function deepCopyConfig(src)
-	if(type(src) ~= 'table') then return src end
-	local copy = {}
-	for k, v in next, src do
-		copy[k] = deepCopyConfig(v)
-	end
-	return copy
-end
-
--- ============================================================
 -- Unit-Type Presets
 -- ============================================================
 
@@ -65,7 +52,7 @@ F.StyleBuilder.Presets = {}
 
 -- player — full UI: castbar, portrait, combat icon
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.castbar = {
 		height   = 16,
 		showIcon = true,
@@ -81,7 +68,7 @@ end
 
 -- target — castbar, portrait
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.castbar = {
 		height   = 16,
 		showIcon = true,
@@ -96,7 +83,7 @@ end
 
 -- targettarget — minimal, no castbar/portrait
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 120
 	p.height = 24
 	p.castbar  = nil
@@ -106,7 +93,7 @@ end
 
 -- focus — castbar
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 150
 	p.height = 30
 	p.castbar = {
@@ -122,7 +109,7 @@ end
 
 -- pet — minimal, no castbar/portrait
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 120
 	p.height = 24
 	p.castbar  = nil
@@ -132,7 +119,7 @@ end
 
 -- party — health text (percent), role icon
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 120
 	p.height = 36
 	p.health.showText   = true
@@ -149,7 +136,7 @@ end
 
 -- raid — compact, health text (percent), role icon
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 72
 	p.height = 36
 	p.health.showText   = true
@@ -165,7 +152,7 @@ end
 
 -- boss — castbar, health text
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 150
 	p.height = 30
 	p.health.showText   = true
@@ -183,7 +170,7 @@ end
 
 -- arena — castbar, health text
 do
-	local p = deepCopyConfig(DEFAULT_CONFIG)
+	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 150
 	p.height = 30
 	p.health.showText   = true
@@ -218,7 +205,7 @@ function F.StyleBuilder.GetConfig(unitType)
 	end
 
 	-- Generic fallback
-	return deepCopyConfig(DEFAULT_CONFIG)
+	return F.DeepCopy(DEFAULT_CONFIG)
 end
 
 -- ============================================================
@@ -269,7 +256,7 @@ function F.StyleBuilder.Apply(self, unit, config)
 	self.Power._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, -healthHeight)
 
 	-- Name text — centered on the health bar region
-	local nameCfg = deepCopyConfig(config.name)
+	local nameCfg = F.DeepCopy(config.name)
 	nameCfg.anchor = { 'CENTER', self.Health, 'CENTER', 0, 0 }
 	F.Elements.Name.Setup(self, nameCfg)
 

@@ -16,6 +16,7 @@ Libs/oUF/oUF.xml
 Libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua
 Libs/LibSerialize/LibSerialize.lua
 Libs/LibDeflate/LibDeflate.lua
+Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua
 
 # Core
 Init.lua

@@ -4,16 +4,11 @@ local F = Framed
 F.LayoutManager = {}
 
 -- ============================================================
--- DeepCopy
+-- DeepCopy — delegates to F.DeepCopy in Core/Utilities.lua
 -- ============================================================
 
 function F.LayoutManager.DeepCopy(src)
-	if(type(src) ~= 'table') then return src end
-	local copy = {}
-	for k, v in next, src do
-		copy[k] = F.LayoutManager.DeepCopy(v)
-	end
-	return copy
+	return F.DeepCopy(src)
 end
 
 -- ============================================================

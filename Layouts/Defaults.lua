@@ -5,19 +5,6 @@ local C = F.Constants
 F.LayoutDefaults = {}
 
 -- ============================================================
--- Deep Copy
--- ============================================================
-
-local function deepCopy(src)
-	if(type(src) ~= 'table') then return src end
-	local copy = {}
-	for k, v in next, src do
-		copy[k] = deepCopy(v)
-	end
-	return copy
-end
-
--- ============================================================
 -- Base unit config templates
 -- ============================================================
 
@@ -500,7 +487,7 @@ function F.LayoutDefaults.EnsureDefaults()
 	local defaults = F.LayoutDefaults.GetAll()
 	for name, layout in next, defaults do
 		if(FramedDB.layouts[name] == nil) then
-			FramedDB.layouts[name] = deepCopy(layout)
+			FramedDB.layouts[name] = F.DeepCopy(layout)
 		end
 	end
 end

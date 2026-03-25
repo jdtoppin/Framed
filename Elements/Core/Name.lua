@@ -11,14 +11,32 @@ F.Elements.Name = {}
 -- Name Truncation Helper
 -- ============================================================
 
---- Truncate a string to maxLen characters, appending '...' if cut.
+--- Truncate a UTF-8 string to maxChars codepoints, appending '...' if cut.
 --- @param str string
---- @param maxLen number
+--- @param maxChars number
 --- @return string
-local function Truncate(str, maxLen)
+local function TruncateUTF8(str, maxChars)
 	if(not str) then return '' end
-	if(#str <= maxLen) then return str end
-	return str:sub(1, maxLen) .. '...'
+	local chars = 0
+	local bytePos = 1
+	local len = #str
+	while(bytePos <= len and chars < maxChars) do
+		local byte = str:byte(bytePos)
+		if(byte < 128) then
+			bytePos = bytePos + 1
+		elseif(byte < 224) then
+			bytePos = bytePos + 2
+		elseif(byte < 240) then
+			bytePos = bytePos + 3
+		else
+			bytePos = bytePos + 4
+		end
+		chars = chars + 1
+	end
+	if(bytePos <= len) then
+		return str:sub(1, bytePos - 1) .. '...'
+	end
+	return str
 end
 
 -- ============================================================
@@ -91,7 +109,7 @@ function F.Elements.Name.Setup(self, config)
 
 		-- Truncate the displayed text
 		local raw = nameText:GetText() or ''
-		local truncated = Truncate(raw, config.truncate)
+		local truncated = TruncateUTF8(raw, config.truncate)
 		nameText:SetText(truncated)
 
 		-- Class coloring

@@ -4,6 +4,8 @@ local oUF = F.oUF
 
 F.ClickCasting = {}
 
+local combatQueueFrame = nil
+
 --- Check if Clique is installed and active.
 --- @return boolean
 function F.ClickCasting.HasClique()
@@ -72,9 +74,11 @@ end
 --- Must be called out of combat.
 function F.ClickCasting.RefreshAll()
 	if(InCombatLockdown()) then
-		local frame = CreateFrame('Frame')
-		frame:RegisterEvent('PLAYER_REGEN_ENABLED')
-		frame:SetScript('OnEvent', function(self)
+		if(not combatQueueFrame) then
+			combatQueueFrame = CreateFrame('Frame')
+		end
+		combatQueueFrame:RegisterEvent('PLAYER_REGEN_ENABLED')
+		combatQueueFrame:SetScript('OnEvent', function(self)
 			self:UnregisterAllEvents()
 			F.ClickCasting.RefreshAll()
 		end)

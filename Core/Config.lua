@@ -43,25 +43,13 @@ local charDefaults = {
 }
 
 -- ============================================================
--- Deep copy utility
--- ============================================================
-local function deepCopy(src)
-	if(type(src) ~= 'table') then return src end
-	local copy = {}
-	for k, v in next, src do
-		copy[k] = deepCopy(v)
-	end
-	return copy
-end
-
--- ============================================================
 -- Merge defaults into saved data (non-destructive)
 -- Adds missing keys from defaults without overwriting existing values.
 -- ============================================================
 local function mergeDefaults(saved, defaults)
 	for k, v in next, defaults do
 		if(saved[k] == nil) then
-			saved[k] = deepCopy(v)
+			saved[k] = F.DeepCopy(v)
 		elseif(type(v) == 'table' and type(saved[k]) == 'table') then
 			mergeDefaults(saved[k], v)
 		end
@@ -74,13 +62,13 @@ end
 function Config:Initialize()
 	-- Create or restore SavedVariables
 	if(not FramedDB) then
-		FramedDB = deepCopy(accountDefaults)
+		FramedDB = F.DeepCopy(accountDefaults)
 	else
 		mergeDefaults(FramedDB, accountDefaults)
 	end
 
 	if(not FramedCharDB) then
-		FramedCharDB = deepCopy(charDefaults)
+		FramedCharDB = F.DeepCopy(charDefaults)
 	else
 		mergeDefaults(FramedCharDB, charDefaults)
 	end

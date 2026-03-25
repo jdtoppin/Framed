@@ -28,3 +28,15 @@ function F.FormatDuration(seconds)
 		return string.format('%.1f', seconds)
 	end
 end
+
+--- Deep copy a table recursively.
+--- @param src any
+--- @return any
+function F.DeepCopy(src)
+	if(type(src) ~= 'table') then return src end
+	local copy = {}
+	for k, v in next, src do
+		copy[k] = F.DeepCopy(v)
+	end
+	return copy
+end
