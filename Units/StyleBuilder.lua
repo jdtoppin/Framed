@@ -61,8 +61,26 @@ do
 	}
 	p.portrait = { type = '2D' }
 	p.statusIcons.combat = true
-	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
-	p.debuffs = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
+	p.buffs = {
+		enabled    = true,
+		indicators = {},
+	}
+	p.debuffs = {
+		enabled              = true,
+		iconSize             = 14,
+		bigIconSize          = 18,
+		maxDisplayed         = 6,
+		showDuration         = true,
+		showAnimation        = true,
+		orientation          = 'RIGHT',
+		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel           = 5,
+		onlyDispellableByMe  = false,
+		stackFont            = { size = 10, outline = 'OUTLINE', shadow = false,
+		                         anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                         color = { 1, 1, 1, 1 } },
+		durationFont         = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
 	F.StyleBuilder.Presets['player'] = p
 end
 
@@ -76,8 +94,26 @@ do
 		showTime = true,
 	}
 	p.portrait = { type = '2D' }
-	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
-	p.debuffs = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
+	p.buffs = {
+		enabled    = true,
+		indicators = {},
+	}
+	p.debuffs = {
+		enabled              = true,
+		iconSize             = 14,
+		bigIconSize          = 18,
+		maxDisplayed         = 6,
+		showDuration         = true,
+		showAnimation        = true,
+		orientation          = 'RIGHT',
+		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel           = 5,
+		onlyDispellableByMe  = false,
+		stackFont            = { size = 10, outline = 'OUTLINE', shadow = false,
+		                         anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                         color = { 1, 1, 1, 1 } },
+		durationFont         = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
 	F.StyleBuilder.Presets['target'] = p
 end
 
@@ -102,8 +138,26 @@ do
 		showText = true,
 		showTime = true,
 	}
-	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
-	p.debuffs = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
+	p.buffs = {
+		enabled    = true,
+		indicators = {},
+	}
+	p.debuffs = {
+		enabled              = true,
+		iconSize             = 14,
+		bigIconSize          = 18,
+		maxDisplayed         = 6,
+		showDuration         = true,
+		showAnimation        = true,
+		orientation          = 'RIGHT',
+		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel           = 5,
+		onlyDispellableByMe  = false,
+		stackFont            = { size = 10, outline = 'OUTLINE', shadow = false,
+		                         anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                         color = { 1, 1, 1, 1 } },
+		durationFont         = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
 	F.StyleBuilder.Presets['focus'] = p
 end
 
@@ -125,10 +179,49 @@ do
 	p.health.showText   = true
 	p.health.textFormat = 'percent'
 	p.statusIcons.role  = true
-	p.raidDebuffs  = { iconSize = 18, filterMode = C.DebuffFilterMode.RAID, minPriority = C.DebuffPriority.NORMAL }
-	p.dispellable  = { glowType = C.GlowType.PIXEL }
-	p.buffs        = { maxIcons = 4, iconSize = 12, growDirection = 'RIGHT', anchor = {'TOPLEFT', nil, 'TOPLEFT', 2, -2} }
-	p.debuffs      = { maxIcons = 3, iconSize = 12, growDirection = 'RIGHT', anchor = {'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2} }
+	p.buffs = {
+		enabled    = true,
+		indicators = {},
+	}
+	p.debuffs = {
+		enabled              = true,
+		iconSize             = 16,
+		bigIconSize          = 22,
+		maxDisplayed         = 3,
+		showDuration         = true,
+		showAnimation        = true,
+		orientation          = 'RIGHT',
+		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel           = 5,
+		onlyDispellableByMe  = false,
+		stackFont            = { size = 10, outline = 'OUTLINE', shadow = false,
+		                         anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                         color = { 1, 1, 1, 1 } },
+		durationFont         = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
+	p.raidDebuffs = {
+		enabled        = true,
+		iconSize       = 16,
+		bigIconSize    = 20,
+		maxDisplayed   = 1,
+		showDuration   = true,
+		showAnimation  = true,
+		orientation    = 'RIGHT',
+		anchor         = { 'CENTER', nil, 'CENTER', 0, 0 },
+		frameLevel     = 6,
+		stackFont      = { size = 10, outline = 'OUTLINE', shadow = false,
+		                   anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                   color = { 1, 1, 1, 1 } },
+		durationFont   = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
+	p.dispellable = {
+		enabled              = true,
+		onlyDispellableByMe  = false,
+		highlightType        = 'gradient_half',
+		iconSize             = 16,
+		anchor               = { 'CENTER', nil, 'CENTER', 0, 0 },
+		frameLevel           = 7,
+	}
 	p.missingBuffs = { iconSize = 12 }
 	p.privateAuras = { iconSize = 16 }
 	F.StyleBuilder.Presets['party'] = p
@@ -144,8 +237,49 @@ do
 	p.statusIcons.role  = true
 	p.castbar  = nil
 	p.portrait = nil
-	p.raidDebuffs = { iconSize = 16, filterMode = C.DebuffFilterMode.RAID, minPriority = C.DebuffPriority.NORMAL }
-	p.dispellable = { glowType = C.GlowType.PIXEL }
+	p.buffs = {
+		enabled    = true,
+		indicators = {},
+	}
+	p.debuffs = {
+		enabled              = true,
+		iconSize             = 14,
+		bigIconSize          = 18,
+		maxDisplayed         = 1,
+		showDuration         = true,
+		showAnimation        = true,
+		orientation          = 'RIGHT',
+		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel           = 5,
+		onlyDispellableByMe  = false,
+		stackFont            = { size = 10, outline = 'OUTLINE', shadow = false,
+		                         anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                         color = { 1, 1, 1, 1 } },
+		durationFont         = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
+	p.raidDebuffs = {
+		enabled        = true,
+		iconSize       = 14,
+		bigIconSize    = 18,
+		maxDisplayed   = 1,
+		showDuration   = true,
+		showAnimation  = true,
+		orientation    = 'RIGHT',
+		anchor         = { 'CENTER', nil, 'CENTER', 0, 0 },
+		frameLevel     = 6,
+		stackFont      = { size = 10, outline = 'OUTLINE', shadow = false,
+		                   anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                   color = { 1, 1, 1, 1 } },
+		durationFont   = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
+	p.dispellable = {
+		enabled              = true,
+		onlyDispellableByMe  = false,
+		highlightType        = 'gradient_half',
+		iconSize             = 14,
+		anchor               = { 'CENTER', nil, 'CENTER', 0, 0 },
+		frameLevel           = 7,
+	}
 	p.privateAuras = { iconSize = 14 }
 	F.StyleBuilder.Presets['raid'] = p
 end
@@ -163,8 +297,26 @@ do
 		showText = true,
 		showTime = true,
 	}
-	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
-	p.debuffs = { maxIcons = 4, iconSize = 14, growDirection = 'RIGHT' }
+	p.buffs = {
+		enabled    = true,
+		indicators = {},
+	}
+	p.debuffs = {
+		enabled              = true,
+		iconSize             = 14,
+		bigIconSize          = 18,
+		maxDisplayed         = 4,
+		showDuration         = true,
+		showAnimation        = true,
+		orientation          = 'RIGHT',
+		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel           = 5,
+		onlyDispellableByMe  = false,
+		stackFont            = { size = 10, outline = 'OUTLINE', shadow = false,
+		                         anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                         color = { 1, 1, 1, 1 } },
+		durationFont         = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
 	F.StyleBuilder.Presets['boss'] = p
 end
 
@@ -181,8 +333,30 @@ do
 		showText = true,
 		showTime = true,
 	}
-	p.debuffs     = { maxIcons = 4, iconSize = 14, growDirection = 'RIGHT' }
-	p.dispellable = { glowType = C.GlowType.PIXEL }
+	p.debuffs = {
+		enabled              = true,
+		iconSize             = 14,
+		bigIconSize          = 18,
+		maxDisplayed         = 4,
+		showDuration         = true,
+		showAnimation        = true,
+		orientation          = 'RIGHT',
+		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel           = 5,
+		onlyDispellableByMe  = false,
+		stackFont            = { size = 10, outline = 'OUTLINE', shadow = false,
+		                         anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                         color = { 1, 1, 1, 1 } },
+		durationFont         = { size = 10, outline = 'OUTLINE', shadow = false },
+	}
+	p.dispellable = {
+		enabled              = true,
+		onlyDispellableByMe  = false,
+		highlightType        = 'gradient_half',
+		iconSize             = 14,
+		anchor               = { 'CENTER', nil, 'CENTER', 0, 0 },
+		frameLevel           = 7,
+	}
 	F.StyleBuilder.Presets['arena'] = p
 end
 
@@ -379,6 +553,16 @@ function F.StyleBuilder.Apply(self, unit, config)
 	end
 	if(config.privateAuras and F.Elements.PrivateAuras) then
 		F.Elements.PrivateAuras.Setup(self, config.privateAuras)
+	end
+
+	-- Externals (optional)
+	if(config.externals and F.Elements.Externals) then
+		F.Elements.Externals.Setup(self, config.externals)
+	end
+
+	-- Defensives (optional)
+	if(config.defensives and F.Elements.Defensives) then
+		F.Elements.Defensives.Setup(self, config.defensives)
 	end
 
 	-- --------------------------------------------------------
