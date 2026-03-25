@@ -102,3 +102,12 @@ ClickCasting/Defaults.lua
 
 # Blizzard Frame Hiding
 BlizzardFrames.lua
+
+# Layouts
+Layouts/Defaults.lua
+Layouts/ContentDetection.lua
+Layouts/AutoSwitch.lua
+Layouts/Manager.lua
+
+# Edit Mode
+EditMode/EditMode.lua
