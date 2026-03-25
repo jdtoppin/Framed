@@ -202,32 +202,33 @@ local function buildStep2(parent)
 	title:SetText('Your Role')
 
 	-- Auto-detected spec
-	local specName, class = GetAutoDetectedSpec()
+	local specName, class, detectedRole = GetAutoDetectedSpec()
 	local specText = Widgets.CreateFontString(frame, C.Font.sizeNormal, C.Colors.textSecondary)
 	specText:ClearAllPoints()
 	Widgets.SetPoint(specText, 'TOPLEFT', title, 'BOTTOMLEFT', 0, -C.Spacing.base)
 	specText:SetText('Detected: ' .. specName .. ' (' .. class .. ')')
 
-	-- Role buttons
-	local roleLabels = { 'Tank', 'Healer', 'DPS', 'Multiple Roles' }
-	local roleValues = { 'tank', 'healer', 'dps', 'multi' }
-	local roleButtons = {}
-	local btnW = 96
-	local btnGap = C.Spacing.base
+	-- Role checkboxes (multi-select)
+	local roleLabels = { 'Tank', 'Healer', 'DPS' }
+	local roleValues = { 'tank', 'healer', 'dps' }
+	choices.roles = choices.roles or {}
 
 	for i, label in next, roleLabels do
-		local btn = Widgets.CreateButton(frame, label, 'widget', btnW, BTN_H)
-		btn.value = roleValues[i]
-		btn:ClearAllPoints()
-		local xOff = (i - 1) * (btnW + btnGap)
-		Widgets.SetPoint(btn, 'TOPLEFT', specText, 'BOTTOMLEFT', xOff, -C.Spacing.normal)
-		roleButtons[#roleButtons + 1] = btn
-	end
+		local check = Widgets.CreateCheckButton(frame, label, function(checked)
+			choices.roles[roleValues[i]] = checked or nil
+		end)
+		check:ClearAllPoints()
+		local yOff = -(i - 1) * (BTN_H + C.Spacing.base)
+		Widgets.SetPoint(check, 'TOPLEFT', specText, 'BOTTOMLEFT', 0, -C.Spacing.normal + yOff)
 
-	-- Button group for radio selection
-	local roleGroup = Widgets.CreateButtonGroup(roleButtons, function(value)
-		choices.role = value
-	end)
+		-- Pre-check detected role (WoW returns TANK/HEALER/DAMAGER)
+		local roleMap = { TANK = 'tank', HEALER = 'healer', DAMAGER = 'dps' }
+		local mappedRole = detectedRole and roleMap[detectedRole]
+		if(mappedRole and mappedRole == roleValues[i]) then
+			check:SetChecked(true)
+			choices.roles[roleValues[i]] = true
+		end
+	end
 
 	buildNavRow(frame, true)
 
@@ -424,7 +425,13 @@ local function buildStep5(parent)
 	summaryText:SetWordWrap(true)
 
 	local function buildSummary()
-		local roleLabel    = choices.role or 'no role selected'
+		local roleParts = {}
+		if(choices.roles) then
+			for k, _ in next, choices.roles do
+				roleParts[#roleParts + 1] = k
+			end
+		end
+		local roleLabel = (#roleParts > 0) and table.concat(roleParts, ', ') or 'no role selected'
 		local contentParts = {}
 		for k, _ in next, choices.content do
 			contentParts[#contentParts + 1] = k
@@ -550,7 +557,7 @@ function Onboarding.ShowWizard()
 
 	-- Reset state
 	currentStep       = 1
-	choices.role      = nil
+	choices.roles     = {}
 	choices.content   = {}
 	choices.position  = nil
 
