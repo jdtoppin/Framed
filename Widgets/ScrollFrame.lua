@@ -142,11 +142,16 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 
 	-- ── Content (child of ScrollFrame) ─────────────────────────
 	local content = CreateFrame('Frame', nil, sf)
-	-- Width set deferred (see OnShow); height driven by caller
 	content:SetPoint('TOPLEFT', sf, 'TOPLEFT', 0, 0)
+	-- Set initial width immediately so children have a non-zero anchor target.
+	-- The deferred OnShow init below may refine this once layout resolves.
+	content:SetWidth(width - SCROLLBAR_OFFSET)
 	scroll._content = content
 
 	sf:SetScrollChild(content)
+
+	-- Back-reference so children can find the scroll container
+	content._scrollParent = scroll
 
 	-- ── Scrollbar track ────────────────────────────────────────
 	local track = CreateFrame('Frame', nil, scroll, 'BackdropTemplate')

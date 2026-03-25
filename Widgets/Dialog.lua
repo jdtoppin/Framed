@@ -106,7 +106,10 @@ local function BuildDialog()
 		self._onConfirm = nil
 		self._onCancel  = nil
 		self._onDismiss = nil
-		dimmer:Hide()
+		-- Dimmer hides via its own FadeOut; force-hide as fallback
+		if(dimmer:IsShown() and dimmer:GetAlpha() <= 0.01) then
+			dimmer:Hide()
+		end
 	end)
 
 	-- --------------------------------------------------------
@@ -152,22 +155,22 @@ local function BuildDialog()
 		end
 	end
 
-	--- Unified dismiss: fires the appropriate callback then hides.
+	--- Unified dismiss: fires the appropriate callback then fades out.
 	--- reason: 'confirm' | 'cancel' | 'dismiss'
 	function frame:_Dismiss(reason)
+		local cb
 		if(reason == 'confirm') then
-			local cb = self._onConfirm
-			self:Hide()
-			if(cb) then cb() end
+			cb = self._onConfirm
 		elseif(reason == 'cancel') then
-			local cb = self._onCancel
-			self:Hide()
-			if(cb) then cb() end
-		else  -- 'dismiss'
-			local cb = self._onDismiss
-			self:Hide()
-			if(cb) then cb() end
+			cb = self._onCancel
+		else
+			cb = self._onDismiss
 		end
+		-- Fade out both dialog and dimmer, then hide and fire callback
+		Widgets.FadeOut(dimmer, C.Animation.durationNormal)
+		Widgets.FadeOut(self, C.Animation.durationNormal, function()
+			if(cb) then cb() end
+		end)
 	end
 
 	-- Wire button clicks
@@ -208,9 +211,7 @@ local function ShowDialog(title, message, mode)
 	d:_UpdateHeight()
 	d:_LayoutButtons(mode)
 
-	d._dimmer:Show()
-	d._dimmer:SetAlpha(1)
-
+	Widgets.FadeIn(d._dimmer, C.Animation.durationNormal)
 	Widgets.FadeIn(d, C.Animation.durationNormal)
 
 	return d

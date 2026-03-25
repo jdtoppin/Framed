@@ -257,6 +257,19 @@ local function createListRow(scrollContent)
 	nameFS:SetWidth(100)
 	row.__nameFS = nameFS
 
+	-- "Editing: name" overlay — wrapper frame for fade animation
+	local editingWrap = CreateFrame('Frame', nil, row)
+	editingWrap:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
+	editingWrap:SetSize(160, ROW_HEIGHT)
+	editingWrap:Hide()
+	row.__editingWrap = editingWrap
+
+	local editingFS = Widgets.CreateFontString(editingWrap, C.Font.sizeNormal, { 0.3, 0.9, 0.3, 1 })
+	editingFS:SetPoint('LEFT', editingWrap, 'LEFT', 0, 0)
+	editingFS:SetJustifyH('LEFT')
+	editingFS:SetWidth(160)
+	row.__editingFS = editingFS
+
 	local typeFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
 	typeFS:SetJustifyH('LEFT')
 	row.__typeFS = typeFS
@@ -273,11 +286,11 @@ local function createListRow(scrollContent)
 	local deleteBtn = Widgets.CreateButton(row, 'Del', 'red', 36, 20)
 	row.__deleteBtn = deleteBtn
 
-	-- Anchoring: [name] [type] ... [enabled] [edit] [delete]
-	deleteBtn:SetPoint('RIGHT', row, 'RIGHT', -PAD_H, 0)
-	editBtn:SetPoint('RIGHT', deleteBtn, 'LEFT', -C.Spacing.base, 0)
+	-- Anchoring: [name] [type] ... [enabled] [delete] [edit]
+	editBtn:SetPoint('RIGHT', row, 'RIGHT', -PAD_H, 0)
+	deleteBtn:SetPoint('RIGHT', editBtn, 'LEFT', -C.Spacing.base, 0)
 	enabledCB:ClearAllPoints()
-	Widgets.SetPoint(enabledCB, 'RIGHT', editBtn, 'LEFT', -C.Spacing.base, 0)
+	Widgets.SetPoint(enabledCB, 'RIGHT', deleteBtn, 'LEFT', -C.Spacing.base, 0)
 	typeFS:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
 
 	row:EnableMouse(true)
@@ -410,6 +423,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 	local editingName = nil
 	local listRowPool = {}
+	local indicatorCount = 0  -- track total indicator count for resizing
 
 	-- ── Create section ─────────────────────────────────────
 	yOffset = placeHeading(parent, 'Create Indicator', 2, yOffset)
@@ -440,6 +454,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	-- ── Indicator list ─────────────────────────────────────
 	yOffset = placeHeading(parent, 'Indicators', 2, yOffset)
 
+	local listTopY = yOffset  -- remember where the list starts
 	local listScroll = Widgets.CreateScrollFrame(parent, nil, width, LIST_HEIGHT)
 	listScroll:ClearAllPoints()
 	Widgets.SetPoint(listScroll, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
@@ -462,17 +477,29 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	Widgets.SetSize(settingsContainer, width, 1)
 	settingsContainer:Hide()
 
+	--- Resize the list scroll to fit its content and reposition the settings section.
+	local function repositionSettings()
+		local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+		listScroll:SetHeight(listH)
+		local settingsY = listTopY - listH - C.Spacing.normal
+		settingsHeading:ClearAllPoints()
+		Widgets.SetPoint(settingsHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, settingsY)
+		settingsContainer:ClearAllPoints()
+		Widgets.SetPoint(settingsContainer, 'TOPLEFT', parent, 'TOPLEFT', 0, settingsY - settingsHeadingH)
+	end
+
 	-- ── Refresh the indicator list ─────────────────────────
 	local function layoutList()
 		for _, row in next, listRowPool do row:Hide() end
 
 		local indicators = getIndicators()
-		local count = 0
-		for _ in next, indicators do count = count + 1 end
+		indicatorCount = 0
+		for _ in next, indicators do indicatorCount = indicatorCount + 1 end
 
-		if(count == 0) then
+		if(indicatorCount == 0) then
 			emptyLabel:Show()
 			listContent:SetHeight(1)
+			listScroll:SetHeight(ROW_HEIGHT)
 			listScroll:UpdateScrollRange()
 			return
 		end
@@ -487,16 +514,26 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 				listRowPool[idx] = row
 			end
 			row:Show()
+			row:SetAlpha(1)
 			row:ClearAllPoints()
 			row:SetPoint('TOPLEFT', listContent, 'TOPLEFT', 0, -(idx - 1) * ROW_HEIGHT)
 			row:SetPoint('TOPRIGHT', listContent, 'TOPRIGHT', 0, -(idx - 1) * ROW_HEIGHT)
 
+			-- Reset editing state; re-apply if this row is being edited
 			row.__nameFS:SetText(iName)
+			row.__nameFS:Show()
+			row.__editingWrap:Hide()
+			if(editingName == iName) then
+				row.__nameFS:Hide()
+				row.__editingFS:SetText('Editing: ' .. iName)
+				row.__editingWrap:SetAlpha(1)
+				row.__editingWrap:Show()
+			end
 			row.__typeFS:SetText(iData.type or '?')
 			row.__enabledCB:SetChecked(iData.enabled ~= false)
 
 			-- Dynamic callback for this row's enabled checkbox
-			local capName, capData = iName, iData
+			local capName, capData, capIdx = iName, iData, idx
 			row.__onEnabledChanged = function(checked)
 				capData.enabled = checked
 				setIndicator(capName, capData)
@@ -504,21 +541,53 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 			row.__editBtn:SetOnClick(function()
 				editingName = capName
-				-- Clear previous settings children
-				local children = { settingsContainer:GetChildren() }
-				for _, child in next, children do child:Hide(); child:ClearAllPoints() end
 
+				-- Clear previous settings: hide all child frames AND regions (FontStrings/Textures)
+				for _, child in next, { settingsContainer:GetChildren() } do
+					child:Hide()
+					child:ClearAllPoints()
+				end
+				for _, region in next, { settingsContainer:GetRegions() } do
+					region:Hide()
+					region:ClearAllPoints()
+				end
+
+				-- Show heading and container
 				settingsHeading:Show()
 				settingsContainer:Show()
+
+				-- Reset all row editing labels, then show this row's
+				for _, r in next, listRowPool do
+					if(r.__editingWrap) then
+						r.__editingWrap:Hide()
+						r.__nameFS:Show()
+					end
+				end
+				row.__nameFS:Hide()
+				row.__editingFS:SetText('Editing: ' .. capName)
+				row.__editingWrap:SetAlpha(1)
+				row.__editingWrap:Show()
+
+				-- Reposition settings snug below the list (uses total indicatorCount)
+				repositionSettings()
 
 				local cur = getIndicators()[capName]
 				if(not cur) then return end
 
-				local lbl = Widgets.CreateFontString(settingsContainer, C.Font.sizeNormal, C.Colors.textActive)
-				lbl:SetPoint('TOPLEFT', settingsContainer, 'TOPLEFT', 0, 0)
-				lbl:SetText('Editing: ' .. capName)
+				-- Build settings into container
+				local settingsEndY = buildIndicatorSettings(settingsContainer, width, 0, capName, cur, setIndicator)
 
-				buildIndicatorSettings(settingsContainer, width, -18, capName, cur, setIndicator)
+				-- Update settingsContainer height
+				settingsContainer:SetHeight(math.abs(settingsEndY) + C.Spacing.normal)
+
+				-- Update the scroll content height and scroll range
+				local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+				local settingsTopY = listTopY - listH - C.Spacing.normal
+				local totalH = math.abs(settingsTopY) + settingsHeadingH + math.abs(settingsEndY) + C.Spacing.normal * 2
+				parent:SetHeight(totalH)
+				if(parent._scrollParent and parent._scrollParent.UpdateScrollRange) then
+					parent._scrollParent:UpdateScrollRange()
+				end
 			end)
 
 			row.__deleteBtn:SetOnClick(function()
@@ -528,6 +597,13 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 						editingName = nil
 						settingsHeading:Hide()
 						settingsContainer:Hide()
+						-- Reset editing labels on all rows
+						for _, r in next, listRowPool do
+							if(r.__editingWrap) then
+								r.__editingWrap:Hide()
+								r.__nameFS:Show()
+							end
+						end
 					end
 					layoutList()
 				end)
@@ -536,6 +612,14 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 		listContent:SetHeight(idx * ROW_HEIGHT)
 		listScroll:UpdateScrollRange()
+		-- Only reposition settings section when it's visible
+		if(settingsContainer:IsShown()) then
+			repositionSettings()
+		else
+			-- Still resize the list to fit content
+			local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+			listScroll:SetHeight(listH)
+		end
 	end
 
 	-- ── Create handler ─────────────────────────────────────

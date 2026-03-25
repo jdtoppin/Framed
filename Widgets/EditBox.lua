@@ -37,6 +37,12 @@ function EditBoxMixin:SetOnEnterPressed(func)
 	self._onEnterPressed = func
 end
 
+--- Register a callback fired when the edit box loses focus.
+--- @param func function
+function EditBoxMixin:SetOnFocusLost(func)
+	self._onFocusLost = func
+end
+
 --- Get the current text content.
 --- @return string
 function EditBoxMixin:GetText()
@@ -93,6 +99,10 @@ local function OnFocusLost(container)
 		container._placeholder_active = true
 		eb:SetTextColor(Widgets.UnpackColor(PLACEHOLDER_COLOR))
 		eb:SetText(container._placeholderText)
+	end
+
+	if(container._onFocusLost) then
+		container._onFocusLost()
 	end
 end
 

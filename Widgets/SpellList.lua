@@ -10,11 +10,16 @@ local C = F.Constants
 -- spells per indicator category.
 -- ============================================================
 
-local ROW_HEIGHT  = 28
-local ICON_SIZE   = 20
-local ICON_GAP    = 4
-local REMOVE_SIZE = 14
-local PAD_H       = 6   -- horizontal padding inside each row
+local ROW_HEIGHT   = 28
+local ICON_SIZE    = 20
+local ICON_GAP     = 4
+local REMOVE_SIZE  = 14
+local ARROW_SIZE   = 12
+local ARROW_GAP    = 2
+local PAD_H        = 6   -- horizontal padding inside each row
+
+-- Use a single arrow icon; flip via TexCoord for the other direction
+local ARROW_ICON = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
 
 local function GetSpellData(spellID)
 	if(C_Spell and C_Spell.GetSpellInfo) then
@@ -29,11 +34,38 @@ end
 
 -- Row pool helpers
 
+local function CreateArrowButton(parent, flipped)
+	local btn = CreateFrame('Button', nil, parent)
+	Widgets.SetSize(btn, ARROW_SIZE, ARROW_SIZE)
+
+	local tex = btn:CreateTexture(nil, 'ARTWORK')
+	tex:SetAllPoints(btn)
+	tex:SetTexture(ARROW_ICON)
+	-- Crop padding; flip vertically for down arrow
+	if(flipped) then
+		tex:SetTexCoord(0.15, 0.85, 0.85, 0.15)
+	else
+		tex:SetTexCoord(0.15, 0.85, 0.15, 0.85)
+	end
+	local ts = C.Colors.textSecondary
+	tex:SetVertexColor(ts[1], ts[2], ts[3], 1)
+	btn._tex = tex
+
+	btn:SetScript('OnEnter', function(self)
+		local ac = C.Colors.accent
+		self._tex:SetVertexColor(ac[1], ac[2], ac[3], 1)
+	end)
+	btn:SetScript('OnLeave', function(self)
+		local s = C.Colors.textSecondary
+		self._tex:SetVertexColor(s[1], s[2], s[3], 1)
+	end)
+
+	return btn
+end
+
 local function CreateRow(parent)
-	local row = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
-	row._bgColor     = C.Colors.widget
-	row._borderColor = C.Colors.border
-	Widgets.ApplyBackdrop(row, C.Colors.widget, C.Colors.border)
+	local row = CreateFrame('Frame', nil, parent)
+	row:SetHeight(ROW_HEIGHT)
 
 	-- Spell icon
 	local icon = row:CreateTexture(nil, 'ARTWORK')
@@ -47,48 +79,57 @@ local function CreateRow(parent)
 	nameFS:SetJustifyH('LEFT')
 	row._nameFS = nameFS
 
-	-- Spell ID (gray, right-aligned before remove button)
-	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-	idFS:SetJustifyH('RIGHT')
-	row._idFS = idFS
+	-- Right side controls (right to left): remove, down, up, ID
 
-	-- Remove button ("\xE2\x9C\x95", 14x14)
-	local removeBtn = CreateFrame('Button', nil, row, 'BackdropTemplate')
-	removeBtn._bgColor     = C.Colors.widget
-	removeBtn._borderColor = C.Colors.border
-	Widgets.ApplyBackdrop(removeBtn, C.Colors.widget, C.Colors.border)
+	-- Remove button ("X", 14x14)
+	local removeBtn = CreateFrame('Button', nil, row)
 	Widgets.SetSize(removeBtn, REMOVE_SIZE, REMOVE_SIZE)
 	removeBtn:SetPoint('RIGHT', row, 'RIGHT', -PAD_H, 0)
 
 	local removeLbl = Widgets.CreateFontString(removeBtn, C.Font.sizeSmall, C.Colors.textSecondary)
 	removeLbl:SetPoint('CENTER', removeBtn, 'CENTER', 0, 0)
-	removeLbl:SetText('\xE2\x9C\x95')  -- UTF-8 ✕
+	removeLbl:SetText('X')
 	removeBtn._label = removeLbl
 
 	removeBtn:SetScript('OnEnter', function(self)
 		local tc = C.Colors.textActive
 		self._label:SetTextColor(tc[1], tc[2], tc[3], 1)
-		local rc = { 0.7, 0.2, 0.2, 1 }
-		self:SetBackdropBorderColor(rc[1], rc[2], rc[3], rc[4])
 	end)
 	removeBtn:SetScript('OnLeave', function(self)
-		local ts = C.Colors.textSecondary
-		self._label:SetTextColor(ts[1], ts[2], ts[3], 1)
-		self:SetBackdropBorderColor(0, 0, 0, 1)
+		local s = C.Colors.textSecondary
+		self._label:SetTextColor(s[1], s[2], s[3], 1)
 	end)
-
 	row._removeBtn = removeBtn
 
-	-- Anchor ID label between name and remove button
-	idFS:SetPoint('RIGHT', removeBtn, 'LEFT', -PAD_H, 0)
+	-- Reorder arrows (side by side, vertically centered in row)
+	local downBtn = CreateArrowButton(row, true)
+	downBtn:SetPoint('RIGHT', removeBtn, 'LEFT', -PAD_H, 0)
+	row._downBtn = downBtn
 
-	-- Hover highlight on the row itself
+	local upBtn = CreateArrowButton(row, false)
+	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
+	row._upBtn = upBtn
+
+	-- Spell ID (gray, right-aligned before arrows)
+	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	idFS:SetJustifyH('RIGHT')
+	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -PAD_H, 0)
+	row._idFS = idFS
+
+	-- Hover highlight (accent color)
+	local highlight = row:CreateTexture(nil, 'BACKGROUND')
+	highlight:SetAllPoints(row)
+	local ac = C.Colors.accent
+	highlight:SetColorTexture(ac[1], ac[2], ac[3], 0.08)
+	highlight:Hide()
+	row._highlight = highlight
+
 	row:EnableMouse(true)
 	row:SetScript('OnEnter', function(self)
-		Widgets.SetBackdropHighlight(self, true)
+		self._highlight:Show()
 	end)
 	row:SetScript('OnLeave', function(self)
-		Widgets.SetBackdropHighlight(self, false)
+		self._highlight:Hide()
 	end)
 
 	return row
@@ -168,7 +209,7 @@ function Widgets.CreateSpellList(parent, width, height)
 			-- Populate spell data
 			local name, icon = GetSpellData(spellID)
 			row._nameFS:SetText(name or ('Spell ' .. spellID))
-			row._idFS:SetText(tostring(spellID))
+			row._idFS:SetText('ID: ' .. spellID)
 
 			if(icon) then
 				row._icon:SetTexture(icon)
@@ -178,17 +219,41 @@ function Widgets.CreateSpellList(parent, width, height)
 				row._icon:Show()
 			end
 
-			-- Clamp name width so it does not overlap the ID / remove button
+			-- Clamp name width so it does not overlap controls
 			local idWidth = row._idFS:GetStringWidth()
-			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + idWidth + PAD_H
+			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + idWidth + PAD_H
 			local usedLeft  = PAD_H + ICON_SIZE + ICON_GAP
 			row._nameFS:SetWidth(math.max(1, (contentWidth - usedLeft - usedRight)))
 
-			-- Wire remove button for this specific spellID
+			-- Wire remove button with confirmation
 			local capturedID = spellID
+			local capturedName = name or ('Spell ' .. spellID)
 			row._removeBtn:SetScript('OnClick', function()
-				spellList:RemoveSpell(capturedID)
+				Widgets.ShowConfirmDialog('Remove Spell', 'Remove ' .. capturedName .. ' (ID: ' .. capturedID .. ')?', function()
+					spellList:RemoveSpell(capturedID)
+				end)
 			end)
+
+			-- Wire move up/down arrows
+			local capturedIndex = i
+			row._upBtn:SetScript('OnClick', function()
+				spellList:MoveSpell(capturedIndex, capturedIndex - 1)
+			end)
+			row._downBtn:SetScript('OnClick', function()
+				spellList:MoveSpell(capturedIndex, capturedIndex + 1)
+			end)
+
+			-- Dim arrows at list boundaries
+			if(i == 1) then
+				row._upBtn._tex:SetAlpha(0.3)
+			else
+				row._upBtn._tex:SetAlpha(1)
+			end
+			if(i == count) then
+				row._downBtn._tex:SetAlpha(0.3)
+			else
+				row._downBtn._tex:SetAlpha(1)
+			end
 		end
 
 		content:SetHeight(count * ROW_HEIGHT)
@@ -233,6 +298,18 @@ function Widgets.CreateSpellList(parent, width, height)
 		end
 	end
 
+	--- Move a spell from one index to another.
+	--- @param fromIndex number Current position
+	--- @param toIndex number Target position
+	function spellList:MoveSpell(fromIndex, toIndex)
+		local spells = self._spells
+		if(toIndex < 1 or toIndex > #spells) then return end
+		if(fromIndex < 1 or fromIndex > #spells) then return end
+		local spell = table.remove(spells, fromIndex)
+		table.insert(spells, toIndex, spell)
+		NotifyChanged()
+	end
+
 	--- Replace the entire spell list.
 	--- @param spellIDs table Array of spell IDs
 	function spellList:SetSpells(spellIDs)
@@ -253,6 +330,13 @@ function Widgets.CreateSpellList(parent, width, height)
 			end
 		end
 		Layout()
+		-- Deferred re-layout: the inner scroll content width may not be
+		-- resolved yet on the first frame, causing 0-width rows.
+		C_Timer.After(0, function()
+			if(spellList and spellList._layout) then
+				spellList._layout()
+			end
+		end)
 	end
 
 	--- Get the current array of configured spell IDs.
@@ -311,27 +395,47 @@ function Widgets.CreateSpellInput(parent, width)
 
 	local editBox = Widgets.CreateEditBox(container, nil, INPUT_WIDTH, INPUT_ROW_HEIGHT, 'number')
 	editBox:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, 0)
-	editBox:SetPlaceholder("Spell ID\xE2\x80\xA6")
+	editBox:SetPlaceholder('Spell ID...')
 	container._editBox = editBox
 
 	local addBtn = Widgets.CreateButton(container, 'Add', 'accent', ADD_BTN_WIDTH, INPUT_ROW_HEIGHT)
 	addBtn:SetPoint('LEFT', editBox, 'RIGHT', C.Spacing.base, 0)
 	container._addBtn = addBtn
 
-	local preview = CreateFrame('Frame', nil, container)
-	preview:SetPoint('TOPLEFT',  container, 'TOPLEFT',  0, -(INPUT_ROW_HEIGHT + C.Spacing.tight))
-	preview:SetPoint('TOPRIGHT', container, 'TOPRIGHT', 0, -(INPUT_ROW_HEIGHT + C.Spacing.tight))
+	local preview = CreateFrame('Frame', nil, container, 'BackdropTemplate')
+	preview:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -(INPUT_ROW_HEIGHT + C.Spacing.tight))
+	preview:SetWidth(INPUT_WIDTH)
 	preview:SetHeight(PREVIEW_HEIGHT)
+	local pvBg = C.Colors.widget
+	preview:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 1,
+		insets   = { left = 1, right = 1, top = 1, bottom = 1 },
+	})
+	preview:SetBackdropColor(pvBg[1], pvBg[2], pvBg[3], pvBg[4] or 1)
+	preview:SetBackdropBorderColor(0, 0, 0, 0)
+	preview._bgColor     = C.Colors.widget
+	preview._borderColor = { 0, 0, 0, 0 }
+	preview:EnableMouse(true)
+	preview:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
+	preview:SetScript('OnLeave', function(self) Widgets.SetBackdropHighlight(self, false) end)
 	preview:Hide()
 	container._preview = preview
 
 	local previewIcon = preview:CreateTexture(nil, 'ARTWORK')
 	previewIcon:SetSize(PREVIEW_ICON_SIZE, PREVIEW_ICON_SIZE)
-	previewIcon:SetPoint('LEFT', preview, 'LEFT', 0, 0)
+	previewIcon:SetPoint('LEFT', preview, 'LEFT', PAD_H, 0)
 	container._previewIcon = previewIcon
+
+	local previewID = Widgets.CreateFontString(preview, C.Font.sizeSmall, C.Colors.textSecondary)
+	previewID:SetPoint('RIGHT', preview, 'RIGHT', -PAD_H, 0)
+	previewID:SetJustifyH('RIGHT')
+	container._previewID = previewID
 
 	local previewName = Widgets.CreateFontString(preview, C.Font.sizeSmall, C.Colors.textNormal)
 	previewName:SetPoint('LEFT', previewIcon, 'RIGHT', ICON_GAP, 0)
+	previewName:SetPoint('RIGHT', previewID, 'LEFT', -PAD_H, 0)
 	previewName:SetJustifyH('LEFT')
 	container._previewName = previewName
 
@@ -345,6 +449,7 @@ function Widgets.CreateSpellInput(parent, width)
 		if(name) then
 			container._previewIcon:SetTexture(icon or [[Interface\Icons\INV_Misc_QuestionMark]])
 			container._previewName:SetText(name)
+			container._previewID:SetText('ID: ' .. spellID)
 			preview:Show()
 			SetEditBoxError(false)
 		else
@@ -405,6 +510,15 @@ function Widgets.CreateSpellInput(parent, width)
 
 	editBox:SetOnEnterPressed(function(_text) TryAddSpell() end)
 	addBtn:SetOnClick(function() TryAddSpell() end)
+
+	-- Clicking away from the edit box dismisses the preview
+	editBox:SetOnFocusLost(function()
+		if(container._debounce) then
+			container._debounce:Cancel()
+			container._debounce = nil
+		end
+		ClearPreview()
+	end)
 
 	--- Link this input to a SpellList for auto-add on confirm.
 	--- @param spellList Frame  A SpellList created by Widgets.CreateSpellList
