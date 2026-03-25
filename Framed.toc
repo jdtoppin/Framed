@@ -79,6 +79,7 @@ Elements/Indicators/BorderIcon.lua
 # Data
 Data/RaidDebuffs/Registry.lua
 Data/RaidDebuffs/Midnight/Dungeons.lua
+Data/DefensiveSpells.lua
 
 # Elements - Auras
 Elements/Auras/Buffs.lua
@@ -88,6 +89,8 @@ Elements/Auras/PrivateAuras.lua
 Elements/Auras/Dispellable.lua
 Elements/Auras/MissingBuffs.lua
 Elements/Auras/TargetedSpells.lua
+Elements/Auras/Externals.lua
+Elements/Auras/Defensives.lua
 
 # Units
 Units/StyleBuilder.lua
