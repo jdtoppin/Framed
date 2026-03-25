@@ -4,8 +4,10 @@ local F = Framed
 -- Version
 F.version = '0.1.0-alpha'
 
--- oUF reference (populated after oUF loads via TOC order)
-F.oUF = oUF
+-- oUF stores itself as ns.oUF in its init.lua (where ns is the second vararg
+-- from ..., which is our Framed namespace table). So Framed.oUF is already
+-- populated after Libs/oUF/oUF.xml loads — no global oUF variable is needed.
+assert(Framed.oUF, 'Framed: oUF failed to load. Check that Libs/oUF/ is intact.')
 
 -- Addon namespace is globally accessible for debugging
 _G['Framed'] = Framed
