@@ -548,6 +548,9 @@ local function buildWizardFrame()
 
 	wizardFrame = frame
 	updateStepCounter()
+
+	-- UI scale compensation (ElvUI-safe)
+	Widgets.RegisterForUIScale(frame)
 end
 
 -- ============================================================

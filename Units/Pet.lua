@@ -24,6 +24,7 @@ function F.Units.Pet.Spawn()
 
 	local frame = oUF:Spawn('pet', 'FramedPetFrame')
 	frame:SetPoint('TOPLEFT', FramedPlayerFrame, 'BOTTOMLEFT', 0, -4)
+	F.Widgets.RegisterForUIScale(frame)
 
 	F.Units.Pet.frame = frame
 end

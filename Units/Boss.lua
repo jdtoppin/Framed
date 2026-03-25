@@ -26,6 +26,7 @@ function F.Units.Boss.Spawn()
 	for i = 1, 5 do
 		local boss = oUF:Spawn('boss' .. i, 'FramedBossFrame' .. i)
 		boss:SetPoint('TOPRIGHT', UIParent, 'TOPRIGHT', -20, -200 - (i - 1) * 50)
+		F.Widgets.RegisterForUIScale(boss)
 		frames[i] = boss
 	end
 

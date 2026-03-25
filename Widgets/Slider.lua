@@ -45,10 +45,15 @@ local function SnapToStep(value, min, max, step)
 	return value
 end
 
---- Format a value for display — no decimals if it is a whole number.
+--- Format a value for display.
+--- Uses the slider's custom format if set, otherwise auto-detects.
 --- @param value number
+--- @param slider? table Optional slider with _format field
 --- @return string
-local function FormatValue(value)
+local function FormatValue(value, slider)
+	if(slider and slider._format) then
+		return string.format(slider._format, value)
+	end
 	if(value == math.floor(value)) then
 		return tostring(math.floor(value))
 	end
@@ -86,7 +91,7 @@ local function UpdateHorizVisuals(slider)
 	slider._thumb:SetPoint('LEFT', slider._track, 'LEFT', thumbX, 0)
 
 	-- Value label
-	slider._valueText:SetText(FormatValue(slider._value))
+	slider._valueText:SetText(FormatValue(slider._value, slider))
 end
 
 --- Update vertical fill bar and thumb position from _value.
@@ -115,7 +120,7 @@ local function UpdateVertVisuals(slider)
 	slider._thumb:SetPoint('BOTTOM', slider._track, 'BOTTOM', 0, thumbY)
 
 	-- Value label
-	slider._valueText:SetText(FormatValue(slider._value))
+	slider._valueText:SetText(FormatValue(slider._value, slider))
 end
 
 -- ============================================================
@@ -161,6 +166,18 @@ end
 --- @param func function Called with (value)
 function SliderMixin:SetAfterValueChanged(func)
 	self._afterValueChanged = func
+end
+
+--- Set a custom format string for the value display.
+--- @param fmt string Format string (e.g., '%.2f')
+function SliderMixin:SetFormat(fmt)
+	self._format = fmt
+	-- Refresh display with new format
+	if(self._orientation == 'HORIZONTAL') then
+		UpdateHorizVisuals(self)
+	else
+		UpdateVertVisuals(self)
+	end
 end
 
 -- ============================================================

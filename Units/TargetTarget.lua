@@ -24,6 +24,7 @@ function F.Units.TargetTarget.Spawn()
 
 	local frame = oUF:Spawn('targettarget', 'FramedTargetTargetFrame')
 	frame:SetPoint('TOPLEFT', FramedTargetFrame, 'BOTTOMLEFT', 0, -4)
+	F.Widgets.RegisterForUIScale(frame)
 
 	F.Units.TargetTarget.frame = frame
 end

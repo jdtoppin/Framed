@@ -260,6 +260,12 @@ function Settings.CreateMainFrame()
 	-- ── Store sidebar reference for BuildSidebar ──────────────
 	frame._sidebar = sidebar
 
+	-- ── UI scale compensation (ElvUI-safe) ────────────────────
+	Widgets.RegisterForUIScale(frame)
+	frame:HookScript('OnShow', function()
+		Widgets.ApplyUIScale(frame)
+	end)
+
 	-- Enable preview by default when window is open
 	F.Preview.Enable()
 end

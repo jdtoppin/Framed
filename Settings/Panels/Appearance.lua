@@ -102,8 +102,9 @@ F.Settings.RegisterPanel({
 		local scalePane
 		scalePane, yOffset = createSection(content, 'UI Scale', width, yOffset)
 
-		local scaleSlider = Widgets.CreateSlider(content, 'UI Scale', WIDGET_W, 0.5, 2.0, 0.1)
+		local scaleSlider = Widgets.CreateSlider(content, 'UI Scale', WIDGET_W, 0.2, 1.5, 0.01)
 		yOffset = placeWidget(scaleSlider, content, yOffset, SLIDER_H)
+		scaleSlider:SetFormat('%.2f')
 
 		local savedScale = getConfig('uiScale')
 		if(savedScale) then

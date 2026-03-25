@@ -24,6 +24,7 @@ function F.Units.Player.Spawn()
 
 	local frame = oUF:Spawn('player', 'FramedPlayerFrame')
 	frame:SetPoint('CENTER', UIParent, 'CENTER', -200, -200)
+	F.Widgets.RegisterForUIScale(frame)
 
 	F.Units.Player.frame = frame
 end

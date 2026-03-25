@@ -43,6 +43,7 @@ function F.Units.Raid.Spawn()
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('raid')
 	header:SetPoint('CENTER', UIParent, 'CENTER', 0, -100)
+	F.Widgets.RegisterForUIScale(header)
 
 	F.Units.Raid.header = header
 end

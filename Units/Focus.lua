@@ -24,6 +24,7 @@ function F.Units.Focus.Spawn()
 
 	local frame = oUF:Spawn('focus', 'FramedFocusFrame')
 	frame:SetPoint('CENTER', UIParent, 'CENTER', -300, -100)
+	F.Widgets.RegisterForUIScale(frame)
 
 	F.Units.Focus.frame = frame
 end

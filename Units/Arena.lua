@@ -30,6 +30,7 @@ function F.Units.Arena.Spawn()
 	for i = 1, 5 do
 		local arena = oUF:Spawn('arena' .. i, 'FramedArenaFrame' .. i)
 		arena:SetPoint('TOPRIGHT', UIParent, 'TOPRIGHT', -20, -200 - (i - 1) * 50)
+		F.Widgets.RegisterForUIScale(arena)
 		frames[i] = arena
 	end
 

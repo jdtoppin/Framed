@@ -73,6 +73,9 @@ function Config:Initialize()
 		mergeDefaults(FramedCharDB, charDefaults)
 	end
 
+	-- Clamp UI scale to safe range
+	FramedDB.general.uiScale = math.max(0.2, math.min(FramedDB.general.uiScale or 1.0, 1.5))
+
 	-- Apply accent color from saved config to Constants
 	local accent = FramedDB.general.accentColor
 	if(accent) then

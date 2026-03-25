@@ -155,6 +155,45 @@ local function RunPixelUpdates()
 	end
 end
 
+-- ============================================================
+-- UI Scale Compensation
+-- Compensates for parent scale (e.g., ElvUI setting UIParent scale)
+-- so Framed frames render at the user's configured size.
+-- ============================================================
+
+local uiScaleFrames = {}  -- frames registered for UI scale compensation
+
+--- Apply the user's configured UI scale to a frame, compensating
+--- for the parent frame's scale so addons like ElvUI don't affect sizing.
+--- @param frame Frame The top-level frame to scale
+function Widgets.ApplyUIScale(frame)
+	local desiredScale = 1.0
+	if(F.Config) then
+		desiredScale = F.Config:Get('general.uiScale') or 1.0
+	end
+	desiredScale = math.max(0.2, math.min(1.5, desiredScale))
+
+	-- Always compensate against UIParent's scale (where ElvUI injects)
+	local uiParentScale = UIParent and UIParent:GetScale() or 1.0
+	if(uiParentScale <= 0) then uiParentScale = 1.0 end
+
+	frame:SetScale(desiredScale / uiParentScale)
+end
+
+--- Register a frame for automatic UI scale re-application on scale changes.
+--- @param frame Frame
+function Widgets.RegisterForUIScale(frame)
+	uiScaleFrames[frame] = true
+	Widgets.ApplyUIScale(frame)
+end
+
+--- Re-apply UI scale to all registered frames (called on scale change).
+local function ReapplyUIScale()
+	for frame in next, uiScaleFrames do
+		Widgets.ApplyUIScale(frame)
+	end
+end
+
 -- Scale change detection: debounced 1-second timer
 local scaleChangeTimer
 
@@ -164,6 +203,7 @@ local function OnScaleChanged()
 		-- Recalculate pixel factor in case physical resolution changed
 		physicalScreenHeight = select(2, GetPhysicalScreenSize())
 		pixelFactor = 768.0 / physicalScreenHeight
+		ReapplyUIScale()
 		RunPixelUpdates()
 	end)
 end
@@ -175,6 +215,14 @@ scaleFrame:SetScript('OnEvent', function(self, event)
 	if(event == 'FIRST_FRAME_RENDERED') then
 		self:RegisterEvent('UI_SCALE_CHANGED')
 		hooksecurefunc(UIParent, 'SetScale', OnScaleChanged)
+		-- Listen for uiScale config changes to re-apply scale compensation
+		if(F.EventBus) then
+			F.EventBus:Register('CONFIG_CHANGED:general', function(path)
+				if(path == 'general.uiScale') then
+					ReapplyUIScale()
+				end
+			end, 'Widgets.UIScale')
+		end
 		self:UnregisterEvent('FIRST_FRAME_RENDERED')
 	elseif(event == 'UI_SCALE_CHANGED') then
 		OnScaleChanged()

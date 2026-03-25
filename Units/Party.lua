@@ -38,6 +38,7 @@ function F.Units.Party.Spawn()
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('party')
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', 20, -200)
+	F.Widgets.RegisterForUIScale(header)
 
 	F.Units.Party.header = header
 end
