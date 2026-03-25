@@ -24,17 +24,7 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		F.Config:Initialize()
 		self:UnregisterEvent('ADDON_LOADED')
 	elseif(event == 'PLAYER_LOGIN') then
-		-- Spawn all unit frames
-		F.Units.Player.Spawn()
-		F.Units.Target.Spawn()
-		F.Units.TargetTarget.Spawn()
-		F.Units.Focus.Spawn()
-		F.Units.Pet.Spawn()
-		F.Units.Party.Spawn()
-		F.Units.Raid.Spawn()
-		F.Units.Boss.Spawn()
-		F.Units.Arena.Spawn()
-
+		-- Post-spawn initialization (runs after oUF:Factory spawns frames)
 		-- Disable Blizzard's default frames
 		F.DisableBlizzardFrames()
 
@@ -60,6 +50,27 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 	elseif(event == 'ACTIVE_TALENT_GROUP_CHANGED') then
 		F.ClickCasting.RefreshAll()
 	end
+end)
+
+-- ============================================================
+-- Spawn all frames via oUF:Factory
+-- This runs in oUF's own PLAYER_LOGIN handler in a clean
+-- (untainted) execution context, which is required for
+-- SecureGroupHeaderTemplate SetAttribute calls.
+-- ============================================================
+
+local oUF = F.oUF
+oUF:Factory(function(self)
+	-- Register styles and spawn all unit frames
+	F.Units.Player.Spawn()
+	F.Units.Target.Spawn()
+	F.Units.TargetTarget.Spawn()
+	F.Units.Focus.Spawn()
+	F.Units.Pet.Spawn()
+	F.Units.Party.Spawn()
+	F.Units.Raid.Spawn()
+	F.Units.Boss.Spawn()
+	F.Units.Arena.Spawn()
 end)
 
 -- Slash commands
