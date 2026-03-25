@@ -74,6 +74,7 @@ Elements/Indicators/Border.lua
 Elements/Indicators/Color.lua
 Elements/Indicators/Overlay.lua
 Elements/Indicators/Glow.lua
+Elements/Indicators/BorderIcon.lua
 
 # Data
 Data/RaidDebuffs/Registry.lua
