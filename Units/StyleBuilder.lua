@@ -74,6 +74,8 @@ do
 	}
 	p.portrait = { type = '2D' }
 	p.statusIcons.combat = true
+	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
+	p.debuffs = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
 	F.StyleBuilder.Presets['player'] = p
 end
 
@@ -87,6 +89,8 @@ do
 		showTime = true,
 	}
 	p.portrait = { type = '2D' }
+	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
+	p.debuffs = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
 	F.StyleBuilder.Presets['target'] = p
 end
 
@@ -111,6 +115,8 @@ do
 		showText = true,
 		showTime = true,
 	}
+	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
+	p.debuffs = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
 	F.StyleBuilder.Presets['focus'] = p
 end
 
@@ -132,6 +138,12 @@ do
 	p.health.showText   = true
 	p.health.textFormat = 'percent'
 	p.statusIcons.role  = true
+	p.raidDebuffs  = { iconSize = 18, filterMode = C.DebuffFilterMode.RAID, minPriority = C.DebuffPriority.NORMAL }
+	p.dispellable  = { glowType = C.GlowType.PIXEL }
+	p.buffs        = { maxIcons = 4, iconSize = 12, growDirection = 'RIGHT', anchor = {'TOPLEFT', nil, 'TOPLEFT', 2, -2} }
+	p.debuffs      = { maxIcons = 3, iconSize = 12, growDirection = 'RIGHT', anchor = {'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2} }
+	p.missingBuffs = { iconSize = 12 }
+	p.privateAuras = { iconSize = 16 }
 	F.StyleBuilder.Presets['party'] = p
 end
 
@@ -145,6 +157,9 @@ do
 	p.statusIcons.role  = true
 	p.castbar  = nil
 	p.portrait = nil
+	p.raidDebuffs = { iconSize = 16, filterMode = C.DebuffFilterMode.RAID, minPriority = C.DebuffPriority.NORMAL }
+	p.dispellable = { glowType = C.GlowType.PIXEL }
+	p.privateAuras = { iconSize = 14 }
 	F.StyleBuilder.Presets['raid'] = p
 end
 
@@ -161,6 +176,8 @@ do
 		showText = true,
 		showTime = true,
 	}
+	p.buffs   = { maxIcons = 6, iconSize = 14, growDirection = 'RIGHT' }
+	p.debuffs = { maxIcons = 4, iconSize = 14, growDirection = 'RIGHT' }
 	F.StyleBuilder.Presets['boss'] = p
 end
 
@@ -177,6 +194,8 @@ do
 		showText = true,
 		showTime = true,
 	}
+	p.debuffs     = { maxIcons = 4, iconSize = 14, growDirection = 'RIGHT' }
+	p.dispellable = { glowType = C.GlowType.PIXEL }
 	F.StyleBuilder.Presets['arena'] = p
 end
 
@@ -350,7 +369,33 @@ function F.StyleBuilder.Apply(self, unit, config)
 	end
 
 	-- --------------------------------------------------------
-	-- 7. Register with pixel updater
+	-- 7. Aura elements
+	-- --------------------------------------------------------
+
+	if(config.buffs and F.Elements.Buffs) then
+		F.Elements.Buffs.Setup(self, config.buffs)
+	end
+	if(config.debuffs and F.Elements.Debuffs) then
+		F.Elements.Debuffs.Setup(self, config.debuffs)
+	end
+	if(config.raidDebuffs and F.Elements.RaidDebuffs) then
+		F.Elements.RaidDebuffs.Setup(self, config.raidDebuffs)
+	end
+	if(config.dispellable and F.Elements.Dispellable) then
+		F.Elements.Dispellable.Setup(self, config.dispellable)
+	end
+	if(config.missingBuffs and F.Elements.MissingBuffs) then
+		F.Elements.MissingBuffs.Setup(self, config.missingBuffs)
+	end
+	if(config.targetedSpells and F.Elements.TargetedSpells) then
+		F.Elements.TargetedSpells.Setup(self, config.targetedSpells)
+	end
+	if(config.privateAuras and F.Elements.PrivateAuras) then
+		F.Elements.PrivateAuras.Setup(self, config.privateAuras)
+	end
+
+	-- --------------------------------------------------------
+	-- 8. Register with pixel updater
 	-- --------------------------------------------------------
 
 	Widgets.AddToPixelUpdater_Auto(self)

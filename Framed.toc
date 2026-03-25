@@ -71,6 +71,19 @@ Elements/Indicators/Color.lua
 Elements/Indicators/Overlay.lua
 Elements/Indicators/Glow.lua
 
+# Data
+Data/RaidDebuffs/Registry.lua
+Data/RaidDebuffs/Midnight/Dungeons.lua
+
+# Elements - Auras
+Elements/Auras/Buffs.lua
+Elements/Auras/Debuffs.lua
+Elements/Auras/RaidDebuffs.lua
+Elements/Auras/PrivateAuras.lua
+Elements/Auras/Dispellable.lua
+Elements/Auras/MissingBuffs.lua
+Elements/Auras/TargetedSpells.lua
+
 # Units
 Units/StyleBuilder.lua
 Units/Player.lua
