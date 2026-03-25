@@ -8,23 +8,63 @@ F.Elements = F.Elements or {}
 F.Elements.Dispellable = {}
 
 -- ============================================================
--- Dispel type configuration
+-- Dispel type priority
 -- ============================================================
 
--- Priority order: Magic(1) > Curse(2) > Disease(3) > Poison(4)
+-- Priority: Magic(1) > Curse(2) > Disease(3) > Poison(4) > Physical(5)
 local DISPEL_PRIORITY = {
-	Magic   = 1,
-	Curse   = 2,
-	Disease = 3,
-	Poison  = 4,
+	Magic    = 1,
+	Curse    = 2,
+	Disease  = 3,
+	Poison   = 4,
+	Physical = 5,
 }
 
-local DISPEL_COLORS = {
-	Magic   = { 0.2, 0.6, 1   },
-	Curse   = { 0.6, 0,   1   },
-	Disease = { 0.6, 0.4, 0   },
-	Poison  = { 0,   0.6, 0.1 },
-}
+-- ============================================================
+-- Overlay helpers
+-- ============================================================
+
+local OVERLAY_ALPHA = 0.35
+
+local function hideAllOverlays(element)
+	if(element._overlayGradientFull) then element._overlayGradientFull:Hide() end
+	if(element._overlayGradientHalf) then element._overlayGradientHalf:Hide() end
+	if(element._overlaySolidCurrent) then element._overlaySolidCurrent:Hide() end
+	if(element._overlaySolidEntire) then element._overlaySolidEntire:Hide() end
+end
+
+local function showOverlay(element, highlightType, r, g, b)
+	hideAllOverlays(element)
+
+	local ht = C.HighlightType
+	if(highlightType == ht.GRADIENT_FULL and element._overlayGradientFull) then
+		local tex = element._overlayGradientFull
+		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
+		tex:SetGradient('VERTICAL', CreateColor(r, g, b, 0), CreateColor(r, g, b, OVERLAY_ALPHA))
+		tex:Show()
+	elseif(highlightType == ht.GRADIENT_HALF and element._overlayGradientHalf) then
+		local tex = element._overlayGradientHalf
+		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
+		tex:SetGradient('VERTICAL', CreateColor(r, g, b, 0), CreateColor(r, g, b, OVERLAY_ALPHA))
+		tex:Show()
+	elseif(highlightType == ht.SOLID_CURRENT and element._overlaySolidCurrent) then
+		local tex = element._overlaySolidCurrent
+		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
+		tex:Show()
+	elseif(highlightType == ht.SOLID_ENTIRE and element._overlaySolidEntire) then
+		local tex = element._overlaySolidEntire
+		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
+		tex:Show()
+	end
+end
+
+-- ============================================================
+-- Determine if a debuff is Physical/bleed
+-- ============================================================
+
+local function isPhysicalOrBleed(dispelName)
+	return (not dispelName) or (dispelName == '') or (dispelName == 'Physical')
+end
 
 -- ============================================================
 -- Update
@@ -36,8 +76,15 @@ local function Update(self, event, unit)
 
 	if(not unit or self.unit ~= unit) then return end
 
-	local bestType     = nil
-	local bestPriority = 999
+	local bestType       = nil
+	local bestPriority   = 999
+	local bestIcon       = nil
+	local bestSpellId    = nil
+	local bestDuration   = nil
+	local bestExpiration = nil
+	local bestStacks     = nil
+
+	local onlyDispellableByMe = element._onlyDispellableByMe
 
 	-- Filter is 'HARMFUL' so all results are harmful — do not read auraData.isHarmful
 	local i = 1
@@ -48,11 +95,30 @@ local function Update(self, event, unit)
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
 			local dispelName = auraData.dispelName
-			if(dispelName and DISPEL_PRIORITY[dispelName]) then
-				local priority = DISPEL_PRIORITY[dispelName]
-				if(priority < bestPriority) then
-					bestPriority = priority
-					bestType     = dispelName
+			local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
+
+			if(dispelSafe) then
+				local isPhysical = isPhysicalOrBleed(dispelName)
+				local dispelType = isPhysical and 'Physical' or dispelName
+
+				-- Apply "only dispellable by me" filter
+				-- Physical/bleeds always pass (for healer awareness)
+				local passFilter = true
+				if(onlyDispellableByMe and not isPhysical) then
+					passFilter = F.CanPlayerDispel(dispelType)
+				end
+
+				if(passFilter and DISPEL_PRIORITY[dispelType]) then
+					local priority = DISPEL_PRIORITY[dispelType]
+					if(priority < bestPriority) then
+						bestPriority   = priority
+						bestType       = dispelType
+						bestIcon       = auraData.icon
+						bestSpellId    = spellId
+						bestDuration   = auraData.duration
+						bestExpiration = auraData.expirationTime
+						bestStacks     = auraData.applications or 0
+					end
 				end
 			end
 		end
@@ -61,10 +127,24 @@ local function Update(self, event, unit)
 	end
 
 	if(bestType) then
-		local color = DISPEL_COLORS[bestType]
-		element._glow:Start(color, element._glowType)
+		-- Show BorderIcon with the debuff's spell icon
+		element._borderIcon:SetAura(
+			bestSpellId,
+			bestIcon,
+			bestDuration,
+			bestExpiration,
+			bestStacks,
+			bestType
+		)
+
+		-- Show highlight overlay colored by dispel type
+		local color = C.Colors.dispel[bestType]
+		if(color and element._highlightType) then
+			showOverlay(element, element._highlightType, color[1], color[2], color[3])
+		end
 	else
-		element._glow:Stop()
+		element._borderIcon:Clear()
+		hideAllOverlays(element)
 	end
 end
 
@@ -96,7 +176,8 @@ local function Disable(self)
 	local element = self.FramedDispellable
 	if(not element) then return end
 
-	element._glow:Stop()
+	element._borderIcon:Clear()
+	hideAllOverlays(element)
 
 	self:UnregisterEvent('UNIT_AURA', Update)
 end
@@ -112,23 +193,87 @@ oUF:AddElement('FramedDispellable', Update, Enable, Disable)
 -- ============================================================
 
 --- Create a Dispellable element on a unit frame.
---- Applies a glow to the frame when the unit has a dispellable debuff.
---- Glow color reflects the highest-priority dispel type present.
+--- Shows a BorderIcon with the highest-priority dispellable debuff icon,
+--- plus a highlight overlay on the health bar colored by dispel type.
 --- Assigns result to self.FramedDispellable, activating the element.
 --- @param self Frame  The oUF unit frame
---- @param config? table  Optional config: glowType
+--- @param config? table  { enabled, onlyDispellableByMe, highlightType, iconSize, anchor, frameLevel }
 function F.Elements.Dispellable.Setup(self, config)
 	config = config or {}
-	config.glowType = config.glowType or C.GlowType.PIXEL
+	local iconSize       = config.iconSize       or 20
+	local highlightType  = config.highlightType  or C.HighlightType.GRADIENT_FULL
+	local frameLevel     = config.frameLevel     or (self:GetFrameLevel() + 6)
+	local anchor         = config.anchor
 
-	local glow = F.Indicators.Glow.Create(self, {
-		glowType = config.glowType,
-		color    = C.Colors.accent,
+	-- 1. Create BorderIcon (always-on icon showing the highest-priority dispellable debuff)
+	local borderIcon = F.Indicators.BorderIcon.Create(self, iconSize, {
+		showCooldown = true,
+		showStacks   = true,
+		showDuration = true,
+		frameLevel   = frameLevel,
 	})
 
+	-- Apply anchor
+	if(anchor) then
+		borderIcon:SetPoint(unpack(anchor))
+	else
+		borderIcon:SetPoint('TOPRIGHT', self, 'TOPRIGHT', -2, -2)
+	end
+
+	-- 2. Create overlay textures on the health bar
+	-- All overlays use a simple white texture colored at runtime
+	local healthBar = self.Health
+
+	-- gradient_full: Full-height gradient over the health bar
+	local gradientFull
+	if(healthBar) then
+		gradientFull = healthBar:CreateTexture(nil, 'OVERLAY')
+		gradientFull:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+		gradientFull:SetAllPoints(healthBar)
+		gradientFull:SetBlendMode('ADD')
+		gradientFull:Hide()
+	end
+
+	-- gradient_half: Same gradient but only covers top half of health bar
+	local gradientHalf
+	if(healthBar) then
+		gradientHalf = healthBar:CreateTexture(nil, 'OVERLAY')
+		gradientHalf:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+		gradientHalf:SetPoint('TOPLEFT', healthBar, 'TOPLEFT', 0, 0)
+		gradientHalf:SetPoint('TOPRIGHT', healthBar, 'TOPRIGHT', 0, 0)
+		gradientHalf:SetHeight(healthBar:GetHeight() * 0.5)
+		gradientHalf:SetBlendMode('ADD')
+		gradientHalf:Hide()
+	end
+
+	-- solid_current: Solid color that follows health bar fill width
+	local solidCurrent
+	if(healthBar) then
+		local statusBarTexture = healthBar:GetStatusBarTexture()
+		solidCurrent = healthBar:CreateTexture(nil, 'OVERLAY')
+		solidCurrent:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+		solidCurrent:SetAllPoints(statusBarTexture)
+		solidCurrent:SetBlendMode('ADD')
+		solidCurrent:Hide()
+	end
+
+	-- solid_entire: Solid color covering entire unit frame
+	local solidEntire
+	solidEntire = self:CreateTexture(nil, 'OVERLAY')
+	solidEntire:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+	solidEntire:SetAllPoints(self)
+	solidEntire:SetBlendMode('ADD')
+	solidEntire:Hide()
+
+	-- 3. Build element container
 	local container = {
-		_glow     = glow,
-		_glowType = config.glowType,
+		_borderIcon          = borderIcon,
+		_highlightType       = highlightType,
+		_onlyDispellableByMe = config.onlyDispellableByMe or false,
+		_overlayGradientFull = gradientFull,
+		_overlayGradientHalf = gradientHalf,
+		_overlaySolidCurrent = solidCurrent,
+		_overlaySolidEntire  = solidEntire,
 	}
 
 	self.FramedDispellable = container
