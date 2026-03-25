@@ -21,11 +21,16 @@ local LCG = LibStub and LibStub('LibCustomGlow-1.0', true)
 --- @param parent Frame
 --- @param glowType string C.GlowType variant string
 --- @param color table {r,g,b,a}
-local function LCG_Start(parent, glowType, color)
+--- @param glowConfig? table optional per-type config (lines, frequency, length, thickness)
+local function LCG_Start(parent, glowType, color, glowConfig)
 	if(glowType == C.GlowType.PIXEL) then
-		LCG.PixelGlow_Start(parent, color, nil, nil, nil, nil, nil, nil)
+		local cfg = glowConfig or {}
+		LCG.PixelGlow_Start(parent, color, cfg.lines, cfg.frequency, cfg.length, cfg.thickness, nil, nil)
 	elseif(glowType == C.GlowType.SOFT) then
 		LCG.AutoCastGlow_Start(parent, color)
+	elseif(glowType == C.GlowType.SHINE) then
+		-- Shine uses ButtonGlow with higher frequency for a pulsing "shine" effect
+		LCG.ButtonGlow_Start(parent, color, 0.25, 0.12)
 	else
 		-- Default: Proc / ButtonGlow
 		LCG.ButtonGlow_Start(parent, color)
@@ -40,6 +45,8 @@ local function LCG_Stop(parent, glowType)
 		LCG.PixelGlow_Stop(parent)
 	elseif(glowType == C.GlowType.SOFT) then
 		LCG.AutoCastGlow_Stop(parent)
+	elseif(glowType == C.GlowType.SHINE) then
+		LCG.ButtonGlow_Stop(parent)
 	else
 		LCG.ButtonGlow_Stop(parent)
 	end
@@ -54,7 +61,8 @@ local GlowMethods = {}
 --- Start the glow effect.
 --- @param color? table {r,g,b,a} — defaults to config color
 --- @param glowType? string C.GlowType variant — defaults to stored type
-function GlowMethods:Start(color, glowType)
+--- @param glowConfig? table optional per-type config (lines, frequency, length, thickness)
+function GlowMethods:Start(color, glowType, glowConfig)
 	color    = color    or self._color
 	glowType = glowType or self._glowType
 
@@ -63,11 +71,12 @@ function GlowMethods:Start(color, glowType)
 		self:_StopCurrent()
 	end
 
-	self._color    = color
-	self._glowType = glowType
+	self._color      = color
+	self._glowType   = glowType
+	self._glowConfig = glowConfig
 
 	if(LCG) then
-		LCG_Start(self._parent, glowType, color)
+		LCG_Start(self._parent, glowType, color, glowConfig)
 	else
 		-- Fallback: accent-colored border via Border indicator
 		if(self._fallbackBorder) then
