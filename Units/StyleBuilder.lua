@@ -533,22 +533,22 @@ function F.StyleBuilder.Apply(self, unit, config)
 	-- 7. Aura elements
 	-- --------------------------------------------------------
 
-	if(config.buffs and F.Elements.Buffs) then
+	if(config.buffs and config.buffs.enabled ~= false and F.Elements.Buffs) then
 		F.Elements.Buffs.Setup(self, config.buffs)
 	end
-	if(config.debuffs and F.Elements.Debuffs) then
+	if(config.debuffs and config.debuffs.enabled ~= false and F.Elements.Debuffs) then
 		F.Elements.Debuffs.Setup(self, config.debuffs)
 	end
-	if(config.raidDebuffs and F.Elements.RaidDebuffs) then
+	if(config.raidDebuffs and config.raidDebuffs.enabled ~= false and F.Elements.RaidDebuffs) then
 		F.Elements.RaidDebuffs.Setup(self, config.raidDebuffs)
 	end
-	if(config.dispellable and F.Elements.Dispellable) then
+	if(config.dispellable and config.dispellable.enabled ~= false and F.Elements.Dispellable) then
 		F.Elements.Dispellable.Setup(self, config.dispellable)
 	end
 	if(config.missingBuffs and F.Elements.MissingBuffs) then
 		F.Elements.MissingBuffs.Setup(self, config.missingBuffs)
 	end
-	if(config.targetedSpells and F.Elements.TargetedSpells) then
+	if(config.targetedSpells and config.targetedSpells.enabled ~= false and F.Elements.TargetedSpells) then
 		F.Elements.TargetedSpells.Setup(self, config.targetedSpells)
 	end
 	if(config.privateAuras and F.Elements.PrivateAuras) then
@@ -556,12 +556,12 @@ function F.StyleBuilder.Apply(self, unit, config)
 	end
 
 	-- Externals (optional)
-	if(config.externals and F.Elements.Externals) then
+	if(config.externals and config.externals.enabled ~= false and F.Elements.Externals) then
 		F.Elements.Externals.Setup(self, config.externals)
 	end
 
 	-- Defensives (optional)
-	if(config.defensives and F.Elements.Defensives) then
+	if(config.defensives and config.defensives.enabled ~= false and F.Elements.Defensives) then
 		F.Elements.Defensives.Setup(self, config.defensives)
 	end
 

@@ -599,7 +599,9 @@ function F.LayoutDefaults.GetAll()
 			target = targetBase(),
 			raid   = (function()
 				local r = raidBase()
-				-- Mythic raid: encounter debuffs only (filter applied at element level)
+				-- Mythic raid: encounter debuffs only, high priority
+				r.raidDebuffs.filterMode  = C.DebuffFilterMode.ENCOUNTER_ONLY
+				r.raidDebuffs.minPriority = C.DebuffPriority.IMPORTANT
 				return r
 			end)(),
 			boss = {
@@ -657,8 +659,9 @@ function F.LayoutDefaults.GetAll()
 			target = targetBase(),
 			raid   = (function()
 				local r = raidBase()
-				-- World raid: slightly wider to accommodate mixed content
+				-- World raid: slightly wider, lower priority threshold for mixed content
 				r.width = 80
+				r.raidDebuffs.minPriority = C.DebuffPriority.LOW
 				return r
 			end)(),
 		},

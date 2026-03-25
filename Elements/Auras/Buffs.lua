@@ -92,7 +92,7 @@ local function Update(self, event, unit)
 					if(passesCastByFilter(sourceUnit, ind._castBy)) then
 						if(not auraEntry) then
 							auraEntry = {
-								spellID        = spellId,
+								spellId        = spellId,
 								icon           = auraData.icon,
 								duration       = auraData.duration,
 								expirationTime = auraData.expirationTime,
@@ -116,7 +116,7 @@ local function Update(self, event, unit)
 				if(passesCastByFilter(sourceUnit, ind._castBy)) then
 					if(not auraEntry) then
 						auraEntry = {
-							spellID        = spellId,
+							spellId        = spellId,
 							icon           = auraData.icon,
 							duration       = auraData.duration,
 							expirationTime = auraData.expirationTime,
@@ -155,7 +155,7 @@ local function Update(self, event, unit)
 			local aura = matched[idx]
 			if(aura) then
 				renderer:SetSpell(
-					aura.spellID,
+					aura.spellId,
 					aura.icon,
 					aura.duration,
 					aura.expirationTime,
