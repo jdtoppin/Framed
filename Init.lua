@@ -9,8 +9,9 @@ F.version = '0.1.0-alpha'
 -- populated after Libs/oUF/oUF.xml loads — no global oUF variable is needed.
 assert(Framed.oUF, 'Framed: oUF failed to load. Check that Libs/oUF/ is intact.')
 
--- Addon namespace is globally accessible for debugging
-_G['Framed'] = Framed
+-- Make namespace accessible for debugging without tainting _G
+-- Use rawset to avoid triggering taint propagation
+rawset(_G, 'FramedAddon', Framed)
 
 -- Event frame for addon lifecycle
 local eventFrame = CreateFrame('Frame')
