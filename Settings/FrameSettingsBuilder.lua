@@ -79,14 +79,14 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	local isGroup = GROUP_TYPES[unitType] or false
 
 	-- ── Scroll frame wrapping the whole panel ─────────────────
-	local scroll = Widgets.CreateScrollFrame(
-		parent, nil,
-		parent:GetWidth(),
-		parent:GetHeight())
+	local parentW = parent._explicitWidth or parent:GetWidth() or 530
+	local parentH = parent._explicitHeight or parent:GetHeight() or 400
+	local scroll = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
 	scroll:SetAllPoints(parent)
 
 	local content = scroll:GetContentFrame()
-	local width   = parent:GetWidth() - C.Spacing.normal * 2
+	content:SetWidth(parentW)
+	local width = parentW - C.Spacing.normal * 2
 
 	-- ── Config accessor helpers ────────────────────────────────
 	local layoutName = F.AutoSwitch and F.AutoSwitch.GetCurrentLayout() or 'Default Solo'

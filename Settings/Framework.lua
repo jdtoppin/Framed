@@ -504,7 +504,13 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(panelScroll, 'BOTTOMLEFT',  contentArea, 'BOTTOMLEFT',  0, 0)
 
 	contentParent = panelScroll:GetContentFrame()
-	contentParent:SetWidth(WINDOW_W - SIDEBAR_W - PREVIEW_W)
+	local contentW = WINDOW_W - SIDEBAR_W - PREVIEW_W
+	local contentH = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H
+	contentParent:SetWidth(contentW)
+	contentParent:SetHeight(contentH)
+	-- Store explicit dimensions for panel creators that can't rely on GetWidth/GetHeight
+	contentParent._explicitWidth = contentW
+	contentParent._explicitHeight = contentH
 
 	-- ── Preview area (right strip) ────────────────────────────
 	local preview = Widgets.CreateBorderedFrame(contentArea, PREVIEW_W, WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H, C.Colors.background, C.Colors.border)

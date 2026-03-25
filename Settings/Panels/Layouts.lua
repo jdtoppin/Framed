@@ -76,15 +76,18 @@ F.Settings.RegisterPanel({
 	section = 'GENERAL',
 	order   = 20,
 	create  = function(parent)
+		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
+		local parentH = parent._explicitHeight or parent:GetHeight() or 400
 		-- ── Outer scroll frame ─────────────────────────────────
 		local scroll = Widgets.CreateScrollFrame(
 			parent, nil,
-			parent:GetWidth(),
-			parent:GetHeight())
+			parentW,
+			parentH)
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
-		local width   = parent:GetWidth() - C.Spacing.normal * 2
+		content:SetWidth(parentW)
+		local width   = parentW - C.Spacing.normal * 2
 		local yOffset = -C.Spacing.normal
 
 		-- ── Config helpers ─────────────────────────────────────
@@ -141,6 +144,7 @@ F.Settings.RegisterPanel({
 		listScroll:ClearAllPoints()
 		Widgets.SetPoint(listScroll, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		local listContent = listScroll:GetContentFrame()
+		listContent:SetWidth(width)
 		yOffset = yOffset - listHeight - C.Spacing.normal
 
 		-- ── Build layout list rows ─────────────────────────────
