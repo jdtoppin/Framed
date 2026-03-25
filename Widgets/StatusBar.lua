@@ -65,9 +65,8 @@ function Widgets.CreateStatusBar(parent, width, height)
 	-- Native interpolation (WoW 12.0.1+)
 	-- --------------------------------------------------------
 
-	if(hasNativeInterpolation) then
-		bar:SetInterpolateToTargetValue(Enum.StatusBarInterpolation.ExponentialEaseOut)
-	end
+	-- Native interpolation is used by passing the enum as the second
+	-- argument to SetValue() — there is no separate setup method.
 
 	-- --------------------------------------------------------
 	-- API: SetSmooth
@@ -77,17 +76,14 @@ function Widgets.CreateStatusBar(parent, width, height)
 	--- @param enabled boolean
 	function bar:SetSmooth(enabled)
 		self._smoothEnabled = enabled
-		if(hasNativeInterpolation) then
-			if(enabled) then
-				self:SetInterpolateToTargetValue(Enum.StatusBarInterpolation.ExponentialEaseOut)
-			else
-				self:SetInterpolateToTargetValue(Enum.StatusBarInterpolation.None)
-			end
-		end
 		-- If disabling, snap to target immediately
 		if(not enabled) then
 			self._currentValue = self._targetValue
-			self:SetValue_Raw(self._targetValue)
+			if(hasNativeInterpolation) then
+				self:SetValue_Raw(self._targetValue, Enum.StatusBarInterpolation.Immediate)
+			else
+				self:SetValue_Raw(self._targetValue)
+			end
 		end
 	end
 
@@ -112,13 +108,17 @@ function Widgets.CreateStatusBar(parent, width, height)
 
 		if(not self._smoothEnabled) then
 			self._currentValue = val
-			self:SetValue_Raw(val)
+			if(hasNativeInterpolation) then
+				self:SetValue_Raw(val, Enum.StatusBarInterpolation.Immediate)
+			else
+				self:SetValue_Raw(val)
+			end
 			return
 		end
 
 		if(hasNativeInterpolation) then
-			-- Native API: pass value; the engine handles animation
-			self:SetValue_Raw(val)
+			-- Native API: pass interpolation enum as second arg
+			self:SetValue_Raw(val, Enum.StatusBarInterpolation.ExponentialEaseOut)
 		else
 			-- OnUpdate-based fallback: _currentValue approaches _targetValue
 			-- The OnUpdate script is registered once below
