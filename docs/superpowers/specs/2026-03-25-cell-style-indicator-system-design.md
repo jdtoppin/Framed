@@ -179,8 +179,9 @@ Stored at `unitConfigs.<unitType>.dispellable`:
 
 **Notes:**
 - Icon is always displayed (not controlled by highlight type)
-- `onlyDispellableByMe` appears at top of panel
+- `onlyDispellableByMe` appears at top of panel — filters dispellable types only; Physical/bleed debuffs always show for healer awareness
 - Highlight type controls the overlay effect on the frame, not the icon
+- Dispel priority: Magic(1) > Curse(2) > Disease(3) > Poison(4) > Physical/Bleed(5)
 
 ---
 
@@ -359,12 +360,12 @@ COMBAT_LOG_EVENT_UNFILTERED fires
 
 ```
 UNIT_AURA fires
-  -> Iterate harmful auras, find dispellable ones
-  -> Apply onlyDispellableByMe filter if enabled
-  -> Priority: Magic > Curse > Disease > Poison
-  -> Always show: BorderIcon of highest-priority dispellable debuff
+  -> Iterate harmful auras, find dispellable ones + bleeds (Physical debuffs)
+  -> Apply onlyDispellableByMe filter if enabled (bleeds always pass — shown for healer awareness)
+  -> Priority: Magic(1) > Curse(2) > Disease(3) > Poison(4) > Physical/Bleed(5)
+  -> Always show: BorderIcon of highest-priority debuff (dispellable or bleed)
   -> Apply highlight overlay based on highlightType config
-  -> Color both icon border and overlay by dispel type
+  -> Color both icon border and overlay by debuff type (including Physical = red)
 ```
 
 ### 4.5 LiveUpdate Integration
@@ -567,11 +568,13 @@ Constants.HighlightType = {
 -- Dispel type colors (centralized — replaces per-file DISPEL_COLORS locals)
 -- Uses 3-value RGB to match existing Icon.lua and Dispellable.lua conventions.
 -- Alpha is applied at the call site based on context.
+-- Physical/bleed included for healer awareness (not dispellable, but always shown).
 Constants.Colors.dispel = {
-  Magic   = { 0.2, 0.6, 1   },
-  Curse   = { 0.6, 0,   1   },
-  Disease = { 0.6, 0.4, 0   },
-  Poison  = { 0,   0.6, 0.1 },
+  Magic    = { 0.2, 0.6, 1   },
+  Curse    = { 0.6, 0,   1   },
+  Disease  = { 0.6, 0.4, 0   },
+  Poison   = { 0,   0.6, 0.1 },
+  Physical = { 0.8, 0,   0   },
 }
 ```
 
