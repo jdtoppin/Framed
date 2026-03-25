@@ -70,3 +70,22 @@ Elements/Indicators/Border.lua
 Elements/Indicators/Color.lua
 Elements/Indicators/Overlay.lua
 Elements/Indicators/Glow.lua
+
+# Units
+Units/StyleBuilder.lua
+Units/Player.lua
+Units/Target.lua
+Units/TargetTarget.lua
+Units/Focus.lua
+Units/Pet.lua
+Units/Party.lua
+Units/Raid.lua
+Units/Boss.lua
+Units/Arena.lua
+
+# Click Casting
+ClickCasting/ClickCasting.lua
+ClickCasting/Defaults.lua
+
+# Blizzard Frame Hiding
+BlizzardFrames.lua
