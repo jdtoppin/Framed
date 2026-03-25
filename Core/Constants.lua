@@ -134,6 +134,15 @@ Constants.GlowType = {
 }
 
 -- ============================================================
+-- Cast-By Filter (indicator spell filtering)
+-- ============================================================
+Constants.CastFilter = {
+	ANYONE = 'anyone',
+	ME     = 'me',
+	OTHERS = 'others',
+}
+
+-- ============================================================
 -- Dispel Highlight Types
 -- ============================================================
 Constants.HighlightType = {

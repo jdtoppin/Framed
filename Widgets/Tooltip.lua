@@ -73,20 +73,23 @@ local ANCHOR_MAP = {
 local function PositionTooltip(owner, anchor)
 	tooltip:ClearAllPoints()
 
+	local cfgOffX = getConfig('tooltipOffsetX') or 0
+	local cfgOffY = getConfig('tooltipOffsetY') or 0
+
 	if(anchor == 'ANCHOR_CURSOR') then
 		-- Follow cursor; GetCursorPosition returns screen coords, convert via UIParent scale
 		local cx, cy = GetCursorPosition()
 		local scale  = UIParent:GetEffectiveScale()
 		tooltip:SetPoint('TOPLEFT', UIParent, 'BOTTOMLEFT',
-			cx / scale + GAP, cy / scale + GAP)
+			cx / scale + GAP + cfgOffX, cy / scale + GAP + cfgOffY)
 		return
 	end
 
 	local info = ANCHOR_MAP[anchor] or ANCHOR_MAP['ANCHOR_RIGHT']
 	local tooltipPoint, ownerPoint, xSign, ySign = info[1], info[2], info[3], info[4]
 
-	local xOff = xSign * GAP
-	local yOff = ySign * GAP
+	local xOff = xSign * GAP + cfgOffX
+	local yOff = ySign * GAP + cfgOffY
 
 	tooltip:SetPoint(tooltipPoint, owner, ownerPoint, xOff, yOff)
 end
@@ -95,15 +98,32 @@ end
 -- Public API
 -- ============================================================
 
+-- ============================================================
+-- Config helpers
+-- ============================================================
+
+local function getConfig(key)
+	if(F.Config) then
+		return F.Config:Get('general.' .. key)
+	end
+	return nil
+end
+
 --- Show the custom tooltip attached to owner.
 --- @param owner Frame The frame to anchor against
 --- @param title string Tooltip title text
 --- @param body? string Optional secondary body text
---- @param anchor? string Anchor direction (default 'ANCHOR_RIGHT')
+--- @param anchor? string Anchor direction (default from config)
 function Widgets.ShowTooltip(owner, title, body, anchor)
+	-- Respect global toggle
+	if(getConfig('tooltipEnabled') == false) then return end
+
+	-- Hide in combat
+	if(getConfig('tooltipHideInCombat') and InCombatLockdown()) then return end
+
 	EnsureTooltip()
 
-	anchor = anchor or 'ANCHOR_RIGHT'
+	anchor = anchor or getConfig('tooltipAnchor') or 'ANCHOR_RIGHT'
 
 	-- Set title
 	tooltip.titleFS:SetText(title or '')

@@ -17,6 +17,7 @@ rawset(_G, 'FramedAddon', Framed)
 local eventFrame = CreateFrame('Frame')
 eventFrame:RegisterEvent('ADDON_LOADED')
 eventFrame:RegisterEvent('PLAYER_LOGIN')
+eventFrame:RegisterEvent('PLAYER_LOGOUT')
 eventFrame:RegisterEvent('ACTIVE_TALENT_GROUP_CHANGED')
 
 eventFrame:SetScript('OnEvent', function(self, event, arg1)
@@ -47,6 +48,9 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		end
 
 		self:UnregisterEvent('PLAYER_LOGIN')
+	elseif(event == 'PLAYER_LOGOUT') then
+		-- Snapshot config to backup SavedVariable for recovery
+		FramedBackupDB = F.DeepCopy(FramedDB)
 	elseif(event == 'ACTIVE_TALENT_GROUP_CHANGED') then
 		F.ClickCasting.RefreshAll()
 	end
@@ -92,6 +96,15 @@ SlashCmdList['FRAMED'] = function(msg)
 		else
 			F.EditMode.Enter()
 		end
+	elseif(cmd == 'restore') then
+		if(not FramedBackupDB) then
+			print('|cff00ccff Framed|r No backup found. A backup is created each time you log out.')
+			return
+		end
+		F.Widgets.ShowConfirmDialog('Restore Settings', 'Restore settings from your last session? This will reload the UI.', function()
+			FramedDB = F.DeepCopy(FramedBackupDB)
+			ReloadUI()
+		end)
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
 		print('  /framed — Open settings')
@@ -99,6 +112,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed config — Print config debug info')
 		print('  /framed events — Print registered events')
 		print('  /framed edit — Toggle Edit Mode')
+		print('  /framed restore — Restore settings from last session backup')
 	else
 		-- Default: open settings
 		if(F.Settings and F.Settings.Toggle) then

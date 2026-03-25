@@ -9,6 +9,7 @@ local C = F.Constants
 -- ============================================================
 
 local SLIDER_H     = 26
+local CHECK_H      = 22
 local DROPDOWN_H   = 22
 local SWATCH_H     = 20
 local BUTTON_H     = 28
@@ -222,6 +223,59 @@ F.Settings.RegisterPanel({
 		moY = moY - SWATCH_H - C.Spacing.normal
 
 		yOffset = Widgets.EndCard(moCard, content, moY)
+
+		-- ── Tooltips ──────────────────────────────────────────
+		yOffset = placeHeading(content, 'Tooltips', 2, yOffset)
+
+		local ttCard, ttInner, ttY
+		ttCard, ttInner, ttY = Widgets.StartCard(content, width, yOffset)
+
+		local ttEnabled = Widgets.CreateCheckButton(ttInner, 'Show Tooltips', function(checked)
+			setConfig('tooltipEnabled', checked)
+			fireChange()
+		end)
+		ttEnabled:SetChecked(getConfig('tooltipEnabled') ~= false)
+		ttY = placeWidget(ttEnabled, ttInner, ttY, CHECK_H)
+
+		local ttCombat = Widgets.CreateCheckButton(ttInner, 'Hide in Combat', function(checked)
+			setConfig('tooltipHideInCombat', checked)
+			fireChange()
+		end)
+		ttCombat:SetChecked(getConfig('tooltipHideInCombat') == true)
+		ttY = placeWidget(ttCombat, ttInner, ttY, CHECK_H)
+
+		local ttAnchor = Widgets.CreateDropdown(ttInner, WIDGET_W)
+		ttAnchor:SetItems({
+			{ text = 'Right',  value = 'ANCHOR_RIGHT' },
+			{ text = 'Left',   value = 'ANCHOR_LEFT' },
+			{ text = 'Top',    value = 'ANCHOR_TOP' },
+			{ text = 'Bottom', value = 'ANCHOR_BOTTOM' },
+			{ text = 'Cursor', value = 'ANCHOR_CURSOR' },
+		})
+		ttAnchor:SetValue(getConfig('tooltipAnchor') or 'ANCHOR_RIGHT')
+		ttAnchor:SetOnSelect(function(value)
+			setConfig('tooltipAnchor', value)
+			fireChange()
+		end)
+		ttY = placeWidget(ttAnchor, ttInner, ttY, DROPDOWN_H)
+
+		local ttOffX = Widgets.CreateSlider(ttInner, 'X Offset', WIDGET_W, -50, 50, 1)
+		ttOffX:SetValue(getConfig('tooltipOffsetX') or 0)
+		ttOffX:SetAfterValueChanged(function(value)
+			setConfig('tooltipOffsetX', value)
+			fireChange()
+		end)
+		ttY = placeWidget(ttOffX, ttInner, ttY, SLIDER_H)
+
+		local ttOffY = Widgets.CreateSlider(ttInner, 'Y Offset', WIDGET_W, -50, 50, 1)
+		ttOffY:SetValue(getConfig('tooltipOffsetY') or 0)
+		ttOffY:SetAfterValueChanged(function(value)
+			setConfig('tooltipOffsetY', value)
+			fireChange()
+		end)
+		ttY = placeWidget(ttOffY, ttInner, ttY, SLIDER_H)
+
+		yOffset = Widgets.EndCard(ttCard, content, ttY)
 
 		-- ── Re-run Setup Wizard ────────────────────────────────
 		yOffset = placeHeading(content, 'Setup Wizard', 2, yOffset)

@@ -15,6 +15,11 @@ local accountDefaults = {
 		accentColor = { 0, 0.8, 1 },  -- cyan default
 		uiScale = 1.0,
 		wizardCompleted = false,
+		tooltipEnabled = true,
+		tooltipHideInCombat = false,
+		tooltipAnchor = 'ANCHOR_RIGHT',
+		tooltipOffsetX = 0,
+		tooltipOffsetY = 0,
 	},
 	layouts = {},       -- populated by Layouts/Defaults.lua in Phase 5
 	raidDebuffs = {

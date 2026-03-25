@@ -86,15 +86,20 @@ end
 -- ============================================================
 -- Spell name helper
 -- ============================================================
-local function getSpellName(spellID)
+local function getSpellInfo(spellID)
 	if(C_Spell and C_Spell.GetSpellInfo) then
 		local info = C_Spell.GetSpellInfo(spellID)
-		if(info) then return info.name end
+		if(info) then return info.name, info.iconID end
 	elseif(GetSpellInfo) then
-		local name = GetSpellInfo(spellID)
-		if(name) then return name end
+		local name, _, icon = GetSpellInfo(spellID)
+		if(name) then return name, icon end
 	end
-	return 'Spell ' .. spellID
+	return 'Spell ' .. spellID, nil
+end
+
+local function getSpellName(spellID)
+	local name = getSpellInfo(spellID)
+	return name
 end
 
 -- ============================================================
@@ -165,11 +170,27 @@ local function BuildImportPopup()
 			hdr:SetText(cls:sub(1, 1) .. cls:sub(2):lower())
 			yOff = yOff - 18
 			for _, spellID in next, spells do
-				local label = getSpellName(spellID) .. '  (' .. spellID .. ')'
+				local spName, spIcon = getSpellInfo(spellID)
+				local label = spName .. '  (' .. spellID .. ')'
 				local cb = Widgets.CreateCheckButton(content, label, function() end)
 				cb:SetChecked(true)
 				cb:ClearAllPoints()
 				Widgets.SetPoint(cb, 'TOPLEFT', content, 'TOPLEFT', 8, yOff)
+
+				-- Insert spell icon between toggle track and label
+				if(spIcon) then
+					local iconSize = 14
+					local icon = cb:CreateTexture(nil, 'ARTWORK')
+					icon:SetSize(iconSize, iconSize)
+					icon:SetTexture(spIcon)
+					icon:SetPoint('LEFT', cb._track, 'RIGHT', 4, 0)
+					-- Shift the label to the right of the icon
+					cb._labelText:ClearAllPoints()
+					Widgets.SetPoint(cb._labelText, 'LEFT', icon, 'RIGHT', 4, 0)
+					-- Widen frame to account for icon
+					cb:SetWidth(cb:GetWidth() + iconSize + 8)
+				end
+
 				yOff = yOff - CHECK_H
 				table.insert(frame.__checkboxes, { checkbox = cb, spellID = spellID })
 			end
@@ -274,16 +295,17 @@ local function createListRow(scrollContent)
 	typeFS:SetJustifyH('LEFT')
 	row.__typeFS = typeFS
 
-	-- Enabled checkbox — callback is updated dynamically via row.__onEnabledChanged
+	-- Enabled toggle — callback is updated dynamically via row.__onEnabledChanged
 	row.__onEnabledChanged = nil
 	local enabledCB = Widgets.CreateCheckButton(row, '', function(checked)
 		if(row.__onEnabledChanged) then row.__onEnabledChanged(checked) end
 	end)
+	enabledCB:SetWidgetTooltip('Enable / Disable')
 	row.__enabledCB = enabledCB
 
 	local editBtn = Widgets.CreateButton(row, 'Edit', 'widget', 40, 20)
 	row.__editBtn = editBtn
-	local deleteBtn = Widgets.CreateButton(row, 'Del', 'red', 36, 20)
+	local deleteBtn = Widgets.CreateButton(row, 'Delete', 'red', 50, 20)
 	row.__deleteBtn = deleteBtn
 
 	-- Anchoring: [name] [type] ... [enabled] [delete] [edit]
@@ -293,9 +315,23 @@ local function createListRow(scrollContent)
 	Widgets.SetPoint(enabledCB, 'RIGHT', deleteBtn, 'LEFT', -C.Spacing.base, 0)
 	typeFS:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
 
+	-- Row highlight: persist when hovering child buttons
 	row:EnableMouse(true)
 	row:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
-	row:SetScript('OnLeave', function(self) Widgets.SetBackdropHighlight(self, false) end)
+	row:SetScript('OnLeave', function(self)
+		if(self:IsMouseOver()) then return end
+		Widgets.SetBackdropHighlight(self, false)
+	end)
+
+	-- Propagate row highlight from child interactive widgets
+	for _, child in next, { editBtn, deleteBtn, enabledCB } do
+		child:HookScript('OnEnter', function() Widgets.SetBackdropHighlight(row, true) end)
+		child:HookScript('OnLeave', function()
+			if(row:IsMouseOver()) then return end
+			Widgets.SetBackdropHighlight(row, false)
+		end)
+	end
+
 	return row
 end
 
@@ -308,14 +344,22 @@ local function buildIndicatorSettings(parent, width, yOffset, name, data, setInd
 		setIndicator(name, data)
 	end
 
-	-- ── General card ──────────────────────────────────────
-	local genCard, genInner, genY = Widgets.StartCard(parent, width, yOffset)
+	-- ── Cast By card ─────────────────────────────────────
+	yOffset = placeHeading(parent, 'Cast By', 2, yOffset)
 
-	local enCB = Widgets.CreateCheckButton(genInner, 'Enabled', function(checked) update('enabled', checked) end)
-	enCB:SetChecked(data.enabled ~= false)
-	genY = placeWidget(enCB, genInner, genY, CHECK_H)
+	local cbCard, cbInner, cbY = Widgets.StartCard(parent, width, yOffset)
 
-	yOffset = Widgets.EndCard(genCard, parent, genY)
+	local castByDD = Widgets.CreateDropdown(cbInner, WIDGET_W)
+	castByDD:SetItems({
+		{ text = 'Me',      value = C.CastFilter.ME },
+		{ text = 'Others',  value = C.CastFilter.OTHERS },
+		{ text = 'Anyone',  value = C.CastFilter.ANYONE },
+	})
+	castByDD:SetValue(data.castBy or C.CastFilter.ME)
+	castByDD:SetOnSelect(function(value) update('castBy', value) end)
+	cbY = placeWidget(castByDD, cbInner, cbY, DROPDOWN_H)
+
+	yOffset = Widgets.EndCard(cbCard, parent, cbY)
 
 	-- ── Tracked Spells card ───────────────────────────────
 	yOffset = placeHeading(parent, 'Tracked Spells', 2, yOffset)
@@ -331,6 +375,29 @@ local function buildIndicatorSettings(parent, width, yOffset, name, data, setInd
 	spY = placeWidget(spInput, spInner, spY, 50)
 	spInput:SetSpellList(spList)
 	spInput:SetOnAdd(function() update('spells', spList:GetSpells()) end)
+
+	local importBtn = Widgets.CreateButton(spInner, 'Import Healer Spells', 'widget', 160, BUTTON_H)
+	spY = placeWidget(importBtn, spInner, spY, BUTTON_H)
+	importBtn:SetOnClick(function()
+		ShowImportPopup(function(selectedSpells)
+			if(not selectedSpells or #selectedSpells == 0) then return end
+			local existing = spList:GetSpells()
+			for _, spellID in next, selectedSpells do
+				table.insert(existing, spellID)
+			end
+			spList:SetSpells(existing)
+			update('spells', existing)
+		end)
+	end)
+
+	local deleteAllBtn = Widgets.CreateButton(spInner, 'Delete All Spells', 'red', 140, BUTTON_H)
+	deleteAllBtn:SetPoint('LEFT', importBtn, 'RIGHT', C.Spacing.tight, 0)
+	deleteAllBtn:SetOnClick(function()
+		Widgets.ShowConfirmDialog('Delete All Spells', 'Remove all tracked spells from this indicator?', function()
+			spList:SetSpells({})
+			update('spells', {})
+		end)
+	end)
 
 	yOffset = Widgets.EndCard(spCard, parent, spY)
 
@@ -444,10 +511,6 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	local createBtn = Widgets.CreateButton(createInner, 'Create', 'accent', 60, BUTTON_H)
 	createBtn:SetPoint('LEFT', nameBox, 'RIGHT', C.Spacing.tight, 0)
 	createY = createY - BUTTON_H - C.Spacing.normal
-
-	-- Import button
-	local importBtn = Widgets.CreateButton(createInner, 'Import Healer Spells', 'widget', 160, BUTTON_H)
-	createY = placeWidget(importBtn, createInner, createY, BUTTON_H)
 
 	yOffset = Widgets.EndCard(createCard, parent, createY)
 
@@ -649,27 +712,6 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 	createBtn:SetOnClick(doCreate)
 	nameBox:SetOnEnterPressed(doCreate)
-
-	-- ── Import handler ─────────────────────────────────────
-	importBtn:SetOnClick(function()
-		ShowImportPopup(function(selectedSpells)
-			if(not selectedSpells or #selectedSpells == 0) then return end
-			local indicators = getIndicators()
-			local name = 'Healer Spells'
-			local n = 1
-			while(indicators[name]) do n = n + 1; name = 'Healer Spells ' .. n end
-
-			setIndicator(name, {
-				type         = C.IndicatorType.ICONS,
-				enabled      = true,
-				spells       = selectedSpells,
-				iconSize     = 16,
-				maxDisplayed = 3,
-				orientation  = 'RIGHT',
-			})
-			layoutList()
-		end)
-	end)
 
 	-- Initial layout
 	layoutList()
