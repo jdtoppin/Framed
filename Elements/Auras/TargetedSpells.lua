@@ -12,9 +12,19 @@ F.Elements.TargetedSpells = {}
 -- ============================================================
 
 local DisplayMode = {
-	BOTH   = 'both',
-	ICON   = 'icon',
-	BORDER = 'border',
+	BOTH        = 'Both',
+	ICONS       = 'Icons',
+	BORDER_GLOW = 'BorderGlow',
+}
+
+-- ============================================================
+-- Backward compatibility: map old lowercase values to new
+-- ============================================================
+
+local legacyDisplayModeMap = {
+	['icon']   = DisplayMode.ICONS,
+	['border'] = DisplayMode.BORDER_GLOW,
+	['both']   = DisplayMode.BOTH,
 }
 
 -- ============================================================
@@ -28,17 +38,21 @@ local DisplayMode = {
 local function showSpell(element, spellId, iconTexture)
 	local displayMode = element._displayMode
 
-	if(displayMode == DisplayMode.ICON or displayMode == DisplayMode.BOTH) then
-		if(element._icon) then
-			element._icon:SetSpell(spellId, iconTexture, 0, 0, 0, nil)
-			element._icon:Show()
+	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
+		if(element._borderIcon) then
+			element._borderIcon:SetAura(spellId, iconTexture, 0, 0, 0, nil)
+			-- Apply configured border color
+			local bc = element._borderColor
+			if(bc) then
+				element._borderIcon:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
+			end
+			element._borderIcon:Show()
 		end
 	end
 
-	if(displayMode == DisplayMode.BORDER or displayMode == DisplayMode.BOTH) then
-		if(element._border) then
-			local color = C.Colors.accent
-			element._border:SetColor(color[1], color[2], color[3], color[4] or 1)
+	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
+		if(element._glow) then
+			element._glow:Start(element._glowColor, element._glowType, element._glowConfig)
 		end
 	end
 end
@@ -46,12 +60,11 @@ end
 --- Hide all indicators on the element.
 --- @param element table
 local function hideSpell(element)
-	if(element._icon) then
-		element._icon:Clear()
-		element._icon:Hide()
+	if(element._borderIcon) then
+		element._borderIcon:Clear()
 	end
-	if(element._border) then
-		element._border:Clear()
+	if(element._glow) then
+		element._glow:Stop()
 	end
 end
 
@@ -181,37 +194,72 @@ oUF:AddElement('FramedTargetedSpells', Update, Enable, Disable)
 -- ============================================================
 
 --- Create a TargetedSpells element on a unit frame.
---- Shows an icon and/or border when an enemy is casting a spell at this unit.
+--- Shows a BorderIcon and/or Glow when an enemy is casting a spell at this unit.
 --- Assigns result to self.FramedTargetedSpells, activating the element.
 --- @param self Frame  The oUF unit frame
---- @param config? table  Optional config: displayMode, iconSize, anchor
+--- @param config? table  Optional config: displayMode, iconSize, borderColor, anchor,
+---                       frameLevel, maxDisplayed, glow = { type, color, lines, frequency, length, thickness }
 function F.Elements.TargetedSpells.Setup(self, config)
 	config = config or {}
-	config.displayMode = config.displayMode or DisplayMode.BOTH
-	config.iconSize    = config.iconSize    or 16
-	config.anchor      = config.anchor      or { 'CENTER', self, 'CENTER', 0, 0 }
 
-	local icon, border
+	-- Backward compat: map old lowercase display mode strings to new PascalCase values
+	local rawMode = config.displayMode or DisplayMode.BOTH
+	local displayMode = legacyDisplayModeMap[rawMode] or rawMode
 
-	if(config.displayMode == DisplayMode.ICON or config.displayMode == DisplayMode.BOTH) then
-		icon = F.Indicators.Icon.Create(self, config.iconSize, {
-			displayType  = C.IconDisplay.SPELL_ICON,
+	local iconSize   = config.iconSize   or 16
+	local anchor     = config.anchor     or { 'CENTER', self, 'CENTER', 0, 0 }
+	local frameLevel = config.frameLevel or nil
+
+	-- Border color for the BorderIcon border
+	local borderColor = config.borderColor
+
+	-- Glow subtable
+	local glowCfg   = config.glow or {}
+	local glowType  = glowCfg.type  or C.GlowType.PROC
+	local glowColor = glowCfg.color or C.Colors.accent
+	local glowConfig = nil
+	if(glowCfg.lines or glowCfg.frequency or glowCfg.length or glowCfg.thickness) then
+		glowConfig = {
+			lines     = glowCfg.lines,
+			frequency = glowCfg.frequency,
+			length    = glowCfg.length,
+			thickness = glowCfg.thickness,
+		}
+	end
+
+	local borderIcon, glow
+
+	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
+		local biConfig = {
 			showCooldown = false,
 			showStacks   = false,
 			showDuration = false,
-		})
-		local a = config.anchor
-		icon:SetPoint(a[1], a[2], a[3], a[4] or 0, a[5] or 0)
+			borderColor  = borderColor,
+		}
+		if(frameLevel) then
+			biConfig.frameLevel = frameLevel
+		end
+		borderIcon = F.Indicators.BorderIcon.Create(self, iconSize, biConfig)
+		local a = anchor
+		borderIcon:SetPoint(a[1], a[2], a[3], a[4] or 0, a[5] or 0)
 	end
 
-	if(config.displayMode == DisplayMode.BORDER or config.displayMode == DisplayMode.BOTH) then
-		border = F.Indicators.Border.Create(self)
+	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
+		local glowCreateConfig = {
+			glowType = glowType,
+			color    = glowColor,
+		}
+		glow = F.Indicators.Glow.Create(self, glowCreateConfig)
 	end
 
 	local container = {
-		_icon             = icon,
-		_border           = border,
-		_displayMode      = config.displayMode,
+		_borderIcon       = borderIcon,
+		_glow             = glow,
+		_displayMode      = displayMode,
+		_borderColor      = borderColor,
+		_glowColor        = glowColor,
+		_glowType         = glowType,
+		_glowConfig       = glowConfig,
 		_activeSourceGUID = nil,
 		_activeSpellId    = nil,
 		_cleuFrame        = nil,
