@@ -70,6 +70,12 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
 		local ht = C.HighlightType
+
+		local hlLabel, hlLabelH = Widgets.CreateHeading(content, 'Highlight Type', 3)
+		hlLabel:ClearAllPoints()
+		Widgets.SetPoint(hlLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - hlLabelH
+
 		local highlightDD = Widgets.CreateDropdown(content, WIDGET_W)
 		highlightDD:SetItems({
 			{ text = 'Gradient - Health Bar (Full)',    value = ht.GRADIENT_FULL },

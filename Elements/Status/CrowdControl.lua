@@ -213,7 +213,7 @@ function F.Elements.CrowdControl.Setup(self, config)
 
 	-- Duration text below the icon
 	local duration = Widgets.CreateFontString(container, C.Font.sizeSmall, C.Colors.textActive)
-	duration:SetFont(STANDARD_TEXT_FONT, C.Font.sizeSmall, 'OUTLINE')
+	duration:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, 'OUTLINE')
 	duration:SetPoint('TOP', icon, 'BOTTOM', 0, -1)
 	duration:SetJustifyH('CENTER')
 	container.duration = duration

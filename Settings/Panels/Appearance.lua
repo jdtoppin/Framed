@@ -122,6 +122,11 @@ F.Settings.RegisterPanel({
 		local fontPane
 		fontPane, yOffset = createSection(content, 'Font', width, yOffset)
 
+		local fontLabel, fontLabelH = Widgets.CreateHeading(content, 'Font Family', 3)
+		fontLabel:ClearAllPoints()
+		Widgets.SetPoint(fontLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - fontLabelH
+
 		local fontDropdown = Widgets.CreateTextureDropdown(content, WIDGET_W, 'font')
 		yOffset = placeWidget(fontDropdown, content, yOffset, DROPDOWN_H)
 
@@ -138,6 +143,11 @@ F.Settings.RegisterPanel({
 		-- ── Bar Texture ────────────────────────────────────────
 		local barPane
 		barPane, yOffset = createSection(content, 'Bar Texture', width, yOffset)
+
+		local barLabel, barLabelH = Widgets.CreateHeading(content, 'Texture', 3)
+		barLabel:ClearAllPoints()
+		Widgets.SetPoint(barLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - barLabelH
 
 		local barDropdown = Widgets.CreateTextureDropdown(content, WIDGET_W, 'statusbar')
 		yOffset = placeWidget(barDropdown, content, yOffset, DROPDOWN_H)

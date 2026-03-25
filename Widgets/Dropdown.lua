@@ -174,7 +174,7 @@ OpenDropdownList = function(owner)
 			if(item._fontPath) then
 				row._label:SetFont(item._fontPath, C.Font.sizeNormal, '')
 			else
-				row._label:SetFont(STANDARD_TEXT_FONT, C.Font.sizeNormal, '')
+				row._label:SetFont(F.Media.GetActiveFont(), C.Font.sizeNormal, '')
 			end
 
 			row._label:SetText(item.text or '')

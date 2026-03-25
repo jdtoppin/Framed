@@ -133,7 +133,7 @@ function F.Elements.StatusText.Setup(self, config)
 
 	-- FontString sits in the OVERLAY layer so it renders above bars/textures
 	local fs = Widgets.CreateFontString(self, config.size, C.Colors.textActive)
-	fs:SetFont(STANDARD_TEXT_FONT, config.size, 'OUTLINE')
+	fs:SetFont(F.Media.GetActiveFont(), config.size, 'OUTLINE')
 
 	local p = config.point
 	fs:SetPoint(p[1], p[2], p[3], p[4] or 0, p[5] or 0)

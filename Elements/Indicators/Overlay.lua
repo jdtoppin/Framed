@@ -71,7 +71,7 @@ function F.Indicators.Overlay.Create(parent)
 
 	-- Centered label
 	local label = frame:CreateFontString(nil, 'OVERLAY')
-	label:SetFont(STANDARD_TEXT_FONT, C.Font.sizeNormal, 'OUTLINE')
+	label:SetFont(F.Media.GetActiveFont(), C.Font.sizeNormal, 'OUTLINE')
 	label:SetTextColor(1, 1, 1, 1)
 	label:SetPoint('CENTER', frame, 'CENTER', 0, 0)
 	label:SetJustifyH('CENTER')

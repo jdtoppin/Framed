@@ -68,6 +68,11 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(modePane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+		local modeLabel, modeLabelH = Widgets.CreateHeading(content, 'Display Mode', 3)
+		modeLabel:ClearAllPoints()
+		Widgets.SetPoint(modeLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - modeLabelH
+
 		local modeDD = Widgets.CreateDropdown(content, WIDGET_W)
 		modeDD:SetItems({
 			{ text = 'Icons',       value = 'Icons' },
@@ -124,6 +129,11 @@ F.Settings.RegisterPanel({
 		glowPane:ClearAllPoints()
 		Widgets.SetPoint(glowPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
+
+		local glowTypeLabel, glowTypeLabelH = Widgets.CreateHeading(content, 'Glow Type', 3)
+		glowTypeLabel:ClearAllPoints()
+		Widgets.SetPoint(glowTypeLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - glowTypeLabelH
 
 		local glowDD = Widgets.CreateDropdown(content, WIDGET_W)
 		glowDD:SetItems({

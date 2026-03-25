@@ -98,6 +98,11 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	yOffset = yOffset - CHECK_H - C.Spacing.normal
 
 	-- Orientation
+	local oriLabel, oriLabelH = Widgets.CreateHeading(parent, 'Orientation', 3)
+	oriLabel:ClearAllPoints()
+	Widgets.SetPoint(oriLabel, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	yOffset = yOffset - oriLabelH
+
 	local oriDD = Widgets.CreateDropdown(parent, WIDGET_W)
 	oriDD:SetItems({
 		{ text = 'Right', value = 'RIGHT' },

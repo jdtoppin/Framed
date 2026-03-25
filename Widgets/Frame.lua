@@ -126,6 +126,52 @@ function Widgets.CreateTitledPane(parent, title, width)
 end
 
 -- ============================================================
+-- Heading
+-- A simple text heading at one of three levels. Intended for
+-- labelling groups of widgets inside settings panels.
+--   Level 1: sizeTitle, accent, UPPERCASE, separator line (same look as TitledPane)
+--   Level 2: sizeNormal, textNormal, normal case, no separator
+--   Level 3: sizeSmall, textSecondary, normal case, no separator
+-- ============================================================
+
+local HEADING_CONFIG = {
+	[1] = { size = C.Font.sizeTitle,  color = C.Colors.accent,        upper = true,  separator = true  },
+	[2] = { size = C.Font.sizeNormal, color = C.Colors.textNormal,    upper = false, separator = false },
+	[3] = { size = C.Font.sizeSmall,  color = C.Colors.textSecondary, upper = false, separator = false },
+}
+
+--- Create a heading font string at the given level.
+--- @param parent Frame  Parent frame (usually scroll content)
+--- @param text   string Heading text
+--- @param level  number 1, 2, or 3
+--- @param width? number Width for separator (level 1 only)
+--- @return FontString heading, number height  The heading and total height consumed
+function Widgets.CreateHeading(parent, text, level, width)
+	local cfg = HEADING_CONFIG[level] or HEADING_CONFIG[3]
+
+	local heading = Widgets.CreateFontString(parent, cfg.size, cfg.color)
+	heading:SetText(cfg.upper and text:upper() or text)
+
+	local height = cfg.size + 2  -- font size + small padding
+
+	if(cfg.separator and width) then
+		local sep = parent:CreateTexture(nil, 'ARTWORK')
+		sep:SetHeight(SEPARATOR_HEIGHT)
+		sep:SetColorTexture(
+			C.Colors.accent[1],
+			C.Colors.accent[2],
+			C.Colors.accent[3],
+			C.Colors.accent[4] or 1)
+		sep:ClearAllPoints()
+		Widgets.SetPoint(sep, 'TOPLEFT', heading, 'BOTTOMLEFT', 0, -(C.Spacing.base / 2))
+		sep:SetWidth(width)
+		height = height + SEPARATOR_HEIGHT + C.Spacing.base / 2
+	end
+
+	return heading, height
+end
+
+-- ============================================================
 -- ResizeButton
 -- An 8x8 grip anchored to BOTTOMRIGHT of a frame. Enables
 -- live resize callbacks and a completion callback on mouse-up.

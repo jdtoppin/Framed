@@ -30,7 +30,6 @@ local SLIDER_H       = 26   -- labelH(14) + TRACK_THICKNESS(6) + 6
 local SWITCH_H       = 22
 local DROPDOWN_H     = 22
 local CHECK_H        = 14
-local LABEL_H        = 16
 local PANE_TITLE_H   = 20   -- approx title font + separator + gap
 
 -- Width for sliders and dropdowns inside the panel
@@ -68,17 +67,18 @@ local function placeWidget(widget, content, yOffset, height)
 	return yOffset - height - C.Spacing.normal
 end
 
---- Place a small text label and return the updated yOffset.
+--- Place a heading at the given level and return the updated yOffset.
 --- @param content Frame   Scroll content frame
---- @param text    string  Label text
+--- @param text    string  Heading text
+--- @param level   number  1, 2, or 3
 --- @param yOffset number  Running yOffset
+--- @param width?  number  Available width (needed for level 1 separator)
 --- @return number nextYOffset
-local function placeLabel(content, text, yOffset)
-	local label = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
-	label:ClearAllPoints()
-	Widgets.SetPoint(label, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	label:SetText(text)
-	return yOffset - LABEL_H
+local function placeHeading(content, text, level, yOffset, width)
+	local heading, height = Widgets.CreateHeading(content, text, level, width)
+	heading:ClearAllPoints()
+	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height
 end
 
 -- ============================================================
@@ -148,7 +148,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		yOffset = placeWidget(spacingSlider, content, yOffset, SLIDER_H)
 
 		-- Orientation switch
-		yOffset = placeLabel(content, 'Orientation', yOffset)
+		yOffset = placeHeading(content, 'Orientation', 3, yOffset)
 		local orientSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
 			{ text = 'Vertical',   value = 'Vertical' },
 			{ text = 'Horizontal', value = 'Horizontal' },
@@ -160,7 +160,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		yOffset = placeWidget(orientSwitch, content, yOffset, SWITCH_H)
 
 		-- Growth direction dropdown
-		yOffset = placeLabel(content, 'Growth Direction', yOffset)
+		yOffset = placeHeading(content, 'Growth Direction', 3, yOffset)
 		local growthDropdown = Widgets.CreateDropdown(content, WIDGET_W)
 		growthDropdown:SetItems({
 			{ text = 'Top to Bottom',  value = 'TOP_TO_BOTTOM' },
@@ -183,7 +183,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	barsPane, yOffset = createSection(content, 'Bars', width, yOffset)
 
 	-- Health color mode switch
-	yOffset = placeLabel(content, 'Health Color', yOffset)
+	yOffset = placeHeading(content, 'Health Color', 3, yOffset)
 	local healthColorSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
 		{ text = 'Class',    value = 'Class' },
 		{ text = 'Gradient', value = 'Gradient' },
@@ -251,7 +251,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	yOffset = placeWidget(showNameCheck, content, yOffset, CHECK_H)
 
 	-- Name color mode switch
-	yOffset = placeLabel(content, 'Name Color', yOffset)
+	yOffset = placeHeading(content, 'Name Color', 3, yOffset)
 	local nameColorSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
 		{ text = 'Class',  value = 'Class' },
 		{ text = 'White',  value = 'White' },
@@ -280,7 +280,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	yOffset = placeWidget(showHealthTextCheck, content, yOffset, CHECK_H)
 
 	-- Health text format dropdown
-	yOffset = placeLabel(content, 'Health Text Format', yOffset)
+	yOffset = placeHeading(content, 'Health Text Format', 3, yOffset)
 	local healthFormatDropdown = Widgets.CreateDropdown(content, WIDGET_W)
 	healthFormatDropdown:SetItems({
 		{ text = 'Percentage',   value = 'Percentage' },

@@ -124,7 +124,10 @@ local function createNavButton(parent, panelInfo, yOffset)
 	end
 
 	-- Label
-	local label = btn:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
+	local label = btn:CreateFontString(nil, 'OVERLAY')
+	label:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+	label:SetShadowOffset(1, -1)
+	label:SetTextColor(C.Colors.textNormal[1], C.Colors.textNormal[2], C.Colors.textNormal[3])
 	if(panelInfo.icon) then
 		label:SetPoint('LEFT', labelLeftAnchor, 'RIGHT', labelLeftOffset, 0)
 	else
@@ -246,7 +249,9 @@ local function buildSidebarContent(sidebar)
 
 		-- Section header text (skip empty label for BOTTOM)
 		if(sectionLabel ~= '') then
-			local headerText = sidebar:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
+			local headerText = sidebar:CreateFontString(nil, 'ARTWORK')
+			headerText:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+			headerText:SetShadowOffset(1, -1)
 			headerText:ClearAllPoints()
 			headerText:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 8, yOffset)
 			headerText:SetText(sectionLabel)

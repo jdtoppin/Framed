@@ -108,7 +108,7 @@ end
 local function CreateRawEditBox(container, isMultiLine, isNumber)
 	local eb = CreateFrame('EditBox', nil, container)
 
-	eb:SetFont(STANDARD_TEXT_FONT, C.Font.sizeNormal, '')
+	eb:SetFont(F.Media.GetActiveFont(), C.Font.sizeNormal, '')
 	eb:SetTextColor(Widgets.UnpackColor(C.Colors.textActive))
 	eb:SetAutoFocus(false)
 	eb:SetMultiLine(isMultiLine)

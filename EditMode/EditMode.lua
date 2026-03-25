@@ -134,7 +134,7 @@ local function CreateHandleForFrame(targetFrame, label)
 
 	-- Label at top of handle
 	local fs = handle:CreateFontString(nil, 'OVERLAY')
-	fs:SetFont(STANDARD_TEXT_FONT, C.Font.sizeSmall, '')
+	fs:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
 	fs:SetShadowOffset(1, -1)
 	fs:SetTextColor(accent[1], accent[2], accent[3], 1)
 	fs:SetPoint('TOP', handle, 'TOP', 0, -C.Spacing.base)

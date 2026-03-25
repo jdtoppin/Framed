@@ -301,7 +301,7 @@ end
 function Widgets.CreateFontString(parent, size, color)
 	local fs = parent:CreateFontString(nil, 'OVERLAY')
 	size = size or C.Font.sizeNormal
-	fs:SetFont(STANDARD_TEXT_FONT, size, '')
+	fs:SetFont(F.Media.GetActiveFont(), size, '')
 	fs:SetShadowOffset(1, -1)
 	color = color or C.Colors.textNormal
 	fs:SetTextColor(color[1], color[2], color[3], color[4] or 1)
