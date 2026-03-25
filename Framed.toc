@@ -149,6 +149,8 @@ Settings/Panels/Debuffs.lua
 Settings/Panels/RaidDebuffs.lua
 Settings/Panels/Externals.lua
 Settings/Panels/Defensives.lua
+Settings/Panels/TargetedSpells.lua
+Settings/Panels/Dispels.lua
 Settings/Panels/LossOfControl.lua
 Settings/Panels/CrowdControl.lua
 Settings/Panels/Tour.lua
