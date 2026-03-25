@@ -17,6 +17,7 @@ local SECTIONS = {
 	{ id = 'UNIT_FRAMES',  label = 'UNIT FRAMES',  order = 2 },
 	{ id = 'GROUP_FRAMES', label = 'GROUP FRAMES',  order = 3 },
 	{ id = 'AURAS',        label = 'AURAS',         order = 4 },
+	{ id = 'BOTTOM',       label = '',              order = 99 },
 }
 
 -- Fast lookup: sectionId → order value
@@ -221,7 +222,8 @@ function Settings.SetActivePanel(panelId)
 			local pFrame = info.create(contentParent)
 			if(pFrame) then
 				pFrame:ClearAllPoints()
-				pFrame:SetAllPoints(contentParent)
+				pFrame:SetPoint('TOPLEFT',  contentParent, 'TOPLEFT',  0, 0)
+				pFrame:SetPoint('TOPRIGHT', contentParent, 'TOPRIGHT', 0, 0)
 				pFrame:Hide()
 				panelFrames[panelId] = pFrame
 			end
@@ -281,21 +283,42 @@ local function buildSidebarContent(sidebar)
 	local sidebarW = SIDEBAR_W
 
 	for i, sectionId in next, orderedSections do
-		-- Find section label
+		-- Find section definition
 		local sectionLabel = sectionId
+		local isBottomSection = false
 		for _, s in next, SECTIONS do
 			if(s.id == sectionId) then
 				sectionLabel = s.label
+				if(s.id == 'BOTTOM') then
+					isBottomSection = true
+				end
 				break
 			end
 		end
 
-		-- Section header text
-		local headerText = Widgets.CreateFontString(sidebar, C.Font.sizeSmall, C.Colors.textSecondary)
-		headerText:ClearAllPoints()
-		Widgets.SetPoint(headerText, 'TOPLEFT', sidebar, 'TOPLEFT', C.Spacing.normal, yOffset)
-		headerText:SetText(sectionLabel)
-		yOffset = yOffset - SIDEBAR_SECTION_H
+		-- Separator line before BOTTOM section
+		if(isBottomSection) then
+			local sep = sidebar:CreateTexture(nil, 'ARTWORK')
+			sep:SetHeight(1)
+			sep:SetColorTexture(
+				C.Colors.border[1],
+				C.Colors.border[2],
+				C.Colors.border[3],
+				C.Colors.border[4] or 1)
+			sep:ClearAllPoints()
+			Widgets.SetPoint(sep, 'TOPLEFT',  sidebar, 'TOPLEFT',  0, yOffset)
+			Widgets.SetPoint(sep, 'TOPRIGHT', sidebar, 'TOPRIGHT', 0, yOffset)
+			yOffset = yOffset - C.Spacing.tight
+		end
+
+		-- Section header text (skip empty label for BOTTOM)
+		if(sectionLabel ~= '') then
+			local headerText = Widgets.CreateFontString(sidebar, C.Font.sizeSmall, C.Colors.textSecondary)
+			headerText:ClearAllPoints()
+			Widgets.SetPoint(headerText, 'TOPLEFT', sidebar, 'TOPLEFT', C.Spacing.normal, yOffset)
+			headerText:SetText(sectionLabel)
+			yOffset = yOffset - SIDEBAR_SECTION_H
+		end
 
 		-- Panel buttons for this section
 		local panels = sectionPanels[sectionId]
@@ -358,45 +381,6 @@ local function buildSidebarContent(sidebar)
 		yOffset = yOffset - C.Spacing.tight
 	end
 
-	-- ── Separator line before bottom buttons ─────────────────
-	local separator = sidebar:CreateTexture(nil, 'ARTWORK')
-	separator:SetHeight(1)
-	separator:SetColorTexture(
-		C.Colors.border[1],
-		C.Colors.border[2],
-		C.Colors.border[3],
-		C.Colors.border[4] or 1)
-	separator:ClearAllPoints()
-	Widgets.SetPoint(separator, 'BOTTOMLEFT',  sidebar, 'BOTTOMLEFT',  0, SIDEBAR_BTN_H * 2 + C.Spacing.tight * 2)
-	Widgets.SetPoint(separator, 'BOTTOMRIGHT', sidebar, 'BOTTOMRIGHT', 0, SIDEBAR_BTN_H * 2 + C.Spacing.tight * 2)
-
-	-- ── Tour button ────────────────────────────────────────────
-	local tourBtn = Widgets.CreateButton(sidebar, 'Tour', 'widget', sidebarW, SIDEBAR_BTN_H)
-	tourBtn:ClearAllPoints()
-	Widgets.SetPoint(tourBtn, 'BOTTOMLEFT',  sidebar, 'BOTTOMLEFT',  0, SIDEBAR_BTN_H + C.Spacing.base)
-	Widgets.SetPoint(tourBtn, 'BOTTOMRIGHT', sidebar, 'BOTTOMRIGHT', 0, SIDEBAR_BTN_H + C.Spacing.base)
-	if(tourBtn._label) then
-		tourBtn._label:ClearAllPoints()
-		Widgets.SetPoint(tourBtn._label, 'LEFT', tourBtn, 'LEFT', C.Spacing.normal, 0)
-		tourBtn._label:SetJustifyH('LEFT')
-	end
-	tourBtn:SetOnClick(function()
-		-- Tour entry point (implemented in a later task)
-	end)
-
-	-- ── About button ──────────────────────────────────────────
-	local aboutBtn = Widgets.CreateButton(sidebar, 'About', 'widget', sidebarW, SIDEBAR_BTN_H)
-	aboutBtn:ClearAllPoints()
-	Widgets.SetPoint(aboutBtn, 'BOTTOMLEFT',  sidebar, 'BOTTOMLEFT',  0, 0)
-	Widgets.SetPoint(aboutBtn, 'BOTTOMRIGHT', sidebar, 'BOTTOMRIGHT', 0, 0)
-	if(aboutBtn._label) then
-		aboutBtn._label:ClearAllPoints()
-		Widgets.SetPoint(aboutBtn._label, 'LEFT', aboutBtn, 'LEFT', C.Spacing.normal, 0)
-		aboutBtn._label:SetJustifyH('LEFT')
-	end
-	aboutBtn:SetOnClick(function()
-		-- About panel (implemented in a later task)
-	end)
 end
 
 -- ============================================================
@@ -481,12 +465,9 @@ function Settings.CreateMainFrame()
 	editModeBtn:ClearAllPoints()
 	Widgets.SetPoint(editModeBtn, 'RIGHT', subHeader, 'RIGHT', -(80 + C.Spacing.tight + C.Spacing.base), 0)
 	editModeBtn:SetOnClick(function()
-		if(F.EditMode) then
-			if(F.EditMode.IsActive()) then
-				F.EditMode.Cancel()
-			else
-				F.EditMode.Enter()
-			end
+		Settings.Hide()
+		if(F.EditMode and F.EditMode.Enter) then
+			F.EditMode.Enter()
 		end
 	end)
 	editModeBtn:SetWidgetTooltip('Edit Mode', 'Drag and resize unit frames directly on screen.')
@@ -523,6 +504,7 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(panelScroll, 'BOTTOMLEFT',  contentArea, 'BOTTOMLEFT',  0, 0)
 
 	contentParent = panelScroll:GetContentFrame()
+	contentParent:SetWidth(WINDOW_W - SIDEBAR_W - PREVIEW_W)
 
 	-- ── Preview area (right strip) ────────────────────────────
 	local preview = Widgets.CreateBorderedFrame(contentArea, PREVIEW_W, WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H, C.Colors.background, C.Colors.border)
