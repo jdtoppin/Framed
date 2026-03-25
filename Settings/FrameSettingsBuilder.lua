@@ -36,23 +36,8 @@ local PANE_TITLE_H   = 20   -- approx title font + separator + gap
 local WIDGET_W       = 220
 
 -- ============================================================
--- Section helpers
+-- Layout helpers
 -- ============================================================
-
---- Create a titled section pane, position it, and return it
---- along with the updated yOffset below the pane title.
---- @param content Frame     Scroll content frame
---- @param title   string    Section title (will be uppercased)
---- @param width   number    Available content width
---- @param yOffset number    Current running yOffset
---- @return Frame pane, number newYOffset
-local function createSection(content, title, width, yOffset)
-	local pane = Widgets.CreateTitledPane(content, title, width)
-	pane:ClearAllPoints()
-	Widgets.SetPoint(pane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	-- Advance past title + separator (PANE_TITLE_H) + one normal gap
-	return pane, yOffset - PANE_TITLE_H - C.Spacing.normal
-end
 
 --- Place a widget at the running yOffset, anchored to the scroll content frame.
 --- Returns the next yOffset after accounting for the widget's height.
@@ -116,40 +101,48 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	local yOffset = -C.Spacing.normal
 
 	-- ============================================================
-	-- Section: Frame
+	-- Frame Size
 	-- ============================================================
 
-	local framePane
-	framePane, yOffset = createSection(content, 'Frame', width, yOffset)
+	yOffset = placeHeading(content, 'Frame Size', 2, yOffset)
+
+	local sizeCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
 	-- Width slider
-	local widthSlider = Widgets.CreateSlider(content, 'Width', WIDGET_W, 20, 300, 1)
+	local widthSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 20, 300, 1)
 	widthSlider:SetValue(getConfig('width') or 200)
 	widthSlider:SetAfterValueChanged(function(value)
 		setConfig('width', value)
 	end)
-	yOffset = placeWidget(widthSlider, content, yOffset, SLIDER_H)
+	cardY = placeWidget(widthSlider, inner, cardY, SLIDER_H)
 
 	-- Height slider
-	local heightSlider = Widgets.CreateSlider(content, 'Height', WIDGET_W, 16, 100, 1)
+	local heightSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 16, 100, 1)
 	heightSlider:SetValue(getConfig('height') or 36)
 	heightSlider:SetAfterValueChanged(function(value)
 		setConfig('height', value)
 	end)
-	yOffset = placeWidget(heightSlider, content, yOffset, SLIDER_H)
+	cardY = placeWidget(heightSlider, inner, cardY, SLIDER_H)
+
+	yOffset = Widgets.EndCard(sizeCard, content, cardY)
 
 	if(isGroup) then
+		-- ── Group Layout ──────────────────────────────────────
+		yOffset = placeHeading(content, 'Group Layout', 2, yOffset)
+
+		local groupCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
 		-- Spacing slider
-		local spacingSlider = Widgets.CreateSlider(content, 'Spacing', WIDGET_W, 0, 20, 1)
+		local spacingSlider = Widgets.CreateSlider(inner, 'Spacing', WIDGET_W, 0, 20, 1)
 		spacingSlider:SetValue(getConfig('spacing') or 2)
 		spacingSlider:SetAfterValueChanged(function(value)
 			setConfig('spacing', value)
 		end)
-		yOffset = placeWidget(spacingSlider, content, yOffset, SLIDER_H)
+		cardY = placeWidget(spacingSlider, inner, cardY, SLIDER_H)
 
 		-- Orientation switch
-		yOffset = placeHeading(content, 'Orientation', 3, yOffset)
-		local orientSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
+		cardY = placeHeading(inner, 'Orientation', 3, cardY)
+		local orientSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
 			{ text = 'Vertical',   value = 'Vertical' },
 			{ text = 'Horizontal', value = 'Horizontal' },
 		})
@@ -157,11 +150,11 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		orientSwitch:SetOnSelect(function(value)
 			setConfig('orientation', value)
 		end)
-		yOffset = placeWidget(orientSwitch, content, yOffset, SWITCH_H)
+		cardY = placeWidget(orientSwitch, inner, cardY, SWITCH_H)
 
 		-- Growth direction dropdown
-		yOffset = placeHeading(content, 'Growth Direction', 3, yOffset)
-		local growthDropdown = Widgets.CreateDropdown(content, WIDGET_W)
+		cardY = placeHeading(inner, 'Growth Direction', 3, cardY)
+		local growthDropdown = Widgets.CreateDropdown(inner, WIDGET_W)
 		growthDropdown:SetItems({
 			{ text = 'Top to Bottom',  value = 'TOP_TO_BOTTOM' },
 			{ text = 'Bottom to Top',  value = 'BOTTOM_TO_TOP' },
@@ -172,19 +165,22 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		growthDropdown:SetOnSelect(function(value)
 			setConfig('growthDirection', value)
 		end)
-		yOffset = placeWidget(growthDropdown, content, yOffset, DROPDOWN_H)
+		cardY = placeWidget(growthDropdown, inner, cardY, DROPDOWN_H)
+
+		yOffset = Widgets.EndCard(groupCard, content, cardY)
 	end
 
 	-- ============================================================
-	-- Section: Bars
+	-- Health Color
 	-- ============================================================
 
-	local barsPane
-	barsPane, yOffset = createSection(content, 'Bars', width, yOffset)
+	yOffset = placeHeading(content, 'Health Color', 2, yOffset)
+
+	local colorCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
 	-- Health color mode switch
-	yOffset = placeHeading(content, 'Health Color', 3, yOffset)
-	local healthColorSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
+	cardY = placeHeading(inner, 'Color Mode', 3, cardY)
+	local healthColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
 		{ text = 'Class',    value = 'Class' },
 		{ text = 'Gradient', value = 'Gradient' },
 		{ text = 'Custom',   value = 'Custom' },
@@ -193,66 +189,77 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	healthColorSwitch:SetOnSelect(function(value)
 		setConfig('healthColorMode', value)
 	end)
-	yOffset = placeWidget(healthColorSwitch, content, yOffset, SWITCH_H)
+	cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
 
 	-- Smooth interpolation checkbox
-	local smoothCheck = Widgets.CreateCheckButton(content, 'Smooth Interpolation')
+	local smoothCheck = Widgets.CreateCheckButton(inner, 'Smooth Interpolation')
 	smoothCheck:SetChecked(getConfig('smoothHealth') ~= false)
 	smoothCheck._callback = function(checked)
 		setConfig('smoothHealth', checked)
 	end
-	yOffset = placeWidget(smoothCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(smoothCheck, inner, cardY, CHECK_H)
 
-	-- Show power bar checkbox
-	local showPowerCheck = Widgets.CreateCheckButton(content, 'Show Power Bar')
+	yOffset = Widgets.EndCard(colorCard, content, cardY)
+
+	-- ── Power Bar ─────────────────────────────────────────────
+	yOffset = placeHeading(content, 'Power Bar', 2, yOffset)
+
+	local powerCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
+	local showPowerCheck = Widgets.CreateCheckButton(inner, 'Show Power Bar')
 	showPowerCheck:SetChecked(getConfig('showPower') ~= false)
 	showPowerCheck._callback = function(checked)
 		setConfig('showPower', checked)
 	end
-	yOffset = placeWidget(showPowerCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showPowerCheck, inner, cardY, CHECK_H)
 
 	-- Power bar height slider
-	local powerHeightSlider = Widgets.CreateSlider(content, 'Power Bar Height', WIDGET_W, 1, 20, 1)
+	local powerHeightSlider = Widgets.CreateSlider(inner, 'Power Bar Height', WIDGET_W, 1, 20, 1)
 	powerHeightSlider:SetValue(getConfig('powerHeight') or 4)
 	powerHeightSlider:SetAfterValueChanged(function(value)
 		setConfig('powerHeight', value)
 	end)
-	yOffset = placeWidget(powerHeightSlider, content, yOffset, SLIDER_H)
+	cardY = placeWidget(powerHeightSlider, inner, cardY, SLIDER_H)
 
-	-- Show cast bar checkbox
-	local showCastCheck = Widgets.CreateCheckButton(content, 'Show Cast Bar')
+	yOffset = Widgets.EndCard(powerCard, content, cardY)
+
+	-- ── Card: Cast Bar ────────────────────────────────────────
+	yOffset = placeHeading(content, 'Cast Bar', 2, yOffset)
+
+	local castCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
+	local showCastCheck = Widgets.CreateCheckButton(inner, 'Show Cast Bar')
 	showCastCheck:SetChecked(getConfig('showCastBar') ~= false)
 	showCastCheck._callback = function(checked)
 		setConfig('showCastBar', checked)
 	end
-	yOffset = placeWidget(showCastCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showCastCheck, inner, cardY, CHECK_H)
 
 	-- Show absorb bar checkbox
-	local showAbsorbCheck = Widgets.CreateCheckButton(content, 'Show Absorb Bar')
+	local showAbsorbCheck = Widgets.CreateCheckButton(inner, 'Show Absorb Bar')
 	showAbsorbCheck:SetChecked(getConfig('showAbsorbBar') ~= false)
 	showAbsorbCheck._callback = function(checked)
 		setConfig('showAbsorbBar', checked)
 	end
-	yOffset = placeWidget(showAbsorbCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showAbsorbCheck, inner, cardY, CHECK_H)
 
-	-- ============================================================
-	-- Section: Text
-	-- ============================================================
+	yOffset = Widgets.EndCard(castCard, content, cardY)
 
-	local textPane
-	textPane, yOffset = createSection(content, 'Text', width, yOffset)
+	-- ── Name ──────────────────────────────────────────────────
+	yOffset = placeHeading(content, 'Name', 2, yOffset)
 
-	-- Show name checkbox
-	local showNameCheck = Widgets.CreateCheckButton(content, 'Show Name')
+	local nameCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
+	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name')
 	showNameCheck:SetChecked(getConfig('showName') ~= false)
 	showNameCheck._callback = function(checked)
 		setConfig('showName', checked)
 	end
-	yOffset = placeWidget(showNameCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showNameCheck, inner, cardY, CHECK_H)
 
 	-- Name color mode switch
-	yOffset = placeHeading(content, 'Name Color', 3, yOffset)
-	local nameColorSwitch = Widgets.CreateSwitch(content, WIDGET_W, SWITCH_H, {
+	cardY = placeHeading(inner, 'Name Color', 3, cardY)
+	local nameColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
 		{ text = 'Class',  value = 'Class' },
 		{ text = 'White',  value = 'White' },
 		{ text = 'Custom', value = 'Custom' },
@@ -261,27 +268,33 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameColorSwitch:SetOnSelect(function(value)
 		setConfig('nameColorMode', value)
 	end)
-	yOffset = placeWidget(nameColorSwitch, content, yOffset, SWITCH_H)
+	cardY = placeWidget(nameColorSwitch, inner, cardY, SWITCH_H)
 
 	-- Name truncation slider
-	local nameTruncSlider = Widgets.CreateSlider(content, 'Name Truncation', WIDGET_W, 4, 20, 1)
+	local nameTruncSlider = Widgets.CreateSlider(inner, 'Name Truncation', WIDGET_W, 4, 20, 1)
 	nameTruncSlider:SetValue(getConfig('nameTruncation') or 10)
 	nameTruncSlider:SetAfterValueChanged(function(value)
 		setConfig('nameTruncation', value)
 	end)
-	yOffset = placeWidget(nameTruncSlider, content, yOffset, SLIDER_H)
+	cardY = placeWidget(nameTruncSlider, inner, cardY, SLIDER_H)
 
-	-- Show health text checkbox
-	local showHealthTextCheck = Widgets.CreateCheckButton(content, 'Show Health Text')
+	yOffset = Widgets.EndCard(nameCard, content, cardY)
+
+	-- ── Card: Health Text ─────────────────────────────────────
+	yOffset = placeHeading(content, 'Health Text', 2, yOffset)
+
+	local healthTextCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
+	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text')
 	showHealthTextCheck:SetChecked(getConfig('showHealthText') ~= false)
 	showHealthTextCheck._callback = function(checked)
 		setConfig('showHealthText', checked)
 	end
-	yOffset = placeWidget(showHealthTextCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showHealthTextCheck, inner, cardY, CHECK_H)
 
 	-- Health text format dropdown
-	yOffset = placeHeading(content, 'Health Text Format', 3, yOffset)
-	local healthFormatDropdown = Widgets.CreateDropdown(content, WIDGET_W)
+	cardY = placeHeading(inner, 'Health Text Format', 3, cardY)
+	local healthFormatDropdown = Widgets.CreateDropdown(inner, WIDGET_W)
 	healthFormatDropdown:SetItems({
 		{ text = 'Percentage',   value = 'Percentage' },
 		{ text = 'Current',      value = 'Current' },
@@ -293,62 +306,64 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	healthFormatDropdown:SetOnSelect(function(value)
 		setConfig('healthTextFormat', value)
 	end)
-	yOffset = placeWidget(healthFormatDropdown, content, yOffset, DROPDOWN_H)
+	cardY = placeWidget(healthFormatDropdown, inner, cardY, DROPDOWN_H)
 
 	-- Show power text checkbox
-	local showPowerTextCheck = Widgets.CreateCheckButton(content, 'Show Power Text')
+	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text')
 	showPowerTextCheck:SetChecked(getConfig('showPowerText') or false)
 	showPowerTextCheck._callback = function(checked)
 		setConfig('showPowerText', checked)
 	end
-	yOffset = placeWidget(showPowerTextCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showPowerTextCheck, inner, cardY, CHECK_H)
 
-	-- ============================================================
-	-- Section: Icons
-	-- ============================================================
+	yOffset = Widgets.EndCard(healthTextCard, content, cardY)
 
-	local iconsPane
-	iconsPane, yOffset = createSection(content, 'Icons', width, yOffset)
+	-- ── Status Icons ──────────────────────────────────────────
+	yOffset = placeHeading(content, 'Status Icons', 2, yOffset)
+
+	local iconsCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
 	-- Show role icon checkbox
-	local showRoleCheck = Widgets.CreateCheckButton(content, 'Show Role Icon')
+	local showRoleCheck = Widgets.CreateCheckButton(inner, 'Show Role Icon')
 	showRoleCheck:SetChecked(getConfig('showRoleIcon') ~= false)
 	showRoleCheck._callback = function(checked)
 		setConfig('showRoleIcon', checked)
 	end
-	yOffset = placeWidget(showRoleCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showRoleCheck, inner, cardY, CHECK_H)
 
 	-- Show leader icon checkbox
-	local showLeaderCheck = Widgets.CreateCheckButton(content, 'Show Leader Icon')
+	local showLeaderCheck = Widgets.CreateCheckButton(inner, 'Show Leader Icon')
 	showLeaderCheck:SetChecked(getConfig('showLeaderIcon') ~= false)
 	showLeaderCheck._callback = function(checked)
 		setConfig('showLeaderIcon', checked)
 	end
-	yOffset = placeWidget(showLeaderCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showLeaderCheck, inner, cardY, CHECK_H)
 
 	-- Show ready check checkbox
-	local showReadyCheckCheck = Widgets.CreateCheckButton(content, 'Show Ready Check')
+	local showReadyCheckCheck = Widgets.CreateCheckButton(inner, 'Show Ready Check')
 	showReadyCheckCheck:SetChecked(getConfig('showReadyCheck') ~= false)
 	showReadyCheckCheck._callback = function(checked)
 		setConfig('showReadyCheck', checked)
 	end
-	yOffset = placeWidget(showReadyCheckCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showReadyCheckCheck, inner, cardY, CHECK_H)
 
 	-- Show raid icon checkbox
-	local showRaidIconCheck = Widgets.CreateCheckButton(content, 'Show Raid Icon')
+	local showRaidIconCheck = Widgets.CreateCheckButton(inner, 'Show Raid Icon')
 	showRaidIconCheck:SetChecked(getConfig('showRaidIcon') ~= false)
 	showRaidIconCheck._callback = function(checked)
 		setConfig('showRaidIcon', checked)
 	end
-	yOffset = placeWidget(showRaidIconCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showRaidIconCheck, inner, cardY, CHECK_H)
 
 	-- Show combat icon checkbox
-	local showCombatIconCheck = Widgets.CreateCheckButton(content, 'Show Combat Icon')
+	local showCombatIconCheck = Widgets.CreateCheckButton(inner, 'Show Combat Icon')
 	showCombatIconCheck:SetChecked(getConfig('showCombatIcon') or false)
 	showCombatIconCheck._callback = function(checked)
 		setConfig('showCombatIcon', checked)
 	end
-	yOffset = placeWidget(showCombatIconCheck, content, yOffset, CHECK_H)
+	cardY = placeWidget(showCombatIconCheck, inner, cardY, CHECK_H)
+
+	yOffset = Widgets.EndCard(iconsCard, content, cardY)
 
 	-- ── Resize content to fit all widgets ─────────────────────
 	local totalH = math.abs(yOffset) + C.Spacing.normal

@@ -62,37 +62,47 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- ── Display section ────────────────────────────────────
-		local displayPane = Widgets.CreateTitledPane(content, 'Display', width)
+		local displayPane = Widgets.CreateTitledPane(content, 'Icon Size', width)
 		displayPane:ClearAllPoints()
 		Widgets.SetPoint(displayPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+		local sizeCard, sizeInner, sizeCardY
+		sizeCard, sizeInner, sizeCardY = Widgets.StartCard(content, width, yOffset)
+
 		-- Icon Size
-		local sizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 8, 48, 1)
+		local sizeSlider = Widgets.CreateSlider(sizeInner, 'Icon Size', WIDGET_W, 8, 48, 1)
 		sizeSlider:SetValue(get('iconSize') or 20)
 		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 		sizeSlider:ClearAllPoints()
-		Widgets.SetPoint(sizeSlider, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(sizeSlider, 'TOPLEFT', sizeInner, 'TOPLEFT', 0, sizeCardY)
+		sizeCardY = sizeCardY - SLIDER_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(sizeCard, content, sizeCardY)
 
 		-- ── Position section ───────────────────────────────────
-		local posPane = Widgets.CreateTitledPane(content, 'Position', width)
+		local posPane = Widgets.CreateTitledPane(content, 'Icon Position', width)
 		posPane:ClearAllPoints()
 		Widgets.SetPoint(posPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+		local posCard, posInner, posCardY
+		posCard, posInner, posCardY = Widgets.StartCard(content, width, yOffset)
+
 		-- Anchor picker
 		if(Widgets.CreateAnchorPicker) then
 			local anchor = get('anchor') or { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 }
-			local picker = Widgets.CreateAnchorPicker(content, width)
+			local picker = Widgets.CreateAnchorPicker(posInner, width)
 			picker:SetAnchor(anchor[1], anchor[4] or -2, anchor[5] or -2)
 			picker:ClearAllPoints()
-			Widgets.SetPoint(picker, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+			Widgets.SetPoint(picker, 'TOPLEFT', posInner, 'TOPLEFT', 0, posCardY)
 			picker:SetOnChanged(function(point, x, y)
 				set('anchor', { point, nil, point, x, y })
 			end)
-			yOffset = yOffset - picker:GetHeight() - C.Spacing.normal
+			posCardY = posCardY - picker:GetHeight() - C.Spacing.normal
 		end
+
+		yOffset = Widgets.EndCard(posCard, content, posCardY)
 
 		-- ── Final height ────────────────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

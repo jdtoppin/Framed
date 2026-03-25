@@ -130,22 +130,27 @@ F.Settings.RegisterPanel({
 		-- Section 1: Your Layouts
 		-- ============================================================
 		local layoutsPane
-		layoutsPane, yOffset = createSection(content, 'Your Layouts', width, yOffset)
+		layoutsPane, yOffset = createSection(content, 'Layout Management', width, yOffset)
+
+		local layoutCard, layoutInner, layoutCardY
+		layoutCard, layoutInner, layoutCardY = Widgets.StartCard(content, width, yOffset)
 
 		-- "New Layout" button at the top of the section
-		local newBtn = Widgets.CreateButton(content, 'New Layout', 'accent', 120, BUTTON_H)
+		local newBtn = Widgets.CreateButton(layoutInner, 'New Layout', 'accent', 120, BUTTON_H)
 		newBtn:ClearAllPoints()
-		Widgets.SetPoint(newBtn, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - BUTTON_H - C.Spacing.normal
+		Widgets.SetPoint(newBtn, 'TOPLEFT', layoutInner, 'TOPLEFT', 0, layoutCardY)
+		layoutCardY = layoutCardY - BUTTON_H - C.Spacing.normal
 
 		-- Scrollable area for the layout list
 		local listHeight = 200
-		local listScroll = Widgets.CreateScrollFrame(content, nil, width, listHeight)
+		local listScroll = Widgets.CreateScrollFrame(layoutInner, nil, width, listHeight)
 		listScroll:ClearAllPoints()
-		Widgets.SetPoint(listScroll, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		Widgets.SetPoint(listScroll, 'TOPLEFT', layoutInner, 'TOPLEFT', 0, layoutCardY)
 		local listContent = listScroll:GetContentFrame()
 		listContent:SetWidth(width)
-		yOffset = yOffset - listHeight - C.Spacing.normal
+		layoutCardY = layoutCardY - listHeight - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(layoutCard, content, layoutCardY)
 
 		-- ── Build layout list rows ─────────────────────────────
 
@@ -266,22 +271,25 @@ F.Settings.RegisterPanel({
 		-- Section 2: Auto-Switch Assignments
 		-- ============================================================
 		local autoPane
-		autoPane, yOffset = createSection(content, 'Auto-Switch Assignments', width, yOffset)
+		autoPane, yOffset = createSection(content, 'Auto-Switch Layout Assignments', width, yOffset)
 
 		-- Track all assignment dropdowns so they can be refreshed
 		local assignDropdowns = {}
 
+		local autoCard, autoInner, autoCardY
+		autoCard, autoInner, autoCardY = Widgets.StartCard(content, width, yOffset)
+
 		for _, ct in next, CONTENT_TYPES do
 			-- Row label
-			local rowLabel = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textNormal)
+			local rowLabel = Widgets.CreateFontString(autoInner, C.Font.sizeNormal, C.Colors.textNormal)
 			rowLabel:ClearAllPoints()
-			Widgets.SetPoint(rowLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+			Widgets.SetPoint(rowLabel, 'TOPLEFT', autoInner, 'TOPLEFT', 0, autoCardY)
 			rowLabel:SetText(ct.label)
 
 			-- Assignment dropdown
-			local dd = Widgets.CreateDropdown(content, WIDGET_W)
+			local dd = Widgets.CreateDropdown(autoInner, WIDGET_W)
 			dd:ClearAllPoints()
-			Widgets.SetPoint(dd, 'TOPLEFT', content, 'TOPLEFT', 120, yOffset)
+			Widgets.SetPoint(dd, 'TOPLEFT', autoInner, 'TOPLEFT', 120, autoCardY)
 			dd:SetItems(getLayoutItems())
 
 			local currentAssignment = getAutoSwitch(ct.id)
@@ -295,16 +303,16 @@ F.Settings.RegisterPanel({
 			end)
 
 			assignDropdowns[ct.id] = dd
-			yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+			autoCardY = autoCardY - DROPDOWN_H - C.Spacing.normal
 
 			-- ── Spec overrides for this content type ──────────
 			local overrides = getSpecOverrides()
 			local specKey = ct.id .. '_specs'
 			if(overrides[specKey]) then
 				for specName, layoutName in next, overrides[specKey] do
-					local specRow = CreateFrame('Frame', nil, content)
+					local specRow = CreateFrame('Frame', nil, autoInner)
 					specRow:ClearAllPoints()
-					Widgets.SetPoint(specRow, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.loose, yOffset)
+					Widgets.SetPoint(specRow, 'TOPLEFT', autoInner, 'TOPLEFT', C.Spacing.loose, autoCardY)
 					specRow:SetHeight(DROPDOWN_H)
 
 					local specLabel = Widgets.CreateFontString(specRow, C.Font.sizeSmall, C.Colors.textSecondary)
@@ -312,7 +320,7 @@ F.Settings.RegisterPanel({
 					Widgets.SetPoint(specLabel, 'LEFT', specRow, 'LEFT', 0, 0)
 					specLabel:SetText(specName)
 
-					local specDD = Widgets.CreateDropdown(content, 160)
+					local specDD = Widgets.CreateDropdown(autoInner, 160)
 					specDD:ClearAllPoints()
 					Widgets.SetPoint(specDD, 'LEFT', specRow, 'LEFT', 100, 0)
 					specDD:SetItems(getLayoutItems())
@@ -326,21 +334,21 @@ F.Settings.RegisterPanel({
 					end)
 
 					-- Remove button
-					local removeBtn = Widgets.CreateButton(content, '\xC3\x97', 'widget', 22, DROPDOWN_H)
+					local removeBtn = Widgets.CreateButton(autoInner, '\xC3\x97', 'widget', 22, DROPDOWN_H)
 					removeBtn:ClearAllPoints()
 					Widgets.SetPoint(removeBtn, 'LEFT', specDD, 'RIGHT', C.Spacing.base, 0)
 					removeBtn:SetOnClick(function()
 						removeSpecOverride(capturedCT .. '_specs')
 					end)
 
-					yOffset = yOffset - DROPDOWN_H - C.Spacing.base
+					autoCardY = autoCardY - DROPDOWN_H - C.Spacing.base
 				end
 			end
 
 			-- "Add spec override" link
-			local addSpecBtn = Widgets.CreateButton(content, '+ Add spec override', 'widget', 140, DROPDOWN_H - 4)
+			local addSpecBtn = Widgets.CreateButton(autoInner, '+ Add spec override', 'widget', 140, DROPDOWN_H - 4)
 			addSpecBtn:ClearAllPoints()
-			Widgets.SetPoint(addSpecBtn, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.loose, yOffset)
+			Widgets.SetPoint(addSpecBtn, 'TOPLEFT', autoInner, 'TOPLEFT', C.Spacing.loose, autoCardY)
 			local capturedCTAdd = ct.id
 			addSpecBtn:SetOnClick(function()
 				-- Placeholder: in Phase 8 this opens a spec picker dropdown
@@ -348,8 +356,10 @@ F.Settings.RegisterPanel({
 					DEFAULT_CHAT_FRAME:AddMessage('|cff00ccffFramed:|r Spec override picker coming in a future update.')
 				end
 			end)
-			yOffset = yOffset - (DROPDOWN_H - 4) - C.Spacing.normal
+			autoCardY = autoCardY - (DROPDOWN_H - 4) - C.Spacing.normal
 		end
+
+		yOffset = Widgets.EndCard(autoCard, content, autoCardY)
 
 		-- ── Final content height ───────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

@@ -167,7 +167,7 @@ function Settings.CreateMainFrame()
 			end
 			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
-				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - PREVIEW_W
+				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - PREVIEW_W - C.Spacing.normal
 				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H
 			end
 		end)
@@ -214,12 +214,12 @@ function Settings.CreateMainFrame()
 	-- SetAllPoints resolves correctly in the layout engine.
 	local panelContainer = CreateFrame('Frame', nil, contentArea)
 	panelContainer:ClearAllPoints()
-	Widgets.SetPoint(panelContainer, 'TOPLEFT',     contentArea, 'TOPLEFT',     0, 0)
+	Widgets.SetPoint(panelContainer, 'TOPLEFT',     contentArea, 'TOPLEFT',     C.Spacing.normal, 0)
 	Widgets.SetPoint(panelContainer, 'BOTTOMRIGHT', contentArea, 'BOTTOMRIGHT', -PREVIEW_W, 0)
 
 	Settings._contentParent = panelContainer
 	-- Store explicit dimensions for panels to read during create()
-	Settings._contentParent._explicitWidth  = WINDOW_W - SIDEBAR_W - PREVIEW_W
+	Settings._contentParent._explicitWidth  = WINDOW_W - SIDEBAR_W - PREVIEW_W - C.Spacing.normal
 	Settings._contentParent._explicitHeight = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H
 
 	-- ── Preview area (right strip) ────────────────────────────

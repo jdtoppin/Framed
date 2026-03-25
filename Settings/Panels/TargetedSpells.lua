@@ -63,17 +63,15 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- ── Display Mode ───────────────────────────────────────
-		local modePane = Widgets.CreateTitledPane(content, 'Display', width)
+		local modePane = Widgets.CreateTitledPane(content, 'Display Mode', width)
 		modePane:ClearAllPoints()
 		Widgets.SetPoint(modePane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
-		local modeLabel, modeLabelH = Widgets.CreateHeading(content, 'Display Mode', 3)
-		modeLabel:ClearAllPoints()
-		Widgets.SetPoint(modeLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - modeLabelH
+		local modeCard, modeInner, modeCardY
+		modeCard, modeInner, modeCardY = Widgets.StartCard(content, width, yOffset)
 
-		local modeDD = Widgets.CreateDropdown(content, WIDGET_W)
+		local modeDD = Widgets.CreateDropdown(modeInner, WIDGET_W)
 		modeDD:SetItems({
 			{ text = 'Icons',       value = 'Icons' },
 			{ text = 'Border Glow', value = 'BorderGlow' },
@@ -81,8 +79,10 @@ F.Settings.RegisterPanel({
 		})
 		modeDD:SetValue(get('displayMode') or 'Both')
 		modeDD:ClearAllPoints()
-		Widgets.SetPoint(modeDD, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+		Widgets.SetPoint(modeDD, 'TOPLEFT', modeInner, 'TOPLEFT', 0, modeCardY)
+		modeCardY = modeCardY - DROPDOWN_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(modeCard, content, modeCardY)
 
 		-- ── Icon Settings (shown for Icons or Both) ─────────────
 		local iconPane = Widgets.CreateTitledPane(content, 'Icon Settings', width)
@@ -90,39 +90,44 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(iconPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
-		local sizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 8, 48, 1)
+		local iconCard, iconInner, iconCardY
+		iconCard, iconInner, iconCardY = Widgets.StartCard(content, width, yOffset)
+
+		local sizeSlider = Widgets.CreateSlider(iconInner, 'Icon Size', WIDGET_W, 8, 48, 1)
 		sizeSlider:SetValue(get('iconSize') or 16)
 		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 		sizeSlider:ClearAllPoints()
-		Widgets.SetPoint(sizeSlider, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(sizeSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
+		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
 
-		local maxSlider = Widgets.CreateSlider(content, 'Max Displayed', WIDGET_W, 1, 10, 1)
+		local maxSlider = Widgets.CreateSlider(iconInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
 		maxSlider:SetValue(get('maxDisplayed') or 1)
 		maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
 		maxSlider:ClearAllPoints()
-		Widgets.SetPoint(maxSlider, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(maxSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
+		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
 
-		local iconLvlSlider = Widgets.CreateSlider(content, 'Frame Level', WIDGET_W, 1, 20, 1)
+		local iconLvlSlider = Widgets.CreateSlider(iconInner, 'Frame Level', WIDGET_W, 1, 20, 1)
 		iconLvlSlider:SetValue(get('frameLevel') or 5)
 		iconLvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
 		iconLvlSlider:ClearAllPoints()
-		Widgets.SetPoint(iconLvlSlider, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(iconLvlSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
+		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
 
 		local iconAnchorPicker = nil
 		if(Widgets.CreateAnchorPicker) then
 			local anchorData = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			iconAnchorPicker = Widgets.CreateAnchorPicker(content, width)
+			iconAnchorPicker = Widgets.CreateAnchorPicker(iconInner, width)
 			iconAnchorPicker:SetAnchor(anchorData[1], anchorData[4] or 0, anchorData[5] or 0)
 			iconAnchorPicker:ClearAllPoints()
-			Widgets.SetPoint(iconAnchorPicker, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+			Widgets.SetPoint(iconAnchorPicker, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
 			iconAnchorPicker:SetOnChanged(function(point, x, y)
 				set('anchor', { point, nil, point, x, y })
 			end)
-			yOffset = yOffset - iconAnchorPicker:GetHeight() - C.Spacing.normal
+			iconCardY = iconCardY - iconAnchorPicker:GetHeight() - C.Spacing.normal
 		end
+
+		yOffset = Widgets.EndCard(iconCard, content, iconCardY)
 
 		-- ── Border Glow Settings (shown for BorderGlow or Both) ─
 		local glowPane = Widgets.CreateTitledPane(content, 'Border Glow Settings', width)
@@ -130,12 +135,15 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(glowPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
-		local glowTypeLabel, glowTypeLabelH = Widgets.CreateHeading(content, 'Glow Type', 3)
-		glowTypeLabel:ClearAllPoints()
-		Widgets.SetPoint(glowTypeLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - glowTypeLabelH
+		local glowCard, glowInner, glowCardY
+		glowCard, glowInner, glowCardY = Widgets.StartCard(content, width, yOffset)
 
-		local glowDD = Widgets.CreateDropdown(content, WIDGET_W)
+		local glowTypeLabel, glowTypeLabelH = Widgets.CreateHeading(glowInner, 'Glow Type', 3)
+		glowTypeLabel:ClearAllPoints()
+		Widgets.SetPoint(glowTypeLabel, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
+		glowCardY = glowCardY - glowTypeLabelH
+
+		local glowDD = Widgets.CreateDropdown(glowInner, WIDGET_W)
 		glowDD:SetItems({
 			{ text = 'Proc',  value = C.GlowType.PROC },
 			{ text = 'Pixel', value = C.GlowType.PIXEL },
@@ -145,14 +153,14 @@ F.Settings.RegisterPanel({
 		glowDD:SetValue(get('glow.type') or C.GlowType.PROC)
 		glowDD:SetOnSelect(function(v) set('glow.type', v) end)
 		glowDD:ClearAllPoints()
-		Widgets.SetPoint(glowDD, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+		Widgets.SetPoint(glowDD, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
+		glowCardY = glowCardY - DROPDOWN_H - C.Spacing.normal
 
 		local glowColorPicker = nil
 		if(Widgets.CreateColorPicker) then
-			glowColorPicker = Widgets.CreateColorPicker(content, 'Glow Color')
+			glowColorPicker = Widgets.CreateColorPicker(glowInner, 'Glow Color')
 			glowColorPicker:ClearAllPoints()
-			Widgets.SetPoint(glowColorPicker, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+			Widgets.SetPoint(glowColorPicker, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
 			local savedColor = get('glow.color')
 			if(savedColor) then
 				glowColorPicker:SetColor(savedColor[1], savedColor[2], savedColor[3])
@@ -160,8 +168,10 @@ F.Settings.RegisterPanel({
 			glowColorPicker:SetOnColorChanged(function(r, g, b)
 				set('glow.color', { r, g, b })
 			end)
-			yOffset = yOffset - glowColorPicker:GetHeight() - C.Spacing.normal
+			glowCardY = glowCardY - glowColorPicker:GetHeight() - C.Spacing.normal
 		end
+
+		yOffset = Widgets.EndCard(glowCard, content, glowCardY)
 
 		-- ── Display mode visibility ─────────────────────────────
 		local iconWidgets = { iconPane, sizeSlider, maxSlider, iconLvlSlider }

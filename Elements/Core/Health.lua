@@ -76,7 +76,15 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	if(config.showText) then
-		local text = Widgets.CreateFontString(health, C.Font.sizeSmall, C.Colors.textActive)
+		-- Create text on a dedicated overlay so it renders above all bar layers
+		local textOverlay = self._textOverlay
+		if(not textOverlay) then
+			textOverlay = CreateFrame('Frame', nil, self)
+			textOverlay:SetAllPoints(self)
+			textOverlay:SetFrameLevel(self:GetFrameLevel() + 5)
+			self._textOverlay = textOverlay
+		end
+		local text = Widgets.CreateFontString(textOverlay, C.Font.sizeSmall, C.Colors.textActive)
 		text:SetPoint('CENTER', health, 'CENTER', 0, 0)
 		health.text = text
 	end

@@ -79,6 +79,72 @@ function Widgets.CreateHeaderedFrame(parent, title, width, height)
 end
 
 -- ============================================================
+-- Card
+-- A subtle rounded background used to visually group a bundle
+-- of related settings widgets. Call StartCard to begin, then
+-- place widgets using yOffset, then call EndCard to set height.
+-- ============================================================
+
+local CARD_PADDING = 12
+local CARD_BACKDROP = {
+	bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+	edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+	edgeSize = 1,
+	insets   = { left = 1, right = 1, top = 1, bottom = 1 },
+}
+
+--- Start a card background at the current yOffset.
+--- Returns a transparent inner content frame with built-in padding.
+--- Callers swap their content reference to the returned frame — all
+--- subsequent placeWidget / SetPoint calls use it at x=0 and the
+--- padding is automatic. EndCard restores the outer yOffset.
+---
+--- Usage:
+---   local card, inner, yOff = Widgets.StartCard(content, width, yOffset)
+---   -- place widgets into `inner` at yOff, same as before
+---   yOffset = Widgets.EndCard(card, content, yOff)
+---
+--- @param parent  Frame  Scroll content frame the card sits on
+--- @param width   number Available content width
+--- @param yOffset number Current yOffset on the parent
+--- @return Frame card, Frame innerContent, number innerYOffset
+function Widgets.StartCard(parent, width, yOffset)
+	local card = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
+	card:SetBackdrop(CARD_BACKDROP)
+	local bg = C.Colors.card
+	local border = C.Colors.cardBorder
+	card:SetBackdropColor(bg[1], bg[2], bg[3], bg[4] or 1)
+	card:SetBackdropBorderColor(border[1], border[2], border[3], border[4] or 1)
+	card:ClearAllPoints()
+	Widgets.SetPoint(card, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+	card:SetWidth(width)
+	card:SetFrameLevel(parent:GetFrameLevel())
+
+	-- Inner content frame: inset from card edges on all sides
+	local inner = CreateFrame('Frame', nil, card)
+	inner:SetPoint('TOPLEFT', card, 'TOPLEFT', CARD_PADDING, -CARD_PADDING)
+	inner:SetPoint('TOPRIGHT', card, 'TOPRIGHT', -CARD_PADDING, -CARD_PADDING)
+	card.content = inner
+
+	card._startY = yOffset
+	return card, inner, 0
+end
+
+--- End a card by setting its height based on how far the inner yOffset moved.
+--- @param card       Frame  The card frame from StartCard
+--- @param parent     Frame  The original scroll content frame
+--- @param innerYOff  number Current yOffset inside the inner frame
+--- @return number nextYOffset  yOffset on the parent, below the card + spacing
+function Widgets.EndCard(card, parent, innerYOff)
+	local innerH = math.abs(innerYOff)
+	-- Size the inner content frame so children are visible
+	card.content:SetHeight(innerH)
+	card:SetHeight(innerH + CARD_PADDING * 2)
+	-- Advance the parent yOffset past the card
+	return card._startY - innerH - CARD_PADDING * 2 - C.Spacing.normal
+end
+
+-- ============================================================
 -- TitledPane
 -- A transparent grouping container with an accent-colored title
 -- and a 1px separator line below. Height grows with content.
@@ -130,13 +196,13 @@ end
 -- A simple text heading at one of three levels. Intended for
 -- labelling groups of widgets inside settings panels.
 --   Level 1: sizeTitle, accent, UPPERCASE, separator line (same look as TitledPane)
---   Level 2: sizeNormal, textNormal, normal case, no separator
+--   Level 2: sizeNormal, textSecondary, normal case, no separator
 --   Level 3: sizeSmall, textSecondary, normal case, no separator
 -- ============================================================
 
 local HEADING_CONFIG = {
 	[1] = { size = C.Font.sizeTitle,  color = C.Colors.accent,        upper = true,  separator = true  },
-	[2] = { size = C.Font.sizeNormal, color = C.Colors.textNormal,    upper = false, separator = false },
+	[2] = { size = C.Font.sizeNormal, color = C.Colors.textSecondary, upper = false, separator = false },
 	[3] = { size = C.Font.sizeSmall,  color = C.Colors.textSecondary, upper = false, separator = false },
 }
 

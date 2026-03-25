@@ -52,58 +52,61 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	end
 
 	-- ── Display section ─────────────────────────────────────
-	local displayPane = Widgets.CreateTitledPane(parent, 'Display', width)
+	local displayPane = Widgets.CreateTitledPane(parent, 'Display Settings', width)
 	displayPane:ClearAllPoints()
 	Widgets.SetPoint(displayPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
 	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+	local displayCard, displayInner, displayCardY
+	displayCard, displayInner, displayCardY = Widgets.StartCard(parent, width, yOffset)
+
 	-- Icon Size
-	local sizeSlider = Widgets.CreateSlider(parent, 'Icon Size', WIDGET_W, 8, 48, 1)
+	local sizeSlider = Widgets.CreateSlider(displayInner, 'Icon Size', WIDGET_W, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 16)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	sizeSlider:ClearAllPoints()
-	Widgets.SetPoint(sizeSlider, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - SLIDER_H - C.Spacing.normal
+	Widgets.SetPoint(sizeSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+	displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
 
 	-- Big Icon Size (debuffs/raidDebuffs only)
 	if(opts.showBigIconSize) then
-		local bigSlider = Widgets.CreateSlider(parent, 'Big Icon Size', WIDGET_W, 8, 64, 1)
+		local bigSlider = Widgets.CreateSlider(displayInner, 'Big Icon Size', WIDGET_W, 8, 64, 1)
 		bigSlider:SetValue(get('bigIconSize') or 22)
 		bigSlider:SetAfterValueChanged(function(v) set('bigIconSize', v) end)
 		bigSlider:ClearAllPoints()
-		Widgets.SetPoint(bigSlider, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(bigSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+		displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
 	end
 
 	-- Max Displayed
-	local maxSlider = Widgets.CreateSlider(parent, 'Max Displayed', WIDGET_W, 1, 20, 1)
+	local maxSlider = Widgets.CreateSlider(displayInner, 'Max Displayed', WIDGET_W, 1, 20, 1)
 	maxSlider:SetValue(get('maxDisplayed') or 3)
 	maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
 	maxSlider:ClearAllPoints()
-	Widgets.SetPoint(maxSlider, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - SLIDER_H - C.Spacing.normal
+	Widgets.SetPoint(maxSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+	displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
 
 	-- Show Duration
-	local durCheck = Widgets.CreateCheckButton(parent, 'Show Duration', function(checked) set('showDuration', checked) end)
+	local durCheck = Widgets.CreateCheckButton(displayInner, 'Show Duration', function(checked) set('showDuration', checked) end)
 	durCheck:SetChecked(get('showDuration') ~= false)
 	durCheck:ClearAllPoints()
-	Widgets.SetPoint(durCheck, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - CHECK_H - C.Spacing.normal
+	Widgets.SetPoint(durCheck, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+	displayCardY = displayCardY - CHECK_H - C.Spacing.normal
 
 	-- Show Animation (fade out)
-	local animCheck = Widgets.CreateCheckButton(parent, 'Show Animation', function(checked) set('showAnimation', checked) end)
+	local animCheck = Widgets.CreateCheckButton(displayInner, 'Show Animation', function(checked) set('showAnimation', checked) end)
 	animCheck:SetChecked(get('showAnimation') ~= false)
 	animCheck:ClearAllPoints()
-	Widgets.SetPoint(animCheck, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - CHECK_H - C.Spacing.normal
+	Widgets.SetPoint(animCheck, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+	displayCardY = displayCardY - CHECK_H - C.Spacing.normal
 
 	-- Orientation
-	local oriLabel, oriLabelH = Widgets.CreateHeading(parent, 'Orientation', 3)
+	local oriLabel, oriLabelH = Widgets.CreateHeading(displayInner, 'Orientation', 3)
 	oriLabel:ClearAllPoints()
-	Widgets.SetPoint(oriLabel, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - oriLabelH
+	Widgets.SetPoint(oriLabel, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+	displayCardY = displayCardY - oriLabelH
 
-	local oriDD = Widgets.CreateDropdown(parent, WIDGET_W)
+	local oriDD = Widgets.CreateDropdown(displayInner, WIDGET_W)
 	oriDD:SetItems({
 		{ text = 'Right', value = 'RIGHT' },
 		{ text = 'Left',  value = 'LEFT' },
@@ -113,61 +116,78 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	oriDD:SetValue(get('orientation') or 'RIGHT')
 	oriDD:SetOnSelect(function(v) set('orientation', v) end)
 	oriDD:ClearAllPoints()
-	Widgets.SetPoint(oriDD, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+	Widgets.SetPoint(oriDD, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+	displayCardY = displayCardY - DROPDOWN_H - C.Spacing.normal
 
 	-- Frame Level
-	local lvlSlider = Widgets.CreateSlider(parent, 'Frame Level', WIDGET_W, 1, 20, 1)
+	local lvlSlider = Widgets.CreateSlider(displayInner, 'Frame Level', WIDGET_W, 1, 20, 1)
 	lvlSlider:SetValue(get('frameLevel') or 5)
 	lvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
 	lvlSlider:ClearAllPoints()
-	Widgets.SetPoint(lvlSlider, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - SLIDER_H - C.Spacing.normal
+	Widgets.SetPoint(lvlSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+	displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
+
+	yOffset = Widgets.EndCard(displayCard, parent, displayCardY)
 
 	-- ── Position section ────────────────────────────────────
-	local posPane = Widgets.CreateTitledPane(parent, 'Position', width)
+	local posPane = Widgets.CreateTitledPane(parent, 'Icon Position', width)
 	posPane:ClearAllPoints()
 	Widgets.SetPoint(posPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
 	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+	local posCard, posInner, posCardY
+	posCard, posInner, posCardY = Widgets.StartCard(parent, width, yOffset)
+
 	-- Anchor picker (if available)
 	if(Widgets.CreateAnchorPicker) then
 		local anchor = get('anchor') or { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 }
-		local picker = Widgets.CreateAnchorPicker(parent, width)
+		local picker = Widgets.CreateAnchorPicker(posInner, width)
 		picker:SetAnchor(anchor[1], anchor[4] or 0, anchor[5] or 0)
 		picker:ClearAllPoints()
-		Widgets.SetPoint(picker, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+		Widgets.SetPoint(picker, 'TOPLEFT', posInner, 'TOPLEFT', 0, posCardY)
 		picker:SetOnChanged(function(point, x, y)
 			set('anchor', { point, nil, point, x, y })
 		end)
-		yOffset = yOffset - picker:GetHeight() - C.Spacing.normal
+		posCardY = posCardY - picker:GetHeight() - C.Spacing.normal
 	end
 
+	yOffset = Widgets.EndCard(posCard, parent, posCardY)
+
 	-- ── Stack Font section ──────────────────────────────────
-	local stackPane = Widgets.CreateTitledPane(parent, 'Stack Font', width)
+	local stackPane = Widgets.CreateTitledPane(parent, 'Stack Count Font', width)
 	stackPane:ClearAllPoints()
 	Widgets.SetPoint(stackPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
 	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
-	local stackSize = Widgets.CreateSlider(parent, 'Size', WIDGET_W, 6, 24, 1)
+	local stackCard, stackInner, stackCardY
+	stackCard, stackInner, stackCardY = Widgets.StartCard(parent, width, yOffset)
+
+	local stackSize = Widgets.CreateSlider(stackInner, 'Size', WIDGET_W, 6, 24, 1)
 	stackSize:SetValue(get('stackFont.size') or 10)
 	stackSize:SetAfterValueChanged(function(v) set('stackFont.size', v) end)
 	stackSize:ClearAllPoints()
-	Widgets.SetPoint(stackSize, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - SLIDER_H - C.Spacing.normal
+	Widgets.SetPoint(stackSize, 'TOPLEFT', stackInner, 'TOPLEFT', 0, stackCardY)
+	stackCardY = stackCardY - SLIDER_H - C.Spacing.normal
+
+	yOffset = Widgets.EndCard(stackCard, parent, stackCardY)
 
 	-- ── Duration Font section ───────────────────────────────
-	local durPane = Widgets.CreateTitledPane(parent, 'Duration Font', width)
+	local durPane = Widgets.CreateTitledPane(parent, 'Duration Text Font', width)
 	durPane:ClearAllPoints()
 	Widgets.SetPoint(durPane, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
 	yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
-	local durSize = Widgets.CreateSlider(parent, 'Size', WIDGET_W, 6, 24, 1)
+	local durFontCard, durFontInner, durFontCardY
+	durFontCard, durFontInner, durFontCardY = Widgets.StartCard(parent, width, yOffset)
+
+	local durSize = Widgets.CreateSlider(durFontInner, 'Size', WIDGET_W, 6, 24, 1)
 	durSize:SetValue(get('durationFont.size') or 10)
 	durSize:SetAfterValueChanged(function(v) set('durationFont.size', v) end)
 	durSize:ClearAllPoints()
-	Widgets.SetPoint(durSize, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - SLIDER_H - C.Spacing.normal
+	Widgets.SetPoint(durSize, 'TOPLEFT', durFontInner, 'TOPLEFT', 0, durFontCardY)
+	durFontCardY = durFontCardY - SLIDER_H - C.Spacing.normal
+
+	yOffset = Widgets.EndCard(durFontCard, parent, durFontCardY)
 
 	return yOffset
 end

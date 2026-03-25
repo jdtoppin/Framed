@@ -73,19 +73,16 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - CHECK_H - C.Spacing.normal
 
 		-- ── Highlight Type ─────────────────────────────────────
-		local highlightPane = Widgets.CreateTitledPane(content, 'Highlight', width)
+		local highlightPane = Widgets.CreateTitledPane(content, 'Frame Highlight', width)
 		highlightPane:ClearAllPoints()
 		Widgets.SetPoint(highlightPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+		local hlCard, hlInner, hlCardY
+		hlCard, hlInner, hlCardY = Widgets.StartCard(content, width, yOffset)
+
 		local ht = C.HighlightType
-
-		local hlLabel, hlLabelH = Widgets.CreateHeading(content, 'Highlight Type', 3)
-		hlLabel:ClearAllPoints()
-		Widgets.SetPoint(hlLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - hlLabelH
-
-		local highlightDD = Widgets.CreateDropdown(content, WIDGET_W)
+		local highlightDD = Widgets.CreateDropdown(hlInner, WIDGET_W)
 		highlightDD:SetItems({
 			{ text = 'Gradient - Health Bar (Full)',    value = ht.GRADIENT_FULL },
 			{ text = 'Gradient - Health Bar (Half)',    value = ht.GRADIENT_HALF },
@@ -95,43 +92,50 @@ F.Settings.RegisterPanel({
 		highlightDD:SetValue(get('highlightType') or ht.GRADIENT_FULL)
 		highlightDD:SetOnSelect(function(v) set('highlightType', v) end)
 		highlightDD:ClearAllPoints()
-		Widgets.SetPoint(highlightDD, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+		Widgets.SetPoint(highlightDD, 'TOPLEFT', hlInner, 'TOPLEFT', 0, hlCardY)
+		hlCardY = hlCardY - DROPDOWN_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(hlCard, content, hlCardY)
 
 		-- ── Icon Settings ──────────────────────────────────────
-		local iconPane = Widgets.CreateTitledPane(content, 'Icon', width)
+		local iconPane = Widgets.CreateTitledPane(content, 'Icon Settings', width)
 		iconPane:ClearAllPoints()
 		Widgets.SetPoint(iconPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+		local iconCard, iconInner, iconCardY
+		iconCard, iconInner, iconCardY = Widgets.StartCard(content, width, yOffset)
+
 		-- Icon Size
-		local sizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 8, 48, 1)
+		local sizeSlider = Widgets.CreateSlider(iconInner, 'Icon Size', WIDGET_W, 8, 48, 1)
 		sizeSlider:SetValue(get('iconSize') or 20)
 		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 		sizeSlider:ClearAllPoints()
-		Widgets.SetPoint(sizeSlider, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(sizeSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
+		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
 
 		-- Frame Level
-		local lvlSlider = Widgets.CreateSlider(content, 'Frame Level', WIDGET_W, 1, 20, 1)
+		local lvlSlider = Widgets.CreateSlider(iconInner, 'Frame Level', WIDGET_W, 1, 20, 1)
 		lvlSlider:SetValue(get('frameLevel') or 5)
 		lvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
 		lvlSlider:ClearAllPoints()
-		Widgets.SetPoint(lvlSlider, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(lvlSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
+		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
 
 		-- Anchor picker
 		if(Widgets.CreateAnchorPicker) then
 			local anchorData = get('anchor') or { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 }
-			local picker = Widgets.CreateAnchorPicker(content, width)
+			local picker = Widgets.CreateAnchorPicker(iconInner, width)
 			picker:SetAnchor(anchorData[1], anchorData[4] or -2, anchorData[5] or -2)
 			picker:ClearAllPoints()
-			Widgets.SetPoint(picker, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+			Widgets.SetPoint(picker, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
 			picker:SetOnChanged(function(point, x, y)
 				set('anchor', { point, nil, point, x, y })
 			end)
-			yOffset = yOffset - picker:GetHeight() - C.Spacing.normal
+			iconCardY = iconCardY - picker:GetHeight() - C.Spacing.normal
 		end
+
+		yOffset = Widgets.EndCard(iconCard, content, iconCardY)
 
 		-- ── Final height ────────────────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

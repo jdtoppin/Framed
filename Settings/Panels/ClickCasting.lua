@@ -107,15 +107,18 @@ F.Settings.RegisterPanel({
 		end
 
 		-- ── Binding list ───────────────────────────────────────
-		local pane = Widgets.CreateTitledPane(content, 'Bindings', width)
+		local pane = Widgets.CreateTitledPane(content, 'Click Bindings', width)
 		pane:ClearAllPoints()
 		Widgets.SetPoint(pane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+		local bindCard, bindInner, bindCardY
+		bindCard, bindInner, bindCardY = Widgets.StartCard(content, width, yOffset)
+
 		-- Container for binding rows (grows dynamically)
-		local rowContainer = CreateFrame('Frame', nil, content)
+		local rowContainer = CreateFrame('Frame', nil, bindInner)
 		rowContainer:ClearAllPoints()
-		Widgets.SetPoint(rowContainer, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		Widgets.SetPoint(rowContainer, 'TOPLEFT', bindInner, 'TOPLEFT', 0, bindCardY)
 		rowContainer:SetWidth(width)
 
 		-- Track the list of binding row frames
@@ -230,24 +233,26 @@ F.Settings.RegisterPanel({
 			addBindingRow('LeftButton', '', 'spell', '')
 		end
 
-		-- Update yOffset past row container
+		-- Update bindCardY past row container
 		local containerH = math.max(#bindingRows * (ROW_H + C.Spacing.base), ROW_H)
-		yOffset = yOffset - containerH - C.Spacing.normal
+		bindCardY = bindCardY - containerH - C.Spacing.normal
 
 		-- ── Add Binding button ─────────────────────────────────
-		local addBtn = Widgets.CreateButton(content, 'Add Binding', 'accent', ADD_BTN_W + 40, BUTTON_H)
+		local addBtn = Widgets.CreateButton(bindInner, 'Add Binding', 'accent', ADD_BTN_W + 40, BUTTON_H)
 		addBtn:ClearAllPoints()
-		Widgets.SetPoint(addBtn, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, bindCardY)
 		addBtn:SetOnClick(function()
 			addBindingRow('LeftButton', '', 'spell', '')
 			-- Shift the button down
-			yOffset = yOffset - (ROW_H + C.Spacing.base)
+			bindCardY = bindCardY - (ROW_H + C.Spacing.base)
 			addBtn:ClearAllPoints()
-			Widgets.SetPoint(addBtn, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-			content:SetHeight(math.abs(yOffset) + C.Spacing.normal + BUTTON_H)
+			Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, bindCardY)
+			content:SetHeight(math.abs(bindCardY) + C.Spacing.normal + BUTTON_H)
 			scroll:UpdateScrollRange()
 		end)
-		yOffset = yOffset - BUTTON_H - C.Spacing.normal
+		bindCardY = bindCardY - BUTTON_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(bindCard, content, bindCardY)
 
 		-- ── Final content height ───────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

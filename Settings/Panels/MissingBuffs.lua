@@ -64,19 +64,16 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- ── Highlight Type ─────────────────────────────────────
-		local highlightPane = Widgets.CreateTitledPane(content, 'Highlight', width)
+		local highlightPane = Widgets.CreateTitledPane(content, 'Frame Highlight', width)
 		highlightPane:ClearAllPoints()
 		Widgets.SetPoint(highlightPane, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - PANE_TITLE_H - C.Spacing.normal
 
+		local hlCard, hlInner, hlCardY
+		hlCard, hlInner, hlCardY = Widgets.StartCard(content, width, yOffset)
+
 		local ht = C.HighlightType
-
-		local hlLabel, hlLabelH = Widgets.CreateHeading(content, 'Highlight Type', 3)
-		hlLabel:ClearAllPoints()
-		Widgets.SetPoint(hlLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - hlLabelH
-
-		local highlightDD = Widgets.CreateDropdown(content, WIDGET_W)
+		local highlightDD = Widgets.CreateDropdown(hlInner, WIDGET_W)
 		highlightDD:SetItems({
 			{ text = 'Gradient - Health Bar (Full)',    value = ht.GRADIENT_FULL },
 			{ text = 'Gradient - Health Bar (Half)',    value = ht.GRADIENT_HALF },
@@ -86,8 +83,10 @@ F.Settings.RegisterPanel({
 		highlightDD:SetValue(get('highlightType') or ht.GRADIENT_FULL)
 		highlightDD:SetOnSelect(function(v) set('highlightType', v) end)
 		highlightDD:ClearAllPoints()
-		Widgets.SetPoint(highlightDD, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+		Widgets.SetPoint(highlightDD, 'TOPLEFT', hlInner, 'TOPLEFT', 0, hlCardY)
+		hlCardY = hlCardY - DROPDOWN_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(hlCard, content, hlCardY)
 
 		-- ── Final height ────────────────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

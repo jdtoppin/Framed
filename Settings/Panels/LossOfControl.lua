@@ -83,13 +83,16 @@ F.Settings.RegisterPanel({
 
 		-- ── CC Type Toggles ────────────────────────────────────
 		local typePane
-		typePane, yOffset = createSection(content, 'CC Types', width, yOffset)
+		typePane, yOffset = createSection(content, 'CC Type Toggles', width, yOffset)
+
+		local ccCard, ccInner, ccCardY
+		ccCard, ccInner, ccCardY = Widgets.StartCard(content, width, yOffset)
 
 		for _, cc in next, CC_TYPES do
-			local check = Widgets.CreateCheckButton(content, cc.label, function(checked)
+			local check = Widgets.CreateCheckButton(ccInner, cc.label, function(checked)
 				setLoC('types.' .. cc.id, checked)
 			end)
-			yOffset = placeWidget(check, content, yOffset, CHECK_H)
+			ccCardY = placeWidget(check, ccInner, ccCardY, CHECK_H)
 
 			local savedEnabled = getLoC('types.' .. cc.id)
 			if(savedEnabled ~= nil) then
@@ -99,13 +102,18 @@ F.Settings.RegisterPanel({
 			end
 		end
 
+		yOffset = Widgets.EndCard(ccCard, content, ccCardY)
+
 		-- ── Visual Settings ────────────────────────────────────
 		local visPane
-		visPane, yOffset = createSection(content, 'Visual', width, yOffset)
+		visPane, yOffset = createSection(content, 'Visual Settings', width, yOffset)
+
+		local visCard, visInner, visCardY
+		visCard, visInner, visCardY = Widgets.StartCard(content, width, yOffset)
 
 		-- Overlay alpha
-		local alphaSlider = Widgets.CreateSlider(content, 'Overlay Alpha', WIDGET_W, 0.0, 1.0, 0.05)
-		yOffset = placeWidget(alphaSlider, content, yOffset, SLIDER_H)
+		local alphaSlider = Widgets.CreateSlider(visInner, 'Overlay Alpha', WIDGET_W, 0.0, 1.0, 0.05)
+		visCardY = placeWidget(alphaSlider, visInner, visCardY, SLIDER_H)
 		local savedAlpha = getLoC('overlayAlpha')
 		alphaSlider:SetValue(savedAlpha or 0.6)
 		alphaSlider:SetAfterValueChanged(function(value)
@@ -113,13 +121,15 @@ F.Settings.RegisterPanel({
 		end)
 
 		-- Icon size
-		local sizeSlider = Widgets.CreateSlider(content, 'Icon Size', WIDGET_W, 12, 64, 1)
-		yOffset = placeWidget(sizeSlider, content, yOffset, SLIDER_H)
+		local sizeSlider = Widgets.CreateSlider(visInner, 'Icon Size', WIDGET_W, 12, 64, 1)
+		visCardY = placeWidget(sizeSlider, visInner, visCardY, SLIDER_H)
 		local savedSize = getLoC('iconSize')
 		sizeSlider:SetValue(savedSize or 32)
 		sizeSlider:SetAfterValueChanged(function(value)
 			setLoC('iconSize', value)
 		end)
+
+		yOffset = Widgets.EndCard(visCard, content, visCardY)
 
 		-- ── Final content height ───────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

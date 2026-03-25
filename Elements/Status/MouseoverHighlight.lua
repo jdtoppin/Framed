@@ -93,13 +93,18 @@ oUF:AddElement('FramedMouseoverHighlight', Update, Enable, Disable)
 --- @param config? table  Optional config: color
 function F.Elements.MouseoverHighlight.Setup(self, config)
 	config = config or {}
-	local color = config.color or { 1, 1, 1, 0.08 }
+	local color = config.color or { 1, 1, 1, 0.15 }
 
-	local overlay = self:CreateTexture(nil, 'OVERLAY')
-	overlay:SetAllPoints(self)
+	-- Container frame above the health/power bar wrappers
+	local frame = CreateFrame('Frame', nil, self)
+	frame:SetAllPoints(self)
+	frame:SetFrameLevel(self:GetFrameLevel() + 8)
+
+	local overlay = frame:CreateTexture(nil, 'OVERLAY')
+	overlay:SetAllPoints(frame)
 	overlay:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-	overlay:SetVertexColor(color[1], color[2], color[3], color[4] or 0.08)
-	overlay:Hide()
+	overlay:SetVertexColor(color[1], color[2], color[3], color[4] or 0.15)
+	frame:Hide()
 
-	self.FramedMouseoverHighlight = overlay
+	self.FramedMouseoverHighlight = frame
 end

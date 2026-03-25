@@ -60,10 +60,23 @@ function F.Elements.Name.Setup(self, config)
 	config.anchor      = config.anchor or {'CENTER', self, 'CENTER', 0, 0}
 
 	-- --------------------------------------------------------
+	-- Text overlay frame — sits above the health bar wrapper
+	-- so that name text is not occluded by sub-frames.
+	-- --------------------------------------------------------
+
+	local overlay = self._textOverlay
+	if(not overlay) then
+		overlay = CreateFrame('Frame', nil, self)
+		overlay:SetAllPoints(self)
+		overlay:SetFrameLevel(self:GetFrameLevel() + 5)
+		self._textOverlay = overlay
+	end
+
+	-- --------------------------------------------------------
 	-- Font string
 	-- --------------------------------------------------------
 
-	local nameText = Widgets.CreateFontString(self, config.fontSize, C.Colors.textActive)
+	local nameText = Widgets.CreateFontString(overlay, config.fontSize, C.Colors.textActive)
 
 	-- --------------------------------------------------------
 	-- Positioning via anchor config
