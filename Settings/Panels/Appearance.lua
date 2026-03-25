@@ -159,8 +159,8 @@ F.Settings.RegisterPanel({
 		yOffset = placeWidget(wizardBtn, content, yOffset, BUTTON_H)
 
 		wizardBtn:SetOnClick(function()
-			if(F.SetupWizard and F.SetupWizard.Show) then
-				F.SetupWizard.Show()
+			if(F.Onboarding and F.Onboarding.ShowWizard) then
+				F.Onboarding.ShowWizard()
 			end
 		end)
 

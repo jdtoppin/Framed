@@ -135,6 +135,12 @@ function Widgets.CreateButton(parent, text, colorScheme, width, height)
 		end
 	end)
 
+	--- Set the button label text.
+	--- @param newText string
+	function button:SetText(newText)
+		self._label:SetText(newText or '')
+	end
+
 	--- Set the click handler.
 	--- @param func function
 	function button:SetOnClick(func)

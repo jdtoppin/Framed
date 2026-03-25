@@ -24,6 +24,7 @@ local BTN_W       = 110
 -- ============================================================
 
 local wizardFrame  = nil
+local overlayFrame = nil
 local currentStep  = 1
 local choices      = { role = nil, content = {}, position = nil }
 
@@ -79,16 +80,33 @@ end
 -- Navigation Helpers
 -- ============================================================
 
+-- Forward declarations (defined after nav bar section)
+local updateNav
+
 local function showStep(n)
+	local oldFrame = stepFrames[currentStep]
+	local newFrame = stepFrames[n]
+
+	-- Hide all other step frames (except the one we're fading out)
 	for i = 1, TOTAL_STEPS do
-		if(stepFrames[i]) then
+		if(stepFrames[i] and i ~= currentStep and i ~= n) then
 			stepFrames[i]:Hide()
 		end
 	end
-	if(stepFrames[n]) then
-		stepFrames[n]:Show()
-	end
+
 	currentStep = n
+
+	-- CrossFade between old and new step
+	if(oldFrame and newFrame and oldFrame ~= newFrame) then
+		newFrame:SetAlpha(0)
+		newFrame:Show()
+		Widgets.CrossFade(oldFrame, newFrame, C.Animation.durationNormal)
+	elseif(newFrame) then
+		newFrame:SetAlpha(1)
+		newFrame:Show()
+	end
+
+	updateNav(n)
 end
 
 local function goNext()
@@ -109,38 +127,41 @@ local function skipSetup()
 end
 
 -- ============================================================
--- Shared Nav Button Row Builder
+-- Shared Nav Bar (persistent, outside step frames)
 -- ============================================================
 
---- Build Back/Next buttons at the bottom of a step frame.
---- @param parent Frame  Step content frame
---- @param showBack boolean  Whether to show Back
---- @param nextLabel string  Label for the forward button (default 'Next')
---- @param onNext function|nil  Override for next action (nil → goNext)
---- @return Frame backBtn, Frame nextBtn
-local function buildNavRow(parent, showBack, nextLabel, onNext)
-	local nextBtn = Widgets.CreateButton(parent, nextLabel or 'Next', 'accent', BTN_W, BTN_H)
-	nextBtn:ClearAllPoints()
-	Widgets.SetPoint(nextBtn, 'BOTTOMRIGHT', parent, 'BOTTOMRIGHT', 0, 0)
-	nextBtn:SetOnClick(function()
-		if(onNext) then
-			onNext()
-		else
-			goNext()
-		end
-	end)
+local navLeftBtn   = nil  -- Skip Setup / Back / "I'm Good"
+local navRightBtn  = nil  -- Let's Go / Next / Take the Tour
 
-	local backBtn = nil
-	if(showBack) then
-		backBtn = Widgets.CreateButton(parent, 'Back', 'widget', BTN_W, BTN_H)
-		backBtn:ClearAllPoints()
-		Widgets.SetPoint(backBtn, 'BOTTOMLEFT', parent, 'BOTTOMLEFT', 0, 0)
-		backBtn:SetOnClick(function()
-			goBack()
+--- Update the shared nav bar buttons for the given step.
+updateNav = function(step)
+	if(not navLeftBtn or not navRightBtn) then return end
+
+	if(step == 1) then
+		-- Left: Skip Setup, Right: Let's Go
+		navLeftBtn:SetText('Skip Setup')
+		navLeftBtn:SetOnClick(function() skipSetup() end)
+		navLeftBtn:Show()
+		navRightBtn:SetText('Next')
+		navRightBtn:SetOnClick(function() goNext() end)
+	elseif(step == TOTAL_STEPS) then
+		-- Left: Back, Right: Let's Go!
+		navLeftBtn:SetText('Back')
+		navLeftBtn:SetOnClick(function() goBack() end)
+		navLeftBtn:Show()
+		navRightBtn:SetText("Let's Go!")
+		navRightBtn:SetOnClick(function()
+			ApplyChoices()
+			Onboarding.HideWizard()
 		end)
+	else
+		-- Left: Back, Right: Next
+		navLeftBtn:SetText('Back')
+		navLeftBtn:SetOnClick(function() goBack() end)
+		navLeftBtn:Show()
+		navRightBtn:SetText('Next')
+		navRightBtn:SetOnClick(function() goNext() end)
 	end
-
-	return backBtn, nextBtn
 end
 
 -- ============================================================
@@ -170,22 +191,6 @@ local function buildStep1(parent)
 		'This quick setup will configure Framed based on your role and ' ..
 		'preferred content — it only takes a moment.')
 
-	-- "Let's Go" button
-	local goBtn = Widgets.CreateButton(frame, "Let's Go", 'accent', BTN_W, BTN_H)
-	goBtn:ClearAllPoints()
-	Widgets.SetPoint(goBtn, 'BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
-	goBtn:SetOnClick(function()
-		goNext()
-	end)
-
-	-- "Skip Setup" button
-	local skipBtn = Widgets.CreateButton(frame, 'Skip Setup', 'widget', BTN_W, BTN_H)
-	skipBtn:ClearAllPoints()
-	Widgets.SetPoint(skipBtn, 'BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
-	skipBtn:SetOnClick(function()
-		skipSetup()
-	end)
-
 	return frame
 end
 
@@ -208,19 +213,21 @@ local function buildStep2(parent)
 	Widgets.SetPoint(specText, 'TOPLEFT', title, 'BOTTOMLEFT', 0, -C.Spacing.base)
 	specText:SetText('Detected: ' .. specName .. ' (' .. class .. ')')
 
-	-- Role buttons (multi-select toggle)
+	-- Role buttons (multi-select toggle, centered)
 	local roleLabels = { 'Tank', 'Healer', 'DPS' }
 	local roleValues = { 'tank', 'healer', 'dps' }
 	choices.roles = choices.roles or {}
 	local roleButtons = {}
 	local roleBtnW = 96
 	local roleBtnGap = C.Spacing.base
+	local roleTotalW = #roleLabels * roleBtnW + (#roleLabels - 1) * roleBtnGap
+	local roleStartX = (WIZARD_W - CONTENT_PAD * 2 - roleTotalW) / 2
 
 	for i, label in next, roleLabels do
 		local btn = Widgets.CreateButton(frame, label, 'widget', roleBtnW, BTN_H)
 		btn.value = roleValues[i]
 		btn:ClearAllPoints()
-		local xOff = (i - 1) * (roleBtnW + roleBtnGap)
+		local xOff = roleStartX + (i - 1) * (roleBtnW + roleBtnGap)
 		Widgets.SetPoint(btn, 'TOPLEFT', specText, 'BOTTOMLEFT', xOff, -C.Spacing.normal)
 		roleButtons[#roleButtons + 1] = btn
 	end
@@ -236,8 +243,6 @@ local function buildStep2(parent)
 		roleGroup:SetValues({ [mappedRole] = true })
 		choices.roles = { [mappedRole] = true }
 	end
-
-	buildNavRow(frame, true)
 
 	return frame
 end
@@ -260,34 +265,30 @@ local function buildStep3(parent)
 	Widgets.SetPoint(sub, 'TOPLEFT', title, 'BOTTOMLEFT', 0, -C.Spacing.base)
 	sub:SetText('Select all that apply.')
 
-	local options = {
-		{ key = 'mythicplus', label = 'M+ Dungeons',   desc = 'Mythic+ and regular dungeon content.' },
-		{ key = 'raiding',    label = 'Raiding',        desc = 'Normal, Heroic, and Mythic raids.' },
-		{ key = 'pvp',        label = 'PvP / Arena',    desc = 'Arenas, battlegrounds, and rated PvP.' },
-		{ key = 'casual',     label = 'Casual / Solo',  desc = 'World quests, open world, and solo play.' },
-	}
+	-- Content buttons (multi-select toggle, two rows of two, centered)
+	local contentLabels = { 'M+ Dungeons', 'Raiding', 'PvP / Arena', 'Casual / Solo' }
+	local contentValues = { 'mythicplus', 'raiding', 'pvp', 'casual' }
+	local contentBtnW = 110
+	local contentBtnGap = C.Spacing.base
+	local contentButtons = {}
+	local contentRowW = 2 * contentBtnW + contentBtnGap
+	local contentStartX = (WIZARD_W - CONTENT_PAD * 2 - contentRowW) / 2
 
-	local checkYBase = sub
-	local checkYOff  = -C.Spacing.normal
-
-	for _, opt in next, options do
-		local cbKey  = opt.key
-		local cbFrame = Widgets.CreateCheckButton(frame, opt.label, function(checked)
-			choices.content[cbKey] = checked or nil
-		end)
-		cbFrame:ClearAllPoints()
-		Widgets.SetPoint(cbFrame, 'TOPLEFT', checkYBase, 'BOTTOMLEFT', 0, checkYOff)
-
-		local descText = Widgets.CreateFontString(frame, C.Font.sizeSmall, C.Colors.textSecondary)
-		descText:ClearAllPoints()
-		Widgets.SetPoint(descText, 'TOPLEFT', cbFrame, 'BOTTOMLEFT', 20, -C.Spacing.base)
-		descText:SetText(opt.desc)
-
-		checkYBase = descText
-		checkYOff  = -C.Spacing.tight
+	for i, label in next, contentLabels do
+		local btn = Widgets.CreateButton(frame, label, 'widget', contentBtnW, BTN_H)
+		btn.value = contentValues[i]
+		btn:ClearAllPoints()
+		local col = (i - 1) % 2
+		local row = math.floor((i - 1) / 2)
+		local xOff = contentStartX + col * (contentBtnW + contentBtnGap)
+		local yOff = -(C.Spacing.normal + row * (BTN_H + contentBtnGap))
+		Widgets.SetPoint(btn, 'TOPLEFT', sub, 'BOTTOMLEFT', xOff, yOff)
+		contentButtons[#contentButtons + 1] = btn
 	end
 
-	buildNavRow(frame, true)
+	Widgets.CreateMultiSelectButtonGroup(contentButtons, function(selected)
+		choices.content = selected
+	end)
 
 	return frame
 end
@@ -326,12 +327,14 @@ local function buildStep4(parent)
 	local dotSize = 8
 
 	local presetBtns = {}
+	local presetTotalW = #presets * mockW + (#presets - 1) * mockGap
+	local presetStartX = (WIZARD_W - CONTENT_PAD * 2 - presetTotalW) / 2
 
 	for i, preset in next, presets do
 		-- Mini mockup frame (bordered, acts as the button)
 		local mock = Widgets.CreateBorderedFrame(frame, mockW, mockH, C.Colors.background, C.Colors.border)
 		mock:ClearAllPoints()
-		local xOff = (i - 1) * (mockW + mockGap)
+		local xOff = presetStartX + (i - 1) * (mockW + mockGap)
 		Widgets.SetPoint(mock, 'TOPLEFT', recText, 'BOTTOMLEFT', xOff, -C.Spacing.normal)
 		mock:EnableMouse(true)
 		mock.value = preset.key
@@ -407,8 +410,6 @@ local function buildStep4(parent)
 		updateRoleRec()
 	end)
 
-	buildNavRow(frame, true)
-
 	return frame
 end
 
@@ -456,35 +457,6 @@ local function buildStep5(parent)
 		buildSummary()
 	end)
 
-	-- "Take the Tour" button
-	local tourBtn = Widgets.CreateButton(frame, 'Take the Tour', 'accent', BTN_W, BTN_H)
-	tourBtn:ClearAllPoints()
-	Widgets.SetPoint(tourBtn, 'BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
-	tourBtn:SetOnClick(function()
-		ApplyChoices()
-		Onboarding.HideWizard()
-		if(Onboarding.StartTour) then
-			Onboarding.StartTour()
-		end
-	end)
-
-	-- "I'm Good" button
-	local doneBtn = Widgets.CreateButton(frame, "I'm Good", 'widget', BTN_W, BTN_H)
-	doneBtn:ClearAllPoints()
-	Widgets.SetPoint(doneBtn, 'BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
-	doneBtn:SetOnClick(function()
-		ApplyChoices()
-		Onboarding.HideWizard()
-	end)
-
-	-- Back button
-	local backBtn = Widgets.CreateButton(frame, 'Back', 'widget', BTN_W, BTN_H)
-	backBtn:ClearAllPoints()
-	Widgets.SetPoint(backBtn, 'BOTTOM', frame, 'BOTTOM', 0, 0)
-	backBtn:SetOnClick(function()
-		goBack()
-	end)
-
 	return frame
 end
 
@@ -495,9 +467,20 @@ end
 local function buildWizardFrame()
 	if(wizardFrame) then return end
 
+	-- Full-screen dark overlay behind the wizard
+	overlayFrame = CreateFrame('Frame', nil, UIParent)
+	overlayFrame:SetFrameStrata('DIALOG')
+	overlayFrame:SetFrameLevel(0)
+	overlayFrame:SetAllPoints(UIParent)
+	overlayFrame:Hide()
+	local overlayBg = overlayFrame:CreateTexture(nil, 'BACKGROUND')
+	overlayBg:SetAllPoints()
+	overlayBg:SetColorTexture(0, 0, 0, 0.6)
+
 	-- Outer dialog frame
-	local frame = Widgets.CreateBorderedFrame(UIParent, WIZARD_W, WIZARD_H, C.Colors.panel, C.Colors.border)
+	local frame = Widgets.CreateBorderedFrame(overlayFrame, WIZARD_W, WIZARD_H, C.Colors.panel, C.Colors.border)
 	frame:SetFrameStrata('DIALOG')
+	frame:SetFrameLevel(10)
 	frame:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
 	frame:Hide()
 
@@ -529,12 +512,27 @@ local function buildWizardFrame()
 	Widgets.SetPoint(content, 'TOPLEFT',     frame, 'TOPLEFT',     CONTENT_PAD, -CONTENT_PAD)
 	Widgets.SetPoint(content, 'BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -CONTENT_PAD, CONTENT_PAD)
 
+	-- ── Shared nav bar (bottom of content, outside step frames) ──
+	navLeftBtn = Widgets.CreateButton(content, 'Back', 'widget', BTN_W, BTN_H)
+	navLeftBtn:ClearAllPoints()
+	Widgets.SetPoint(navLeftBtn, 'BOTTOMLEFT', content, 'BOTTOMLEFT', 0, 0)
+
+	navRightBtn = Widgets.CreateButton(content, 'Next', 'accent', BTN_W, BTN_H)
+	navRightBtn:ClearAllPoints()
+	Widgets.SetPoint(navRightBtn, 'BOTTOMRIGHT', content, 'BOTTOMRIGHT', 0, 0)
+
+	-- ── Step area (above the nav bar) ─────────────────────────
+	local stepArea = CreateFrame('Frame', nil, content)
+	stepArea:ClearAllPoints()
+	Widgets.SetPoint(stepArea, 'TOPLEFT',     content,  'TOPLEFT',     0, 0)
+	Widgets.SetPoint(stepArea, 'BOTTOMRIGHT', content,  'BOTTOMRIGHT', 0, BTN_H + C.Spacing.normal)
+
 	-- Build each step frame
-	stepFrames[1] = buildStep1(content)
-	stepFrames[2] = buildStep2(content)
-	stepFrames[3] = buildStep3(content)
-	stepFrames[4] = buildStep4(content)
-	stepFrames[5] = buildStep5(content)
+	stepFrames[1] = buildStep1(stepArea)
+	stepFrames[2] = buildStep2(stepArea)
+	stepFrames[3] = buildStep3(stepArea)
+	stepFrames[4] = buildStep4(stepArea)
+	stepFrames[5] = buildStep5(stepArea)
 
 	-- Intercept goNext/goBack to also update counter
 	local _goNext = goNext
@@ -575,12 +573,19 @@ function Onboarding.ShowWizard()
 		wizardFrame._stepCounter:SetText('1 of ' .. TOTAL_STEPS)
 	end
 
-	wizardFrame:Show()
+	-- Fade in overlay and wizard together
+	if(overlayFrame) then
+		Widgets.FadeIn(overlayFrame)
+	end
+	Widgets.FadeIn(wizardFrame)
 end
 
 --- Hide the wizard.
 function Onboarding.HideWizard()
+	if(overlayFrame) then
+		Widgets.FadeOut(overlayFrame)
+	end
 	if(wizardFrame) then
-		wizardFrame:Hide()
+		Widgets.FadeOut(wizardFrame)
 	end
 end

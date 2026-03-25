@@ -129,6 +129,33 @@ function Settings.CreateMainFrame()
 	end)
 	closeBtn:SetWidgetTooltip('Close')
 
+	-- ── Preview toggle (header, left of close) ───────────────
+	local previewBtn = Widgets.CreateButton(header, 'Preview', 'widget', 70, CLOSE_BTN_SIZE)
+	previewBtn:ClearAllPoints()
+	Widgets.SetPoint(previewBtn, 'RIGHT', closeBtn, 'LEFT', -C.Spacing.tight, 0)
+	previewBtn:SetOnClick(function()
+		Settings._previewVisible = not Settings._previewVisible
+		if(Settings._previewVisible) then
+			F.Preview.Enable()
+		else
+			F.Preview.Disable()
+		end
+		refreshPreview()
+	end)
+	previewBtn:SetWidgetTooltip('Toggle Preview', 'Show or hide the docked unit frame preview.')
+
+	-- ── Edit Mode button (header, left of preview) ───────────
+	local editModeBtn = Widgets.CreateButton(header, 'Edit Mode', 'widget', 80, CLOSE_BTN_SIZE)
+	editModeBtn:ClearAllPoints()
+	Widgets.SetPoint(editModeBtn, 'RIGHT', previewBtn, 'LEFT', -C.Spacing.tight, 0)
+	editModeBtn:SetOnClick(function()
+		Settings.Hide()
+		if(F.EditMode and F.EditMode.Enter) then
+			F.EditMode.Enter()
+		end
+	end)
+	editModeBtn:SetWidgetTooltip('Edit Mode', 'Drag and resize unit frames directly on screen.')
+
 	-- ── Resize button ─────────────────────────────────────────
 	Widgets.CreateResizeButton(frame,
 		WINDOW_MIN_W, WINDOW_MIN_H,
@@ -175,33 +202,6 @@ function Settings.CreateMainFrame()
 	Settings._headerPanelText:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', subHeader, 'LEFT', C.Spacing.normal, 0)
 	Settings._headerPanelText:SetText('')
-
-	-- Edit Mode button (right of sub-header)
-	local editModeBtn = Widgets.CreateButton(subHeader, 'Edit Mode', 'widget', 80, SUB_HEADER_H - C.Spacing.base)
-	editModeBtn:ClearAllPoints()
-	Widgets.SetPoint(editModeBtn, 'RIGHT', subHeader, 'RIGHT', -(80 + C.Spacing.tight + C.Spacing.base), 0)
-	editModeBtn:SetOnClick(function()
-		Settings.Hide()
-		if(F.EditMode and F.EditMode.Enter) then
-			F.EditMode.Enter()
-		end
-	end)
-	editModeBtn:SetWidgetTooltip('Edit Mode', 'Drag and resize unit frames directly on screen.')
-
-	-- Preview toggle (rightmost in sub-header)
-	local previewBtn = Widgets.CreateButton(subHeader, 'Preview', 'widget', 70, SUB_HEADER_H - C.Spacing.base)
-	previewBtn:ClearAllPoints()
-	Widgets.SetPoint(previewBtn, 'RIGHT', subHeader, 'RIGHT', -C.Spacing.base, 0)
-	previewBtn:SetOnClick(function()
-		Settings._previewVisible = not Settings._previewVisible
-		if(Settings._previewVisible) then
-			F.Preview.Enable()
-		else
-			F.Preview.Disable()
-		end
-		refreshPreview()
-	end)
-	previewBtn:SetWidgetTooltip('Toggle Preview', 'Show or hide the docked unit frame preview.')
 
 	-- ── Content area (right of sidebar, below sub-header) ─────
 	local contentArea = CreateFrame('Frame', nil, frame)
