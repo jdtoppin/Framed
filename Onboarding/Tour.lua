@@ -45,13 +45,6 @@ local TOUR_STOPS = {
 		end,
 	},
 	{
-		title     = 'Buffs and Debuffs',
-		body      = 'Configure which aura indicators appear on your frames.',
-		getTarget = function()
-			return F.Settings._sidebarButtons and F.Settings._sidebarButtons['buffsanddebuffs']
-		end,
-	},
-	{
 		title     = 'Context Info',
 		body      = 'Shows your current layout and specialization.',
 		getTarget = function() return F.Settings._headerBar end,

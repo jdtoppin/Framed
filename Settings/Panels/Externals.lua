@@ -8,7 +8,6 @@ F.Settings.RegisterPanel({
 	label   = 'Externals',
 	section = 'AURAS',
 	order   = 11,
-	parent  = 'buffsanddebuffs',
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400

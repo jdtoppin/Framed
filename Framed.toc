@@ -147,7 +147,6 @@ Settings/Panels/RaidFrames.lua
 Settings/Panels/Battlegrounds.lua
 Settings/Panels/WorldRaids.lua
 Settings/Panels/ArenaFrames.lua
-Settings/Panels/BuffsAndDebuffs.lua
 Settings/Panels/Buffs.lua
 Settings/Panels/Debuffs.lua
 Settings/Panels/RaidDebuffs.lua
