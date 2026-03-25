@@ -127,6 +127,7 @@ Preview/Preview.lua
 Settings/Framework.lua
 Settings/FrameSettingsBuilder.lua
 Settings/Builders/BorderIconSettings.lua
+Settings/Builders/IndicatorCRUD.lua
 Settings/Panels/Appearance.lua
 Settings/Panels/Layouts.lua
 Settings/Panels/Profiles.lua
