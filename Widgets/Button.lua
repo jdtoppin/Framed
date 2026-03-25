@@ -235,65 +235,103 @@ end
 
 -- ============================================================
 -- CreateCheckButton
--- A 14x14 checkbox with a label. Toggles a boolean state.
+-- A toggle switch with a label. Slides left/right with animation.
+-- Accent color when enabled, grey when disabled.
 -- ============================================================
 
-local CHECK_SIZE    = 14
-local CHECK_SPACING = 6   -- gap between box and label
+local TOGGLE_W       = 28   -- track width
+local TOGGLE_H       = 14   -- track height
+local THUMB_SIZE     = 10   -- thumb square size
+local THUMB_PAD      = 2    -- padding inside the track
+local TOGGLE_SPACING = 6    -- gap between toggle and label
+local TOGGLE_TRAVEL  = TOGGLE_W - THUMB_SIZE - THUMB_PAD * 2  -- thumb slide distance
 
---- Create a labeled checkbox.
+--- Create a labeled toggle switch.
 --- @param parent Frame Parent frame
---- @param label string Label text shown to the right of the box
+--- @param label string Label text shown to the right of the toggle
 --- @param callback? function Called with (checked) on toggle
 --- @return Frame
 function Widgets.CreateCheckButton(parent, label, callback)
 	local frame = CreateFrame('Frame', nil, parent)
 	frame._checked = false
 
-	-- The checkbox square
-	local box = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
-	box._bgColor     = C.Colors.widget
-	box._borderColor = C.Colors.border
-	Widgets.ApplyBackdrop(box, C.Colors.widget, C.Colors.border)
-	Widgets.SetSize(box, CHECK_SIZE, CHECK_SIZE)
-	box:ClearAllPoints()
-	Widgets.SetPoint(box, 'LEFT', frame, 'LEFT', 0, 0)
-	frame._box = box
+	-- Toggle track (rounded-ish via backdrop)
+	local track = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
+	track:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 1,
+	})
+	Widgets.SetSize(track, TOGGLE_W, TOGGLE_H)
+	track:ClearAllPoints()
+	Widgets.SetPoint(track, 'LEFT', frame, 'LEFT', 0, 0)
+	frame._track = track
 
-	-- Check mark FontString (hidden when unchecked)
-	local checkMark = Widgets.CreateFontString(box, C.Font.sizeSmall, C.Colors.textActive)
-	checkMark:ClearAllPoints()
-	checkMark:SetPoint('CENTER', box, 'CENTER', 0, 0)
-	checkMark:SetText('\226\156\147')  -- UTF-8 for checkmark
-	checkMark:Hide()
-	frame._checkMark = checkMark
+	-- Thumb (the sliding knob)
+	local thumb = CreateFrame('Frame', nil, track)
+	Widgets.SetSize(thumb, THUMB_SIZE, THUMB_SIZE)
+	thumb:SetPoint('LEFT', track, 'LEFT', THUMB_PAD, 0)
+	frame._thumb = thumb
 
-	-- Label FontString to the right of the box
+	local thumbTex = thumb:CreateTexture(nil, 'OVERLAY')
+	thumbTex:SetAllPoints(thumb)
+	thumbTex:SetColorTexture(1, 1, 1, 1)
+	frame._thumbTex = thumbTex
+
+	-- Label FontString to the right of the track
 	local labelText = Widgets.CreateFontString(frame, C.Font.sizeNormal, C.Colors.textNormal)
 	labelText:ClearAllPoints()
-	Widgets.SetPoint(labelText, 'LEFT', box, 'RIGHT', CHECK_SPACING, 0)
+	Widgets.SetPoint(labelText, 'LEFT', track, 'RIGHT', TOGGLE_SPACING, 0)
 	labelText:SetText(label or '')
 	frame._labelText = labelText
 
-	-- Size the outer frame to fit box + label
-	frame:SetHeight(CHECK_SIZE)
-	-- Width is dynamic; rely on label's text width + box
-	frame:SetWidth(CHECK_SIZE + CHECK_SPACING + (labelText:GetStringWidth() or 80))
+	-- Size the outer frame
+	frame:SetHeight(TOGGLE_H)
+	frame:SetWidth(TOGGLE_W + TOGGLE_SPACING + (labelText:GetStringWidth() or 80))
 
-	-- Visual update helper
-	local function UpdateVisual()
-		if(frame._checked) then
-			box:SetBackdropColor(
-				C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], C.Colors.accent[4] or 1)
-			box:SetBackdropBorderColor(
-				C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], C.Colors.accent[4] or 1)
-			frame._checkMark:Show()
+	-- Visual update (no animation — used for initial state / SetChecked)
+	local function ApplyVisual(checked)
+		local ac = C.Colors.accent
+		local grey = C.Colors.widget
+		if(checked) then
+			track:SetBackdropColor(ac[1], ac[2], ac[3], ac[4] or 1)
+			track:SetBackdropBorderColor(ac[1], ac[2], ac[3], ac[4] or 1)
+			thumb:ClearAllPoints()
+			thumb:SetPoint('LEFT', track, 'LEFT', THUMB_PAD + TOGGLE_TRAVEL, 0)
 		else
-			box:SetBackdropColor(
-				C.Colors.widget[1], C.Colors.widget[2], C.Colors.widget[3], C.Colors.widget[4] or 1)
-			box:SetBackdropBorderColor(0, 0, 0, 1)
-			frame._checkMark:Hide()
+			track:SetBackdropColor(grey[1], grey[2], grey[3], grey[4] or 1)
+			track:SetBackdropBorderColor(0, 0, 0, 1)
+			thumb:ClearAllPoints()
+			thumb:SetPoint('LEFT', track, 'LEFT', THUMB_PAD, 0)
 		end
+	end
+
+	-- Animated transition
+	local function AnimateToggle(checked)
+		local ac = C.Colors.accent
+		local grey = C.Colors.widget
+		local fromX = checked and THUMB_PAD or (THUMB_PAD + TOGGLE_TRAVEL)
+		local toX   = checked and (THUMB_PAD + TOGGLE_TRAVEL) or THUMB_PAD
+
+		-- Animate thumb position
+		Widgets.StartAnimation(track, 'toggle', fromX, toX, C.Animation.durationFast,
+			function(self, value)
+				thumb:ClearAllPoints()
+				thumb:SetPoint('LEFT', track, 'LEFT', Widgets.Round(value), 0)
+				-- Interpolate track color
+				local t = (value - THUMB_PAD) / TOGGLE_TRAVEL
+				local r = Widgets.Lerp(grey[1], ac[1], t)
+				local g = Widgets.Lerp(grey[2], ac[2], t)
+				local b = Widgets.Lerp(grey[3], ac[3], t)
+				track:SetBackdropColor(r, g, b, 1)
+				track:SetBackdropBorderColor(
+					checked and Widgets.Lerp(0, ac[1], t) or Widgets.Lerp(ac[1], 0, 1 - t),
+					checked and Widgets.Lerp(0, ac[2], t) or Widgets.Lerp(ac[2], 0, 1 - t),
+					checked and Widgets.Lerp(0, ac[3], t) or Widgets.Lerp(ac[3], 0, 1 - t), 1)
+			end,
+			function()
+				ApplyVisual(checked)
+			end)
 	end
 
 	-- Click handling on the whole frame
@@ -302,24 +340,17 @@ function Widgets.CreateCheckButton(parent, label, callback)
 		if(mouseButton ~= 'LeftButton') then return end
 		if(not self:IsEnabled()) then return end
 		self._checked = not self._checked
-		UpdateVisual()
+		AnimateToggle(self._checked)
 		if(callback) then callback(self._checked) end
 	end)
 
 	frame:SetScript('OnEnter', function(self)
-		Widgets.SetBackdropHighlight(box, true)
 		if(Widgets.ShowTooltip and self._tooltipTitle) then
 			Widgets.ShowTooltip(self, self._tooltipTitle, self._tooltipBody)
 		end
 	end)
 
 	frame:SetScript('OnLeave', function(self)
-		Widgets.SetBackdropHighlight(box, false)
-		-- Re-apply checked state border after highlight reset
-		if(self._checked) then
-			box:SetBackdropBorderColor(
-				C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], C.Colors.accent[4] or 1)
-		end
 		if(Widgets.HideTooltip) then
 			Widgets.HideTooltip()
 		end
@@ -335,7 +366,7 @@ function Widgets.CreateCheckButton(parent, label, callback)
 	--- @param checked boolean
 	function frame:SetChecked(checked)
 		self._checked = checked
-		UpdateVisual()
+		ApplyVisual(checked)
 	end
 
 	Widgets.ApplyBaseMixin(frame)
