@@ -115,6 +115,13 @@ function Widgets.CreateButton(parent, text, colorScheme, width, height)
 	end)
 
 	button:SetScript('OnLeave', function(self)
+		-- If this button is selected in a ButtonGroup, don't reset visuals
+		if(self._groupSelected) then
+			if(Widgets.HideTooltip) then
+				Widgets.HideTooltip()
+			end
+			return
+		end
 		local s = self._scheme
 		self:SetBackdropColor(s.bg[1], s.bg[2], s.bg[3], s.bg[4] or 1)
 		local bc = s.border
@@ -349,6 +356,7 @@ function Widgets.CreateButtonGroup(buttons, onSelect)
 	}
 
 	local function ApplySelected(btn, selected)
+		btn._groupSelected = selected
 		if(selected) then
 			btn:SetBackdropColor(
 				C.Colors.accentDim[1], C.Colors.accentDim[2],
