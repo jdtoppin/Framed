@@ -142,3 +142,6 @@ Settings/Panels/LossOfControl.lua
 Settings/Panels/CrowdControl.lua
 Settings/Panels/Tour.lua
 Settings/Panels/About.lua
+
+# Import / Export
+ImportExport/ImportExport.lua
