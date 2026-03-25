@@ -70,6 +70,29 @@ function Settings.SetEditingUnitType(unitType)
 end
 
 -- ============================================================
+-- Editing Layout
+-- ============================================================
+
+--- Get the layout name currently being edited.
+--- Falls back to the currently active layout from AutoSwitch.
+--- @return string
+function Settings.GetEditingLayout()
+	if(Settings._editingLayout) then
+		return Settings._editingLayout
+	end
+	if(F.AutoSwitch and F.AutoSwitch.GetCurrentLayout) then
+		return F.AutoSwitch.GetCurrentLayout()
+	end
+	return nil
+end
+
+--- Set the layout name being edited.
+--- @param layoutName string
+function Settings.SetEditingLayout(layoutName)
+	Settings._editingLayout = layoutName
+end
+
+-- ============================================================
 -- Shared State
 -- Populated by MainFrame.lua and Sidebar.lua at creation time.
 -- ============================================================

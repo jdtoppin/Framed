@@ -147,7 +147,7 @@ F.Settings.RegisterPanel({
 			if(savedColor) then
 				glowColorPicker:SetColor(savedColor[1], savedColor[2], savedColor[3])
 			end
-			glowColorPicker:SetOnChanged(function(r, g, b)
+			glowColorPicker:SetOnColorChanged(function(r, g, b)
 				set('glow.color', { r, g, b })
 			end)
 			yOffset = yOffset - glowColorPicker:GetHeight() - C.Spacing.normal
