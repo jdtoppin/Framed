@@ -16,6 +16,7 @@ Libs/oUF/oUF.xml
 Libs/LibCustomGlow-1.0/LibCustomGlow-1.0.lua
 Libs/LibSerialize/LibSerialize.lua
 Libs/LibDeflate/LibDeflate.lua
+Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua
 Libs/LibSharedMedia-3.0/LibSharedMedia-3.0.lua
 
 # Core
@@ -125,6 +126,8 @@ Preview/Preview.lua
 
 # Settings
 Settings/Framework.lua
+Settings/MainFrame.lua
+Settings/Sidebar.lua
 Settings/FrameSettingsBuilder.lua
 Settings/Builders/BorderIconSettings.lua
 Settings/Builders/IndicatorCRUD.lua
