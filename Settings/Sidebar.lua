@@ -10,52 +10,180 @@ local Settings = F.Settings
 -- ============================================================
 
 local SIDEBAR_W          = 170
-local SIDEBAR_SECTION_H  = 22
-local SIDEBAR_BTN_H      = 26
-local SIDEBAR_ACCENT_W   = 2
+local SIDEBAR_SECTION_H  = 20
+local SIDEBAR_BTN_H      = 22
+local SIDEBAR_BTN_GAP    = 6
 local HEADER_HEIGHT       = 24
 local SUB_HEADER_H        = 32
 local WINDOW_MIN_H        = 450
 local WINDOW_MAX_H        = 900
 
+local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
+
+-- Dim / hover / active colors (matching KeySorter exactly)
+local DIM_ICON_R,   DIM_ICON_G,   DIM_ICON_B   = 0.5, 0.5, 0.5
+local DIM_TEXT_R,   DIM_TEXT_G,   DIM_TEXT_B   = 0.6, 0.6, 0.6
+local HOVER_R,      HOVER_G,      HOVER_B      = 1, 1, 1
+local ACCENT_R,     ACCENT_G,     ACCENT_B     = C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3]
+
 -- ============================================================
--- Sidebar Accent Border Helper
+-- AnimateWidth
+-- OnUpdate-based linear interpolation of a texture's width.
 -- ============================================================
 
---- Draw or clear the 2px left accent border on a sidebar button.
+local function AnimateWidth(texture, targetWidth, duration, onDone)
+	local parentBtn = texture:GetParent()
+	local startWidth = texture:GetWidth()
+	if(startWidth < 1) then startWidth = 1 end
+	local elapsed = 0
+	parentBtn._widthAnimOnDone = onDone
+	parentBtn:SetScript('OnUpdate', function(self, dt)
+		elapsed = elapsed + dt
+		local t = math.min(elapsed / duration, 1)
+		local w = startWidth + (targetWidth - startWidth) * t
+		texture:SetWidth(math.max(w, 1))
+		if(t >= 1) then
+			self:SetScript('OnUpdate', nil)
+			if(self._widthAnimOnDone) then
+				self._widthAnimOnDone()
+				self._widthAnimOnDone = nil
+			end
+		end
+	end)
+end
+
+-- ============================================================
+-- Sidebar Selection
+-- ============================================================
+
+--- Animate a sidebar button to its selected or deselected state.
 local function setSidebarSelected(btn, selected)
 	if(selected) then
-		btn:SetBackdropColor(
-			C.Colors.accentDim[1],
-			C.Colors.accentDim[2],
-			C.Colors.accentDim[3],
-			C.Colors.accentDim[4] or 1)
-		btn:SetBackdropBorderColor(0, 0, 0, 1)
-		if(btn._label) then
-			btn._label:SetTextColor(1, 1, 1, 1)
+		btn._highlight:Show()
+		AnimateWidth(btn._highlight, btn:GetWidth(), C.Animation.durationNormal)
+		if(btn._icon) then
+			btn._icon:SetVertexColor(ACCENT_R, ACCENT_G, ACCENT_B)
 		end
-		if(btn._accentBar) then
-			btn._accentBar:Show()
+		if(btn._label) then
+			btn._label:SetTextColor(HOVER_R, HOVER_G, HOVER_B)
 		end
 	else
-		btn:SetBackdropColor(
-			C.Colors.widget[1],
-			C.Colors.widget[2],
-			C.Colors.widget[3],
-			C.Colors.widget[4] or 1)
-		btn:SetBackdropBorderColor(0, 0, 0, 1)
-		if(btn._label) then
-			local tc = C.Colors.textNormal
-			btn._label:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+		AnimateWidth(btn._highlight, 1, C.Animation.durationNormal, function()
+			btn._highlight:Hide()
+		end)
+		if(btn._icon) then
+			btn._icon:SetVertexColor(DIM_ICON_R, DIM_ICON_G, DIM_ICON_B)
 		end
-		if(btn._accentBar) then
-			btn._accentBar:Hide()
+		if(btn._label) then
+			btn._label:SetTextColor(DIM_TEXT_R, DIM_TEXT_G, DIM_TEXT_B)
 		end
 	end
 end
 
 -- Register with Framework so SetActivePanel can update sidebar selection
 Settings._setSidebarSelected = setSidebarSelected
+
+-- ============================================================
+-- Button Factory
+-- ============================================================
+
+--- Create a single sidebar navigation button (KeySorter style).
+--- @param parent Frame  The sidebar frame
+--- @param panelInfo table  Panel registration info
+--- @param yOffset number  Vertical offset from sidebar top
+--- @return Button, number  The button frame and the next yOffset
+local function createNavButton(parent, panelInfo, yOffset)
+	local btn = CreateFrame('Button', nil, parent)
+	btn:SetHeight(SIDEBAR_BTN_H)
+	btn:ClearAllPoints()
+	btn:SetPoint('TOPLEFT', parent, 'TOPLEFT', 2, yOffset)
+	btn:SetPoint('TOPRIGHT', parent, 'TOPRIGHT', -3, yOffset)
+
+	-- Gradient highlight (hidden by default, anchored left)
+	local highlight = btn:CreateTexture(nil, 'BORDER')
+	highlight:SetPoint('TOPLEFT', 0, 0)
+	highlight:SetPoint('BOTTOMLEFT', 0, 0)
+	highlight:SetWidth(1)
+	highlight:SetTexture(GRADIENT_TEXTURE)
+	highlight:SetVertexColor(ACCENT_R, ACCENT_G, ACCENT_B, 1)
+	highlight:Hide()
+	btn._highlight = highlight
+
+	-- Icon (optional — only shown if panel provides one)
+	local labelLeftAnchor = btn
+	local labelLeftOffset = 8
+	if(panelInfo.icon) then
+		local icon = btn:CreateTexture(nil, 'ARTWORK')
+		icon:SetSize(14, 14)
+		icon:SetPoint('LEFT', 6, 0)
+		icon:SetTexture(panelInfo.icon)
+		icon:SetVertexColor(DIM_ICON_R, DIM_ICON_G, DIM_ICON_B)
+		btn._icon = icon
+		labelLeftAnchor = icon
+		labelLeftOffset = 8
+	end
+
+	-- Label
+	local label = btn:CreateFontString(nil, 'OVERLAY', 'GameFontHighlightSmall')
+	if(panelInfo.icon) then
+		label:SetPoint('LEFT', labelLeftAnchor, 'RIGHT', labelLeftOffset, 0)
+	else
+		label:SetPoint('LEFT', btn, 'LEFT', 8, 0)
+	end
+	label:SetText(panelInfo.label)
+	label:SetTextColor(DIM_TEXT_R, DIM_TEXT_G, DIM_TEXT_B)
+	btn._label = label
+
+	-- Push effect
+	local origOffsetY = 0
+	btn:SetScript('OnMouseDown', function(self)
+		if(self._icon) then
+			local point, rel, relPoint, x, _ = self._icon:GetPoint()
+			self._icon:SetPoint(point, rel, relPoint, x, -1)
+		end
+	end)
+	btn:SetScript('OnMouseUp', function(self)
+		if(self._icon) then
+			local point, rel, relPoint, x, _ = self._icon:GetPoint()
+			self._icon:SetPoint(point, rel, relPoint, x, 0)
+		end
+	end)
+
+	-- Hover
+	btn:SetScript('OnEnter', function(self)
+		if(self.value ~= Settings._activePanelId) then
+			AnimateWidth(highlight, 7, C.Animation.durationFast)
+			highlight:Show()
+			if(self._icon) then
+				self._icon:SetVertexColor(HOVER_R, HOVER_G, HOVER_B)
+			end
+			label:SetTextColor(HOVER_R, HOVER_G, HOVER_B)
+		end
+	end)
+
+	btn:SetScript('OnLeave', function(self)
+		if(self.value ~= Settings._activePanelId) then
+			AnimateWidth(highlight, 1, C.Animation.durationFast, function()
+				if(self.value ~= Settings._activePanelId) then
+					highlight:Hide()
+				end
+			end)
+			if(self._icon) then
+				self._icon:SetVertexColor(DIM_ICON_R, DIM_ICON_G, DIM_ICON_B)
+			end
+			label:SetTextColor(DIM_TEXT_R, DIM_TEXT_G, DIM_TEXT_B)
+		end
+	end)
+
+	-- Click → switch panel
+	local panelId = panelInfo.id
+	btn.value = panelId
+	btn:SetScript('OnClick', function()
+		Settings.SetActivePanel(panelId)
+	end)
+
+	return btn
+end
 
 -- ============================================================
 -- Sidebar Builder
@@ -89,7 +217,7 @@ local function buildSidebarContent(sidebar)
 		sectionPanels[sid][#sectionPanels[sid] + 1] = panel
 	end
 
-	local yOffset = -C.Spacing.tight
+	local yOffset = -8
 
 	for _, sectionId in next, orderedSections do
 		-- Find section definition
@@ -105,93 +233,46 @@ local function buildSidebarContent(sidebar)
 			end
 		end
 
-		-- Separator line before BOTTOM section
-		if(isBottomSection) then
+		-- Separator line before BOTTOM section (and between sections)
+		if(isBottomSection or yOffset < -8) then
 			local sep = sidebar:CreateTexture(nil, 'ARTWORK')
 			sep:SetHeight(1)
-			sep:SetColorTexture(
-				C.Colors.border[1],
-				C.Colors.border[2],
-				C.Colors.border[3],
-				C.Colors.border[4] or 1)
+			sep:SetColorTexture(0.25, 0.25, 0.25, 1)
 			sep:ClearAllPoints()
-			Widgets.SetPoint(sep, 'TOPLEFT',  sidebar, 'TOPLEFT',  0, yOffset)
-			Widgets.SetPoint(sep, 'TOPRIGHT', sidebar, 'TOPRIGHT', 0, yOffset)
-			yOffset = yOffset - C.Spacing.tight
+			sep:SetPoint('TOPLEFT',  sidebar, 'TOPLEFT',  6, yOffset - 4)
+			sep:SetPoint('TOPRIGHT', sidebar, 'TOPRIGHT', -6, yOffset - 4)
+			yOffset = yOffset - 10
 		end
 
 		-- Section header text (skip empty label for BOTTOM)
 		if(sectionLabel ~= '') then
-			local headerText = Widgets.CreateFontString(sidebar, C.Font.sizeSmall, C.Colors.textSecondary)
+			local headerText = sidebar:CreateFontString(nil, 'ARTWORK', 'GameFontNormalSmall')
 			headerText:ClearAllPoints()
-			Widgets.SetPoint(headerText, 'TOPLEFT', sidebar, 'TOPLEFT', C.Spacing.normal, yOffset)
+			headerText:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 8, yOffset)
 			headerText:SetText(sectionLabel)
+			headerText:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
 			yOffset = yOffset - SIDEBAR_SECTION_H
 		end
 
 		-- Panel buttons for this section
 		local panels = sectionPanels[sectionId]
 		for _, panel in next, panels do
-			local btn = Widgets.CreateButton(sidebar, panel.label, 'widget', SIDEBAR_W, SIDEBAR_BTN_H)
-			btn:ClearAllPoints()
-			Widgets.SetPoint(btn, 'TOPLEFT',  sidebar, 'TOPLEFT',  0, yOffset)
-			Widgets.SetPoint(btn, 'TOPRIGHT', sidebar, 'TOPRIGHT', 0, yOffset)
-
-			-- Left-align the label
-			if(btn._label) then
-				btn._label:ClearAllPoints()
-				Widgets.SetPoint(btn._label, 'LEFT', btn, 'LEFT', C.Spacing.normal + SIDEBAR_ACCENT_W + C.Spacing.base, 0)
-				btn._label:SetJustifyH('LEFT')
-			end
-
-			-- 2px accent left bar (hidden by default)
-			local accentBar = btn:CreateTexture(nil, 'OVERLAY')
-			accentBar:SetWidth(SIDEBAR_ACCENT_W)
-			accentBar:SetPoint('TOPLEFT',    btn, 'TOPLEFT',    0, 0)
-			accentBar:SetPoint('BOTTOMLEFT', btn, 'BOTTOMLEFT', 0, 0)
-			accentBar:SetColorTexture(
-				C.Colors.accent[1],
-				C.Colors.accent[2],
-				C.Colors.accent[3],
-				C.Colors.accent[4] or 1)
-			accentBar:Hide()
-			btn._accentBar = accentBar
-
-			-- Hover: highlight non-active buttons
-			btn:SetScript('OnEnter', function(self)
-				if(self.value ~= Settings._activePanelId) then
-					Widgets.SetBackdropHighlight(self, true)
-				end
-				if(Widgets.ShowTooltip and self._tooltipTitle) then
-					Widgets.ShowTooltip(self, self._tooltipTitle, self._tooltipBody)
-				end
-			end)
-
-			btn:SetScript('OnLeave', function(self)
-				if(self.value ~= Settings._activePanelId) then
-					Widgets.SetBackdropHighlight(self, false)
-				end
-				if(Widgets.HideTooltip) then
-					Widgets.HideTooltip()
-				end
-			end)
-
-			local panelId = panel.id
-			btn.value = panelId
-			btn:SetOnClick(function()
-				Settings.SetActivePanel(panelId)
-			end)
-
+			local btn = createNavButton(sidebar, panel, yOffset)
 			Settings._sidebarButtons[panel.id] = btn
-			yOffset = yOffset - SIDEBAR_BTN_H
+			yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
 		end
-
-		-- Gap after each section
-		yOffset = yOffset - C.Spacing.tight
 	end
 
+	-- Deferred highlight fix — button widths aren't final until first layout
+	C_Timer.After(0, function()
+		if(Settings._activePanelId and Settings._sidebarButtons[Settings._activePanelId]) then
+			local activeBtn = Settings._sidebarButtons[Settings._activePanelId]
+			activeBtn._highlight:SetWidth(activeBtn:GetWidth())
+		end
+	end)
+
 	-- Return total sidebar content height (positive value)
-	return math.abs(yOffset) + C.Spacing.tight
+	return math.abs(yOffset) + 8
 end
 
 -- ============================================================
