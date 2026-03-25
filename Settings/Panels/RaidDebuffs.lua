@@ -4,11 +4,10 @@ local Widgets = F.Widgets
 local C = F.Constants
 
 F.Settings.RegisterPanel({
-	id      = 'defensives',
-	label   = 'Defensives',
+	id      = 'raiddebuffs',
+	label   = 'Raid Debuffs',
 	section = 'AURAS',
-	order   = 12,
-	parent  = 'buffsanddebuffs',
+	order   = 13,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
@@ -25,14 +24,15 @@ F.Settings.RegisterPanel({
 		descFS:ClearAllPoints()
 		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		descFS:SetWidth(width)
-		descFS:SetText('Personal defensive cooldowns to track on yourself.')
+		descFS:SetText('Priority-filtered raid debuffs with BorderIcon rendering.')
 		descFS:SetWordWrap(true)
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- Shared BorderIcon settings
 		yOffset = F.Settings.Builders.BorderIconSettings(content, width, yOffset, {
-			unitType  = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party',
-			configKey = 'defensives',
+			unitType        = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party',
+			configKey       = 'raidDebuffs',
+			showBigIconSize = true,
 		})
 
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
