@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Frame Preset System Design — Framed</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --card: #1c2a4a;
+    --border: #2a3a5c;
+    --accent: #00ccff;
+    --accent-dim: rgba(0, 204, 255, 0.15);
+    --text: #e0e0e0;
+    --text-dim: #8899aa;
+    --text-bright: #ffffff;
+    --code-bg: #0d1526;
+    --tag-green: #2d5a3d;
+    --tag-yellow: #5a4a2d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 {
+    color: var(--accent);
+    font-size: 2em;
+    margin-bottom: 8px;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 12px;
+  }
+  h1 + p { color: var(--text-dim); margin-bottom: 32px; }
+  h2 {
+    color: var(--text-bright);
+    font-size: 1.4em;
+    margin-top: 48px;
+    margin-bottom: 16px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    color: var(--accent);
+    font-size: 1.1em;
+    margin-top: 28px;
+    margin-bottom: 10px;
+  }
+  p { margin-bottom: 14px; }
+  strong { color: var(--text-bright); }
+  code {
+    background: var(--code-bg);
+    color: var(--accent);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 16px 0;
+    font-size: 0.85em;
+    line-height: 1.6;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    color: var(--text);
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+  }
+  ul, ol {
+    margin: 12px 0 16px 24px;
+  }
+  li { margin-bottom: 6px; }
+  li code { font-size: 0.85em; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.9em;
+  }
+  th {
+    background: var(--card);
+    color: var(--accent);
+    text-align: left;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  td {
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+  }
+  tr:hover td { background: var(--card); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
+  }
+  .tag-base { background: var(--tag-green); color: #88ddaa; }
+  .tag-derived { background: var(--tag-yellow); color: #ddcc88; }
+  .sidebar-mock {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.82em;
+    line-height: 2;
+    margin: 16px 0;
+  }
+  .sidebar-mock .section {
+    color: var(--text-dim);
+    font-size: 0.75em;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .sidebar-mock .section:first-child { border-top: none; margin-top: 0; padding-top: 0; }
+  .sidebar-mock .item { color: var(--text); padding-left: 12px; }
+  .sidebar-mock .item-active { color: var(--accent); padding-left: 12px; }
+  .sidebar-mock .editing-label { color: var(--accent); font-style: italic; font-size: 0.9em; }
+  .sidebar-mock .sub-heading { color: var(--text-dim); font-size: 0.8em; padding-left: 4px; margin-top: 4px; }
+  .sidebar-mock .separator { border-top: 1px solid var(--border); margin: 8px 0; }
+  .dialog-mock {
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+    max-width: 400px;
+  }
+  .dialog-mock h4 { color: var(--text-bright); margin-bottom: 8px; }
+  .dialog-mock .cb-row { padding: 4px 0 4px 8px; }
+  .dialog-mock .cb-row .check { color: var(--accent); }
+  .dialog-mock .cb-row .uncheck { color: var(--text-dim); }
+  .dialog-mock .btn-row { text-align: right; margin-top: 12px; }
+  .dialog-mock .btn {
+    display: inline-block;
+    padding: 4px 16px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    margin-left: 8px;
+  }
+  .btn-accent { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent); }
+  .btn-default { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    margin: 8px 0;
+  }
+  .flow-num {
+    background: var(--accent);
+    color: var(--bg);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8em;
+    margin-right: 12px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 24px 0;
+  }
+  .toc ul { list-style: none; margin: 0; padding: 0; }
+  .toc li { margin: 4px 0; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Frame Preset System Design</h1>
+<p>Framed WoW Addon — Design Spec</p>
+
+<div class="toc">
+  <strong style="color: var(--text-bright);">Contents</strong>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#terminology">Terminology</a></li>
+    <li><a href="#presets">Default Presets</a></li>
+    <li><a href="#sidebar">Sidebar Structure</a></li>
+    <li><a href="#panel">Frame Presets Panel</a></li>
+    <li><a href="#auras">Aura Scoping</a></li>
+    <li><a href="#data">Data Architecture</a></li>
+    <li><a href="#resolution">Config Resolution Chain</a></li>
+    <li><a href="#editmode">Edit Mode</a></li>
+    <li><a href="#renames">Codebase Renames</a></li>
+    <li><a href="#migration">Migration</a></li>
+    <li><a href="#future">Future Enhancements</a></li>
+  </ul>
+</div>
+
+<h2 id="overview">Overview</h2>
+<p>Replace the current "layout" concept with <strong>Frame Presets</strong> — complete configuration bundles scoped to content types (Solo, Party, Raid, Arena, etc.). Each preset owns its unit frame configs (including group frames), aura configs (per unit type), and edit mode positions. The settings UI restructures around preset selection as the top-level control.</p>
+
+<h2 id="terminology">Terminology</h2>
+<ul>
+  <li><strong>Frame Preset</strong> — A complete configuration bundle for a content context. Replaces "layout" throughout the codebase.</li>
+  <li><strong>Base preset</strong> — One of the 4 core presets (Solo, Party, Raid, Arena) that have no fallback.</li>
+  <li><strong>Derived preset</strong> — One of the 3 specialized presets (Mythic Raid, World Raid, Battleground) that fall back to a base preset when uncustomized.</li>
+  <li><strong>Scoped settings</strong> — Settings that belong to a preset (unit frames, group frames, auras, positions). Contrast with global settings (appearance, click casting, profiles).</li>
+</ul>
+
+<h2 id="presets">Default Presets</h2>
+<p>Seven presets ship by default:</p>
+
+<table>
+  <thead>
+    <tr><th>Preset</th><th>Type</th><th>Fallback</th><th>Group Frame Label</th><th>Group Unit Key</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Solo</td><td><span class="tag tag-base">base</span></td><td>—</td><td><em>(hidden)</em></td><td>—</td></tr>
+    <tr><td>Party</td><td><span class="tag tag-base">base</span></td><td>—</td><td>Party Frames</td><td><code>party</code></td></tr>
+    <tr><td>Raid</td><td><span class="tag tag-base">base</span></td><td>—</td><td>Raid Frames</td><td><code>raid</code></td></tr>
+    <tr><td>Arena</td><td><span class="tag tag-base">base</span></td><td>—</td><td>Arena Frames</td><td><code>arena</code></td></tr>
+    <tr><td>Mythic Raid</td><td><span class="tag tag-derived">derived</span></td><td>Raid</td><td>Raid Frames</td><td><code>raid</code></td></tr>
+    <tr><td>World Raid</td><td><span class="tag tag-derived">derived</span></td><td>Raid</td><td>Raid Frames</td><td><code>raid</code></td></tr>
+    <tr><td>Battleground</td><td><span class="tag tag-derived">derived</span></td><td>Raid</td><td>Raid Frames</td><td><code>raid</code></td></tr>
+  </tbody>
+</table>
+
+<p>Derived presets use their fallback's config until the user makes their first change, which flips <code>customized = true</code>. A "Reset to Default" action reverts to uncustomized state. The <code>customized</code> flag only exists on derived presets — base presets have no fallback and are always used directly.</p>
+
+<h2 id="sidebar">Sidebar Structure</h2>
+
+<div class="sidebar-mock">
+  <div class="section">GLOBAL</div>
+  <div class="item">Appearance</div>
+  <div class="item">Click Casting</div>
+  <div class="item">Profiles</div>
+  <div class="section">FRAME PRESETS</div>
+  <div class="item-active">▸ Frame Presets</div>
+  <div class="section">PRESET SCOPED</div>
+  <div class="editing-label">Editing: Solo Frame Preset</div>
+  <div class="sub-heading">FRAMES</div>
+  <div class="item">&nbsp;&nbsp;Player</div>
+  <div class="item">&nbsp;&nbsp;Target</div>
+  <div class="item">&nbsp;&nbsp;Target of Target</div>
+  <div class="item">&nbsp;&nbsp;Focus</div>
+  <div class="item">&nbsp;&nbsp;Pet</div>
+  <div class="item">&nbsp;&nbsp;Boss</div>
+  <div class="item" style="color: var(--text-dim);">&nbsp;&nbsp;<em>Party Frames — hidden for Solo</em></div>
+  <div class="sub-heading">AURAS</div>
+  <div class="item">&nbsp;&nbsp;Buffs</div>
+  <div class="item">&nbsp;&nbsp;Debuffs</div>
+  <div class="item">&nbsp;&nbsp;Raid Debuffs</div>
+  <div class="item">&nbsp;&nbsp;Externals</div>
+  <div class="item">&nbsp;&nbsp;Defensives</div>
+  <div class="item">&nbsp;&nbsp;Missing Buffs</div>
+  <div class="item">&nbsp;&nbsp;Targeted Spells</div>
+  <div class="item">&nbsp;&nbsp;Dispels</div>
+  <div class="item">&nbsp;&nbsp;Private Auras</div>
+  <div class="item">&nbsp;&nbsp;Loss of Control</div>
+  <div class="item">&nbsp;&nbsp;Crowd Control</div>
+  <div class="section" style="font-size: 1em; letter-spacing: 0; text-transform: none; color: var(--text);">About</div>
+</div>
+
+<h3>Framework section definitions</h3>
+<table>
+  <thead><tr><th>Section ID</th><th>Label</th><th>Order</th></tr></thead>
+  <tbody>
+    <tr><td><code>GLOBAL</code></td><td>GLOBAL</td><td>1</td></tr>
+    <tr><td><code>FRAME_PRESETS</code></td><td>FRAME PRESETS</td><td>2</td></tr>
+    <tr><td><code>PRESET_SCOPED</code></td><td><em>(uses "Editing: X" label)</em></td><td>3</td></tr>
+    <tr><td><code>BOTTOM</code></td><td><em>(empty)</em></td><td>99</td></tr>
+  </tbody>
+</table>
+
+<h3>Key sidebar behaviors</h3>
+<ul>
+  <li>FRAMES and AURAS are visual sub-headings within the PRESET_SCOPED zone, not clickable items.</li>
+  <li>The group frame item's label changes based on the active preset: hidden for Solo, "Party Frames" for Party, "Raid Frames" for Raid/Mythic/World/BG, "Arena Frames" for Arena.</li>
+  <li>Boss frames are per-preset and always visible. All presets include a boss unitConfig.</li>
+  <li>The "Editing: X" label fires <code>EDITING_PRESET_CHANGED</code> on EventBus so scoped panels can refresh.</li>
+</ul>
+
+<h2 id="panel">Frame Presets Panel</h2>
+
+<h3>Preset List</h3>
+<p>Rows for all 7 presets, similar to the indicator list pattern:</p>
+<ul>
+  <li>Each row shows: preset name, status tag (<span class="tag tag-base">base</span> or <span class="tag tag-derived">uses: Raid</span> / <span class="tag tag-derived">customized</span>), and a [Select] button.</li>
+  <li>The currently selected preset row shows accent highlight and "Editing" state.</li>
+  <li>Row hover highlights persist when hovering child buttons.</li>
+</ul>
+
+<h3>Actions</h3>
+<ul>
+  <li><strong>Copy Settings From...</strong> — Dropdown to pick a source preset + "Copy" button. Copies everything: unitConfigs, auras, and positions. If copying to a derived preset, flips <code>customized = true</code>. If the source is an uncustomized derived preset, copies the fallback's data.</li>
+  <li><strong>Reset to Default</strong> — Resets the selected preset to its default config and sets <code>customized = false</code>. Only available for derived presets.</li>
+</ul>
+
+<h3>Auto-Switch</h3>
+<p>Below the preset list, a mapping of content types to presets. Content type keys use camelCase enum values to avoid collision with preset display names.</p>
+<table>
+  <thead><tr><th>Content Type</th><th>Default Preset</th></tr></thead>
+  <tbody>
+    <tr><td>Solo</td><td>Solo Frame Preset</td></tr>
+    <tr><td>Party</td><td>Party Frame Preset</td></tr>
+    <tr><td>Raid</td><td>Raid Frame Preset</td></tr>
+    <tr><td>Mythic Raid</td><td>Mythic Raid Preset</td></tr>
+    <tr><td>World Raid</td><td>World Raid Preset</td></tr>
+    <tr><td>Battleground</td><td>Battleground Preset</td></tr>
+    <tr><td>Arena</td><td>Arena Frame Preset</td></tr>
+  </tbody>
+</table>
+
+<h3>Spec Overrides</h3>
+<p>Collapsible per-spec sections. Each spec expands to show content type → preset dropdown overrides. "Use default" means fall through to the auto-switch mapping. Only overrides where a specific preset is selected are stored.</p>
+
+<pre><code>▸ Restoration
+    Party Content         [Party Preset       ▼]
+    Raid Content          [Raid Preset        ▼]
+    Mythic Raid Content   [Use default        ▼]
+    World Raid Content    [Use default        ▼]
+    Battleground Content  [Use default        ▼]
+    Arena Content         [Use default        ▼]
+    Solo Content          [Use default        ▼]
+▸ Guardian              (collapsed)
+▸ Balance               (collapsed)
+▸ Feral                 (collapsed)</code></pre>
+
+<p>Stored as: <code>FramedCharDB.specOverrides[specID][contentType] = presetName</code></p>
+
+<h2 id="auras">Aura Scoping</h2>
+
+<p>Auras are scoped <strong>per preset AND per unit type</strong>. The full path is:</p>
+<p style="text-align: center; font-size: 1.1em; color: var(--accent); margin: 20px 0;"><strong>Preset → Unit Type → Aura Type → Config</strong></p>
+
+<p>Auras are stored in a dedicated <code>auras</code> subtree within each preset, <strong>NOT</strong> inside <code>unitConfigs</code>. All element setup code and settings panels must read auras from <code>preset.auras[unitType]</code>.</p>
+
+<h3>Aura Panel UI</h3>
+<div class="card">
+  <div style="margin-bottom: 12px;">Configure for: <span style="color: var(--accent); border: 1px solid var(--border); padding: 2px 12px; border-radius: 4px;">Party Frames ▼</span></div>
+  <div style="margin-bottom: 16px;"><span class="btn btn-default">Copy to...</span></div>
+  <div style="color: var(--text-dim); font-style: italic;">(aura-specific settings / indicator CRUD)</div>
+</div>
+<p>The dropdown lists all unit types relevant to the active preset. Default selection: group frames for Party/Raid/Arena, Player for Solo.</p>
+
+<h3>Copy To</h3>
+<div class="dialog-mock">
+  <h4>Copy Buff Settings</h4>
+  <p style="color: var(--text-dim); font-size: 0.9em;">Copy Player's buff settings to:</p>
+  <div class="cb-row"><span class="check">✓</span> Target</div>
+  <div class="cb-row"><span class="check">✓</span> Target of Target</div>
+  <div class="cb-row"><span class="uncheck">○</span> Focus</div>
+  <div class="cb-row"><span class="uncheck">○</span> Pet</div>
+  <div class="cb-row"><span class="uncheck">○</span> Boss</div>
+  <div class="cb-row"><span class="check">✓</span> Party Frames</div>
+  <div class="btn-row">
+    <span class="btn btn-default">Cancel</span>
+    <span class="btn btn-accent">Copy</span>
+  </div>
+</div>
+<p>Copy overwrites the target units' config entirely for that aura type (no merge).</p>
+
+<h3>Scoped Page Banner</h3>
+<p>All preset-scoped pages show a subtle banner: <span style="color: var(--accent);">"These settings apply to: Party Frame Preset"</span></p>
+
+<h2 id="data">Data Architecture</h2>
+
+<h3>FramedDB.presets</h3>
+<pre><code>FramedDB.presets = {
+    ["Solo"] = {
+        isBase = true,
+        -- no 'customized' or 'fallback' on base presets
+        positions = {},
+        unitConfigs = {
+            player = { width, height, health, power, name, ... },
+            target = { ... },
+            targettarget = { ... },
+            focus = { ... },
+            pet = { ... },
+            boss = { ... },
+            -- no group frame key for Solo
+        },
+        auras = {
+            player = {
+                buffs = { indicators = { ["My Buffs"] = {...} } },
+                debuffs = { ... },
+                raidDebuffs = { ... },
+                externals = { ... },
+                defensives = { ... },
+                missingBuffs = { ... },
+                targetedSpells = { ... },
+                dispellable = { ... },
+                privateAuras = { ... },
+                lossOfControl = {},
+                crowdControl = {},
+            },
+            target = { ... },
+            targettarget = { ... },
+            focus = { ... },
+            pet = { ... },
+            boss = { ... },
+        },
+    },
+    ["Party"] = {
+        isBase = true,
+        positions = {},
+        unitConfigs = {
+            player = { ... },
+            target = { ... },
+            boss = { ... },
+            party = { ... },     -- group frames as typed unitConfig key
+            ...
+        },
+        auras = {
+            player = { ... },
+            target = { ... },
+            party = { ... },     -- auras use same key as unitConfigs
+            boss = { ... },
+            ...
+        },
+    },
+    ["Raid"]  = { isBase = true, ... },
+    ["Arena"] = { isBase = true, ... },
+    ["Mythic Raid"]  = { customized = false, fallback = "Raid", ... },
+    ["World Raid"]   = { customized = false, fallback = "Raid", ... },
+    ["Battleground"] = { customized = false, fallback = "Raid", ... },
+}</code></pre>
+
+<h3>Key data structure decisions</h3>
+<ul>
+  <li><strong>No <code>groupConfig</code> field.</strong> Group frames use typed keys in <code>unitConfigs</code>: <code>party</code>, <code>raid</code>, or <code>arena</code>.</li>
+  <li><strong>Auras live in <code>preset.auras</code>, NOT in <code>unitConfigs</code>.</strong> Breaking change — all code reading <code>unitConfigs[unitType].buffs</code> must change.</li>
+  <li><strong><code>customized</code> and <code>fallback</code> only exist on derived presets.</strong></li>
+  <li><strong>Boss unitConfig exists on all presets.</strong></li>
+  <li><strong><code>lossOfControl</code> and <code>crowdControl</code></strong> ship as empty tables.</li>
+</ul>
+
+<h3>Default Aura Config</h3>
+<p>Every unit type ships with a default buff indicator:</p>
+<pre><code>{
+    name = "My Buffs",
+    type = "Icons",
+    enabled = true,
+    spells = {},            -- empty = track all helpful auras
+    castBy = "me",          -- filters to player-cast only
+    iconSize = 14,
+    maxDisplayed = 3,
+    orientation = "RIGHT",
+    anchor = { "TOPLEFT", nil, "TOPLEFT", 2, -2 },
+}</code></pre>
+
+<h3>FramedCharDB changes</h3>
+<pre><code>FramedCharDB = {
+    autoSwitch = {
+        ['solo'] = "Solo",
+        ['party'] = "Party",
+        ['raid'] = "Raid",
+        ['mythicRaid'] = "Mythic Raid",
+        ['worldRaid'] = "World Raid",
+        ['battleground'] = "Battleground",
+        ['arena'] = "Arena",
+    },
+    specOverrides = {
+        -- [specID] = { [contentType] = presetName }
+    },
+    tourState = { ... },
+}</code></pre>
+<p><code>editModePositions</code> removed — positions now live in each preset. Old <code>specOverrides</code> flat format is dead code.</p>
+
+<h2 id="resolution">Config Resolution Chain</h2>
+
+<h3>Auto-switch (runtime)</h3>
+<div class="card">
+  <div class="flow-step"><div class="flow-num">1</div><div>Detect content type (solo, party, raid, arena, etc.)</div></div>
+  <div class="flow-step"><div class="flow-num">2</div><div>Check spec override: <code>specOverrides[activeSpecID][contentType]</code></div></div>
+  <div class="flow-step"><div class="flow-num">3</div><div>Else use <code>autoSwitch[contentType]</code></div></div>
+  <div class="flow-step"><div class="flow-num">4</div><div>Load preset. If <code>customized == false</code> and <code>fallback</code> exists, load fallback instead.</div></div>
+  <div class="flow-step"><div class="flow-num">5</div><div>Apply unitConfigs, auras, and positions.</div></div>
+</div>
+
+<h3>StyleBuilder.GetConfig(unitType)</h3>
+<ol>
+  <li>Get active preset from <code>F.AutoSwitch.GetCurrentPreset()</code></li>
+  <li>Load <code>FramedDB.presets[presetName]</code></li>
+  <li>If not customized and has fallback, load fallback preset</li>
+  <li>Return <code>preset.unitConfigs[unitType]</code></li>
+</ol>
+
+<h3>Aura element setup</h3>
+<ol>
+  <li>Get active preset (same resolution)</li>
+  <li>Read <code>preset.auras[unitType][auraType]</code></li>
+  <li>Pass config to element Setup function</li>
+</ol>
+
+<h3>Settings UI reads/writes</h3>
+<p>All settings panels use <code>F.Settings.GetEditingPreset()</code> (not auto-switch). Fires <code>EDITING_PRESET_CHANGED</code> on change. First write to a derived preset flips <code>customized = true</code>.</p>
+
+<h2 id="editmode">Edit Mode</h2>
+<p>Edit Mode respects the "Editing: X" preset from settings, not auto-switch.</p>
+<ul>
+  <li>Label: <strong>"Edit Mode: X Frame Preset"</strong></li>
+  <li>Preview frames reflect the selected preset's config</li>
+  <li>Positions save to <code>FramedDB.presets[editingPreset].positions</code></li>
+  <li>Can set up positions for any preset regardless of current content type</li>
+</ul>
+
+<h2 id="renames">Codebase Renames</h2>
+<table>
+  <thead><tr><th>Old</th><th>New</th></tr></thead>
+  <tbody>
+    <tr><td><code>FramedDB.layouts</code></td><td><code>FramedDB.presets</code></td></tr>
+    <tr><td><code>GetEditingLayout()</code></td><td><code>GetEditingPreset()</code></td></tr>
+    <tr><td><code>SetEditingLayout()</code></td><td><code>SetEditingPreset()</code></td></tr>
+    <tr><td><code>AutoSwitch.GetCurrentLayout()</code></td><td><code>AutoSwitch.GetCurrentPreset()</code></td></tr>
+    <tr><td><code>layouts.X.unitConfigs</code></td><td><code>presets.X.unitConfigs</code></td></tr>
+    <tr><td><code>UNIT_FRAMES, GROUP_FRAMES, AURAS</code></td><td><code>PRESET_SCOPED</code></td></tr>
+    <tr><td><code>GENERAL</code></td><td><code>GLOBAL</code></td></tr>
+    <tr><td><code>"Layouts"</code> panel</td><td><code>"Frame Presets"</code> panel</td></tr>
+    <tr><td><code>LayoutManager</code></td><td><code>PresetManager</code></td></tr>
+    <tr><td><code>LayoutDefaults</code></td><td><code>PresetDefaults</code></td></tr>
+    <tr><td><code>LAYOUT_CHANGED</code></td><td><code>PRESET_CHANGED</code></td></tr>
+    <tr><td><em>(new)</em></td><td><code>EDITING_PRESET_CHANGED</code></td></tr>
+  </tbody>
+</table>
+
+<h2 id="migration">Migration</h2>
+<p>No migration code needed — only one user (developer) has the addon installed. Clean install with new <code>accountDefaults</code> defining the full preset structure. Old <code>FramedDB</code> can be deleted manually.</p>
+
+<h2 id="future">Future Enhancements</h2>
+<ul>
+  <li><strong>Cross-preset aura copy</strong> — Copy aura settings from one preset to another.</li>
+  <li><strong>Sync presets</strong> — Keep multiple presets in sync automatically.</li>
+  <li><strong>Import/Export presets</strong> — Part of Phase 7.</li>
+  <li><strong>Custom presets</strong> — User-created presets beyond the 7 defaults.</li>
+</ul>
+
+</div>
+</body>
+</html>
