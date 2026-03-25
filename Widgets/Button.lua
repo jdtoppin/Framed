@@ -456,6 +456,98 @@ function Widgets.CreateButtonGroup(buttons, onSelect)
 end
 
 -- ============================================================
+-- CreateMultiSelectButtonGroup
+-- Like ButtonGroup but allows multiple selections (toggle).
+-- ============================================================
+
+--- Wrap existing buttons as a multi-select toggle group.
+--- Each button must have a `.value` field set by the caller.
+--- @param buttons table Array of Button frames
+--- @param onChange? function Called with (selectedValues) on any change
+--- @return table group Controller table (not a frame)
+function Widgets.CreateMultiSelectButtonGroup(buttons, onChange)
+	local group = {
+		_buttons   = buttons,
+		_selected  = {},    -- [value] = true for selected buttons
+		_onChange  = onChange,
+	}
+
+	local function ApplyState(btn, selected)
+		btn._groupSelected = selected
+		if(selected) then
+			btn:SetBackdropColor(
+				C.Colors.accentDim[1], C.Colors.accentDim[2],
+				C.Colors.accentDim[3], C.Colors.accentDim[4] or 1)
+			btn:SetBackdropBorderColor(
+				C.Colors.accent[1], C.Colors.accent[2],
+				C.Colors.accent[3], C.Colors.accent[4] or 1)
+			if(btn._label) then
+				btn._label:SetTextColor(1, 1, 1, 1)
+			end
+		else
+			btn:SetBackdropColor(
+				C.Colors.widget[1], C.Colors.widget[2],
+				C.Colors.widget[3], C.Colors.widget[4] or 1)
+			btn:SetBackdropBorderColor(0, 0, 0, 1)
+			if(btn._label) then
+				local tc = C.Colors.textNormal
+				btn._label:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+			end
+		end
+	end
+
+	local function ToggleButton(btn)
+		local val = btn.value
+		if(group._selected[val]) then
+			group._selected[val] = nil
+			ApplyState(btn, false)
+		else
+			group._selected[val] = true
+			ApplyState(btn, true)
+		end
+		if(group._onChange) then
+			group._onChange(group._selected)
+		end
+	end
+
+	-- Wire up each button
+	for _, btn in next, buttons do
+		btn:SetScript('OnClick', function(self)
+			if(not self:IsEnabled()) then return end
+			ToggleButton(self)
+		end)
+		ApplyState(btn, false)
+	end
+
+	--- Get table of selected values { [value] = true, ... }
+	function group:GetValues()
+		local copy = {}
+		for k, v in next, self._selected do
+			copy[k] = v
+		end
+		return copy
+	end
+
+	--- Programmatically set selected values.
+	--- @param values table { [value] = true, ... }
+	function group:SetValues(values)
+		self._selected = {}
+		for _, btn in next, self._buttons do
+			local selected = values[btn.value] == true
+			self._selected[btn.value] = selected or nil
+			ApplyState(btn, selected)
+		end
+	end
+
+	--- Set the onChange callback.
+	function group:SetOnChange(func)
+		self._onChange = func
+	end
+
+	return group
+end
+
+-- ============================================================
 -- CreateInfoButton
 -- A small icon button pre-configured as a tooltip trigger.
 -- ============================================================

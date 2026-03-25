@@ -208,26 +208,33 @@ local function buildStep2(parent)
 	Widgets.SetPoint(specText, 'TOPLEFT', title, 'BOTTOMLEFT', 0, -C.Spacing.base)
 	specText:SetText('Detected: ' .. specName .. ' (' .. class .. ')')
 
-	-- Role checkboxes (multi-select)
+	-- Role buttons (multi-select toggle)
 	local roleLabels = { 'Tank', 'Healer', 'DPS' }
 	local roleValues = { 'tank', 'healer', 'dps' }
 	choices.roles = choices.roles or {}
+	local roleButtons = {}
+	local roleBtnW = 96
+	local roleBtnGap = C.Spacing.base
 
 	for i, label in next, roleLabels do
-		local check = Widgets.CreateCheckButton(frame, label, function(checked)
-			choices.roles[roleValues[i]] = checked or nil
-		end)
-		check:ClearAllPoints()
-		local yOff = -(i - 1) * (BTN_H + C.Spacing.base)
-		Widgets.SetPoint(check, 'TOPLEFT', specText, 'BOTTOMLEFT', 0, -C.Spacing.normal + yOff)
+		local btn = Widgets.CreateButton(frame, label, 'widget', roleBtnW, BTN_H)
+		btn.value = roleValues[i]
+		btn:ClearAllPoints()
+		local xOff = (i - 1) * (roleBtnW + roleBtnGap)
+		Widgets.SetPoint(btn, 'TOPLEFT', specText, 'BOTTOMLEFT', xOff, -C.Spacing.normal)
+		roleButtons[#roleButtons + 1] = btn
+	end
 
-		-- Pre-check detected role (WoW returns TANK/HEALER/DAMAGER)
-		local roleMap = { TANK = 'tank', HEALER = 'healer', DAMAGER = 'dps' }
-		local mappedRole = detectedRole and roleMap[detectedRole]
-		if(mappedRole and mappedRole == roleValues[i]) then
-			check:SetChecked(true)
-			choices.roles[roleValues[i]] = true
-		end
+	local roleGroup = Widgets.CreateMultiSelectButtonGroup(roleButtons, function(selected)
+		choices.roles = selected
+	end)
+
+	-- Pre-select detected role
+	local roleMap = { TANK = 'tank', HEALER = 'healer', DAMAGER = 'dps' }
+	local mappedRole = detectedRole and roleMap[detectedRole]
+	if(mappedRole) then
+		roleGroup:SetValues({ [mappedRole] = true })
+		choices.roles = { [mappedRole] = true }
 	end
 
 	buildNavRow(frame, true)
