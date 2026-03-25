@@ -26,6 +26,16 @@ Constants.Colors = {
 	textDisabled = { 0.35, 0.35, 0.35, 1 },
 }
 
+-- Dispel type colors (3-value RGB — alpha applied at call site)
+-- Physical/bleed included for healer awareness
+Constants.Colors.dispel = {
+	Magic    = { 0.2, 0.6, 1   },
+	Curse    = { 0.6, 0,   1   },
+	Disease  = { 0.6, 0.4, 0   },
+	Poison   = { 0,   0.6, 0.1 },
+	Physical = { 0.8, 0,   0   },
+}
+
 -- ============================================================
 -- Spacing (4px base unit)
 -- ============================================================
@@ -118,6 +128,17 @@ Constants.GlowType = {
 	PROC  = 'Proc',
 	PIXEL = 'Pixel',
 	SOFT  = 'Soft',
+	SHINE = 'Shine',
+}
+
+-- ============================================================
+-- Dispel Highlight Types
+-- ============================================================
+Constants.HighlightType = {
+	GRADIENT_FULL  = 'gradient_full',
+	GRADIENT_HALF  = 'gradient_half',
+	SOLID_CURRENT  = 'solid_current',
+	SOLID_ENTIRE   = 'solid_entire',
 }
 
 -- ============================================================
