@@ -111,3 +111,32 @@ Layouts/Manager.lua
 
 # Edit Mode
 EditMode/EditMode.lua
+
+# Preview
+Preview/Preview.lua
+
+# Settings
+Settings/Framework.lua
+Settings/FrameSettingsBuilder.lua
+Settings/Panels/Appearance.lua
+Settings/Panels/Layouts.lua
+Settings/Panels/Profiles.lua
+Settings/Panels/ClickCasting.lua
+Settings/Panels/Player.lua
+Settings/Panels/Target.lua
+Settings/Panels/TargetOfTarget.lua
+Settings/Panels/Focus.lua
+Settings/Panels/Pet.lua
+Settings/Panels/Boss.lua
+Settings/Panels/PartyFrames.lua
+Settings/Panels/RaidFrames.lua
+Settings/Panels/Battlegrounds.lua
+Settings/Panels/WorldRaids.lua
+Settings/Panels/ArenaFrames.lua
+Settings/Panels/BuffsAndDebuffs.lua
+Settings/Panels/Externals.lua
+Settings/Panels/Defensives.lua
+Settings/Panels/LossOfControl.lua
+Settings/Panels/CrowdControl.lua
+Settings/Panels/Tour.lua
+Settings/Panels/About.lua

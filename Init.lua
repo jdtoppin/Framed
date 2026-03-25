@@ -70,11 +70,17 @@ SlashCmdList['FRAMED'] = function(msg)
 		else
 			F.EditMode.Enter()
 		end
-	else
+	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
+		print('  /framed — Open settings')
 		print('  /framed version — Show version')
 		print('  /framed config — Print config debug info')
 		print('  /framed events — Print registered events')
 		print('  /framed edit — Toggle Edit Mode')
+	else
+		-- Default: open settings
+		if(F.Settings and F.Settings.Toggle) then
+			F.Settings.Toggle()
+		end
 	end
 end
