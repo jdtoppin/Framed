@@ -74,11 +74,8 @@ local function Update(self, event, unit)
 	end
 
 	-- Iterate helpful auras
-	local i = 1
-	while(true) do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HELPFUL')
-		if(not auraData) then break end
-
+	local auras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
 			local auraEntry
@@ -133,7 +130,6 @@ local function Update(self, event, unit)
 				end
 			end
 		end
-		i = i + 1
 	end
 
 	-- Dispatch to each renderer
