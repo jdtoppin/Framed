@@ -77,6 +77,14 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 		local startX = sx / scale
 		local startY = sy / scale
 
+		-- Capture initial frame position for anchor compensation
+		local _, _, _, frameStartX, frameStartY = targetFrame:GetPoint(1)
+		frameStartX = frameStartX or 0
+		frameStartY = frameStartY or 0
+
+		local resizesLeft = (point == 'LEFT' or point == 'TOPLEFT' or point == 'BOTTOMLEFT')
+		local resizesTop  = (point == 'TOP' or point == 'TOPLEFT' or point == 'TOPRIGHT')
+
 		-- Only run OnUpdate during active drag
 		self:SetScript('OnUpdate', function(s)
 			local cx, cy = GetCursorPosition()
@@ -91,10 +99,10 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 			-- Determine resize direction based on handle point
 			if(point == 'RIGHT' or point == 'TOPRIGHT' or point == 'BOTTOMRIGHT') then
 				newW = math.max(20, startW + dx)
-			elseif(point == 'LEFT' or point == 'TOPLEFT' or point == 'BOTTOMLEFT') then
+			elseif(resizesLeft) then
 				newW = math.max(20, startW - dx)
 			end
-			if(point == 'TOP' or point == 'TOPLEFT' or point == 'TOPRIGHT') then
+			if(resizesTop) then
 				newH = math.max(16, startH + dy)
 			elseif(point == 'BOTTOM' or point == 'BOTTOMLEFT' or point == 'BOTTOMRIGHT') then
 				newH = math.max(16, startH - dy)
@@ -108,9 +116,31 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 
 			targetFrame:SetSize(newW, newH)
 
+			-- Compensate anchor position when resizing from top/left edges
+			-- so the opposite edge stays fixed visually
+			local offsetX = frameStartX
+			local offsetY = frameStartY
+			if(resizesLeft) then
+				offsetX = frameStartX - (newW - startW)
+			end
+			if(resizesTop) then
+				offsetY = frameStartY + (newH - startH)
+			end
+
+			if(resizesLeft or resizesTop) then
+				local anchorPoint, anchorTo, anchorRelPoint = targetFrame:GetPoint(1)
+				targetFrame:ClearAllPoints()
+				Widgets.SetPoint(targetFrame, anchorPoint, anchorTo, anchorRelPoint, offsetX, offsetY)
+			end
+
 			-- Update edit cache
 			EditCache.Set(frameKey, 'width', Widgets.Round(newW))
 			EditCache.Set(frameKey, 'height', Widgets.Round(newH))
+
+			if(resizesLeft or resizesTop) then
+				EditCache.Set(frameKey, 'position.x', Widgets.Round(offsetX))
+				EditCache.Set(frameKey, 'position.y', Widgets.Round(offsetY))
+			end
 
 			-- Fire event for live settings panel update
 			F.EventBus:Fire('EDIT_MODE_FRAME_RESIZED', frameKey, newW, newH)
