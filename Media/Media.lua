@@ -84,6 +84,14 @@ if(LSM) then
 	-- Fonts
 	LSM:Register('font', 'Expressway',              F.Media.GetFont('Expressway.ttf'),              255)
 	LSM:Register('font', 'Accidental Presidency',   F.Media.GetFont('Accidental_Presidency.ttf'),   255)
+	LSM:Register('font', 'Noto Sans Medium',         F.Media.GetFont('NotoSans-Medium.ttf'),          255)
+	LSM:Register('font', 'Roboto',                   F.Media.GetFont('Roboto-Regular.ttf'),           255)
+	LSM:Register('font', 'Roboto Medium',            F.Media.GetFont('Roboto-Medium.ttf'),            255)
+	LSM:Register('font', 'Roboto Bold',              F.Media.GetFont('Roboto-Bold.ttf'),              255)
+	LSM:Register('font', 'Roboto Condensed',         F.Media.GetFont('RobotoCondensed-Regular.ttf'),  255)
+	LSM:Register('font', 'Roboto Condensed Medium',  F.Media.GetFont('RobotoCondensed-Medium.ttf'),   255)
+	LSM:Register('font', 'Roboto Condensed Bold',    F.Media.GetFont('RobotoCondensed-Bold.ttf'),     255)
+	LSM:Register('font', 'Space Grotesk Medium',     F.Media.GetFont('SpaceGrotesk-Medium.ttf'),      255)
 
 	-- Statusbar textures
 	LSM:Register('statusbar', 'Framed Plain',             F.Media.GetPlainTexture())
