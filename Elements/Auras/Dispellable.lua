@@ -86,29 +86,19 @@ local function Update(self, event, unit)
 
 	local onlyDispellableByMe = element._onlyDispellableByMe
 
-	-- Filter is 'HARMFUL' so all results are harmful — do not read auraData.isHarmful
-	local i = 1
-	while(true) do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HARMFUL')
-		if(not auraData) then break end
+	-- Choose filter based on onlyDispellableByMe setting
+	local primaryFilter = onlyDispellableByMe and 'HARMFUL|RAID_PLAYER_DISPELLABLE' or 'HARMFUL'
+	local dispellableAuras = C_UnitAuras.GetUnitAuras(unit, primaryFilter)
 
+	for _, auraData in next, dispellableAuras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
 			local dispelName = auraData.dispelName
 			local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
 
 			if(dispelSafe) then
-				local isPhysical = isPhysicalOrBleed(dispelName)
-				local dispelType = isPhysical and 'Physical' or dispelName
-
-				-- Apply "only dispellable by me" filter
-				-- Physical/bleeds always pass (for healer awareness)
-				local passFilter = true
-				if(onlyDispellableByMe and not isPhysical) then
-					passFilter = F.CanPlayerDispel(dispelType)
-				end
-
-				if(passFilter and DISPEL_PRIORITY[dispelType]) then
+				local dispelType = dispelName or 'Physical'
+				if(DISPEL_PRIORITY[dispelType]) then
 					local priority = DISPEL_PRIORITY[dispelType]
 					if(priority < bestPriority) then
 						bestPriority   = priority
@@ -122,8 +112,33 @@ local function Update(self, event, unit)
 				end
 			end
 		end
+	end
 
-		i = i + 1
+	-- Supplementary query: Physical/bleed debuffs (not returned by RAID_PLAYER_DISPELLABLE)
+	-- Only needed when onlyDispellableByMe is true (plain HARMFUL already includes them)
+	local showPhysical = element._showPhysicalDebuffs
+	if(onlyDispellableByMe and showPhysical ~= false) then
+		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
+		for _, auraData in next, raidAuras do
+			local spellId = auraData.spellId
+			if(F.IsValueNonSecret(spellId)) then
+				local dispelName = auraData.dispelName
+				local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
+
+				if(dispelSafe and isPhysicalOrBleed(dispelName)) then
+					local priority = DISPEL_PRIORITY.Physical
+					if(priority < bestPriority) then
+						bestPriority   = priority
+						bestType       = 'Physical'
+						bestIcon       = auraData.icon
+						bestSpellId    = spellId
+						bestDuration   = auraData.duration
+						bestExpiration = auraData.expirationTime
+						bestStacks     = auraData.applications or 0
+					end
+				end
+			end
+		end
 	end
 
 	if(bestType) then
@@ -267,13 +282,14 @@ function F.Elements.Dispellable.Setup(self, config)
 
 	-- 3. Build element container
 	local container = {
-		_borderIcon          = borderIcon,
-		_highlightType       = highlightType,
-		_onlyDispellableByMe = config.onlyDispellableByMe or false,
-		_overlayGradientFull = gradientFull,
-		_overlayGradientHalf = gradientHalf,
-		_overlaySolidCurrent = solidCurrent,
-		_overlaySolidEntire  = solidEntire,
+		_borderIcon            = borderIcon,
+		_highlightType         = highlightType,
+		_onlyDispellableByMe   = config.onlyDispellableByMe or false,
+		_showPhysicalDebuffs   = config.showPhysicalDebuffs ~= false,
+		_overlayGradientFull   = gradientFull,
+		_overlayGradientHalf   = gradientHalf,
+		_overlaySolidCurrent   = solidCurrent,
+		_overlaySolidEntire    = solidEntire,
 	}
 
 	self.FramedDispellable = container
