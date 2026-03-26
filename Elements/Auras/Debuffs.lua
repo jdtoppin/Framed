@@ -21,51 +21,56 @@ local function Update(self, event, unit)
 	local maxDisplayed = cfg.maxDisplayed or 3
 	local onlyDispellableByMe = cfg.onlyDispellableByMe
 
-	-- Collect auras
-	local auraList = {}
-	local i = 1
-	while(true) do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HARMFUL')
-		if(not auraData) then break end
+	-- Collect auras via new API with server-side sorting
+	local rawAuras
+	if(onlyDispellableByMe) then
+		rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID_PLAYER_DISPELLABLE', nil, Enum.UnitAuraSortRule.Default)
+	else
+		rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL', nil, Enum.UnitAuraSortRule.Default)
+	end
 
+	local auraList = {}
+	for _, auraData in next, rawAuras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
 			local dispelName = auraData.dispelName
 			local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
 
-			-- Apply dispellable-by-me filter if enabled
-			local passFilter = true
-			if(onlyDispellableByMe and dispelSafe) then
-				-- Only show auras the player can dispel (or non-dispellable ones like bleeds)
-				if(dispelName and dispelName ~= '') then
-					-- Check if player's class/spec can dispel this type
-					passFilter = F.CanPlayerDispel(dispelName)
-				end
-				-- Physical/bleeds (no dispelName) always pass
-			end
-
-			if(passFilter) then
-				auraList[#auraList + 1] = {
-					spellId        = spellId,
-					icon           = auraData.icon,
-					duration       = auraData.duration,
-					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications or 0,
-					dispelType     = dispelSafe and dispelName or nil,
-					isBossAura     = auraData.isBossAura,
-				}
-			end
+			auraList[#auraList + 1] = {
+				spellId        = spellId,
+				icon           = auraData.icon,
+				duration       = auraData.duration,
+				expirationTime = auraData.expirationTime,
+				stacks         = auraData.applications or 0,
+				dispelType     = dispelSafe and dispelName or nil,
+				isBossAura     = auraData.isBossAura,
+			}
 		end
-		i = i + 1
 	end
 
-	-- Sort by priority: boss auras first, then by duration
-	table.sort(auraList, function(a, b)
-		if(a.isBossAura ~= b.isBossAura) then
-			return a.isBossAura and true or false
+	-- When onlyDispellableByMe is on, also include Physical/bleed debuffs
+	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them)
+	if(onlyDispellableByMe) then
+		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
+		for _, auraData in next, raidAuras do
+			local spellId = auraData.spellId
+			if(F.IsValueNonSecret(spellId)) then
+				local dispelName = auraData.dispelName
+				local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
+				if(dispelSafe and (not dispelName or dispelName == '' or dispelName == 'Physical')) then
+					auraList[#auraList + 1] = {
+						spellId        = spellId,
+						icon           = auraData.icon,
+						duration       = auraData.duration,
+						expirationTime = auraData.expirationTime,
+						stacks         = auraData.applications or 0,
+						dispelType     = nil,
+						isBossAura     = auraData.isBossAura,
+					}
+				end
+			end
 		end
-		return (a.duration or 0) > (b.duration or 0)
-	end)
+	end
 
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
