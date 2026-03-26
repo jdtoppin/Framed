@@ -45,8 +45,9 @@ end
 F.Settings.RegisterPanel({
 	id      = 'crowdcontrol',
 	label   = 'Crowd Control',
-	section = 'AURAS',
-	order   = 21,
+	section    = 'PRESET_SCOPED',
+	subSection = 'auras',
+	order      = 21,
 	parent  = 'lossofcontrol',
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530

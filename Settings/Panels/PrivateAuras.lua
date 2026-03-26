@@ -38,8 +38,9 @@ end
 F.Settings.RegisterPanel({
 	id      = 'privateauras',
 	label   = 'Private Auras',
-	section = 'AURAS',
-	order   = 17,
+	section    = 'PRESET_SCOPED',
+	subSection = 'auras',
+	order      = 17,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400

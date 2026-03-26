@@ -63,7 +63,7 @@ end
 F.Settings.RegisterPanel({
 	id      = 'profiles',
 	label   = 'Profiles',
-	section = 'GENERAL',
+	section = 'GLOBAL',
 	order   = 30,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530

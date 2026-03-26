@@ -6,8 +6,9 @@ local C = F.Constants
 F.Settings.RegisterPanel({
 	id      = 'raiddebuffs',
 	label   = 'Raid Debuffs',
-	section = 'AURAS',
-	order   = 13,
+	section    = 'PRESET_SCOPED',
+	subSection = 'auras',
+	order      = 13,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400

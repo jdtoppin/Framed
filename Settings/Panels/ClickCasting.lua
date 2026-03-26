@@ -72,7 +72,7 @@ end
 F.Settings.RegisterPanel({
 	id      = 'clickcasting',
 	label   = 'Click Casting',
-	section = 'GENERAL',
+	section = 'GLOBAL',
 	order   = 40,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530

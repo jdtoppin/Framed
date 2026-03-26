@@ -40,8 +40,9 @@ end
 F.Settings.RegisterPanel({
 	id      = 'dispels',
 	label   = 'Dispels',
-	section = 'AURAS',
-	order   = 15,
+	section    = 'PRESET_SCOPED',
+	subSection = 'auras',
+	order      = 15,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400

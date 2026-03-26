@@ -6,8 +6,9 @@ local C = F.Constants
 F.Settings.RegisterPanel({
 	id      = 'defensives',
 	label   = 'Defensives',
-	section = 'AURAS',
-	order   = 12,
+	section    = 'PRESET_SCOPED',
+	subSection = 'auras',
+	order      = 12,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400

@@ -39,7 +39,7 @@ end
 F.Settings.RegisterPanel({
 	id      = 'appearance',
 	label   = 'Appearance',
-	section = 'GENERAL',
+	section = 'GLOBAL',
 	order   = 10,
 	create  = function(parent)
 		-- ── Scroll frame wrapping the whole panel ─────────────

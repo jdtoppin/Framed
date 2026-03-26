@@ -39,8 +39,9 @@ end
 F.Settings.RegisterPanel({
 	id      = 'targetedspells',
 	label   = 'Targeted Spells',
-	section = 'AURAS',
-	order   = 14,
+	section    = 'PRESET_SCOPED',
+	subSection = 'auras',
+	order      = 14,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400

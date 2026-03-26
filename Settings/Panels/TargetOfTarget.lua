@@ -4,7 +4,7 @@ local F = Framed
 F.Settings.RegisterPanel({
 	id      = 'targettarget',
 	label   = 'Target of Target',
-	section = 'UNIT_FRAMES',
+	section = 'PRESET_SCOPED',
 	order   = 30,
 	create  = function(parent)
 		F.Settings.SetEditingUnitType('targettarget')

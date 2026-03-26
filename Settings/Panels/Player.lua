@@ -4,7 +4,7 @@ local F = Framed
 F.Settings.RegisterPanel({
 	id      = 'player',
 	label   = 'Player',
-	section = 'UNIT_FRAMES',
+	section = 'PRESET_SCOPED',
 	order   = 10,
 	create  = function(parent)
 		F.Settings.SetEditingUnitType('player')
