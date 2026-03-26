@@ -362,24 +362,42 @@ end
 
 -- ============================================================
 -- GetConfig
--- Returns config for the given unitType. Checks F.Config:Get('layouts')
--- first; falls back to built-in presets; falls back to DEFAULT_CONFIG.
+-- Returns the effective unit config for a unit type.
+-- Uses the runtime active preset (from AutoSwitch), with derived fallback.
 -- ============================================================
 
 function F.StyleBuilder.GetConfig(unitType)
-	-- User-saved layout config takes priority
-	local layouts = F.Config:Get('layouts')
-	if(layouts and layouts[unitType]) then
-		return layouts[unitType]
+	local presetName = F.AutoSwitch.GetCurrentPreset()
+	local _, presetData = F.AutoSwitch.ResolvePreset(presetName)
+
+	if(presetData and presetData.unitConfigs and presetData.unitConfigs[unitType]) then
+		return presetData.unitConfigs[unitType]
 	end
 
-	-- Built-in preset for this unit type
+	-- Fall back to built-in preset
 	if(F.StyleBuilder.Presets[unitType]) then
 		return F.StyleBuilder.Presets[unitType]
 	end
 
-	-- Generic fallback
-	return F.DeepCopy(DEFAULT_CONFIG)
+	return DEFAULT_CONFIG
+end
+
+-- ============================================================
+-- GetAuraConfig
+-- Returns the effective aura config for a unit type and aura type.
+-- @param unitType  string  e.g. 'player', 'party', 'raid'
+-- @param auraType  string  e.g. 'buffs', 'debuffs', 'raidDebuffs'
+-- ============================================================
+
+function F.StyleBuilder.GetAuraConfig(unitType, auraType)
+	local presetName = F.AutoSwitch.GetCurrentPreset()
+	local _, presetData = F.AutoSwitch.ResolvePreset(presetName)
+
+	if(presetData and presetData.auras and presetData.auras[unitType]) then
+		return presetData.auras[unitType][auraType] or {}
+	end
+
+	return {}
 end
 
 -- ============================================================
