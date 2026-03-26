@@ -129,6 +129,7 @@ EditMode/TopBar.lua
 EditMode/Dialogs.lua
 EditMode/Grid.lua
 EditMode/AlignmentGuides.lua
+EditMode/ResizeHandles.lua
 
 # Preview
 Preview/Preview.lua
