@@ -82,6 +82,24 @@ local function AnimateHeight(frame, targetHeight, duration, onDone)
 end
 
 -- ============================================================
+-- Container Height Calculator
+-- ============================================================
+
+--- Compute the total height for a collapsible section container.
+--- Only counts visible (shown) children.
+--- @param children table Array of child button frames
+--- @return number totalHeight
+local function recalcContainerHeight(children)
+	local h = 0
+	for _, child in next, children do
+		if(child:IsShown()) then
+			h = h + SIDEBAR_BTN_H + SIDEBAR_BTN_GAP
+		end
+	end
+	return h
+end
+
+-- ============================================================
 -- Sidebar Selection
 -- ============================================================
 
