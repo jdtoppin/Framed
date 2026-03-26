@@ -152,24 +152,21 @@ local function Enable(self, unit)
 	local element = self.FramedTargetedSpells
 	if(not element) then return end
 
+	-- COMBAT_LOG_EVENT_UNFILTERED was removed in 12.0. This element relies
+	-- entirely on CLEU for detecting incoming casts, so it cannot function
+	-- without it. Bail out and leave the element disabled.
+	if(not CombatLogGetCurrentEventInfo) then return end
+
 	element.__owner     = self
 	element.ForceUpdate = ForceUpdate
 
 	-- CLEU fires without a unit argument so it cannot be registered through
 	-- oUF's standard RegisterEvent. Use a dedicated listener frame instead.
-	-- Defer creation to avoid taint — Enable runs inside oUF's protected
-	-- Spawn chain where CreateFrame + RegisterEvent would trigger
-	-- ADDON_ACTION_FORBIDDEN.
 	if(not element._cleuFrame) then
-		local capturedSelf = self
-		C_Timer.After(0, function()
-			if(not element._cleuFrame) then
-				local cleuFrame = CreateFrame('Frame')
-				cleuFrame:RegisterEvent('COMBAT_LOG_EVENT_UNFILTERED')
-				cleuFrame:SetScript('OnEvent', makeCLEUHandler(capturedSelf))
-				element._cleuFrame = cleuFrame
-			end
-		end)
+		local cleuFrame = CreateFrame('Frame')
+		cleuFrame:RegisterEvent('COMBAT_LOG_EVENT_UNFILTERED')
+		cleuFrame:SetScript('OnEvent', makeCLEUHandler(self))
+		element._cleuFrame = cleuFrame
 	end
 
 	return true
