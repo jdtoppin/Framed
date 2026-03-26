@@ -130,6 +130,7 @@ EditMode/Dialogs.lua
 EditMode/Grid.lua
 EditMode/AlignmentGuides.lua
 EditMode/ResizeHandles.lua
+EditMode/InlinePanel.lua
 
 # Preview
 Preview/Preview.lua
