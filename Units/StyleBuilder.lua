@@ -403,12 +403,13 @@ end
 -- ============================================================
 -- Apply
 -- Composes all Phase 3A elements onto an oUF frame.
--- @param self   Frame   The oUF unit frame
--- @param unit   string  Unit token (e.g., 'player', 'party1')
--- @param config table   Config returned by GetConfig (or a custom table)
+-- @param self      Frame   The oUF unit frame
+-- @param unit      string  Unit token (e.g., 'player', 'party1')
+-- @param config    table   Config returned by GetConfig (or a custom table)
+-- @param unitType  string  Unit type key (e.g., 'player', 'party', 'raid')
 -- ============================================================
 
-function F.StyleBuilder.Apply(self, unit, config)
+function F.StyleBuilder.Apply(self, unit, config, unitType)
 
 	-- --------------------------------------------------------
 	-- 1. Size the frame
@@ -548,39 +549,54 @@ function F.StyleBuilder.Apply(self, unit, config)
 	end
 
 	-- --------------------------------------------------------
-	-- 7. Aura elements
+	-- 7. Aura elements (sourced from preset.auras[unitType])
 	-- --------------------------------------------------------
 
-	if(config.buffs and config.buffs.enabled ~= false and F.Elements.Buffs) then
-		F.Elements.Buffs.Setup(self, config.buffs)
+	local buffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'buffs')
+	if(buffsConfig and buffsConfig.enabled ~= false and F.Elements.Buffs) then
+		F.Elements.Buffs.Setup(self, buffsConfig)
 	end
-	if(config.debuffs and config.debuffs.enabled ~= false and F.Elements.Debuffs) then
-		F.Elements.Debuffs.Setup(self, config.debuffs)
+
+	local debuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'debuffs')
+	if(debuffsConfig and debuffsConfig.enabled ~= false and F.Elements.Debuffs) then
+		F.Elements.Debuffs.Setup(self, debuffsConfig)
 	end
-	if(config.raidDebuffs and config.raidDebuffs.enabled ~= false and F.Elements.RaidDebuffs) then
-		F.Elements.RaidDebuffs.Setup(self, config.raidDebuffs)
+
+	local raidDebuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'raidDebuffs')
+	if(raidDebuffsConfig and raidDebuffsConfig.enabled ~= false and F.Elements.RaidDebuffs) then
+		F.Elements.RaidDebuffs.Setup(self, raidDebuffsConfig)
 	end
-	if(config.dispellable and config.dispellable.enabled ~= false and F.Elements.Dispellable) then
-		F.Elements.Dispellable.Setup(self, config.dispellable)
+
+	local dispellableConfig = F.StyleBuilder.GetAuraConfig(unitType, 'dispellable')
+	if(dispellableConfig and dispellableConfig.enabled ~= false and F.Elements.Dispellable) then
+		F.Elements.Dispellable.Setup(self, dispellableConfig)
 	end
-	if(config.missingBuffs and F.Elements.MissingBuffs) then
-		F.Elements.MissingBuffs.Setup(self, config.missingBuffs)
+
+	local missingBuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'missingBuffs')
+	if(missingBuffsConfig and next(missingBuffsConfig) and F.Elements.MissingBuffs) then
+		F.Elements.MissingBuffs.Setup(self, missingBuffsConfig)
 	end
-	if(config.targetedSpells and config.targetedSpells.enabled ~= false and F.Elements.TargetedSpells) then
-		F.Elements.TargetedSpells.Setup(self, config.targetedSpells)
+
+	local targetedSpellsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'targetedSpells')
+	if(targetedSpellsConfig and targetedSpellsConfig.enabled ~= false and F.Elements.TargetedSpells) then
+		F.Elements.TargetedSpells.Setup(self, targetedSpellsConfig)
 	end
-	if(config.privateAuras and F.Elements.PrivateAuras) then
-		F.Elements.PrivateAuras.Setup(self, config.privateAuras)
+
+	local privateAurasConfig = F.StyleBuilder.GetAuraConfig(unitType, 'privateAuras')
+	if(privateAurasConfig and next(privateAurasConfig) and F.Elements.PrivateAuras) then
+		F.Elements.PrivateAuras.Setup(self, privateAurasConfig)
 	end
 
 	-- Externals (optional)
-	if(config.externals and config.externals.enabled ~= false and F.Elements.Externals) then
-		F.Elements.Externals.Setup(self, config.externals)
+	local externalsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'externals')
+	if(externalsConfig and externalsConfig.enabled ~= false and F.Elements.Externals) then
+		F.Elements.Externals.Setup(self, externalsConfig)
 	end
 
 	-- Defensives (optional)
-	if(config.defensives and config.defensives.enabled ~= false and F.Elements.Defensives) then
-		F.Elements.Defensives.Setup(self, config.defensives)
+	local defensivesConfig = F.StyleBuilder.GetAuraConfig(unitType, 'defensives')
+	if(defensivesConfig and defensivesConfig.enabled ~= false and F.Elements.Defensives) then
+		F.Elements.Defensives.Setup(self, defensivesConfig)
 	end
 
 	-- --------------------------------------------------------

@@ -11,7 +11,7 @@ F.Units.Raid = {}
 
 local function Style(self, unit)
 	local config = F.StyleBuilder.GetConfig('raid')
-	F.StyleBuilder.Apply(self, unit, config)
+	F.StyleBuilder.Apply(self, unit, config, 'raid')
 end
 
 -- ============================================================

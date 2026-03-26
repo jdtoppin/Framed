@@ -11,7 +11,7 @@ F.Units.Focus = {}
 
 local function Style(self, unit)
 	local config = F.StyleBuilder.GetConfig('focus')
-	F.StyleBuilder.Apply(self, unit, config)
+	F.StyleBuilder.Apply(self, unit, config, 'focus')
 end
 
 -- ============================================================

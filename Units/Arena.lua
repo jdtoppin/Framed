@@ -11,7 +11,7 @@ F.Units.Arena = {}
 
 local function Style(self, unit)
 	local config = F.StyleBuilder.GetConfig('arena')
-	F.StyleBuilder.Apply(self, unit, config)
+	F.StyleBuilder.Apply(self, unit, config, 'arena')
 
 	if(F.Elements.CrowdControl) then
 		F.Elements.CrowdControl.Setup(self, { iconSize = 20 })

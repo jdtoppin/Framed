@@ -11,7 +11,7 @@ F.Units.Pet = {}
 
 local function Style(self, unit)
 	local config = F.StyleBuilder.GetConfig('pet')
-	F.StyleBuilder.Apply(self, unit, config)
+	F.StyleBuilder.Apply(self, unit, config, 'pet')
 end
 
 -- ============================================================

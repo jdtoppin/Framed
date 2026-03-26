@@ -11,7 +11,7 @@ F.Units.Boss = {}
 
 local function Style(self, unit)
 	local config = F.StyleBuilder.GetConfig('boss')
-	F.StyleBuilder.Apply(self, unit, config)
+	F.StyleBuilder.Apply(self, unit, config, 'boss')
 end
 
 -- ============================================================

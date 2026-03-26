@@ -11,7 +11,7 @@ F.Units.Party = {}
 
 local function Style(self, unit)
 	local config = F.StyleBuilder.GetConfig('party')
-	F.StyleBuilder.Apply(self, unit, config)
+	F.StyleBuilder.Apply(self, unit, config, 'party')
 end
 
 -- ============================================================
