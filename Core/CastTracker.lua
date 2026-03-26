@@ -38,6 +38,8 @@ local recheck = {}
 local CheckUnitCast
 local Reset
 local BroadcastUpdate
+local SafeUnitIsUnit
+local GetTargetUnitID_Safe
 
 -- ============================================================
 -- Check if a source unit is casting at a group member
@@ -147,7 +149,7 @@ end
 -- Secret-safe UnitIsUnit
 -- ============================================================
 
-local function SafeUnitIsUnit(a, b)
+SafeUnitIsUnit = function(a, b)
 	local result = UnitIsUnit(a, b)
 	if(not F.IsValueNonSecret(result)) then return false end
 	return result
@@ -157,7 +159,7 @@ end
 -- Group iteration helper
 -- ============================================================
 
-local function GetTargetUnitID_Safe(targetToken)
+GetTargetUnitID_Safe = function(targetToken)
 	if(SafeUnitIsUnit(targetToken, 'player')) then return 'player', false end
 	if(UnitExists('pet') and SafeUnitIsUnit(targetToken, 'pet')) then return 'pet', false end
 
