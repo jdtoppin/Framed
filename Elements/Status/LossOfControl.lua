@@ -94,19 +94,17 @@ local function Update(self, event, unit)
 
 	if(unit ~= self.unit) then return end
 
-	-- Scan unit debuffs for known CC spells
+	-- Scan for crowd control debuffs — server identifies CC auras
 	local bestPriority = nil
 	local bestIcon     = nil
 	local bestExpiry   = nil
 
-	local i = 1
-	while true do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HARMFUL')
-		if(not auraData) then break end
+	local ccAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL')
 
-		-- Guard against secret/restricted values on 12.0+
+	for _, auraData in next, ccAuras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
+			-- Look up CC type for color classification
 			local ccType = CC_SPELL_TYPES[spellId]
 			if(ccType) then
 				-- Lower CC_TYPE value = higher priority
@@ -115,10 +113,15 @@ local function Update(self, event, unit)
 					bestIcon     = auraData.icon
 					bestExpiry   = auraData.expirationTime
 				end
+			else
+				-- Unknown CC spell (not in our type table) — treat as generic stun
+				if(bestPriority == nil or CC_TYPE.STUN < bestPriority) then
+					bestPriority = CC_TYPE.STUN
+					bestIcon     = auraData.icon
+					bestExpiry   = auraData.expirationTime
+				end
 			end
 		end
-
-		i = i + 1
 	end
 
 	if(bestPriority) then
