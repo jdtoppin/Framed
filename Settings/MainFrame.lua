@@ -14,7 +14,10 @@ local WINDOW_H         = 600
 local WINDOW_MIN_W     = 700
 local WINDOW_MIN_H     = 450
 local WINDOW_MAX_W     = 1200
-local WINDOW_MAX_H     = 900
+local function GetWindowMaxH()
+	local screenH = UIParent:GetHeight()
+	return math.floor(screenH * 0.75)
+end
 
 local SIDEBAR_W        = 170
 local HEADER_HEIGHT    = 24
@@ -49,7 +52,7 @@ function Settings.CreateMainFrame()
 	end)
 
 	-- ── Close button (top-right of header) ────────────────────
-	local closeBtn = Widgets.CreateIconButton(header, [[Interface\BUTTONS\UI-Panel-MinimizeButton-Up]], CLOSE_BTN_SIZE)
+	local closeBtn = Widgets.CreateIconButton(header, F.Media.GetIcon('Close'), CLOSE_BTN_SIZE)
 	closeBtn:ClearAllPoints()
 	Widgets.SetPoint(closeBtn, 'RIGHT', header, 'RIGHT', -C.Spacing.base, 0)
 	closeBtn:SetOnClick(function()
@@ -57,10 +60,67 @@ function Settings.CreateMainFrame()
 	end)
 	closeBtn:SetWidgetTooltip('Close')
 
-	-- ── Edit Mode button (header, left of close) ────────────
+	-- ── Fullscreen toggle button (left of close) ─────────────
+	local FULLSCREEN_PAD = 20
+	local fullscreenBtn = Widgets.CreateIconButton(header, F.Media.GetIcon('WindowMaximize'), CLOSE_BTN_SIZE)
+	fullscreenBtn:ClearAllPoints()
+	Widgets.SetPoint(fullscreenBtn, 'RIGHT', closeBtn, 'LEFT', -C.Spacing.tight, 0)
+
+	local isFullscreen = false
+	local savedSize, savedPoint
+	local resizeBtn
+
+	fullscreenBtn:SetOnClick(function()
+		if(isFullscreen) then
+			-- Restore previous size & position
+			if(savedSize) then
+				frame:SetSize(savedSize[1], savedSize[2])
+			end
+			if(savedPoint) then
+				frame:ClearAllPoints()
+				frame:SetPoint(savedPoint[1], UIParent, savedPoint[2], savedPoint[3], savedPoint[4])
+			end
+			fullscreenBtn._icon:SetTexture(F.Media.GetIcon('WindowMaximize'))
+			fullscreenBtn:SetWidgetTooltip('Maximize')
+			resizeBtn:Show()
+			frame:SetResizable(true)
+			isFullscreen = false
+		else
+			-- Save current size & position, then maximize
+			savedSize = { frame:GetSize() }
+			local point, _, relPoint, x, y = frame:GetPoint()
+			savedPoint = { point, relPoint, x, y }
+
+			local screenW = UIParent:GetWidth()
+			local screenH = UIParent:GetHeight()
+			local maxW = math.min(screenW - FULLSCREEN_PAD * 2, WINDOW_MAX_W)
+			local maxH = math.min(screenH - FULLSCREEN_PAD * 2, GetWindowMaxH())
+			frame:ClearAllPoints()
+			frame:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
+			frame:SetSize(maxW, maxH)
+			fullscreenBtn._icon:SetTexture(F.Media.GetIcon('WindowRestore'))
+			fullscreenBtn:SetWidgetTooltip('Restore')
+			resizeBtn:Hide()
+			frame:SetResizable(false)
+			isFullscreen = true
+		end
+
+		-- Update stored dimensions
+		local w, h = frame:GetSize()
+		if(F.Config) then
+			F.Config:Set('general.settingsSize', { w, h })
+		end
+		if(Settings._contentParent) then
+			Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
+			Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H
+		end
+	end)
+	fullscreenBtn:SetWidgetTooltip('Maximize')
+
+	-- ── Edit Mode button (header, left of fullscreen) ────────
 	local editModeBtn = Widgets.CreateButton(header, 'Edit Mode', 'widget', 80, CLOSE_BTN_SIZE)
 	editModeBtn:ClearAllPoints()
-	Widgets.SetPoint(editModeBtn, 'RIGHT', closeBtn, 'LEFT', -C.Spacing.tight, 0)
+	Widgets.SetPoint(editModeBtn, 'RIGHT', fullscreenBtn, 'LEFT', -C.Spacing.tight, 0)
 	editModeBtn:SetOnClick(function()
 		Settings.Hide()
 		if(F.EditMode and F.EditMode.Enter) then
@@ -70,11 +130,13 @@ function Settings.CreateMainFrame()
 	editModeBtn:SetWidgetTooltip('Edit Mode', 'Drag and resize unit frames directly on screen.')
 
 	-- ── Resize button ─────────────────────────────────────────
-	Widgets.CreateResizeButton(frame,
+	resizeBtn = Widgets.CreateResizeButton(frame,
 		WINDOW_MIN_W, WINDOW_MIN_H,
-		WINDOW_MAX_W, WINDOW_MAX_H,
+		WINDOW_MAX_W, GetWindowMaxH(),
 		nil,
 		function(f, w, h)
+			-- Update max height bounds in case resolution changed
+			f:SetResizeBounds(WINDOW_MIN_W, WINDOW_MIN_H, WINDOW_MAX_W, GetWindowMaxH())
 			if(F.Config) then
 				F.Config:Set('general.settingsSize', { w, h })
 			end

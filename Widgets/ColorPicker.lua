@@ -211,7 +211,7 @@ local function CreatePickerFrame()
 	pickerFrame = frame
 
 	-- Close button in header
-	local closeBtn = Widgets.CreateIconButton(header, [[Interface\BUTTONS\UI-StopButton]], 16)
+	local closeBtn = Widgets.CreateIconButton(header, F.Media.GetIcon('Close'), 16)
 	closeBtn:ClearAllPoints()
 	Widgets.SetPoint(closeBtn, 'RIGHT', header, 'RIGHT', -4, 0)
 	closeBtn:SetOnClick(function()
@@ -549,6 +549,10 @@ local function ShowColorPicker(owner, callback, onConfirm, hasAlpha, r, g, b, a)
 		if(restoreCB) then restoreCB(oR, oG, oB, oA) end
 		pickerFrame:Hide()
 	end)
+
+	-- Position to the right of the owner swatch
+	pickerFrame:ClearAllPoints()
+	pickerFrame:SetPoint('LEFT', owner, 'RIGHT', 8, 0)
 
 	-- Update original pane
 	originalPane:SetColor(oR, oG, oB, oA)

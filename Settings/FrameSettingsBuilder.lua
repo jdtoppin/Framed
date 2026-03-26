@@ -350,6 +350,15 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(nameColorSwitch, inner, cardY, SWITCH_H)
 
+	-- Name font size
+	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	nameFontSize:SetValue(getConfig('name.fontSize') or 0)
+	Widgets.SetTooltip(nameFontSize, 'Name Font Size', 'Override the global font size for name text')
+	nameFontSize:SetAfterValueChanged(function(value)
+		setConfig('name.fontSize', value)
+	end)
+	cardY = placeWidget(nameFontSize, inner, cardY, SLIDER_H)
+
 	-- Name truncation slider
 	local nameTruncSlider = Widgets.CreateSlider(inner, 'Name Truncation', WIDGET_W, 4, 20, 1)
 	nameTruncSlider:SetValue(getConfig('name.truncate') or 10)
@@ -400,6 +409,15 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(healthFormatDropdown, inner, cardY, DROPDOWN_H)
 
+	-- Health text font size
+	local healthFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	healthFontSize:SetValue(getConfig('health.fontSize') or 0)
+	Widgets.SetTooltip(healthFontSize, 'Health Text Font Size', 'Override the global font size for health text')
+	healthFontSize:SetAfterValueChanged(function(value)
+		setConfig('health.fontSize', value)
+	end)
+	cardY = placeWidget(healthFontSize, inner, cardY, SLIDER_H)
+
 	-- Health text position anchor
 	cardY = placeHeading(inner, 'Text Position', 3, cardY)
 	local healthTextAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
@@ -412,13 +430,28 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	healthTextAnchor._yInput:Hide()
 	cardY = placeWidget(healthTextAnchor, inner, cardY, 56)
 
-	-- Show power text checkbox
+	yOffset = Widgets.EndCard(healthTextCard, content, cardY)
+
+	-- ── Card: Power Text ──────────────────────────────────────
+	yOffset = placeHeading(content, 'Power Text', 2, yOffset)
+
+	local powerTextCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text')
 	showPowerTextCheck:SetChecked(getConfig('power.showText') or false)
 	showPowerTextCheck._callback = function(checked)
 		setConfig('power.showText', checked)
 	end
 	cardY = placeWidget(showPowerTextCheck, inner, cardY, CHECK_H)
+
+	-- Power text font size
+	local powerFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	powerFontSize:SetValue(getConfig('power.fontSize') or 0)
+	Widgets.SetTooltip(powerFontSize, 'Power Text Font Size', 'Override the global font size for power text')
+	powerFontSize:SetAfterValueChanged(function(value)
+		setConfig('power.fontSize', value)
+	end)
+	cardY = placeWidget(powerFontSize, inner, cardY, SLIDER_H)
 
 	-- Power text position anchor
 	cardY = placeHeading(inner, 'Power Text Position', 3, cardY)
@@ -432,7 +465,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	powerTextAnchor._yInput:Hide()
 	cardY = placeWidget(powerTextAnchor, inner, cardY, 56)
 
-	yOffset = Widgets.EndCard(healthTextCard, content, cardY)
+	yOffset = Widgets.EndCard(powerTextCard, content, cardY)
 
 	-- ── Status Icons ──────────────────────────────────────────
 	yOffset = placeHeading(content, 'Status Icons', 2, yOffset)
