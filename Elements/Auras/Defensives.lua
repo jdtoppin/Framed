@@ -6,6 +6,9 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.Defensives = {}
 
+local DEFAULT_PLAYER_COLOR = { 0, 0.8, 0 }
+local DEFAULT_OTHER_COLOR  = { 1, 0.85, 0 }
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -19,8 +22,8 @@ local function Update(self, event, unit)
 	local cfg = element._config
 	local maxDisplayed   = cfg.maxDisplayed or 3
 	local visibilityMode = cfg.visibilityMode or 'all'
-	local playerColor    = cfg.playerColor or { 0, 0.8, 0 }
-	local otherColor     = cfg.otherColor or { 1, 0.85, 0 }
+	local playerColor    = cfg.playerColor or DEFAULT_PLAYER_COLOR
+	local otherColor     = cfg.otherColor or DEFAULT_OTHER_COLOR
 
 	-- Build filter string based on visibility mode
 	local filter = 'HELPFUL|BIG_DEFENSIVE'

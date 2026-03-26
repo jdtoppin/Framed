@@ -49,7 +49,11 @@ local function Update(self, event, unit)
 	end
 
 	-- When onlyDispellableByMe is on, also include Physical/bleed debuffs
-	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them)
+	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them).
+	-- Always included here (unlike Dispellable which has a showPhysicalDebuffs toggle)
+	-- because the Debuffs element is a general display and bleeds provide context.
+	-- Supplementary results are appended after the server-sorted dispellable set,
+	-- so they appear lower priority when maxDisplayed truncates.
 	if(onlyDispellableByMe) then
 		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
 		for _, auraData in next, raidAuras do
