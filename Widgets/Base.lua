@@ -410,7 +410,8 @@ end
 --- @param onDragStart? function Called when drag begins (frame)
 --- @param onDragStop? function Called when drag ends (frame, x, y)
 --- @param clampToParent? boolean Clamp within parent bounds (default true)
-function Widgets.MakeDraggable(frame, onDragStart, onDragStop, clampToParent)
+--- @param onMove? function Called each frame during drag (frame, x, y)
+function Widgets.MakeDraggable(frame, onDragStart, onDragStop, clampToParent, onMove)
 	if(clampToParent == nil) then clampToParent = true end
 
 	frame:SetMovable(true)
@@ -424,10 +425,21 @@ function Widgets.MakeDraggable(frame, onDragStart, onDragStop, clampToParent)
 	frame:SetScript('OnDragStart', function(self)
 		self:StartMoving()
 		if(onDragStart) then onDragStart(self) end
+		if(onMove) then
+			self._dragOnMove = onMove
+			self:SetScript('OnUpdate', function(s)
+				local point, _, relPoint, x, y = s:GetPoint()
+				if(s._dragOnMove) then s._dragOnMove(s, x, y) end
+			end)
+		end
 	end)
 
 	frame:SetScript('OnDragStop', function(self)
 		self:StopMovingOrSizing()
+		if(self._dragOnMove) then
+			self:SetScript('OnUpdate', nil)
+			self._dragOnMove = nil
+		end
 		local point, _, relPoint, x, y = self:GetPoint()
 		if(onDragStop) then onDragStop(self, x, y) end
 	end)
