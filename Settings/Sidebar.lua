@@ -24,7 +24,6 @@ local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
 local DIM_ICON_R,   DIM_ICON_G,   DIM_ICON_B   = 0.5, 0.5, 0.5
 local DIM_TEXT_R,   DIM_TEXT_G,   DIM_TEXT_B   = 0.6, 0.6, 0.6
 local HOVER_R,      HOVER_G,      HOVER_B      = 1, 1, 1
-local ACCENT_R,     ACCENT_G,     ACCENT_B     = C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3]
 
 -- ============================================================
 -- AnimateWidth
@@ -60,9 +59,10 @@ end
 local function setSidebarSelected(btn, selected)
 	if(selected) then
 		btn._highlight:Show()
+		btn._highlight:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
 		AnimateWidth(btn._highlight, btn:GetWidth(), C.Animation.durationNormal)
 		if(btn._icon) then
-			btn._icon:SetVertexColor(ACCENT_R, ACCENT_G, ACCENT_B)
+			btn._icon:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3])
 		end
 		if(btn._label) then
 			btn._label:SetTextColor(HOVER_R, HOVER_G, HOVER_B)
@@ -105,7 +105,7 @@ local function createNavButton(parent, panelInfo, yOffset)
 	highlight:SetPoint('BOTTOMLEFT', 0, 0)
 	highlight:SetWidth(1)
 	highlight:SetTexture(GRADIENT_TEXTURE)
-	highlight:SetVertexColor(ACCENT_R, ACCENT_G, ACCENT_B, 1)
+	highlight:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
 	highlight:Hide()
 	btn._highlight = highlight
 
@@ -291,7 +291,7 @@ local function buildSidebarContent(sidebar)
 			-- "Editing: X Frame Preset" accent label
 			editingLabel = sidebar:CreateFontString(nil, 'OVERLAY')
 			editingLabel:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
-			editingLabel:SetTextColor(ACCENT_R, ACCENT_G, ACCENT_B)
+			editingLabel:SetTextColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3])
 			editingLabel:SetText('Editing: ' .. Settings.GetEditingPreset() .. ' Frame Preset')
 			editingLabel:ClearAllPoints()
 			editingLabel:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 12, yOffset)
