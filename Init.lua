@@ -32,10 +32,10 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		-- Apply click-cast bindings
 		F.ClickCasting.RefreshAll()
 
-		-- Initialize default layouts
-		F.LayoutDefaults.EnsureDefaults()
+		-- Initialize default presets
+		F.PresetDefaults.EnsureDefaults()
 
-		-- Start auto-switching (detects content type and activates layout)
+		-- Start auto-switching (detects content type and activates preset)
 		F.AutoSwitch.Check()
 
 		F.EventBus:Fire('PLAYER_LOGIN')
