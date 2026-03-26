@@ -69,16 +69,16 @@ Constants.Animation = {
 -- Content Types (for layout auto-switching)
 -- ============================================================
 Constants.ContentType = {
-	SOLO          = 'Solo',
-	PARTY         = 'Party',
-	RAID          = 'Raid',
-	MYTHIC_RAID   = 'MythicRaid',
-	WORLD_RAID    = 'WorldRaid',
-	BATTLEGROUND  = 'Battleground',
-	ARENA         = 'Arena',
+	SOLO         = 'solo',
+	PARTY        = 'party',
+	RAID         = 'raid',
+	MYTHIC_RAID  = 'mythicRaid',
+	WORLD_RAID   = 'worldRaid',
+	BATTLEGROUND = 'battleground',
+	ARENA        = 'arena',
 }
 
--- Detection priority order (most specific first)
+-- Priority order for content detection (most specific first)
 Constants.ContentTypePriority = {
 	Constants.ContentType.ARENA,
 	Constants.ContentType.BATTLEGROUND,
@@ -87,6 +87,25 @@ Constants.ContentTypePriority = {
 	Constants.ContentType.WORLD_RAID,
 	Constants.ContentType.PARTY,
 	Constants.ContentType.SOLO,
+}
+
+-- Preset definitions: name → { isBase, fallback, groupKey, groupLabel }
+-- groupKey is the unitConfigs/auras key for group frames
+-- groupLabel is the sidebar display name
+Constants.PresetInfo = {
+	['Solo']          = { isBase = true,  fallback = nil,    groupKey = nil,     groupLabel = nil },
+	['Party']         = { isBase = true,  fallback = nil,    groupKey = 'party', groupLabel = 'Party Frames' },
+	['Raid']          = { isBase = true,  fallback = nil,    groupKey = 'raid',  groupLabel = 'Raid Frames' },
+	['Arena']         = { isBase = true,  fallback = nil,    groupKey = 'arena', groupLabel = 'Arena Frames' },
+	['Mythic Raid']   = { isBase = false, fallback = 'Raid', groupKey = 'raid',  groupLabel = 'Raid Frames' },
+	['World Raid']    = { isBase = false, fallback = 'Raid', groupKey = 'raid',  groupLabel = 'Raid Frames' },
+	['Battleground']  = { isBase = false, fallback = 'Raid', groupKey = 'raid',  groupLabel = 'Raid Frames' },
+}
+
+-- Ordered list of preset names for UI display
+Constants.PresetOrder = {
+	'Solo', 'Party', 'Raid', 'Arena',
+	'Mythic Raid', 'World Raid', 'Battleground',
 }
 
 -- ============================================================
