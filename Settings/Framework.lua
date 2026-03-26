@@ -98,7 +98,7 @@ local DROPDOWN_H = 22
 
 --- Build the unit type items list based on the active preset.
 --- @return table[] Array of { text, value }
-local function getUnitTypeItems()
+function Settings._getUnitTypeItems()
 	local presetName = Settings.GetEditingPreset()
 	local info = C.PresetInfo[presetName]
 	local items = {
@@ -128,8 +128,9 @@ end
 --- @param width   number  Available content width
 --- @param yOffset number  Current vertical cursor
 --- @param panelId string  Panel id used for rebuild on change
+--- @param configKey? string  Aura config key (e.g., 'buffs', 'raidDebuffs'). nil = hide copy button.
 --- @return number yOffset Updated vertical cursor
-function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId)
+function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId, configKey)
 	-- ── "Configure for:" label ───────────────────────────────
 	local label = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
 	label:SetText('Configure for:')
@@ -138,7 +139,7 @@ function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId)
 
 	-- ── Unit type dropdown ───────────────────────────────────
 	local unitTypeDD = Widgets.CreateDropdown(content, 180)
-	unitTypeDD:SetItems(getUnitTypeItems())
+	unitTypeDD:SetItems(Settings._getUnitTypeItems())
 	unitTypeDD:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
 	unitTypeDD:ClearAllPoints()
 	Widgets.SetPoint(unitTypeDD, 'TOPLEFT', content, 'TOPLEFT', 90, yOffset)
@@ -150,12 +151,28 @@ function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId)
 	end)
 
 	-- ── "Copy to..." button ──────────────────────────────────
-	local copyBtn = Widgets.CreateButton(content, 'Copy to...', 'widget', 90, DROPDOWN_H)
-	copyBtn:ClearAllPoints()
-	Widgets.SetPoint(copyBtn, 'TOPLEFT', content, 'TOPLEFT', 280, yOffset)
-	copyBtn:SetScript('OnClick', function()
-		print('Framed: Copy to... (coming soon)')
-	end)
+	if(configKey) then
+		local copyBtn = Widgets.CreateButton(content, 'Copy to...', 'widget', 90, DROPDOWN_H)
+		copyBtn:ClearAllPoints()
+		Widgets.SetPoint(copyBtn, 'TOPLEFT', content, 'TOPLEFT', 280, yOffset)
+
+		-- Disable when only one unit type exists (no targets to copy to)
+		local unitItems = Settings._getUnitTypeItems()
+		if(#unitItems <= 1) then
+			copyBtn:Disable()
+		end
+
+		copyBtn:SetScript('OnClick', function()
+			local panelLabel
+			for _, p in next, Settings._panels do
+				if(p.id == panelId) then
+					panelLabel = p.label
+					break
+				end
+			end
+			Settings.ShowCopyToDialog(configKey, panelLabel or panelId, panelId)
+		end)
+	end
 
 	yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
 
