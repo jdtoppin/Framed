@@ -87,18 +87,30 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	content:SetWidth(parentW)
 	local width = parentW - C.Spacing.normal * 2
 
+	-- Tag scroll frame with the preset it was built for (used by callers for invalidation)
+	scroll._builtForPreset = F.Settings.GetEditingPreset()
+
 	-- ── Config accessor helpers ────────────────────────────────
-	local layoutName = F.AutoSwitch and F.AutoSwitch.GetCurrentLayout() or 'Default Solo'
+	local function getPresetName()
+		return F.Settings.GetEditingPreset()
+	end
 
 	local function getConfig(key)
-		return F.Config:Get('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. key)
+		return F.Config:Get('presets.' .. getPresetName() .. '.unitConfigs.' .. unitType .. '.' .. key)
 	end
 	local function setConfig(key, value)
-		F.Config:Set('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. key, value)
+		F.Config:Set('presets.' .. getPresetName() .. '.unitConfigs.' .. unitType .. '.' .. key, value)
+		F.PresetManager.MarkCustomized(getPresetName())
 	end
 
 	-- Running layout cursor (negative = downward from TOPLEFT)
 	local yOffset = -C.Spacing.normal
+
+	-- ── Scoped preset banner ───────────────────────────────────
+	local banner = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.accent)
+	banner:SetText('These settings apply to: ' .. getPresetName() .. ' Frame Preset')
+	Widgets.SetPoint(banner, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	yOffset = yOffset - 16 - C.Spacing.tight
 
 	-- ============================================================
 	-- Frame Size
@@ -368,6 +380,13 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- ── Resize content to fit all widgets ─────────────────────
 	local totalH = math.abs(yOffset) + C.Spacing.normal
 	content:SetHeight(totalH)
+
+	-- ── Invalidate on preset change ────────────────────────────
+	-- When the editing preset changes, mark this scroll frame stale so
+	-- the Settings framework knows to rebuild on next panel activation.
+	F.EventBus:Register('EDITING_PRESET_CHANGED', function(newPreset)
+		scroll._builtForPreset = nil
+	end, 'FrameSettingsBuilder.' .. unitType)
 
 	return scroll
 end
