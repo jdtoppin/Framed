@@ -306,15 +306,20 @@ local trackedStatusBars  = setmetatable({}, { __mode = 'v' })
 --- @param size? number Font size (defaults to Constants.Font.sizeNormal)
 --- @param color? table Color table (defaults to Constants.Colors.textNormal)
 --- @return FontString
-function Widgets.CreateFontString(parent, size, color)
+function Widgets.CreateFontString(parent, size, color, outline, shadow)
 	local fs = parent:CreateFontString(nil, 'OVERLAY')
 	size = size or C.Font.sizeNormal
-	fs:SetFont(F.Media.GetActiveFont(), size, '')
-	fs:SetShadowOffset(1, -1)
+	local flags = outline or ''
+	fs:SetFont(F.Media.GetActiveFont(), size, flags)
+	if(shadow == false) then
+		fs:SetShadowOffset(0, 0)
+	else
+		fs:SetShadowOffset(1, -1)
+	end
 	color = color or C.Colors.textNormal
 	fs:SetTextColor(color[1], color[2], color[3], color[4] or 1)
 	fs._fontSize = size
-	fs._fontFlags = ''
+	fs._fontFlags = flags
 	trackedFontStrings[#trackedFontStrings + 1] = fs
 	return fs
 end

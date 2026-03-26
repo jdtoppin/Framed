@@ -120,12 +120,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	yOffset = yOffset - 16 - C.Spacing.tight
 
 	-- ============================================================
-	-- Frame Size
+	-- Position & Layout
 	-- ============================================================
 
-	yOffset = placeHeading(content, 'Frame Size', 2, yOffset)
+	yOffset = placeHeading(content, 'Position & Layout', 2, yOffset)
 
-	local sizeCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	local posCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
 	-- Width slider
 	local widthSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 20, 300, 1)
@@ -143,37 +143,61 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(heightSlider, inner, cardY, SLIDER_H)
 
-	yOffset = Widgets.EndCard(sizeCard, content, cardY)
-
-	-- ============================================================
-	-- Position & Layout
-	-- ============================================================
-
-	yOffset = placeHeading(content, 'Position & Layout', 2, yOffset)
-
-	local posCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
-
-	-- Info icon for this card
-	local posInfo = Widgets.CreateInfoIcon(inner,
-		'Position & Layout',
-		'Anchor point determines which corner of the frame is pinned to its position. '
-		.. 'Growth direction controls which way group frames expand. '
-		.. 'These two settings work together to control frame placement.')
-	posInfo:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', -4, -4)
-
 	-- Frame Anchor Point picker
 	cardY = placeHeading(inner, 'Frame Anchor', 3, cardY)
+
+	local anchorInfo = Widgets.CreateInfoIcon(inner,
+		'Frame Anchor',
+		'The anchor point determines which corner or edge of the frame is pinned '
+		.. 'to its X/Y position on screen. For example, if set to TOPLEFT, the '
+		.. 'top-left corner of the frame sits at the X/Y coordinates.')
+	anchorInfo:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', -4, cardY + 14)
+
 	local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
 	local savedAnchor = getConfig('position.anchor') or 'CENTER'
-	local savedPosX = getConfig('position.x') or 0
-	local savedPosY = getConfig('position.y') or 0
-	anchorPicker:SetAnchor(savedAnchor, savedPosX, savedPosY)
-	anchorPicker:SetOnChanged(function(point, x, y)
+	anchorPicker._xInput:Hide()
+	anchorPicker._yInput:Hide()
+	anchorPicker:SetAnchor(savedAnchor, 0, 0)
+	anchorPicker:SetOnChanged(function(point)
 		setConfig('position.anchor', point)
-		setConfig('position.x', x)
-		setConfig('position.y', y)
 	end)
-	cardY = placeWidget(anchorPicker, inner, cardY, 80)
+	cardY = placeWidget(anchorPicker, inner, cardY, 56)
+
+	-- Frame Position sliders (X / Y)
+	cardY = placeHeading(inner, 'Frame Position', 3, cardY)
+
+	-- Read the actual frame position from oUF objects if available
+	local actualX = getConfig('position.x') or 0
+	local actualY = getConfig('position.y') or 0
+	do
+		local oUF = F.oUF
+		if(oUF and oUF.objects) then
+			for _, frame in next, oUF.objects do
+				if(frame._framedUnitType == unitType) then
+					local _, _, _, fx, fy = frame:GetPoint()
+					if(fx) then
+						actualX = Widgets.Round(fx)
+						actualY = Widgets.Round(fy)
+					end
+					break
+				end
+			end
+		end
+	end
+
+	local posXSlider = Widgets.CreateSlider(inner, 'X', WIDGET_W, -1000, 1000, 1)
+	posXSlider:SetValue(actualX)
+	posXSlider:SetAfterValueChanged(function(value)
+		setConfig('position.x', value)
+	end)
+	cardY = placeWidget(posXSlider, inner, cardY, SLIDER_H)
+
+	local posYSlider = Widgets.CreateSlider(inner, 'Y', WIDGET_W, -1000, 1000, 1)
+	posYSlider:SetValue(actualY)
+	posYSlider:SetAfterValueChanged(function(value)
+		setConfig('position.y', value)
+	end)
+	cardY = placeWidget(posYSlider, inner, cardY, SLIDER_H)
 
 	-- Pixel nudge arrows
 	cardY = placeHeading(inner, 'Pixel Nudge', 3, cardY)
@@ -191,8 +215,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nudgeRight:SetPoint('RIGHT', nudgeFrame, 'RIGHT', 0, 0)
 
 	local function nudge(dx, dy)
-		local point, curX, curY = anchorPicker:GetAnchor()
-		anchorPicker:SetAnchor(point, curX + dx, curY + dy)
+		local curX = posXSlider:GetValue()
+		local curY = posYSlider:GetValue()
+		posXSlider:SetValue(curX + dx)
+		posYSlider:SetValue(curY + dy)
 		setConfig('position.x', curX + dx)
 		setConfig('position.y', curY + dy)
 	end
@@ -251,10 +277,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ============================================================
-	-- Health Color
+	-- Health Bar Color
 	-- ============================================================
 
-	yOffset = placeHeading(content, 'Health Color', 2, yOffset)
+	yOffset = placeHeading(content, 'Health Bar Color', 2, yOffset)
 
 	local colorCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
@@ -262,14 +288,99 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	cardY = placeHeading(inner, 'Color Mode', 3, cardY)
 	local healthColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
 		{ text = 'Class',    value = 'class' },
+		{ text = 'Dark',     value = 'dark' },
 		{ text = 'Gradient', value = 'gradient' },
 		{ text = 'Custom',   value = 'custom' },
 	})
 	healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
+	cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
+
+	-- ── Gradient options (3 color pickers with % threshold sliders) ──
+	local gradientSection = CreateFrame('Frame', nil, inner)
+	gradientSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+	gradientSection:SetWidth(WIDGET_W)
+
+	local gY = 0
+	local _, gHeadH = Widgets.CreateHeading(gradientSection, 'Gradient Colors', 3)
+
+	-- Helper to place a color+threshold row
+	local function placeGradientRow(parent, label, colorKey, thresholdKey, defaultColor, defaultPct, rowY)
+		local picker = Widgets.CreateColorPicker(parent, label, false,
+			nil,
+			function(r, g, b) setConfig(colorKey, { r, g, b }) end)
+		picker:SetPoint('TOPLEFT', parent, 'TOPLEFT', 0, rowY)
+		local saved = getConfig(colorKey) or defaultColor
+		picker:SetColor(saved[1], saved[2], saved[3], 1)
+
+		local pctSlider = Widgets.CreateSlider(parent, '% Threshold', WIDGET_W - 30, 0, 100, 5)
+		pctSlider:SetValue(getConfig(thresholdKey) or defaultPct)
+		pctSlider:SetAfterValueChanged(function(value)
+			setConfig(thresholdKey, value)
+		end)
+		pctSlider:SetPoint('TOPLEFT', parent, 'TOPLEFT', 0, rowY - 22)
+		return rowY - 22 - SLIDER_H - C.Spacing.normal
+	end
+
+	gY = -gHeadH
+	gY = placeGradientRow(gradientSection, 'Healthy',
+		'health.gradientColor1', 'health.gradientThreshold1',
+		{ 0.2, 0.8, 0.2 }, 95, gY)
+	gY = placeGradientRow(gradientSection, 'Warning',
+		'health.gradientColor2', 'health.gradientThreshold2',
+		{ 0.9, 0.6, 0.1 }, 50, gY)
+	gY = placeGradientRow(gradientSection, 'Critical',
+		'health.gradientColor3', 'health.gradientThreshold3',
+		{ 0.8, 0.1, 0.1 }, 5, gY)
+
+	local gradientSectionH = math.abs(gY)
+	gradientSection:SetHeight(gradientSectionH)
+
+	-- ── Custom color picker ─────────────────────────────────────
+	local customSection = CreateFrame('Frame', nil, inner)
+	customSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+	customSection:SetWidth(WIDGET_W)
+
+	local customPicker = Widgets.CreateColorPicker(customSection, 'Health Bar Color', false,
+		nil,
+		function(r, g, b) setConfig('health.customColor', { r, g, b }) end)
+	customPicker:SetPoint('TOPLEFT', customSection, 'TOPLEFT', 0, -C.Spacing.tight)
+	local savedCustom = getConfig('health.customColor') or { 0.2, 0.8, 0.2 }
+	customPicker:SetColor(savedCustom[1], savedCustom[2], savedCustom[3], 1)
+
+	local customSectionH = 22 + C.Spacing.tight
+	customSection:SetHeight(customSectionH)
+
+	-- Show/hide sections based on color mode
+	local function updateHealthColorSections(mode)
+		if(mode == 'gradient') then
+			gradientSection:Show()
+			customSection:Hide()
+			gradientSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		elseif(mode == 'custom') then
+			gradientSection:Hide()
+			customSection:Show()
+			customSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		else
+			gradientSection:Hide()
+			customSection:Hide()
+		end
+	end
+
+	local currentHealthMode = getConfig('health.colorMode') or 'class'
+	updateHealthColorSections(currentHealthMode)
+
+	-- Reserve space for the largest section
+	local modeSectionH = math.max(gradientSectionH, customSectionH)
+	if(currentHealthMode == 'gradient') then
+		cardY = cardY - gradientSectionH
+	elseif(currentHealthMode == 'custom') then
+		cardY = cardY - customSectionH
+	end
+
 	healthColorSwitch:SetOnSelect(function(value)
 		setConfig('health.colorMode', value)
+		updateHealthColorSections(value)
 	end)
-	cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
 
 	-- Smooth interpolation checkbox
 	local smoothCheck = Widgets.CreateCheckButton(inner, 'Smooth Interpolation')
@@ -278,6 +389,40 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		setConfig('health.smooth', checked)
 	end
 	cardY = placeWidget(smoothCheck, inner, cardY, CHECK_H)
+
+	-- ── Health Loss Color ─────────────────────────────────────
+	cardY = placeHeading(inner, 'Health Loss Color', 3, cardY)
+
+	local lossColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+		{ text = 'Dark',   value = 'dark' },
+		{ text = 'Class',  value = 'class' },
+		{ text = 'Custom', value = 'custom' },
+	})
+	lossColorSwitch:SetValue(getConfig('health.lossColorMode') or 'dark')
+	cardY = placeWidget(lossColorSwitch, inner, cardY, SWITCH_H)
+
+	-- Custom loss color picker
+	local lossPicker = Widgets.CreateColorPicker(inner, 'Loss Color', false,
+		nil,
+		function(r, g, b) setConfig('health.lossCustomColor', { r, g, b }) end)
+	local savedLoss = getConfig('health.lossCustomColor') or { 0.15, 0.15, 0.15 }
+	lossPicker:SetColor(savedLoss[1], savedLoss[2], savedLoss[3], 1)
+	cardY = placeWidget(lossPicker, inner, cardY, 22)
+
+	local function updateLossColorUI(mode)
+		if(mode == 'custom') then
+			lossPicker:Show()
+			lossPicker:Enable()
+		else
+			lossPicker:Hide()
+		end
+	end
+	updateLossColorUI(getConfig('health.lossColorMode') or 'dark')
+
+	lossColorSwitch:SetOnSelect(function(value)
+		setConfig('health.lossColorMode', value)
+		updateLossColorUI(value)
+	end)
 
 	yOffset = Widgets.EndCard(colorCard, content, cardY)
 
@@ -345,10 +490,29 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		{ text = 'Custom', value = 'custom' },
 	})
 	nameColorSwitch:SetValue(getConfig('name.colorMode') or 'class')
+	cardY = placeWidget(nameColorSwitch, inner, cardY, SWITCH_H)
+
+	-- Custom name color picker (shown only when 'custom' is selected)
+	local nameCustomPicker = Widgets.CreateColorPicker(inner, 'Name Color', false,
+		nil,
+		function(r, g, b) setConfig('name.customColor', { r, g, b }) end)
+	local savedNameColor = getConfig('name.customColor') or { 1, 1, 1 }
+	nameCustomPicker:SetColor(savedNameColor[1], savedNameColor[2], savedNameColor[3], 1)
+	cardY = placeWidget(nameCustomPicker, inner, cardY, 22)
+
+	local function updateNameColorUI(mode)
+		if(mode == 'custom') then
+			nameCustomPicker:Show()
+		else
+			nameCustomPicker:Hide()
+		end
+	end
+	updateNameColorUI(getConfig('name.colorMode') or 'class')
+
 	nameColorSwitch:SetOnSelect(function(value)
 		setConfig('name.colorMode', value)
+		updateNameColorUI(value)
 	end)
-	cardY = placeWidget(nameColorSwitch, inner, cardY, SWITCH_H)
 
 	-- Name font size
 	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
@@ -358,6 +522,27 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		setConfig('name.fontSize', value)
 	end)
 	cardY = placeWidget(nameFontSize, inner, cardY, SLIDER_H)
+
+	-- Name outline
+	local nameOutline = Widgets.CreateDropdown(inner, WIDGET_W)
+	nameOutline:SetItems({
+		{ text = 'None',       value = '' },
+		{ text = 'Outline',    value = 'OUTLINE' },
+		{ text = 'Monochrome', value = 'MONOCHROME' },
+	})
+	nameOutline:SetValue(getConfig('name.outline') or '')
+	nameOutline:SetOnSelect(function(value)
+		setConfig('name.outline', value)
+	end)
+	cardY = placeWidget(nameOutline, inner, cardY, DROPDOWN_H)
+
+	-- Name shadow
+	local nameShadow = Widgets.CreateCheckButton(inner, 'Text Shadow')
+	nameShadow:SetChecked(getConfig('name.shadow') ~= false)
+	nameShadow._callback = function(checked)
+		setConfig('name.shadow', checked)
+	end
+	cardY = placeWidget(nameShadow, inner, cardY, CHECK_H)
 
 	-- Name truncation slider
 	local nameTruncSlider = Widgets.CreateSlider(inner, 'Name Truncation', WIDGET_W, 4, 20, 1)
@@ -370,7 +555,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- Name text position anchor
 	cardY = placeHeading(inner, 'Text Position', 3, cardY)
 	local nameAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
-	local savedNameAnchor = getConfig('name.anchor') or 'LEFT'
+	local savedNameAnchor = getConfig('name.anchor') or 'CENTER'
 	nameAnchor:SetAnchor(savedNameAnchor, 0, 0)
 	nameAnchor:SetOnChanged(function(point)
 		setConfig('name.anchor', point)
@@ -379,12 +564,34 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameAnchor._yInput:Hide()
 	cardY = placeWidget(nameAnchor, inner, cardY, 56)
 
+	-- Name text offsets
+	cardY = placeHeading(inner, 'Text Offsets', 3, cardY)
+	local nameOffsetX = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -50, 50, 1)
+	nameOffsetX:SetValue(getConfig('name.anchorX') or 0)
+	nameOffsetX:SetAfterValueChanged(function(value)
+		setConfig('name.anchorX', value)
+	end)
+	cardY = placeWidget(nameOffsetX, inner, cardY, SLIDER_H)
+
+	local nameOffsetY = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -50, 50, 1)
+	nameOffsetY:SetValue(getConfig('name.anchorY') or 0)
+	nameOffsetY:SetAfterValueChanged(function(value)
+		setConfig('name.anchorY', value)
+	end)
+	cardY = placeWidget(nameOffsetY, inner, cardY, SLIDER_H)
+
 	yOffset = Widgets.EndCard(nameCard, content, cardY)
 
 	-- ── Card: Health Text ─────────────────────────────────────
 	yOffset = placeHeading(content, 'Health Text', 2, yOffset)
 
 	local healthTextCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
+	-- Attach to Name toggle
+	local attachToNameCheck = Widgets.CreateCheckButton(inner, 'Attach to Name')
+	local isAttached = getConfig('health.attachedToName') or false
+	attachToNameCheck:SetChecked(isAttached)
+	cardY = placeWidget(attachToNameCheck, inner, cardY, CHECK_H)
 
 	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text')
 	showHealthTextCheck:SetChecked(getConfig('health.showText') or false)
@@ -418,6 +625,27 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(healthFontSize, inner, cardY, SLIDER_H)
 
+	-- Health text outline
+	local healthOutline = Widgets.CreateDropdown(inner, WIDGET_W)
+	healthOutline:SetItems({
+		{ text = 'None',       value = '' },
+		{ text = 'Outline',    value = 'OUTLINE' },
+		{ text = 'Monochrome', value = 'MONOCHROME' },
+	})
+	healthOutline:SetValue(getConfig('health.outline') or '')
+	healthOutline:SetOnSelect(function(value)
+		setConfig('health.outline', value)
+	end)
+	cardY = placeWidget(healthOutline, inner, cardY, DROPDOWN_H)
+
+	-- Health text shadow
+	local healthShadow = Widgets.CreateCheckButton(inner, 'Text Shadow')
+	healthShadow:SetChecked(getConfig('health.shadow') ~= false)
+	healthShadow._callback = function(checked)
+		setConfig('health.shadow', checked)
+	end
+	cardY = placeWidget(healthShadow, inner, cardY, CHECK_H)
+
 	-- Health text position anchor
 	cardY = placeHeading(inner, 'Text Position', 3, cardY)
 	local healthTextAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
@@ -429,6 +657,42 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	healthTextAnchor._xInput:Hide()
 	healthTextAnchor._yInput:Hide()
 	cardY = placeWidget(healthTextAnchor, inner, cardY, 56)
+
+	-- Health text offsets
+	cardY = placeHeading(inner, 'Text Offsets', 3, cardY)
+	local healthOffsetX = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -50, 50, 1)
+	healthOffsetX:SetValue(getConfig('health.textAnchorX') or 0)
+	healthOffsetX:SetAfterValueChanged(function(value)
+		setConfig('health.textAnchorX', value)
+	end)
+	cardY = placeWidget(healthOffsetX, inner, cardY, SLIDER_H)
+
+	local healthOffsetY = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -50, 50, 1)
+	healthOffsetY:SetValue(getConfig('health.textAnchorY') or 0)
+	healthOffsetY:SetAfterValueChanged(function(value)
+		setConfig('health.textAnchorY', value)
+	end)
+	cardY = placeWidget(healthOffsetY, inner, cardY, SLIDER_H)
+
+	-- Dim/enable health position controls based on "Attach to Name"
+	local healthPositionWidgets = { healthTextAnchor, healthOffsetX, healthOffsetY }
+	local function updateHealthPositionDimming(attached)
+		local alpha = attached and 0.35 or 1
+		for _, w in next, healthPositionWidgets do
+			w:SetAlpha(alpha)
+			if(attached) then
+				w:EnableMouse(false)
+			else
+				w:EnableMouse(true)
+			end
+		end
+	end
+	updateHealthPositionDimming(isAttached)
+
+	attachToNameCheck._callback = function(checked)
+		setConfig('health.attachedToName', checked)
+		updateHealthPositionDimming(checked)
+	end
 
 	yOffset = Widgets.EndCard(healthTextCard, content, cardY)
 
@@ -453,8 +717,29 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(powerFontSize, inner, cardY, SLIDER_H)
 
+	-- Power text outline
+	local powerOutline = Widgets.CreateDropdown(inner, WIDGET_W)
+	powerOutline:SetItems({
+		{ text = 'None',       value = '' },
+		{ text = 'Outline',    value = 'OUTLINE' },
+		{ text = 'Monochrome', value = 'MONOCHROME' },
+	})
+	powerOutline:SetValue(getConfig('power.outline') or '')
+	powerOutline:SetOnSelect(function(value)
+		setConfig('power.outline', value)
+	end)
+	cardY = placeWidget(powerOutline, inner, cardY, DROPDOWN_H)
+
+	-- Power text shadow
+	local powerShadow = Widgets.CreateCheckButton(inner, 'Text Shadow')
+	powerShadow:SetChecked(getConfig('power.shadow') ~= false)
+	powerShadow._callback = function(checked)
+		setConfig('power.shadow', checked)
+	end
+	cardY = placeWidget(powerShadow, inner, cardY, CHECK_H)
+
 	-- Power text position anchor
-	cardY = placeHeading(inner, 'Power Text Position', 3, cardY)
+	cardY = placeHeading(inner, 'Text Position', 3, cardY)
 	local powerTextAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
 	local savedPowerAnchor = getConfig('power.textAnchor') or 'CENTER'
 	powerTextAnchor:SetAnchor(savedPowerAnchor, 0, 0)
@@ -464,6 +749,22 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	powerTextAnchor._xInput:Hide()
 	powerTextAnchor._yInput:Hide()
 	cardY = placeWidget(powerTextAnchor, inner, cardY, 56)
+
+	-- Power text offsets
+	cardY = placeHeading(inner, 'Text Offsets', 3, cardY)
+	local powerOffsetX = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -50, 50, 1)
+	powerOffsetX:SetValue(getConfig('power.textAnchorX') or 0)
+	powerOffsetX:SetAfterValueChanged(function(value)
+		setConfig('power.textAnchorX', value)
+	end)
+	cardY = placeWidget(powerOffsetX, inner, cardY, SLIDER_H)
+
+	local powerOffsetY = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -50, 50, 1)
+	powerOffsetY:SetValue(getConfig('power.textAnchorY') or 0)
+	powerOffsetY:SetAfterValueChanged(function(value)
+		setConfig('power.textAnchorY', value)
+	end)
+	cardY = placeWidget(powerOffsetY, inner, cardY, SLIDER_H)
 
 	yOffset = Widgets.EndCard(powerTextCard, content, cardY)
 

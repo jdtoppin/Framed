@@ -13,20 +13,47 @@ local DEFAULT_CONFIG = {
 	width  = 200,
 	height = 40,
 	health = {
-		colorMode     = 'class',
-		smooth        = true,
-		showText      = false,
-		textFormat    = 'none',
-		healPrediction = true,
+		colorMode          = 'class',
+		smooth             = true,
+		customColor        = { 0.2, 0.8, 0.2 },
+		gradientColor1     = { 0.2, 0.8, 0.2 },
+		gradientThreshold1 = 95,
+		gradientColor2     = { 0.9, 0.6, 0.1 },
+		gradientThreshold2 = 50,
+		gradientColor3     = { 0.8, 0.1, 0.1 },
+		gradientThreshold3 = 5,
+		lossColorMode      = 'dark',
+		lossCustomColor    = { 0.15, 0.15, 0.15 },
+		showText           = false,
+		textFormat         = 'percent',
+		fontSize           = C.Font.sizeSmall,
+		textAnchor         = 'CENTER',
+		textAnchorX        = 0,
+		textAnchorY        = 0,
+		outline            = '',
+		shadow             = true,
+		attachedToName     = false,
+		healPrediction     = true,
 	},
 	power = {
-		height   = 2,
-		showText = false,
+		height      = 2,
+		showText    = false,
+		fontSize    = C.Font.sizeSmall,
+		textAnchor  = 'CENTER',
+		textAnchorX = 0,
+		textAnchorY = 0,
+		outline     = '',
+		shadow      = true,
 	},
 	name = {
 		colorMode = 'class',
 		truncate  = 12,
 		fontSize  = C.Font.sizeNormal,
+		anchor    = 'CENTER',
+		anchorX   = 0,
+		anchorY   = 0,
+		outline   = '',
+		shadow    = true,
 	},
 	castbar         = nil,
 	portrait        = nil,
@@ -176,6 +203,8 @@ do
 	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 120
 	p.height = 36
+	p.name.fontSize     = C.Font.sizeSmall
+	p.name.truncate     = 10
 	p.health.showText   = true
 	p.health.textFormat = 'percent'
 	p.statusIcons.role  = true
@@ -232,6 +261,8 @@ do
 	local p = F.DeepCopy(DEFAULT_CONFIG)
 	p.width  = 72
 	p.height = 36
+	p.name.fontSize     = C.Font.sizeSmall
+	p.name.truncate     = 6
 	p.health.showText   = true
 	p.health.textFormat = 'percent'
 	p.statusIcons.role  = true
@@ -374,6 +405,19 @@ function F.StyleBuilder.GetConfig(unitType)
 		return presetData.unitConfigs[unitType]
 	end
 
+	-- Current preset doesn't have this unitType (e.g. 'Solo' has no party config).
+	-- Find the canonical preset that owns it via PresetInfo.groupKey so user
+	-- customisations saved under that preset are still respected on reload.
+	for name, info in next, C.PresetInfo do
+		if(info.groupKey == unitType) then
+			local _, groupData = F.AutoSwitch.ResolvePreset(name)
+			if(groupData and groupData.unitConfigs and groupData.unitConfigs[unitType]) then
+				return groupData.unitConfigs[unitType]
+			end
+			break
+		end
+	end
+
 	-- Fall back to built-in preset
 	if(F.StyleBuilder.Presets[unitType]) then
 		return F.StyleBuilder.Presets[unitType]
@@ -397,6 +441,17 @@ function F.StyleBuilder.GetAuraConfig(unitType, auraType)
 		return presetData.auras[unitType][auraType] or {}
 	end
 
+	-- Current preset doesn't have auras for this unitType — check canonical preset
+	for name, info in next, C.PresetInfo do
+		if(info.groupKey == unitType) then
+			local _, groupData = F.AutoSwitch.ResolvePreset(name)
+			if(groupData and groupData.auras and groupData.auras[unitType]) then
+				return groupData.auras[unitType][auraType] or {}
+			end
+			break
+		end
+	end
+
 	-- Fall back to built-in preset config fields.
 	-- Presets define aura configs directly as top-level keys (e.g., preset.buffs,
 	-- preset.debuffs) rather than under a nested .auras table.
@@ -418,6 +473,9 @@ end
 -- ============================================================
 
 function F.StyleBuilder.Apply(self, unit, config, unitType)
+
+	-- Store unit type for live config lookups
+	self._framedUnitType = unitType
 
 	-- --------------------------------------------------------
 	-- 1. Size the frame
@@ -456,10 +514,19 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	self.Power._wrapper:ClearAllPoints()
 	self.Power._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, -healthHeight)
 
-	-- Name text — centered on the health bar region
+	-- Name text — positioned on the health bar region (default: center)
 	local nameCfg = F.DeepCopy(config.name)
-	nameCfg.anchor = { 'CENTER', self.Health, 'CENTER', 0, 0 }
+	local nameAnchorPt = nameCfg.anchor or 'CENTER'
+	local nameAnchorX  = nameCfg.anchorX or 0
+	local nameAnchorY  = nameCfg.anchorY or 0
+	nameCfg.anchor = { nameAnchorPt, self.Health, nameAnchorPt, nameAnchorX, nameAnchorY }
 	F.Elements.Name.Setup(self, nameCfg)
+
+	-- Health text attached to name — anchor health text to right of name
+	if(config.health and config.health.attachedToName and self.Name and self.Health and self.Health.text) then
+		self.Health.text:ClearAllPoints()
+		self.Health.text:SetPoint('LEFT', self.Name, 'RIGHT', 2, 0)
+	end
 
 	-- Range — alpha fade when unit is out of range
 	F.Elements.Range.Setup(self, config.range)
@@ -654,3 +721,155 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		end
 	end
 end, 'StyleBuilder.HighlightConfig')
+
+-- ============================================================
+-- Live config updates for text properties (font size, anchor)
+-- ============================================================
+
+F.EventBus:Register('CONFIG_CHANGED', function(path, value)
+	-- Match: presets.*.unitConfigs.<unitType>.<section>.<key>
+	local unitType, remainder = path:match('unitConfigs%.([^.]+)%.(.+)')
+	if(not unitType) then return end
+
+	local oUF = F.oUF
+	if(not oUF or not oUF.objects) then return end
+
+	local fontPath = F.Media.GetActiveFont()
+
+	for _, frame in next, oUF.objects do
+		if(frame._framedUnitType == unitType) then
+
+			-- ── Name text ────────────────────────────────
+			if(remainder == 'name.fontSize' and frame.Name) then
+				local _, _, flags = frame.Name:GetFont()
+				frame.Name:SetFont(fontPath, value, flags or '')
+				frame.Name._fontSize = value
+			elseif(remainder == 'name.anchor' and frame.Name and frame.Health) then
+				frame.Name:ClearAllPoints()
+				local x = frame.Name._anchorX or 0
+				local y = frame.Name._anchorY or 0
+				frame.Name:SetPoint(value, frame.Health, value, x, y)
+				frame.Name._anchorPoint = value
+				-- Re-anchor health text if attached
+				if(frame.Health._attachedToName and frame.Health.text) then
+					frame.Health.text:ClearAllPoints()
+					frame.Health.text:SetPoint('LEFT', frame.Name, 'RIGHT', 2, 0)
+				end
+			elseif(remainder == 'name.anchorX' and frame.Name and frame.Health) then
+				frame.Name._anchorX = value
+				local pt = frame.Name._anchorPoint or 'CENTER'
+				local y  = frame.Name._anchorY or 0
+				frame.Name:ClearAllPoints()
+				frame.Name:SetPoint(pt, frame.Health, pt, value, y)
+			elseif(remainder == 'name.anchorY' and frame.Name and frame.Health) then
+				frame.Name._anchorY = value
+				local pt = frame.Name._anchorPoint or 'CENTER'
+				local x  = frame.Name._anchorX or 0
+				frame.Name:ClearAllPoints()
+				frame.Name:SetPoint(pt, frame.Health, pt, x, value)
+			elseif(remainder == 'name.colorMode' and frame.Name) then
+				-- Update name color mode and recolor immediately
+				frame.Name._config.colorMode = value
+				local unit = frame:GetAttribute('unit')
+				if(value == 'white') then
+					local tc = C.Colors.textActive
+					frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+				elseif(value == 'custom') then
+					local cc = frame.Name._config.customColor or { 1, 1, 1 }
+					frame.Name:SetTextColor(cc[1], cc[2], cc[3], cc[4] or 1)
+				elseif(value == 'class' and unit) then
+					local _, class = UnitClass(unit)
+					if(class) then
+						local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+						if(classColor) then
+							frame.Name:SetTextColor(classColor.r, classColor.g, classColor.b, 1)
+						end
+					end
+				end
+			elseif(remainder == 'name.customColor' and frame.Name) then
+				frame.Name._config.customColor = value
+				if(frame.Name._config.colorMode == 'custom') then
+					frame.Name:SetTextColor(value[1], value[2], value[3], value[4] or 1)
+				end
+			elseif(remainder == 'name.outline' and frame.Name) then
+				local _, size = frame.Name:GetFont()
+				frame.Name:SetFont(fontPath, size or C.Font.sizeNormal, value or '')
+				frame.Name._fontFlags = value or ''
+			elseif(remainder == 'name.shadow' and frame.Name) then
+				if(value) then
+					frame.Name:SetShadowOffset(1, -1)
+				else
+					frame.Name:SetShadowOffset(0, 0)
+				end
+
+			-- ── Health text ──────────────────────────────
+			elseif(remainder == 'health.fontSize' and frame.Health and frame.Health.text) then
+				local _, _, flags = frame.Health.text:GetFont()
+				frame.Health.text:SetFont(fontPath, value, flags or '')
+				frame.Health.text._fontSize = value
+			elseif(remainder == 'health.textAnchor' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
+				local x = frame.Health.text._anchorX or 0
+				local y = frame.Health.text._anchorY or 0
+				frame.Health.text:ClearAllPoints()
+				frame.Health.text:SetPoint(value, frame.Health, value, x, y)
+				frame.Health.text._anchorPoint = value
+			elseif(remainder == 'health.textAnchorX' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
+				frame.Health.text._anchorX = value
+				local pt = frame.Health.text._anchorPoint or 'CENTER'
+				local y  = frame.Health.text._anchorY or 0
+				frame.Health.text:ClearAllPoints()
+				frame.Health.text:SetPoint(pt, frame.Health, pt, value, y)
+			elseif(remainder == 'health.textAnchorY' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
+				frame.Health.text._anchorY = value
+				local pt = frame.Health.text._anchorPoint or 'CENTER'
+				local x  = frame.Health.text._anchorX or 0
+				frame.Health.text:ClearAllPoints()
+				frame.Health.text:SetPoint(pt, frame.Health, pt, x, value)
+			elseif(remainder == 'health.outline' and frame.Health and frame.Health.text) then
+				local _, size = frame.Health.text:GetFont()
+				frame.Health.text:SetFont(fontPath, size or C.Font.sizeSmall, value or '')
+				frame.Health.text._fontFlags = value or ''
+			elseif(remainder == 'health.shadow' and frame.Health and frame.Health.text) then
+				if(value) then
+					frame.Health.text:SetShadowOffset(1, -1)
+				else
+					frame.Health.text:SetShadowOffset(0, 0)
+				end
+
+			-- ── Power text ───────────────────────────────
+			elseif(remainder == 'power.fontSize' and frame.Power and frame.Power.text) then
+				local _, _, flags = frame.Power.text:GetFont()
+				frame.Power.text:SetFont(fontPath, value, flags or '')
+				frame.Power.text._fontSize = value
+			elseif(remainder == 'power.textAnchor' and frame.Power and frame.Power.text) then
+				local x = frame.Power.text._anchorX or 0
+				local y = frame.Power.text._anchorY or 0
+				frame.Power.text:ClearAllPoints()
+				frame.Power.text:SetPoint(value, frame.Power, value, x, y)
+				frame.Power.text._anchorPoint = value
+			elseif(remainder == 'power.textAnchorX' and frame.Power and frame.Power.text) then
+				frame.Power.text._anchorX = value
+				local pt = frame.Power.text._anchorPoint or 'CENTER'
+				local y  = frame.Power.text._anchorY or 0
+				frame.Power.text:ClearAllPoints()
+				frame.Power.text:SetPoint(pt, frame.Power, pt, value, y)
+			elseif(remainder == 'power.textAnchorY' and frame.Power and frame.Power.text) then
+				frame.Power.text._anchorY = value
+				local pt = frame.Power.text._anchorPoint or 'CENTER'
+				local x  = frame.Power.text._anchorX or 0
+				frame.Power.text:ClearAllPoints()
+				frame.Power.text:SetPoint(pt, frame.Power, pt, x, value)
+			elseif(remainder == 'power.outline' and frame.Power and frame.Power.text) then
+				local _, size = frame.Power.text:GetFont()
+				frame.Power.text:SetFont(fontPath, size or C.Font.sizeSmall, value or '')
+				frame.Power.text._fontFlags = value or ''
+			elseif(remainder == 'power.shadow' and frame.Power and frame.Power.text) then
+				if(value) then
+					frame.Power.text:SetShadowOffset(1, -1)
+				else
+					frame.Power.text:SetShadowOffset(0, 0)
+				end
+			end
+		end
+	end
+end, 'StyleBuilder.TextConfig')

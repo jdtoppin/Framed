@@ -26,6 +26,12 @@ function F.Elements.Power.Setup(self, width, height, config)
 	config.height      = config.height or 2               -- thin power bar default
 	config.showText    = config.showText or false
 	config.textFormat  = config.textFormat or 'current'   -- 'current', 'percent', 'deficit', 'current-max', 'none'
+	config.fontSize    = config.fontSize or C.Font.sizeSmall
+	config.textAnchor  = config.textAnchor or 'CENTER'
+	config.textAnchorX = config.textAnchorX or 0
+	config.textAnchorY = config.textAnchorY or 0
+	config.outline     = config.outline or ''
+	config.shadow      = (config.shadow == nil) and true or config.shadow
 	config.powerFilter = config.powerFilter or nil        -- table of {MANA=true, ENERGY=false, ...} or nil for all
 
 	-- --------------------------------------------------------
@@ -61,8 +67,13 @@ function F.Elements.Power.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	if(config.showText) then
-		local text = Widgets.CreateFontString(power, C.Font.sizeSmall, C.Colors.textActive)
-		text:SetPoint('CENTER', power, 'CENTER', 0, 0)
+		local text = Widgets.CreateFontString(power, config.fontSize, C.Colors.textActive, config.outline, config.shadow)
+		local ap = config.textAnchor
+		text:SetPoint(ap, power, ap, config.textAnchorX, config.textAnchorY)
+		-- Store for live config updates
+		text._anchorPoint = ap
+		text._anchorX     = config.textAnchorX
+		text._anchorY     = config.textAnchorY
 		power.text = text
 	end
 

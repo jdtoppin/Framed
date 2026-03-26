@@ -57,6 +57,8 @@ function F.Elements.Name.Setup(self, config)
 	config.customColor = config.customColor or {1, 1, 1}
 	config.truncate    = config.truncate or 12
 	config.fontSize    = config.fontSize or C.Font.sizeNormal
+	config.outline     = config.outline or ''               -- '', 'OUTLINE', 'MONOCHROME'
+	config.shadow      = (config.shadow == nil) and true or config.shadow
 	config.anchor      = config.anchor or {'CENTER', self, 'CENTER', 0, 0}
 
 	-- --------------------------------------------------------
@@ -76,7 +78,7 @@ function F.Elements.Name.Setup(self, config)
 	-- Font string
 	-- --------------------------------------------------------
 
-	local nameText = Widgets.CreateFontString(overlay, config.fontSize, C.Colors.textActive)
+	local nameText = Widgets.CreateFontString(overlay, config.fontSize, C.Colors.textActive, config.outline, config.shadow)
 
 	-- --------------------------------------------------------
 	-- Positioning via anchor config
@@ -85,6 +87,11 @@ function F.Elements.Name.Setup(self, config)
 
 	local anchor = config.anchor
 	Widgets.SetPoint(nameText, anchor[1], anchor[2], anchor[3], anchor[4] or 0, anchor[5] or 0)
+
+	-- Store anchor info for live config updates
+	nameText._anchorPoint = anchor[1]
+	nameText._anchorX     = anchor[4] or 0
+	nameText._anchorY     = anchor[5] or 0
 
 	-- --------------------------------------------------------
 	-- Apply initial color for non-class modes
