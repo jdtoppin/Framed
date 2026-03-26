@@ -350,7 +350,7 @@ local function buildSidebarContent(sidebar)
 			-- ── Standard section rendering ───────────────────────────
 
 			-- Section header text (skip empty label for BOTTOM)
-			if(sectionLabel ~= '') then
+			if(sectionLabel ~= '' and sectionId ~= 'FRAME_PRESETS') then
 				local headerText = sidebar:CreateFontString(nil, 'ARTWORK')
 				headerText:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
 				headerText:SetShadowOffset(1, -1)
