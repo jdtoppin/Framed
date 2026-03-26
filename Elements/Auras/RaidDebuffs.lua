@@ -23,13 +23,11 @@ local function Update(self, event, unit)
 	local maxDisplayed = cfg.maxDisplayed or 1
 	local customSpells = F.Config:Get('raidDebuffs.custom')
 
-	-- Collect qualifying auras with their effective priority
-	local auraList = {}
-	local i = 1
-	while(true) do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HARMFUL')
-		if(not auraData) then break end
+	-- Collect qualifying auras — server pre-filters to raid-relevant
+	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
 
+	local auraList = {}
+	for _, auraData in next, rawAuras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
 			local priority  = 0
@@ -74,8 +72,6 @@ local function Update(self, event, unit)
 				}
 			end
 		end
-
-		i = i + 1
 	end
 
 	-- Sort: highest priority first; break ties by most recent expiration (highest expirationTime)
