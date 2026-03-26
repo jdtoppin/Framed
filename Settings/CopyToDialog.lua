@@ -42,7 +42,7 @@ local function buildDialog(configKey, panelLabel, panelId)
 			edgeFile = [[Interface\Buttons\WHITE8x8]],
 			edgeSize = 1,
 		})
-		dialog:SetBackdropColor(C.Colors.frameBg[1], C.Colors.frameBg[2], C.Colors.frameBg[3], 0.95)
+		dialog:SetBackdropColor(C.Colors.panel[1], C.Colors.panel[2], C.Colors.panel[3], C.Colors.panel[4] or 0.95)
 		dialog:SetBackdropBorderColor(C.Colors.border[1], C.Colors.border[2], C.Colors.border[3], 1)
 		dialog:EnableMouse(true)
 		dialog:EnableKeyboard(true)
@@ -89,12 +89,10 @@ local function buildDialog(configKey, panelLabel, panelId)
 	end
 	dialog._subtitle:SetText('From: ' .. sourceLabel)
 
-	-- Clear old toggle buttons
+	-- Hide all existing toggle buttons
 	for _, btn in next, toggleBtns do
 		btn:Hide()
-		btn:SetParent(nil)
 	end
-	toggleBtns = {}
 
 	-- Create toggle buttons for each target unit type (excluding source)
 	local targets = {}
@@ -109,7 +107,13 @@ local function buildDialog(configKey, panelLabel, panelId)
 	local startY = -60
 
 	for i, item in next, targets do
-		local btn = Widgets.CreateButton(dialog, item.text, 'widget', BTN_W, BTN_H)
+		local btn = toggleBtns[i]
+		if(not btn) then
+			btn = Widgets.CreateButton(dialog, item.text, 'widget', BTN_W, BTN_H)
+			toggleBtns[i] = btn
+		else
+			btn._label:SetText(item.text)
+		end
 		btn.value = item.value
 		local row = math.floor((i - 1) / btnsPerRow)
 		local col = (i - 1) % btnsPerRow
@@ -117,11 +121,17 @@ local function buildDialog(configKey, panelLabel, panelId)
 		Widgets.SetPoint(btn, 'TOPLEFT', dialog, 'TOPLEFT',
 			startX + col * (BTN_W + BTN_GAP),
 			startY - row * (BTN_H + BTN_GAP))
-		toggleBtns[#toggleBtns + 1] = btn
+		btn:Show()
+	end
+
+	-- Build the active buttons array for the multi-select group
+	local activeBtns = {}
+	for i = 1, #targets do
+		activeBtns[i] = toggleBtns[i]
 	end
 
 	-- Wire multi-select group
-	multiGroup = Widgets.CreateMultiSelectButtonGroup(toggleBtns, function(selected)
+	multiGroup = Widgets.CreateMultiSelectButtonGroup(activeBtns, function(selected)
 		-- Enable confirm only when at least one target is selected
 		local hasSelection = false
 		for _ in next, selected do
