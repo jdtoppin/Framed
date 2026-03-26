@@ -13,13 +13,34 @@ Let users quickly replicate aura settings (buffs, debuffs, externals, etc.) acro
 - Single aura panel scope — copies only the active panel's config (e.g., Buffs), not all aura configs
 - Overwrite semantics — target config is replaced entirely, no merge
 - Same-preset only — copies within the current editing preset
+- **Excluded panels:** CrowdControl and LossOfControl store config globally (not per-preset/per-unit), so Copy-To does not apply. The "Copy to..." button should be hidden or disabled for these panels.
+
+## Config Key Mapping
+
+Panel IDs don't always match config keys. `BuildAuraUnitTypeRow` must accept an explicit `configKey` parameter to pass through to the dialog:
+
+| Panel ID | Config Key |
+|----------|-----------|
+| `buffs` | `buffs` |
+| `debuffs` | `debuffs` |
+| `raiddebuffs` | `raidDebuffs` |
+| `externals` | `externals` |
+| `defensives` | `defensives` |
+| `targetedspells` | `targetedSpells` |
+| `dispels` | `dispellable` |
+| `missingbuffs` | `missingBuffs` |
+| `privateauras` | `privateAuras` |
+| `crowdcontrol` | *(excluded — global config)* |
+| `lossofcontrol` | *(excluded — global config)* |
+
+The full config path for a copyable panel is: `presets.<preset>.auras.<unitType>.<configKey>`
 
 ## Dialog UX
 
-**Trigger:** Click "Copy to..." button on any aura settings panel.
+**Trigger:** Click "Copy to..." button on any supported aura settings panel.
 
 **Dialog layout:**
-- **Title:** "Copy [Panel Label] Settings"
+- **Title:** "Copy [Panel Label] Settings" — panel label looked up from `Settings._panels[panelId].label`
 - **Subtitle:** "From: [Source Unit Type Label]"
 - **Target selection:** `CreateMultiSelectButtonGroup` toggle buttons for each available unit type, excluding the current source. Buttons wrap horizontally.
 - **Confirm button** — disabled until at least one target is selected
@@ -28,12 +49,12 @@ Let users quickly replicate aura settings (buffs, debuffs, externals, etc.) acro
 ## Behavior
 
 **On Confirm:**
-1. Deep-clone the source config at `presets.<preset>.auras.<sourceUnit>.<auraType>`
-2. For each selected target, write the clone to `presets.<preset>.auras.<targetUnit>.<auraType>` via `F.Config:Set`
-3. Fire `CONFIG_CHANGED` per target path
-4. Call `F.PresetManager.MarkCustomized(presetName)`
+1. Deep-clone the source config at `presets.<preset>.auras.<sourceUnit>.<configKey>`
+2. For each selected target, write the clone via `F.Config:Set('presets.<preset>.auras.<targetUnit>.<configKey>', clonedTable)` — this fires `CONFIG_CHANGED` automatically
+3. Call `F.PresetManager.MarkCustomized(presetName)`
+4. Invalidate cached panel frames for affected targets (`Settings._panelFrames[panelId] = nil`)
 5. Close dialog
-6. Print confirmation message: `"Framed: Copied [panel] settings from [source] to [target1], [target2], ..."`
+6. Print confirmation: `"Framed: Copied [panel] settings from [source] to [target1], [target2], ..."`
 
 **On Cancel:** Dismiss dialog, no changes.
 
@@ -46,22 +67,22 @@ A simple recursive table copy. Config values are plain Lua tables (numbers, stri
 | File | Action |
 |------|--------|
 | `Settings/CopyToDialog.lua` | **Create** — dialog frame, toggle buttons, confirm/cancel logic, deep clone, config write |
-| `Settings/Framework.lua` | **Modify** — replace `print('coming soon')` with call to show the copy-to dialog |
+| `Settings/Framework.lua` | **Modify** — add `configKey` parameter to `BuildAuraUnitTypeRow`, expose `getUnitTypeItems` as `Settings._getUnitTypeItems()`, replace `print('coming soon')` with call to show dialog, hide button for excluded panels |
 | `Framed.toc` | **Modify** — add `Settings/CopyToDialog.lua` |
 
 ## Unit Type List
 
-The target list is built from the same `getUnitTypeItems()` function already used by the "Configure for:" dropdown in `Framework.lua`. This returns preset-aware items (e.g., party preset includes "Party" as a group option). The source unit type is excluded from the toggle button list.
+Expose `getUnitTypeItems()` as `Settings._getUnitTypeItems()` (underscore-prefixed private convention). The dialog calls this and excludes the source unit type from the toggle button list.
 
 ## Existing Code Reuse
 
 | Component | Location | Usage |
 |-----------|----------|-------|
 | `Widgets.CreateMultiSelectButtonGroup` | `Widgets/Button.lua:505` | Target unit type toggle buttons |
-| `Widgets.ShowConfirmDialog` | `Widgets/Dialog.lua` | Not reused — custom dialog needed for toggle button content |
 | `Widgets.CreateButton` | `Widgets/Button.lua` | Confirm/Cancel buttons |
 | `Widgets.FadeIn/FadeOut` | `Widgets/Base.lua` | Dialog show/hide transitions |
-| `getUnitTypeItems()` | `Settings/Framework.lua:101` | Unit type list (needs to be exposed or duplicated) |
+| `Settings._getUnitTypeItems()` | `Settings/Framework.lua` | Unit type list |
+| `Settings._panels[panelId].label` | `Settings/Framework.lua` | Panel display name |
 | `Settings.GetEditingUnitType()` | `Settings/Framework.lua` | Source unit type |
 | `Settings.GetEditingPreset()` | `Settings/Framework.lua` | Current preset name |
 
@@ -69,3 +90,4 @@ The target list is built from the same `getUnitTypeItems()` function already use
 
 - **Only one unit type available:** If the preset only has one unit type (unlikely but possible), the button should be disabled or the dialog should show a message.
 - **Source unit type has empty/default config:** Copy proceeds normally — the empty config overwrites the target, effectively resetting it.
+- **Excluded panels (CrowdControl, LossOfControl):** Button hidden — these use global config paths, not per-unit-type.
