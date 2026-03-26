@@ -171,6 +171,9 @@ function EditMode.SetSessionPreset(presetName)
 	sessionPresetOverride = presetName
 end
 
+-- Combat frame created early so Enter/Exit can reference it
+local combatFrame = CreateFrame('Frame')
+
 -- ============================================================
 -- Public API
 -- ============================================================
@@ -297,7 +300,6 @@ end
 -- Combat Protection
 -- ============================================================
 
-local combatFrame = CreateFrame('Frame')
 combatFrame:SetScript('OnEvent', function(self, event)
 	if(not isActive) then return end
 
