@@ -28,14 +28,16 @@ F.Settings.RegisterPanel({
 		descFS:ClearAllPoints()
 		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		descFS:SetWidth(width)
-		descFS:SetText('Personal defensive cooldowns to track on yourself.')
+		descFS:SetText('Major personal defensive cooldowns. Supports visibility modes: show all, player-cast only, or other-cast only. Border color differentiates source.')
 		descFS:SetWordWrap(true)
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
 		-- Shared BorderIcon settings
 		yOffset = F.Settings.Builders.BorderIconSettings(content, width, yOffset, {
-			unitType  = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party',
-			configKey = 'defensives',
+			unitType           = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party',
+			configKey          = 'defensives',
+			showVisibilityMode = true,
+			showSourceColors   = true,
 		})
 
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
