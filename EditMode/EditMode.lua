@@ -87,15 +87,15 @@ local function RestorePositions()
 end
 
 local function PersistPositions()
-	local layoutName = F.AutoSwitch and F.AutoSwitch.GetCurrentLayout() or 'Default'
+	local presetName = F.Settings.GetEditingPreset()
 	for _, def in next, FRAME_KEYS do
 		local frame = def.getter()
 		if(frame) then
 			local point, relativeTo, relPoint, x, y = frame:GetPoint()
 			if(point) then
 				local relName = relativeTo and relativeTo:GetName() or 'UIParent'
-				F.Config:SetChar(
-					'editModePositions.' .. layoutName .. '.' .. def.key,
+				F.Config:Set(
+					'presets.' .. presetName .. '.positions.' .. def.key,
 					{ point, relName, relPoint, x, y })
 			end
 		end
@@ -202,6 +202,7 @@ local function BuildOverlay()
 	local titleText = Widgets.CreateFontString(topBar, C.Font.sizeTitle, C.Colors.accent)
 	titleText:SetPoint('LEFT', topBar, 'LEFT', C.Spacing.normal, 0)
 	titleText:SetText('Edit Mode')
+	topBar.__titleText = titleText
 
 	-- Cancel button (rightmost)
 	local cancelBtn = Widgets.CreateButton(topBar, 'Cancel', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
@@ -267,6 +268,12 @@ function EditMode.Enter()
 
 	if(not overlay) then
 		BuildOverlay()
+	end
+
+	-- Update the label to reflect the currently editing preset
+	if(topBar and topBar.__titleText) then
+		local presetName = F.Settings.GetEditingPreset()
+		topBar.__titleText:SetText('Edit Mode: ' .. presetName .. ' Frame Preset')
 	end
 
 	-- Reset grid snap label state in case it drifted
