@@ -2,7 +2,7 @@ local addonName, Framed = ...
 local F = Framed
 
 -- Version
-F.version = '0.1.0-alpha'
+F.version = '0.2.0-alpha'
 
 -- oUF stores itself as ns.oUF in its init.lua (where ns is the second vararg
 -- from ..., which is our Framed namespace table). So Framed.oUF is already
