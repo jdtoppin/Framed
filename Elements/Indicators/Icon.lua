@@ -127,14 +127,8 @@ function IconMethods:SetCooldown(duration, expirationTime)
 	local expirationSafe = F.IsValueNonSecret(expirationTime)
 
 	if(not durationSafe or not expirationSafe) then
-		-- Secret values: use object-based API if available
-		if(self.cooldown.SetCooldownFromDurationObject) then
-			-- TODO: verify LuaDurationObject creation API for cooldown secret-safe path
-			-- Would need a LuaDurationObject — skip if we cannot create one
-			self.cooldown:Clear()
-		else
-			self.cooldown:Clear()
-		end
+		-- Secret values: degrade gracefully — clear the cooldown display
+		self.cooldown:Clear()
 		return
 	end
 

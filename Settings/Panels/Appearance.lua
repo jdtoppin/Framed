@@ -173,6 +173,7 @@ F.Settings.RegisterPanel({
 		targetY = placeHeading(targetInner, 'Color', 3, targetY)
 
 		local thColorPicker = Widgets.CreateColorPicker(targetInner)
+		thColorPicker:SetHasAlpha(true)
 		thColorPicker:ClearAllPoints()
 		Widgets.SetPoint(thColorPicker, 'TOPLEFT', targetInner, 'TOPLEFT', 0, targetY)
 
@@ -180,12 +181,11 @@ F.Settings.RegisterPanel({
 		if(savedThColor) then
 			thColorPicker:SetColor(savedThColor[1], savedThColor[2], savedThColor[3], savedThColor[4] or 1)
 		else
-			thColorPicker:SetColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
+			thColorPicker:SetColor(0.839, 0, 0.075, 1)  -- #d60013
 		end
 
 		thColorPicker:SetOnColorChanged(function(r, g, b, a)
 			setConfig('targetHighlightColor', { r, g, b, a })
-			fireChange()
 		end)
 		targetY = targetY - SWATCH_H - C.Spacing.normal
 
@@ -193,34 +193,42 @@ F.Settings.RegisterPanel({
 		thWidthSlider:SetValue(getConfig('targetHighlightWidth') or 2)
 		thWidthSlider:SetAfterValueChanged(function(value)
 			setConfig('targetHighlightWidth', value)
-			fireChange()
 		end)
 		targetY = placeWidget(thWidthSlider, targetInner, targetY, SLIDER_H)
 
 		yOffset = Widgets.EndCard(targetCard, content, targetY)
 
-		-- ── Mouseover Highlight Color ──────────────────────────
-		yOffset = placeHeading(content, 'Mouseover Highlight Color', 2, yOffset)
+		-- ── Mouseover Highlight Settings ──────────────────────
+		yOffset = placeHeading(content, 'Mouseover Highlight Settings', 2, yOffset)
 
 		local moCard, moInner, moY
 		moCard, moInner, moY = Widgets.StartCard(content, width, yOffset)
 
+		moY = placeHeading(moInner, 'Color', 3, moY)
+
 		local moColorPicker = Widgets.CreateColorPicker(moInner)
+		moColorPicker:SetHasAlpha(true)
 		moColorPicker:ClearAllPoints()
 		Widgets.SetPoint(moColorPicker, 'TOPLEFT', moInner, 'TOPLEFT', 0, moY)
 
 		local savedMoColor = getConfig('mouseoverHighlightColor')
 		if(savedMoColor) then
-			moColorPicker:SetColor(savedMoColor[1], savedMoColor[2], savedMoColor[3], savedMoColor[4] or 0.15)
+			moColorPicker:SetColor(savedMoColor[1], savedMoColor[2], savedMoColor[3], savedMoColor[4] or 0.6)
 		else
-			moColorPicker:SetColor(1, 1, 1, 0.15)
+			moColorPicker:SetColor(0.969, 0.925, 1, 0.6)  -- #f7ecff @ 60%
 		end
 
 		moColorPicker:SetOnColorChanged(function(r, g, b, a)
 			setConfig('mouseoverHighlightColor', { r, g, b, a })
-			fireChange()
 		end)
 		moY = moY - SWATCH_H - C.Spacing.normal
+
+		local moWidthSlider = Widgets.CreateSlider(moInner, 'Border Width', WIDGET_W, 1, 4, 1)
+		moWidthSlider:SetValue(getConfig('mouseoverHighlightWidth') or 2)
+		moWidthSlider:SetAfterValueChanged(function(value)
+			setConfig('mouseoverHighlightWidth', value)
+		end)
+		moY = placeWidget(moWidthSlider, moInner, moY, SLIDER_H)
 
 		yOffset = Widgets.EndCard(moCard, content, moY)
 

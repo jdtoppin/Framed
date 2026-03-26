@@ -215,13 +215,17 @@ scaleFrame:SetScript('OnEvent', function(self, event)
 	if(event == 'FIRST_FRAME_RENDERED') then
 		self:RegisterEvent('UI_SCALE_CHANGED')
 		hooksecurefunc(UIParent, 'SetScale', OnScaleChanged)
-		-- Listen for uiScale config changes to re-apply scale compensation
+		-- Listen for config changes that affect global appearance
 		if(F.EventBus) then
-			F.EventBus:Register('CONFIG_CHANGED:general', function(path)
+			F.EventBus:Register('CONFIG_CHANGED', function(path)
 				if(path == 'general.uiScale') then
 					ReapplyUIScale()
+				elseif(path == 'general.font') then
+					Widgets.UpdateAllFonts()
+				elseif(path == 'general.barTexture') then
+					Widgets.UpdateAllBarTextures()
 				end
-			end, 'Widgets.UIScale')
+			end, 'Widgets.GlobalAppearance')
 		end
 		self:UnregisterEvent('FIRST_FRAME_RENDERED')
 	elseif(event == 'UI_SCALE_CHANGED') then
@@ -293,6 +297,10 @@ end
 -- Font Utilities
 -- ============================================================
 
+-- Weak-value tracking tables for live font/texture updates
+local trackedFontStrings = setmetatable({}, { __mode = 'v' })
+local trackedStatusBars  = setmetatable({}, { __mode = 'v' })
+
 --- Create a font string with standard Framed styling.
 --- @param parent Frame
 --- @param size? number Font size (defaults to Constants.Font.sizeNormal)
@@ -305,7 +313,45 @@ function Widgets.CreateFontString(parent, size, color)
 	fs:SetShadowOffset(1, -1)
 	color = color or C.Colors.textNormal
 	fs:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+	fs._fontSize = size
+	fs._fontFlags = ''
+	trackedFontStrings[#trackedFontStrings + 1] = fs
 	return fs
+end
+
+--- Track a status bar for live texture updates.
+--- @param bar StatusBar
+function Widgets.TrackStatusBar(bar)
+	trackedStatusBars[#trackedStatusBars + 1] = bar
+end
+
+--- Update all tracked font strings with the current active font.
+function Widgets.UpdateAllFonts()
+	local fontPath = F.Media.GetActiveFont()
+	for i = #trackedFontStrings, 1, -1 do
+		local fs = trackedFontStrings[i]
+		if(fs and fs.SetFont) then
+			local _, size, flags = fs:GetFont()
+			fs:SetFont(fontPath, size or C.Font.sizeNormal, flags or '')
+		else
+			table.remove(trackedFontStrings, i)
+		end
+	end
+end
+
+--- Update all tracked status bars with the current active bar texture.
+function Widgets.UpdateAllBarTextures()
+	local texturePath = F.Media.GetActiveBarTexture()
+	for i = #trackedStatusBars, 1, -1 do
+		local bar = trackedStatusBars[i]
+		if(bar and bar.SetStatusBarTexture) then
+			bar:SetStatusBarTexture(texturePath)
+			bar:GetStatusBarTexture():SetHorizTile(false)
+			bar:GetStatusBarTexture():SetVertTile(false)
+		else
+			table.remove(trackedStatusBars, i)
+		end
+	end
 end
 
 -- ============================================================

@@ -43,8 +43,6 @@ Settings._panels = registeredPanels
 ---   label     string   Sidebar button label
 ---   section   string   Section id (matches SECTIONS)
 ---   order     number   Sort order within the section
----   unitType? string   Optional unit type hint for preview ('player','raid',etc.)
----   groupPreview? boolean  True → show multiple preview frames (3-5) instead of 1
 ---   create    function create(contentParent) → Frame  Panel frame constructor
 --- }
 function Settings.RegisterPanel(info)
@@ -199,11 +197,8 @@ Settings._panelFrames    = {}
 Settings._sidebarButtons = {}
 Settings._contentParent  = nil
 Settings._headerPanelText = nil
-Settings._previewVisible = true
-
 -- Function refs set by MainFrame.lua and Sidebar.lua
 Settings._setSidebarSelected = nil   -- function(btn, selected)
-Settings._refreshPreview     = nil   -- function()
 
 -- ============================================================
 -- Panel Switching
@@ -271,10 +266,6 @@ function Settings.SetActivePanel(panelId)
 		Settings._headerPanelText:SetText(info.label or '')
 	end
 
-	-- Refresh preview
-	if(Settings._refreshPreview) then
-		Settings._refreshPreview()
-	end
 end
 
 -- ============================================================

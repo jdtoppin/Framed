@@ -53,8 +53,6 @@ function BarMethods:SetDuration(duration, expirationTime)
 
 	-- Primary: use C-level SetTimerDuration (12.0.1, secret-safe)
 	-- Safe feature detection: check Enum exists before accessing nested fields.
-	-- CreateFrame('LuaDurationObject') throws if the type doesn't exist.
-	-- TODO: verify exact LuaDurationObject creation API when testing in-game
 	if(self._statusBar.SetTimerDuration and Enum and Enum.StatusBarTimerDirection) then
 		local startTime = expirationTime - duration
 		local durObj

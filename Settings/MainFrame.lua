@@ -17,82 +17,9 @@ local WINDOW_MAX_W     = 1200
 local WINDOW_MAX_H     = 900
 
 local SIDEBAR_W        = 170
-local PREVIEW_W        = 200
 local HEADER_HEIGHT    = 24
 local SUB_HEADER_H     = 32
 local CLOSE_BTN_SIZE   = 20
-
-local PREVIEW_ITEM_H   = 48
-local PREVIEW_ITEM_GAP = 4
-
--- ============================================================
--- Preview State
--- ============================================================
-
-local previewArea    = nil
-local previewFrames  = {}
-
--- ============================================================
--- Docked Preview
--- ============================================================
-
---- Clear all current preview frame widgets from the preview area.
-local function clearPreviewFrames()
-	for _, pf in next, previewFrames do
-		pf:Hide()
-		pf:SetParent(nil)
-	end
-	previewFrames = {}
-end
-
---- Refresh the docked preview for the currently active panel.
-local function refreshPreview()
-	if(not previewArea) then return end
-	clearPreviewFrames()
-
-	if(not Settings._previewVisible) then
-		previewArea:Hide()
-		return
-	end
-
-	local info = nil
-	for _, p in next, Settings._panels do
-		if(p.id == Settings._activePanelId) then
-			info = p
-			break
-		end
-	end
-
-	if(not info) then
-		previewArea:Hide()
-		return
-	end
-
-	previewArea:Show()
-
-	-- Determine how many preview items to show
-	local count = 1
-	if(info.groupPreview) then
-		count = 4
-	end
-
-	local fakeUnits = F.Preview.GetFakeUnits(count)
-	local itemW = PREVIEW_W - (C.Spacing.tight * 2)
-	local yOffset = -C.Spacing.tight
-
-	for i = 1, #fakeUnits do
-		local pf = F.Preview.CreatePreviewFrame(previewArea, info.unitType or 'player', itemW, PREVIEW_ITEM_H)
-		pf:ClearAllPoints()
-		Widgets.SetPoint(pf, 'TOPLEFT', previewArea, 'TOPLEFT', C.Spacing.tight, yOffset)
-		pf:SetFakeUnit(fakeUnits[i])
-		pf:Show()
-		previewFrames[#previewFrames + 1] = pf
-		yOffset = yOffset - PREVIEW_ITEM_H - PREVIEW_ITEM_GAP
-	end
-end
-
--- Register with Framework so SetActivePanel can trigger preview refresh
-Settings._refreshPreview = refreshPreview
 
 -- ============================================================
 -- Main Frame Constructor
@@ -130,25 +57,10 @@ function Settings.CreateMainFrame()
 	end)
 	closeBtn:SetWidgetTooltip('Close')
 
-	-- ── Preview toggle (header, left of close) ───────────────
-	local previewBtn = Widgets.CreateButton(header, 'Preview', 'widget', 70, CLOSE_BTN_SIZE)
-	previewBtn:ClearAllPoints()
-	Widgets.SetPoint(previewBtn, 'RIGHT', closeBtn, 'LEFT', -C.Spacing.tight, 0)
-	previewBtn:SetOnClick(function()
-		Settings._previewVisible = not Settings._previewVisible
-		if(Settings._previewVisible) then
-			F.Preview.Enable()
-		else
-			F.Preview.Disable()
-		end
-		refreshPreview()
-	end)
-	previewBtn:SetWidgetTooltip('Toggle Preview', 'Show or hide the docked unit frame preview.')
-
-	-- ── Edit Mode button (header, left of preview) ───────────
+	-- ── Edit Mode button (header, left of close) ────────────
 	local editModeBtn = Widgets.CreateButton(header, 'Edit Mode', 'widget', 80, CLOSE_BTN_SIZE)
 	editModeBtn:ClearAllPoints()
-	Widgets.SetPoint(editModeBtn, 'RIGHT', previewBtn, 'LEFT', -C.Spacing.tight, 0)
+	Widgets.SetPoint(editModeBtn, 'RIGHT', closeBtn, 'LEFT', -C.Spacing.tight, 0)
 	editModeBtn:SetOnClick(function()
 		Settings.Hide()
 		if(F.EditMode and F.EditMode.Enter) then
@@ -168,7 +80,7 @@ function Settings.CreateMainFrame()
 			end
 			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
-				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - PREVIEW_W - C.Spacing.normal
+				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
 				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H
 			end
 		end)
@@ -216,26 +128,12 @@ function Settings.CreateMainFrame()
 	local panelContainer = CreateFrame('Frame', nil, contentArea)
 	panelContainer:ClearAllPoints()
 	Widgets.SetPoint(panelContainer, 'TOPLEFT',     contentArea, 'TOPLEFT',     C.Spacing.normal, 0)
-	Widgets.SetPoint(panelContainer, 'BOTTOMRIGHT', contentArea, 'BOTTOMRIGHT', -PREVIEW_W, 0)
+	Widgets.SetPoint(panelContainer, 'BOTTOMRIGHT', contentArea, 'BOTTOMRIGHT', 0, 0)
 
 	Settings._contentParent = panelContainer
 	-- Store explicit dimensions for panels to read during create()
-	Settings._contentParent._explicitWidth  = WINDOW_W - SIDEBAR_W - PREVIEW_W - C.Spacing.normal
+	Settings._contentParent._explicitWidth  = WINDOW_W - SIDEBAR_W - C.Spacing.normal
 	Settings._contentParent._explicitHeight = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H
-
-	-- ── Preview area (right strip) ────────────────────────────
-	local preview = Widgets.CreateBorderedFrame(contentArea, PREVIEW_W, WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H, C.Colors.background, C.Colors.border)
-	preview:ClearAllPoints()
-	Widgets.SetPoint(preview, 'TOPRIGHT',    contentArea, 'TOPRIGHT',    0, 0)
-	Widgets.SetPoint(preview, 'BOTTOMRIGHT', contentArea, 'BOTTOMRIGHT', 0, 0)
-	preview:SetWidth(PREVIEW_W)
-	previewArea = preview
-
-	-- Preview area label
-	local previewLabel = Widgets.CreateFontString(preview, C.Font.sizeSmall, C.Colors.textSecondary)
-	previewLabel:ClearAllPoints()
-	Widgets.SetPoint(previewLabel, 'TOPLEFT', preview, 'TOPLEFT', C.Spacing.tight, -C.Spacing.tight)
-	previewLabel:SetText('PREVIEW')
 
 	-- ── Pixel updater ─────────────────────────────────────────
 	Widgets.AddToPixelUpdater_OnShow(frame)
@@ -252,7 +150,7 @@ function Settings.CreateMainFrame()
 			frame:SetSize(sz[1], sz[2])
 			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
-				Settings._contentParent._explicitWidth  = sz[1] - SIDEBAR_W - PREVIEW_W
+				Settings._contentParent._explicitWidth  = sz[1] - SIDEBAR_W - C.Spacing.normal
 				Settings._contentParent._explicitHeight = sz[2] - HEADER_HEIGHT - SUB_HEADER_H
 			end
 		end
@@ -267,6 +165,4 @@ function Settings.CreateMainFrame()
 		Widgets.ApplyUIScale(frame)
 	end)
 
-	-- Enable preview by default when window is open
-	F.Preview.Enable()
 end

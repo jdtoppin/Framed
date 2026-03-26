@@ -20,6 +20,10 @@ local accountDefaults = {
 		tooltipAnchor = 'ANCHOR_RIGHT',
 		tooltipOffsetX = 0,
 		tooltipOffsetY = 0,
+		targetHighlightColor = { 0.839, 0, 0.075, 1 },   -- #d60013
+		targetHighlightWidth = 2,
+		mouseoverHighlightColor = { 0.969, 0.925, 1, 0.6 }, -- #f7ecff @ 60%
+		mouseoverHighlightWidth = 2,
 	},
 	presets = {},       -- populated by Presets/Defaults.lua
 	raidDebuffs = {

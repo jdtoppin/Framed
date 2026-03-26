@@ -549,11 +549,21 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	end
 
 	if(config.targetHighlight) then
-		F.Elements.TargetHighlight.Setup(self)
+		local thColor = F.Config and F.Config:Get('general.targetHighlightColor')
+		local thWidth = F.Config and F.Config:Get('general.targetHighlightWidth')
+		F.Elements.TargetHighlight.Setup(self, {
+			color     = thColor,
+			thickness = thWidth,
+		})
 	end
 
 	if(config.mouseoverHighlight) then
-		F.Elements.MouseoverHighlight.Setup(self)
+		local moColor = F.Config and F.Config:Get('general.mouseoverHighlightColor')
+		local moWidth = F.Config and F.Config:Get('general.mouseoverHighlightWidth')
+		F.Elements.MouseoverHighlight.Setup(self, {
+			color     = moColor,
+			thickness = moWidth,
+		})
 	end
 
 	-- --------------------------------------------------------
@@ -613,3 +623,34 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 
 	Widgets.AddToPixelUpdater_Auto(self)
 end
+
+-- ============================================================
+-- Live config updates for highlight appearance
+-- ============================================================
+
+local HIGHLIGHT_TARGET_KEYS = {
+	['general.targetHighlightColor'] = true,
+	['general.targetHighlightWidth'] = true,
+}
+local HIGHLIGHT_MOUSEOVER_KEYS = {
+	['general.mouseoverHighlightColor'] = true,
+	['general.mouseoverHighlightWidth'] = true,
+}
+
+F.EventBus:Register('CONFIG_CHANGED', function(path)
+	local isTarget = HIGHLIGHT_TARGET_KEYS[path]
+	local isMouseover = HIGHLIGHT_MOUSEOVER_KEYS[path]
+	if(not isTarget and not isMouseover) then return end
+
+	local oUF = F.oUF
+	if(not oUF or not oUF.objects) then return end
+
+	for _, frame in next, oUF.objects do
+		if(isTarget and frame.FramedTargetHighlight) then
+			F.Elements.TargetHighlight.UpdateAppearance(frame.FramedTargetHighlight)
+		end
+		if(isMouseover and frame.FramedMouseoverHighlight) then
+			F.Elements.MouseoverHighlight.UpdateAppearance(frame.FramedMouseoverHighlight)
+		end
+	end
+end, 'StyleBuilder.HighlightConfig')

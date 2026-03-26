@@ -59,6 +59,22 @@ function F.Media.GetPlainTexture()
 	return TEXTURE_PATH .. 'White'
 end
 
+--- Get the user's configured statusbar texture path, falling back to plain white.
+--- @return string
+function F.Media.GetActiveBarTexture()
+	if(F.Config) then
+		local name = F.Config:Get('general.barTexture')
+		if(name) then
+			local LSM = LibStub and LibStub('LibSharedMedia-3.0', true)
+			if(LSM) then
+				local path = LSM:Fetch('statusbar', name)
+				if(path) then return path end
+			end
+		end
+	end
+	return [[Interface\BUTTONS\WHITE8x8]]
+end
+
 -- ============================================================
 -- LibSharedMedia registration
 -- ============================================================

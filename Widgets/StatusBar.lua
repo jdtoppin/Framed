@@ -40,10 +40,11 @@ function Widgets.CreateStatusBar(parent, width, height)
 	bar:SetPoint('TOPLEFT',     wrapper, 'TOPLEFT',      1, -1)
 	bar:SetPoint('BOTTOMRIGHT', wrapper, 'BOTTOMRIGHT', -1,  1)
 
-	-- Solid-color bar texture
-	bar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+	-- Bar texture (uses user-configured texture or plain white)
+	bar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
 	bar:GetStatusBarTexture():SetHorizTile(false)
 	bar:GetStatusBarTexture():SetVertTile(false)
+	Widgets.TrackStatusBar(bar)
 
 	-- Default fill color: accent
 	local accent = C.Colors.accent

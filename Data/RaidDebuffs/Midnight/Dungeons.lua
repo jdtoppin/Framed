@@ -2,10 +2,11 @@ local addonName, Framed = ...
 local F = Framed
 local P = F.Constants.DebuffPriority
 
--- Placeholder: commonly tracked M+ debuffs
--- Full per-dungeon data will be curated during testing
--- TODO: Add Undermine.lua for raid boss debuffs
-
-F.RaidDebuffRegistry:Register(240443, P.IMPORTANT)   -- Burst (Explosive affix)
-F.RaidDebuffRegistry:Register(209858, P.CRITICAL)     -- Necrotic Wound
-F.RaidDebuffRegistry:Register(226512, P.SURVIVAL)     -- Sanguine Ichor
+-- Server-filtered via HARMFUL|RAID flag — debuffs appear without registry entries.
+-- Registry entries here provide priority overrides (CRITICAL/IMPORTANT/SURVIVAL)
+-- so high-priority debuffs sort above others in the display.
+-- TODO: Add priority overrides after testing:
+--   Raids: Dreamrift (1 boss), Voidspire (6 bosses), March on Quel'Danas (2 bosses),
+--          World Bosses (Cragpine, Lu'ashal, Predaxas, Thorm'belan)
+--   M+ S1: Magisters' Terrace, Maisara Caverns, Nexus-Point Xenas, Windrunner Spire,
+--           Algeth'ar Academy, Seat of the Triumvirate, Skyreach, Pit of Saron
