@@ -38,6 +38,11 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		-- Start auto-switching (detects content type and activates preset)
 		F.AutoSwitch.Check()
 
+		-- Enable cast tracker for targeted spells
+		if(F.CastTracker) then
+			F.CastTracker:Enable()
+		end
+
 		F.EventBus:Fire('PLAYER_LOGIN')
 
 		-- First-run wizard
