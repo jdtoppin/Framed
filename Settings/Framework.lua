@@ -13,11 +13,10 @@ local Settings = F.Settings
 -- ============================================================
 
 local SECTIONS = {
-	{ id = 'GENERAL',      label = 'GENERAL',      order = 1 },
-	{ id = 'UNIT_FRAMES',  label = 'UNIT FRAMES',  order = 2 },
-	{ id = 'GROUP_FRAMES', label = 'GROUP FRAMES',  order = 3 },
-	{ id = 'AURAS',        label = 'AURAS',         order = 4 },
-	{ id = 'BOTTOM',       label = '',              order = 99 },
+	{ id = 'GLOBAL',         label = 'GLOBAL',         order = 1 },
+	{ id = 'FRAME_PRESETS',  label = 'FRAME PRESETS',  order = 2 },
+	{ id = 'PRESET_SCOPED',  label = '',               order = 3 },  -- uses "Editing: X" instead of label
+	{ id = 'BOTTOM',         label = '',               order = 99 },
 }
 
 local sectionOrder = {}
@@ -70,26 +69,24 @@ function Settings.SetEditingUnitType(unitType)
 end
 
 -- ============================================================
--- Editing Layout
+-- Editing Preset
 -- ============================================================
 
---- Get the layout name currently being edited.
---- Falls back to the currently active layout from AutoSwitch.
+local editingPreset = nil
+
+--- Get the preset name currently being edited.
+--- Falls back to the currently active preset from AutoSwitch, then 'Solo'.
 --- @return string
-function Settings.GetEditingLayout()
-	if(Settings._editingLayout) then
-		return Settings._editingLayout
-	end
-	if(F.AutoSwitch and F.AutoSwitch.GetCurrentLayout) then
-		return F.AutoSwitch.GetCurrentLayout()
-	end
-	return nil
+function Settings.GetEditingPreset()
+	return editingPreset or (F.AutoSwitch and F.AutoSwitch.GetCurrentPreset and F.AutoSwitch.GetCurrentPreset()) or 'Solo'
 end
 
---- Set the layout name being edited.
---- @param layoutName string
-function Settings.SetEditingLayout(layoutName)
-	Settings._editingLayout = layoutName
+--- Set the preset name being edited.
+--- @param presetName string
+function Settings.SetEditingPreset(presetName)
+	if(editingPreset == presetName) then return end
+	editingPreset = presetName
+	F.EventBus:Fire('EDITING_PRESET_CHANGED', presetName)
 end
 
 -- ============================================================

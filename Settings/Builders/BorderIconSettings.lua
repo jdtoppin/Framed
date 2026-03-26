@@ -16,11 +16,11 @@ local WIDGET_W     = 220
 -- Helper: get/set config values scoped to the editing layout + unit type + config key
 local function makeConfigHelpers(unitType, configKey)
 	local function get(key)
-		local layoutName = F.Settings.GetEditingLayout()
+		local layoutName = F.Settings.GetEditingPreset()
 		return F.Config and F.Config:Get('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey .. '.' .. key)
 	end
 	local function set(key, value)
-		local layoutName = F.Settings.GetEditingLayout()
+		local layoutName = F.Settings.GetEditingPreset()
 		if(F.Config) then
 			F.Config:Set('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey .. '.' .. key, value)
 		end

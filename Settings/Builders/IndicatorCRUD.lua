@@ -53,7 +53,7 @@ local CLASS_ORDER = { 'DRUID', 'EVOKER', 'MONK', 'PALADIN', 'PRIEST', 'SHAMAN' }
 -- ============================================================
 local function makeConfigHelpers(unitType, configKey)
 	local function basePath()
-		local layoutName = F.Settings.GetEditingLayout()
+		local layoutName = F.Settings.GetEditingPreset()
 		return 'layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey .. '.indicators'
 	end
 
@@ -64,7 +64,7 @@ local function makeConfigHelpers(unitType, configKey)
 
 	local function fireChange()
 		if(not F.EventBus) then return end
-		local layoutName = F.Settings.GetEditingLayout()
+		local layoutName = F.Settings.GetEditingPreset()
 		F.EventBus:Fire('CONFIG_CHANGED', 'layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey)
 	end
 

@@ -15,13 +15,13 @@ local WIDGET_W     = 220
 -- ============================================================
 
 local function get(key)
-	local layoutName = F.Settings.GetEditingLayout()
+	local layoutName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	return F.Config and F.Config:Get('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.privateAuras.' .. key)
 end
 
 local function set(key, value)
-	local layoutName = F.Settings.GetEditingLayout()
+	local layoutName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	if(F.Config) then
 		F.Config:Set('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.privateAuras.' .. key, value)
