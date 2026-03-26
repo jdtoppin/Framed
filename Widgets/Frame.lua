@@ -319,3 +319,38 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 
 	return button
 end
+
+-- ============================================================
+-- AnimateHeight
+-- OnUpdate-based linear interpolation of a frame's height.
+-- ============================================================
+
+--- Animate a frame's height from current to target over duration.
+--- @param frame Frame     The frame to animate
+--- @param targetHeight number  Target height
+--- @param duration number     Duration in seconds
+--- @param onDone? function    Called when animation completes
+function Widgets.AnimateHeight(frame, targetHeight, duration, onDone)
+	local startHeight = frame:GetHeight()
+	if(math.abs(startHeight - targetHeight) < 0.5) then
+		frame:SetHeight(targetHeight)
+		if(onDone) then onDone() end
+		return
+	end
+	local elapsed = 0
+	frame._heightAnimOnDone = onDone
+	frame:SetScript('OnUpdate', function(self, dt)
+		elapsed = elapsed + dt
+		local t = math.min(elapsed / duration, 1)
+		local h = startHeight + (targetHeight - startHeight) * t
+		self:SetHeight(math.max(h, 0.001))
+		if(t >= 1) then
+			self:SetScript('OnUpdate', nil)
+			self:SetHeight(targetHeight)
+			if(self._heightAnimOnDone) then
+				self._heightAnimOnDone()
+				self._heightAnimOnDone = nil
+			end
+		end
+	end)
+end

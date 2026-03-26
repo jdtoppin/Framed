@@ -52,36 +52,6 @@ local function AnimateWidth(texture, targetWidth, duration, onDone)
 end
 
 -- ============================================================
--- AnimateHeight
--- OnUpdate-based linear interpolation of a frame's height.
--- ============================================================
-
-local function AnimateHeight(frame, targetHeight, duration, onDone)
-	local startHeight = frame:GetHeight()
-	if(math.abs(startHeight - targetHeight) < 0.5) then
-		frame:SetHeight(targetHeight)
-		if(onDone) then onDone() end
-		return
-	end
-	local elapsed = 0
-	frame._heightAnimOnDone = onDone
-	frame:SetScript('OnUpdate', function(self, dt)
-		elapsed = elapsed + dt
-		local t = math.min(elapsed / duration, 1)
-		local h = startHeight + (targetHeight - startHeight) * t
-		self:SetHeight(math.max(h, 0.001))
-		if(t >= 1) then
-			self:SetScript('OnUpdate', nil)
-			self:SetHeight(targetHeight)
-			if(self._heightAnimOnDone) then
-				self._heightAnimOnDone()
-				self._heightAnimOnDone = nil
-			end
-		end
-	end)
-end
-
--- ============================================================
 -- Container Height Calculator
 -- ============================================================
 
@@ -423,8 +393,8 @@ local function buildSidebarContent(sidebar)
 					end
 
 					local dur = C.Animation.durationNormal
-					AnimateHeight(container, targetContainerH, dur)
-					AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
+					Widgets.AnimateHeight(container, targetContainerH, dur)
+					Widgets.AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
 						if(Settings._contentParent) then
 							local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H
 							Settings._contentParent:SetHeight(contentH)
@@ -447,8 +417,8 @@ local function buildSidebarContent(sidebar)
 					local targetWindowH = math.max(WINDOW_MIN_H, math.min(currentWindowH + delta, WINDOW_MAX_H))
 					if(animate) then
 						local dur = C.Animation.durationNormal
-						AnimateHeight(container, newH, dur)
-						AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
+						Widgets.AnimateHeight(container, newH, dur)
+						Widgets.AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
 							if(Settings._contentParent) then
 								local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H
 								Settings._contentParent:SetHeight(contentH)
