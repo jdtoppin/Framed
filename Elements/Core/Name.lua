@@ -55,7 +55,6 @@ function F.Elements.Name.Setup(self, config)
 	config = config or {}
 	config.colorMode   = config.colorMode or 'class'       -- 'class', 'white', 'custom'
 	config.customColor = config.customColor or {1, 1, 1}
-	config.truncate    = config.truncate or 12
 	config.fontSize    = config.fontSize or C.Font.sizeNormal
 	config.outline     = config.outline or ''               -- '', 'OUTLINE', 'MONOCHROME'
 	config.shadow      = (config.shadow == nil) and true or config.shadow
@@ -127,10 +126,20 @@ function F.Elements.Name.Setup(self, config)
 	local function ApplyNameUpdate(unit)
 		if(not unit) then return end
 
-		-- Truncate the displayed text
+		-- Auto-truncate: fit name to available frame width
 		local raw = nameText:GetText() or ''
-		local truncated = TruncateUTF8(raw, config.truncate)
-		nameText:SetText(truncated)
+		local availableWidth = (self:GetWidth() or 0) - 8  -- 4px padding each side
+		nameText:SetText(raw)
+		if(availableWidth > 0 and nameText:GetStringWidth() > availableWidth) then
+			local len = #raw
+			for i = len, 1, -1 do
+				local truncated = TruncateUTF8(raw, i)
+				nameText:SetText(truncated)
+				if(nameText:GetStringWidth() <= availableWidth) then
+					break
+				end
+			end
+		end
 
 		-- Class coloring
 		if(config.colorMode == 'class') then

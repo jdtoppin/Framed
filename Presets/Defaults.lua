@@ -23,7 +23,6 @@ local function playerConfig()
 		power = { height = 2, showText = false },
 		name = {
 			colorMode = 'class',
-			truncate  = 12,
 			fontSize  = C.Font.sizeNormal,
 		},
 		castbar = {
@@ -58,11 +57,13 @@ local function targetConfig()
 			showText       = false,
 			textFormat     = 'none',
 			healPrediction = false,
+			damageAbsorb   = false,
+			healAbsorb     = false,
+			overAbsorb     = false,
 		},
 		power = { height = 2, showText = false },
 		name = {
 			colorMode = 'class',
-			truncate  = 12,
 			fontSize  = C.Font.sizeNormal,
 		},
 		castbar = {
@@ -97,9 +98,12 @@ local function targettargetConfig()
 			showText       = false,
 			textFormat     = 'none',
 			healPrediction = false,
+			damageAbsorb   = false,
+			healAbsorb     = false,
+			overAbsorb     = false,
 		},
 		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
 		range = { outsideAlpha = 0.4 },
 		statusIcons = {
 			role = false, leader = false, readyCheck = false,
@@ -121,9 +125,12 @@ local function focusConfig()
 			showText       = false,
 			textFormat     = 'none',
 			healPrediction = false,
+			damageAbsorb   = false,
+			healAbsorb     = false,
+			overAbsorb     = false,
 		},
 		power   = { height = 2, showText = false },
-		name    = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		name    = { colorMode = 'class', fontSize = C.Font.sizeSmall },
 		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
 		range   = { outsideAlpha = 0.4 },
 		statusIcons = {
@@ -146,9 +153,12 @@ local function petConfig()
 			showText       = false,
 			textFormat     = 'none',
 			healPrediction = false,
+			damageAbsorb   = false,
+			healAbsorb     = false,
+			overAbsorb     = false,
 		},
 		power  = { height = 2, showText = false },
-		name   = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		name   = { colorMode = 'class', fontSize = C.Font.sizeSmall },
 		range  = { outsideAlpha = 0.4 },
 		statusIcons = {
 			role = false, leader = false, readyCheck = false,
@@ -170,9 +180,12 @@ local function bossConfig()
 			showText       = true,
 			textFormat     = 'current',
 			healPrediction = false,
+			damageAbsorb   = false,
+			healAbsorb     = false,
+			overAbsorb     = false,
 		},
 		power   = { height = 2, showText = false },
-		name    = { colorMode = 'class', truncate = 12, fontSize = C.Font.sizeSmall },
+		name    = { colorMode = 'class', fontSize = C.Font.sizeSmall },
 		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
 		range   = { outsideAlpha = 0.4 },
 		statusIcons = {
@@ -200,7 +213,7 @@ local function partyConfig()
 			healPrediction = true,
 		},
 		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
 		threat = { aggroBlink = false },
 		range  = { outsideAlpha = 0.4 },
 		statusIcons = {
@@ -231,7 +244,7 @@ local function raidConfig()
 			healPrediction = true,
 		},
 		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', truncate = 6, fontSize = C.Font.sizeSmall },
+		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
 		range = { outsideAlpha = 0.4 },
 		statusIcons = {
 			role       = true,
@@ -259,9 +272,12 @@ local function arenaConfig()
 			showText       = true,
 			textFormat     = 'current',
 			healPrediction = false,
+			damageAbsorb   = false,
+			healAbsorb     = false,
+			overAbsorb     = false,
 		},
 		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
 		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
 		range   = { outsideAlpha = 0.4 },
 		statusIcons = {
@@ -349,7 +365,6 @@ function F.PresetDefaults.GetAll()
 				local p = petConfig()
 				p.width  = 72
 				p.height = 18
-				p.name.truncate = 6
 				return p
 			end)(),
 			boss  = bossConfig(),

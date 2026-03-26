@@ -54,7 +54,6 @@ Elements/Core/Power.lua
 Elements/Core/Castbar.lua
 Elements/Core/Portrait.lua
 Elements/Core/Name.lua
-Elements/Core/Absorbs.lua
 Elements/Core/Threat.lua
 Elements/Core/Range.lua
 

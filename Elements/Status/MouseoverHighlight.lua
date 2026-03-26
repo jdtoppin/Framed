@@ -9,23 +9,24 @@ F.Elements.MouseoverHighlight = {}
 
 -- ============================================================
 -- Update
--- UPDATE_MOUSEOVER_UNIT is a fallback safety check.
--- OnEnter / OnLeave (hooked in Enable) are the authoritative
--- show/hide triggers for immediate response.
+-- OnEnter / OnLeave are authoritative. UPDATE_MOUSEOVER_UNIT
+-- is only used to catch edge cases where OnLeave doesn't fire
+-- (e.g. frame hidden while hovered). It never re-shows — only hides.
 -- ============================================================
 
 local function Update(self, event, unit)
 	local element = self.FramedMouseoverHighlight
 	if(not element) then return end
 
-	-- Only called by UPDATE_MOUSEOVER_UNIT (unitless). Re-verify that
-	-- the cursor is still over this frame's unit.
 	local frameUnit = self.unit
-	if(not frameUnit) then return end
+	if(not frameUnit) then
+		element:Hide()
+		return
+	end
 
-	if(UnitIsUnit(frameUnit, 'mouseover')) then
-		element:Show()
-	else
+	-- Safety hide: if the mouseover unit changed away from us, hide.
+	-- Never re-show from this event — OnEnter is authoritative for showing.
+	if(not UnitIsUnit(frameUnit, 'mouseover')) then
 		element:Hide()
 	end
 end
@@ -46,10 +47,10 @@ local function Enable(self, unit)
 	local element = self.FramedMouseoverHighlight
 	if(not element) then return end
 
-	element.__owner   = self
+	element.__owner     = self
 	element.ForceUpdate = ForceUpdate
 
-	-- UPDATE_MOUSEOVER_UNIT is unitless (true) — used as a safety check
+	-- UPDATE_MOUSEOVER_UNIT is unitless (true) — safety hide only
 	self:RegisterEvent('UPDATE_MOUSEOVER_UNIT', Update, true)
 
 	-- OnEnter / OnLeave hooks provide immediate response
@@ -72,8 +73,6 @@ local function Disable(self)
 
 	element:Hide()
 	self:UnregisterEvent('UPDATE_MOUSEOVER_UNIT', Update)
-	-- HookScript hooks cannot be cleanly removed, but Hide() is a no-op
-	-- when the element is already hidden so this is safe.
 end
 
 -- ============================================================
@@ -106,6 +105,7 @@ function F.Elements.MouseoverHighlight.Setup(self, config)
 	border:SetPoint('TOPLEFT', self, 'TOPLEFT', -thickness, thickness)
 	border:SetPoint('BOTTOMRIGHT', self, 'BOTTOMRIGHT', thickness, -thickness)
 	border:SetFrameLevel(self:GetFrameLevel() + 8)
+	border:SetIgnoreParentAlpha(true)
 
 	border:SetBackdrop({
 		bgFile   = nil,

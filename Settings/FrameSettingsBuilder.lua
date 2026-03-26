@@ -25,6 +25,16 @@ local GROUP_TYPES = {
 	worldraid    = true,
 }
 
+-- Unit types whose health bar uses oUF's full UpdateColor chain.
+-- These frames do NOT show the Health Bar Color section in settings.
+local NPC_FRAME_TYPES = {
+	target       = true,
+	targettarget = true,
+	focus        = true,
+	pet          = true,
+	boss         = true,
+}
+
 -- Widget heights (used for vertical layout accounting)
 local SLIDER_H       = 26   -- labelH(14) + TRACK_THICKNESS(6) + 6
 local SWITCH_H       = 22
@@ -277,159 +287,300 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ============================================================
-	-- Health Bar Color
+	-- Health Bar Color (player/group/arena frames only)
+	-- NPC frames use oUF's full UpdateColor chain and skip this.
 	-- ============================================================
 
-	yOffset = placeHeading(content, 'Health Bar Color', 2, yOffset)
+	local isNpcFrame = NPC_FRAME_TYPES[unitType] or false
+	local colorCard  -- used for afterColorContainer anchor
 
-	local colorCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	if(not isNpcFrame) then
+		yOffset = placeHeading(content, 'Health Bar Color', 2, yOffset)
 
-	-- Health color mode switch
-	cardY = placeHeading(inner, 'Color Mode', 3, cardY)
-	local healthColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
-		{ text = 'Class',    value = 'class' },
-		{ text = 'Dark',     value = 'dark' },
-		{ text = 'Gradient', value = 'gradient' },
-		{ text = 'Custom',   value = 'custom' },
-	})
-	healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
-	cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
+		local colorCardLocal, inner, cardY = Widgets.StartCard(content, width, yOffset)
+		colorCard = colorCardLocal
+		local CARD_PADDING = 12  -- must match Widgets.Frame CARD_PADDING
 
-	-- ── Gradient options (3 color pickers with % threshold sliders) ──
-	local gradientSection = CreateFrame('Frame', nil, inner)
-	gradientSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-	gradientSection:SetWidth(WIDGET_W)
+		-- Health color mode switch
+		cardY = placeHeading(inner, 'Color Mode', 3, cardY)
+		local healthColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+			{ text = 'Class',    value = 'class' },
+			{ text = 'Dark',     value = 'dark' },
+			{ text = 'Gradient', value = 'gradient' },
+			{ text = 'Custom',   value = 'custom' },
+		})
+		healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
+		cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
 
-	local gY = 0
-	local _, gHeadH = Widgets.CreateHeading(gradientSection, 'Gradient Colors', 3)
+		-- Threat color toggle (player/group frames only)
+		local threatCheck = Widgets.CreateCheckButton(inner, 'Color by Threat')
+		threatCheck:SetChecked(getConfig('health.colorThreat') or false)
+		threatCheck._callback = function(checked)
+			setConfig('health.colorThreat', checked)
+		end
+		cardY = placeWidget(threatCheck, inner, cardY, CHECK_H)
 
-	-- Helper to place a color+threshold row
-	local function placeGradientRow(parent, label, colorKey, thresholdKey, defaultColor, defaultPct, rowY)
-		local picker = Widgets.CreateColorPicker(parent, label, false,
+		-- Y after the mode switch — reflow starts from here
+		local colorSwitchEndY = cardY
+
+		-- ── Helper: build a gradient section (3 color pickers + threshold sliders) ──
+		local function buildGradientSection(parent, prefix, defaults)
+			local section = CreateFrame('Frame', nil, parent)
+			section:SetWidth(WIDGET_W)
+
+			local sY = 0
+
+			for _, row in next, defaults do
+				local colorKey = prefix .. row.colorKey
+				local thresholdKey = prefix .. row.thresholdKey
+				local picker = Widgets.CreateColorPicker(section, row.label, false,
+					nil,
+					function(r, g, b) setConfig(colorKey, { r, g, b }) end)
+				picker:SetPoint('TOPLEFT', section, 'TOPLEFT', 0, sY)
+				local saved = getConfig(colorKey) or row.color
+				picker:SetColor(saved[1], saved[2], saved[3], 1)
+
+				local pctSlider = Widgets.CreateSlider(section, '% Threshold', WIDGET_W - 30, 0, 100, 5)
+				pctSlider:SetValue(getConfig(thresholdKey) or row.pct)
+				pctSlider:SetAfterValueChanged(function(value)
+					setConfig(thresholdKey, value)
+				end)
+				pctSlider:SetPoint('TOPLEFT', section, 'TOPLEFT', 0, sY - 22)
+				sY = sY - 22 - SLIDER_H - C.Spacing.normal
+			end
+
+			local h = math.abs(sY)
+			section:SetHeight(h)
+			return section, h
+		end
+
+		local GRADIENT_ROWS = {
+			{ label = 'Healthy',  colorKey = 'gradientColor1', thresholdKey = 'gradientThreshold1', color = { 0.2, 0.8, 0.2 }, pct = 95 },
+			{ label = 'Warning',  colorKey = 'gradientColor2', thresholdKey = 'gradientThreshold2', color = { 0.9, 0.6, 0.1 }, pct = 50 },
+			{ label = 'Critical', colorKey = 'gradientColor3', thresholdKey = 'gradientThreshold3', color = { 0.8, 0.1, 0.1 }, pct = 5 },
+		}
+
+		local LOSS_GRADIENT_ROWS = {
+			{ label = 'Healthy',  colorKey = 'lossGradientColor1', thresholdKey = 'lossGradientThreshold1', color = { 0.1, 0.4, 0.1 }, pct = 95 },
+			{ label = 'Warning',  colorKey = 'lossGradientColor2', thresholdKey = 'lossGradientThreshold2', color = { 0.4, 0.25, 0.05 }, pct = 50 },
+			{ label = 'Critical', colorKey = 'lossGradientColor3', thresholdKey = 'lossGradientThreshold3', color = { 0.4, 0.05, 0.05 }, pct = 5 },
+		}
+
+		-- ── Health gradient section ──
+		local gradientSection, gradientSectionH = buildGradientSection(inner, 'health.', GRADIENT_ROWS)
+
+		-- ── Health custom picker ──
+		local customPicker = Widgets.CreateColorPicker(inner, 'Health Bar Color', false,
 			nil,
-			function(r, g, b) setConfig(colorKey, { r, g, b }) end)
-		picker:SetPoint('TOPLEFT', parent, 'TOPLEFT', 0, rowY)
-		local saved = getConfig(colorKey) or defaultColor
-		picker:SetColor(saved[1], saved[2], saved[3], 1)
+			function(r, g, b) setConfig('health.customColor', { r, g, b }) end)
+		local savedCustom = getConfig('health.customColor') or { 0.2, 0.8, 0.2 }
+		customPicker:SetColor(savedCustom[1], savedCustom[2], savedCustom[3], 1)
+		local customPickerH = 22
 
-		local pctSlider = Widgets.CreateSlider(parent, '% Threshold', WIDGET_W - 30, 0, 100, 5)
-		pctSlider:SetValue(getConfig(thresholdKey) or defaultPct)
-		pctSlider:SetAfterValueChanged(function(value)
-			setConfig(thresholdKey, value)
+		-- ── Smooth bars checkbox ──
+		local smoothCheck = Widgets.CreateCheckButton(inner, 'Smooth Bars')
+		smoothCheck:SetChecked(getConfig('health.smooth') ~= false)
+		smoothCheck._callback = function(checked)
+			setConfig('health.smooth', checked)
+		end
+
+		-- ── Health Loss Color heading ──
+		local lossHeading, lossHeadingH = Widgets.CreateHeading(inner, 'Health Loss Color', 3)
+
+		-- ── Loss color mode switch ──
+		local lossColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+			{ text = 'Class',    value = 'class' },
+			{ text = 'Dark',     value = 'dark' },
+			{ text = 'Gradient', value = 'gradient' },
+			{ text = 'Custom',   value = 'custom' },
+		})
+		lossColorSwitch:SetValue(getConfig('health.lossColorMode') or 'dark')
+
+		-- ── Loss gradient section ──
+		local lossGradientSection, lossGradientSectionH = buildGradientSection(inner, 'health.', LOSS_GRADIENT_ROWS)
+
+		-- ── Loss custom picker ──
+		local lossPicker = Widgets.CreateColorPicker(inner, 'Loss Color', false,
+			nil,
+			function(r, g, b) setConfig('health.lossCustomColor', { r, g, b }) end)
+		local savedLoss = getConfig('health.lossCustomColor') or { 0.15, 0.15, 0.15 }
+		lossPicker:SetColor(savedLoss[1], savedLoss[2], savedLoss[3], 1)
+		local lossPickerH = 22
+
+		-- ── Reflow: position all widgets inside the card based on current modes ──
+		local curHealthMode = getConfig('health.colorMode') or 'class'
+		local curLossMode = getConfig('health.lossColorMode') or 'dark'
+
+		local function reflowColorCard()
+			local y = colorSwitchEndY
+
+			-- Health gradient section
+			if(curHealthMode == 'gradient') then
+				gradientSection:Show()
+				gradientSection:ClearAllPoints()
+				Widgets.SetPoint(gradientSection, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+				y = y - gradientSectionH
+			else
+				gradientSection:Hide()
+			end
+
+			-- Health custom picker
+			if(curHealthMode == 'custom') then
+				customPicker:Show()
+				customPicker:ClearAllPoints()
+				Widgets.SetPoint(customPicker, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+				y = y - customPickerH - C.Spacing.normal
+			else
+				customPicker:Hide()
+			end
+
+			-- Smooth bars
+			smoothCheck:ClearAllPoints()
+			Widgets.SetPoint(smoothCheck, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+			y = y - CHECK_H - C.Spacing.normal
+
+			-- Loss heading
+			lossHeading:ClearAllPoints()
+			Widgets.SetPoint(lossHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+			y = y - lossHeadingH
+
+			-- Loss switch
+			lossColorSwitch:ClearAllPoints()
+			Widgets.SetPoint(lossColorSwitch, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+			y = y - SWITCH_H - C.Spacing.normal
+
+			-- Loss gradient section
+			if(curLossMode == 'gradient') then
+				lossGradientSection:Show()
+				lossGradientSection:ClearAllPoints()
+				Widgets.SetPoint(lossGradientSection, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+				y = y - lossGradientSectionH
+			else
+				lossGradientSection:Hide()
+			end
+
+			-- Loss custom picker
+			if(curLossMode == 'custom') then
+				lossPicker:Show()
+				lossPicker:ClearAllPoints()
+				Widgets.SetPoint(lossPicker, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+				y = y - lossPickerH - C.Spacing.normal
+			else
+				lossPicker:Hide()
+			end
+
+			-- Update card height
+			local innerH = math.abs(y)
+			inner:SetHeight(innerH)
+			colorCardLocal:SetHeight(innerH + CARD_PADDING * 2)
+
+			-- Update scroll content height
+			local cardBottom = math.abs(colorCardLocal._startY) + colorCardLocal:GetHeight() + C.Spacing.normal
+			local restH = scroll._afterColorRestHeight or 0
+			content:SetHeight(cardBottom + restH + C.Spacing.normal)
+		end
+
+		healthColorSwitch:SetOnSelect(function(value)
+			curHealthMode = value
+			setConfig('health.colorMode', value)
+			reflowColorCard()
 		end)
-		pctSlider:SetPoint('TOPLEFT', parent, 'TOPLEFT', 0, rowY - 22)
-		return rowY - 22 - SLIDER_H - C.Spacing.normal
+
+		lossColorSwitch:SetOnSelect(function(value)
+			curLossMode = value
+			setConfig('health.lossColorMode', value)
+			reflowColorCard()
+		end)
+
+		-- Initial reflow
+		reflowColorCard()
+
+		-- Use the current card height to calculate initial yOffset
+		yOffset = colorCardLocal._startY - colorCardLocal:GetHeight() - C.Spacing.normal
 	end
 
-	gY = -gHeadH
-	gY = placeGradientRow(gradientSection, 'Healthy',
-		'health.gradientColor1', 'health.gradientThreshold1',
-		{ 0.2, 0.8, 0.2 }, 95, gY)
-	gY = placeGradientRow(gradientSection, 'Warning',
-		'health.gradientColor2', 'health.gradientThreshold2',
-		{ 0.9, 0.6, 0.1 }, 50, gY)
-	gY = placeGradientRow(gradientSection, 'Critical',
-		'health.gradientColor3', 'health.gradientThreshold3',
-		{ 0.8, 0.1, 0.1 }, 5, gY)
+	-- ── Wrap everything after the color section in a container ──
+	-- For player/group frames this anchors to the color card's bottom
+	-- so it shifts when the card resizes. For NPC frames it continues
+	-- at the current yOffset with no dynamic anchor.
+	local afterColorContainer = CreateFrame('Frame', nil, content)
+	if(colorCard) then
+		afterColorContainer:SetPoint('TOPLEFT', colorCard, 'BOTTOMLEFT', 0, -C.Spacing.normal)
+	else
+		Widgets.SetPoint(afterColorContainer, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	end
+	afterColorContainer:SetWidth(width)
 
-	local gradientSectionH = math.abs(gY)
-	gradientSection:SetHeight(gradientSectionH)
+	-- Reset yOffset for the container-local coordinate system
+	local restY = 0
 
-	-- ── Custom color picker ─────────────────────────────────────
-	local customSection = CreateFrame('Frame', nil, inner)
-	customSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-	customSection:SetWidth(WIDGET_W)
+	-- ── Shields and Absorbs ──────────────────────────────────
+	restY = placeHeading(afterColorContainer, 'Shields and Absorbs', 2, restY)
 
-	local customPicker = Widgets.CreateColorPicker(customSection, 'Health Bar Color', false,
-		nil,
-		function(r, g, b) setConfig('health.customColor', { r, g, b }) end)
-	customPicker:SetPoint('TOPLEFT', customSection, 'TOPLEFT', 0, -C.Spacing.tight)
-	local savedCustom = getConfig('health.customColor') or { 0.2, 0.8, 0.2 }
-	customPicker:SetColor(savedCustom[1], savedCustom[2], savedCustom[3], 1)
+	do
+		local saCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
+		local PICKER_ROW_H = 22
 
-	local customSectionH = 22 + C.Spacing.tight
-	customSection:SetHeight(customSectionH)
-
-	-- Show/hide sections based on color mode
-	local function updateHealthColorSections(mode)
-		if(mode == 'gradient') then
-			gradientSection:Show()
-			customSection:Hide()
-			gradientSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-		elseif(mode == 'custom') then
-			gradientSection:Hide()
-			customSection:Show()
-			customSection:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-		else
-			gradientSection:Hide()
-			customSection:Hide()
+		-- ── Heal Prediction ──
+		local healPredCheck = Widgets.CreateCheckButton(inner, 'Heal Prediction')
+		healPredCheck:SetChecked(getConfig('health.healPrediction') ~= false)
+		healPredCheck._callback = function(checked)
+			setConfig('health.healPrediction', checked)
 		end
-	end
+		cardY = placeWidget(healPredCheck, inner, cardY, CHECK_H)
 
-	local currentHealthMode = getConfig('health.colorMode') or 'class'
-	updateHealthColorSections(currentHealthMode)
+		local healPredPicker = Widgets.CreateColorPicker(inner, 'Color', true,
+			nil,
+			function(r, g, b, a) setConfig('health.healPredictionColor', { r, g, b, a }) end)
+		local savedHealPred = getConfig('health.healPredictionColor') or { 0.6, 0.6, 0.6, 0.4 }
+		healPredPicker:SetColor(savedHealPred[1], savedHealPred[2], savedHealPred[3], savedHealPred[4])
+		cardY = placeWidget(healPredPicker, inner, cardY, PICKER_ROW_H)
 
-	-- Reserve space for the largest section
-	local modeSectionH = math.max(gradientSectionH, customSectionH)
-	if(currentHealthMode == 'gradient') then
-		cardY = cardY - gradientSectionH
-	elseif(currentHealthMode == 'custom') then
-		cardY = cardY - customSectionH
-	end
-
-	healthColorSwitch:SetOnSelect(function(value)
-		setConfig('health.colorMode', value)
-		updateHealthColorSections(value)
-	end)
-
-	-- Smooth interpolation checkbox
-	local smoothCheck = Widgets.CreateCheckButton(inner, 'Smooth Interpolation')
-	smoothCheck:SetChecked(getConfig('health.smooth') ~= false)
-	smoothCheck._callback = function(checked)
-		setConfig('health.smooth', checked)
-	end
-	cardY = placeWidget(smoothCheck, inner, cardY, CHECK_H)
-
-	-- ── Health Loss Color ─────────────────────────────────────
-	cardY = placeHeading(inner, 'Health Loss Color', 3, cardY)
-
-	local lossColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
-		{ text = 'Dark',   value = 'dark' },
-		{ text = 'Class',  value = 'class' },
-		{ text = 'Custom', value = 'custom' },
-	})
-	lossColorSwitch:SetValue(getConfig('health.lossColorMode') or 'dark')
-	cardY = placeWidget(lossColorSwitch, inner, cardY, SWITCH_H)
-
-	-- Custom loss color picker
-	local lossPicker = Widgets.CreateColorPicker(inner, 'Loss Color', false,
-		nil,
-		function(r, g, b) setConfig('health.lossCustomColor', { r, g, b }) end)
-	local savedLoss = getConfig('health.lossCustomColor') or { 0.15, 0.15, 0.15 }
-	lossPicker:SetColor(savedLoss[1], savedLoss[2], savedLoss[3], 1)
-	cardY = placeWidget(lossPicker, inner, cardY, 22)
-
-	local function updateLossColorUI(mode)
-		if(mode == 'custom') then
-			lossPicker:Show()
-			lossPicker:Enable()
-		else
-			lossPicker:Hide()
+		-- ── Shields (damage absorbs) ──
+		local damageAbsorbCheck = Widgets.CreateCheckButton(inner, 'Shields')
+		damageAbsorbCheck:SetChecked(getConfig('health.damageAbsorb') ~= false)
+		damageAbsorbCheck._callback = function(checked)
+			setConfig('health.damageAbsorb', checked)
 		end
+		cardY = placeWidget(damageAbsorbCheck, inner, cardY, CHECK_H)
+
+		local damageAbsorbPicker = Widgets.CreateColorPicker(inner, 'Color', true,
+			nil,
+			function(r, g, b, a) setConfig('health.damageAbsorbColor', { r, g, b, a }) end)
+		local savedDamageAbsorb = getConfig('health.damageAbsorbColor') or { 1, 1, 1, 0.6 }
+		damageAbsorbPicker:SetColor(savedDamageAbsorb[1], savedDamageAbsorb[2], savedDamageAbsorb[3], savedDamageAbsorb[4])
+		cardY = placeWidget(damageAbsorbPicker, inner, cardY, PICKER_ROW_H)
+
+		-- ── Heal Absorbs ──
+		local healAbsorbCheck = Widgets.CreateCheckButton(inner, 'Heal Absorbs')
+		healAbsorbCheck:SetChecked(getConfig('health.healAbsorb') ~= false)
+		healAbsorbCheck._callback = function(checked)
+			setConfig('health.healAbsorb', checked)
+		end
+		cardY = placeWidget(healAbsorbCheck, inner, cardY, CHECK_H)
+
+		local healAbsorbPicker = Widgets.CreateColorPicker(inner, 'Color', true,
+			nil,
+			function(r, g, b, a) setConfig('health.healAbsorbColor', { r, g, b, a }) end)
+		local savedHealAbsorb = getConfig('health.healAbsorbColor') or { 0.7, 0.1, 0.1, 0.5 }
+		healAbsorbPicker:SetColor(savedHealAbsorb[1], savedHealAbsorb[2], savedHealAbsorb[3], savedHealAbsorb[4])
+		cardY = placeWidget(healAbsorbPicker, inner, cardY, PICKER_ROW_H)
+
+		-- ── Overshield ──
+		local overAbsorbCheck = Widgets.CreateCheckButton(inner, 'Overshield')
+		overAbsorbCheck:SetChecked(getConfig('health.overAbsorb') ~= false)
+		overAbsorbCheck._callback = function(checked)
+			setConfig('health.overAbsorb', checked)
+		end
+		cardY = placeWidget(overAbsorbCheck, inner, cardY, CHECK_H)
+
+		restY = Widgets.EndCard(saCard, afterColorContainer, cardY)
 	end
-	updateLossColorUI(getConfig('health.lossColorMode') or 'dark')
-
-	lossColorSwitch:SetOnSelect(function(value)
-		setConfig('health.lossColorMode', value)
-		updateLossColorUI(value)
-	end)
-
-	yOffset = Widgets.EndCard(colorCard, content, cardY)
 
 	-- ── Power Bar ─────────────────────────────────────────────
-	yOffset = placeHeading(content, 'Power Bar', 2, yOffset)
+	restY = placeHeading(afterColorContainer, 'Power Bar', 2, restY)
 
-	local powerCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	local powerCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	local showPowerCheck = Widgets.CreateCheckButton(inner, 'Show Power Bar')
 	showPowerCheck:SetChecked(getConfig('showPower') ~= false)
@@ -446,12 +597,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(powerHeightSlider, inner, cardY, SLIDER_H)
 
-	yOffset = Widgets.EndCard(powerCard, content, cardY)
+	restY = Widgets.EndCard(powerCard, afterColorContainer, cardY)
 
 	-- ── Card: Cast Bar ────────────────────────────────────────
-	yOffset = placeHeading(content, 'Cast Bar', 2, yOffset)
+	restY = placeHeading(afterColorContainer, 'Cast Bar', 2, restY)
 
-	local castCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	local castCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	local showCastCheck = Widgets.CreateCheckButton(inner, 'Show Cast Bar')
 	showCastCheck:SetChecked(getConfig('showCastBar') ~= false)
@@ -460,20 +611,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 	cardY = placeWidget(showCastCheck, inner, cardY, CHECK_H)
 
-	-- Show absorb bar checkbox
-	local showAbsorbCheck = Widgets.CreateCheckButton(inner, 'Show Absorb Bar')
-	showAbsorbCheck:SetChecked(getConfig('showAbsorbBar') ~= false)
-	showAbsorbCheck._callback = function(checked)
-		setConfig('showAbsorbBar', checked)
-	end
-	cardY = placeWidget(showAbsorbCheck, inner, cardY, CHECK_H)
-
-	yOffset = Widgets.EndCard(castCard, content, cardY)
+	restY = Widgets.EndCard(castCard, afterColorContainer, cardY)
 
 	-- ── Name ──────────────────────────────────────────────────
-	yOffset = placeHeading(content, 'Name', 2, yOffset)
+	restY = placeHeading(afterColorContainer, 'Name', 2, restY)
 
-	local nameCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	local nameCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name')
 	showNameCheck:SetChecked(getConfig('showName') ~= false)
@@ -492,27 +635,16 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameColorSwitch:SetValue(getConfig('name.colorMode') or 'class')
 	cardY = placeWidget(nameColorSwitch, inner, cardY, SWITCH_H)
 
-	-- Custom name color picker (shown only when 'custom' is selected)
+	-- Y after the color switch — reflow starts from here
+	local nameColorSwitchEndY = cardY
+
+	-- Custom name color picker
 	local nameCustomPicker = Widgets.CreateColorPicker(inner, 'Name Color', false,
 		nil,
 		function(r, g, b) setConfig('name.customColor', { r, g, b }) end)
 	local savedNameColor = getConfig('name.customColor') or { 1, 1, 1 }
 	nameCustomPicker:SetColor(savedNameColor[1], savedNameColor[2], savedNameColor[3], 1)
-	cardY = placeWidget(nameCustomPicker, inner, cardY, 22)
-
-	local function updateNameColorUI(mode)
-		if(mode == 'custom') then
-			nameCustomPicker:Show()
-		else
-			nameCustomPicker:Hide()
-		end
-	end
-	updateNameColorUI(getConfig('name.colorMode') or 'class')
-
-	nameColorSwitch:SetOnSelect(function(value)
-		setConfig('name.colorMode', value)
-		updateNameColorUI(value)
-	end)
+	local nameCustomPickerH = 22
 
 	-- Name font size
 	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
@@ -521,7 +653,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameFontSize:SetAfterValueChanged(function(value)
 		setConfig('name.fontSize', value)
 	end)
-	cardY = placeWidget(nameFontSize, inner, cardY, SLIDER_H)
 
 	-- Name outline
 	local nameOutline = Widgets.CreateDropdown(inner, WIDGET_W)
@@ -534,7 +665,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameOutline:SetOnSelect(function(value)
 		setConfig('name.outline', value)
 	end)
-	cardY = placeWidget(nameOutline, inner, cardY, DROPDOWN_H)
 
 	-- Name shadow
 	local nameShadow = Widgets.CreateCheckButton(inner, 'Text Shadow')
@@ -542,15 +672,44 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	nameShadow._callback = function(checked)
 		setConfig('name.shadow', checked)
 	end
-	cardY = placeWidget(nameShadow, inner, cardY, CHECK_H)
 
-	-- Name truncation slider
-	local nameTruncSlider = Widgets.CreateSlider(inner, 'Name Truncation', WIDGET_W, 4, 20, 1)
-	nameTruncSlider:SetValue(getConfig('name.truncate') or 10)
-	nameTruncSlider:SetAfterValueChanged(function(value)
-		setConfig('name.truncate', value)
+	-- Reflow name card widgets based on color mode
+	local curNameColorMode = getConfig('name.colorMode') or 'class'
+
+	local function reflowNameCard()
+		local y = nameColorSwitchEndY
+
+		if(curNameColorMode == 'custom') then
+			nameCustomPicker:Show()
+			nameCustomPicker:ClearAllPoints()
+			Widgets.SetPoint(nameCustomPicker, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+			y = y - nameCustomPickerH - C.Spacing.normal
+		else
+			nameCustomPicker:Hide()
+		end
+
+		nameFontSize:ClearAllPoints()
+		Widgets.SetPoint(nameFontSize, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - SLIDER_H - C.Spacing.normal
+
+		nameOutline:ClearAllPoints()
+		Widgets.SetPoint(nameOutline, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - DROPDOWN_H - C.Spacing.normal
+
+		nameShadow:ClearAllPoints()
+		Widgets.SetPoint(nameShadow, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - CHECK_H - C.Spacing.normal
+
+		return y
+	end
+
+	nameColorSwitch:SetOnSelect(function(value)
+		curNameColorMode = value
+		setConfig('name.colorMode', value)
+		reflowNameCard()
 	end)
-	cardY = placeWidget(nameTruncSlider, inner, cardY, SLIDER_H)
+
+	cardY = reflowNameCard()
 
 	-- Name text position anchor
 	cardY = placeHeading(inner, 'Text Position', 3, cardY)
@@ -580,12 +739,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(nameOffsetY, inner, cardY, SLIDER_H)
 
-	yOffset = Widgets.EndCard(nameCard, content, cardY)
+	restY = Widgets.EndCard(nameCard, afterColorContainer, cardY)
 
 	-- ── Card: Health Text ─────────────────────────────────────
-	yOffset = placeHeading(content, 'Health Text', 2, yOffset)
+	restY = placeHeading(afterColorContainer, 'Health Text', 2, restY)
 
-	local healthTextCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	local healthTextCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	-- Attach to Name toggle
 	local attachToNameCheck = Widgets.CreateCheckButton(inner, 'Attach to Name')
@@ -694,12 +853,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		updateHealthPositionDimming(checked)
 	end
 
-	yOffset = Widgets.EndCard(healthTextCard, content, cardY)
+	restY = Widgets.EndCard(healthTextCard, afterColorContainer, cardY)
 
 	-- ── Card: Power Text ──────────────────────────────────────
-	yOffset = placeHeading(content, 'Power Text', 2, yOffset)
+	restY = placeHeading(afterColorContainer, 'Power Text', 2, restY)
 
-	local powerTextCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	local powerTextCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text')
 	showPowerTextCheck:SetChecked(getConfig('power.showText') or false)
@@ -766,12 +925,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(powerOffsetY, inner, cardY, SLIDER_H)
 
-	yOffset = Widgets.EndCard(powerTextCard, content, cardY)
+	restY = Widgets.EndCard(powerTextCard, afterColorContainer, cardY)
 
 	-- ── Status Icons ──────────────────────────────────────────
-	yOffset = placeHeading(content, 'Status Icons', 2, yOffset)
+	restY = placeHeading(afterColorContainer, 'Status Icons', 2, restY)
 
-	local iconsCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+	local iconsCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	-- Show role icon checkbox
 	local showRoleCheck = Widgets.CreateCheckButton(inner, 'Show Role Icon')
@@ -813,10 +972,21 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 	cardY = placeWidget(showCombatIconCheck, inner, cardY, CHECK_H)
 
-	yOffset = Widgets.EndCard(iconsCard, content, cardY)
+	restY = Widgets.EndCard(iconsCard, afterColorContainer, cardY)
 
 	-- ── Resize content to fit all widgets ─────────────────────
-	local totalH = math.abs(yOffset) + C.Spacing.normal
+	-- Store rest height for dynamic reflow when the color card resizes
+	local afterColorRestH = math.abs(restY)
+	scroll._afterColorRestHeight = afterColorRestH
+	afterColorContainer:SetHeight(afterColorRestH)
+
+	-- Total content height depends on whether the color card exists
+	local totalH
+	if(colorCard) then
+		totalH = math.abs(colorCard._startY) + colorCard:GetHeight() + C.Spacing.normal + afterColorRestH + C.Spacing.normal
+	else
+		totalH = math.abs(yOffset) + afterColorRestH + C.Spacing.normal
+	end
 	content:SetHeight(totalH)
 
 	-- ── Invalidate on preset change ────────────────────────────

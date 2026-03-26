@@ -313,7 +313,7 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 	-- --------------------------------------------------------
 	-- Value font string
 	-- --------------------------------------------------------
-	local valueFS = Widgets.CreateFontString(slider, C.Font.sizeSmall, C.Colors.textSecondary)
+	local valueFS = Widgets.CreateFontString(slider, C.Font.sizeSmall, C.Colors.textActive)
 	slider._valueText = valueFS
 	valueFS:SetText(FormatValue(minVal))
 

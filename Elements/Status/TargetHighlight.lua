@@ -89,6 +89,7 @@ function F.Elements.TargetHighlight.Setup(self, config)
 	border:SetPoint('TOPLEFT', self, 'TOPLEFT', -thickness, thickness)
 	border:SetPoint('BOTTOMRIGHT', self, 'BOTTOMRIGHT', thickness, -thickness)
 	border:SetFrameLevel(self:GetFrameLevel() + 10)
+	border:SetIgnoreParentAlpha(true)
 
 	-- Apply a backdrop: transparent background, colored edge
 	border:SetBackdrop({

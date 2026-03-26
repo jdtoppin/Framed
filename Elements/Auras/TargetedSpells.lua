@@ -40,7 +40,7 @@ local function hideAll(element)
 	if(pool) then
 		for _, bi in next, pool do
 			bi:Clear()
-			bi:SetAlpha(1)
+			bi._frame:SetAlpha(1)
 		end
 	end
 	if(element._glow) then
@@ -125,7 +125,7 @@ local function showCastsSecret(element, castList, unit)
 		-- Hide unused pool entries
 		for i = count + 1, #pool do
 			pool[i]:Clear()
-			pool[i]:SetAlpha(1)
+			pool[i]._frame:SetAlpha(1)
 		end
 	end
 

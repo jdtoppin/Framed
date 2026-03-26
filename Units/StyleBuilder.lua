@@ -14,6 +14,7 @@ local DEFAULT_CONFIG = {
 	height = 40,
 	health = {
 		colorMode          = 'class',
+		colorThreat        = false,
 		smooth             = true,
 		customColor        = { 0.2, 0.8, 0.2 },
 		gradientColor1     = { 0.2, 0.8, 0.2 },
@@ -24,6 +25,12 @@ local DEFAULT_CONFIG = {
 		gradientThreshold3 = 5,
 		lossColorMode      = 'dark',
 		lossCustomColor    = { 0.15, 0.15, 0.15 },
+		lossGradientColor1     = { 0.1, 0.4, 0.1 },
+		lossGradientThreshold1 = 95,
+		lossGradientColor2     = { 0.4, 0.25, 0.05 },
+		lossGradientThreshold2 = 50,
+		lossGradientColor3     = { 0.4, 0.05, 0.05 },
+		lossGradientThreshold3 = 5,
 		showText           = false,
 		textFormat         = 'percent',
 		fontSize           = C.Font.sizeSmall,
@@ -34,6 +41,9 @@ local DEFAULT_CONFIG = {
 		shadow             = true,
 		attachedToName     = false,
 		healPrediction     = true,
+		damageAbsorb       = true,
+		healAbsorb         = true,
+		overAbsorb         = true,
 	},
 	power = {
 		height      = 2,
@@ -47,7 +57,6 @@ local DEFAULT_CONFIG = {
 	},
 	name = {
 		colorMode = 'class',
-		truncate  = 12,
 		fontSize  = C.Font.sizeNormal,
 		anchor    = 'CENTER',
 		anchorX   = 0,
@@ -204,7 +213,6 @@ do
 	p.width  = 120
 	p.height = 36
 	p.name.fontSize     = C.Font.sizeSmall
-	p.name.truncate     = 10
 	p.health.showText   = true
 	p.health.textFormat = 'percent'
 	p.statusIcons.role  = true
@@ -262,7 +270,6 @@ do
 	p.width  = 72
 	p.height = 36
 	p.name.fontSize     = C.Font.sizeSmall
-	p.name.truncate     = 6
 	p.health.showText   = true
 	p.health.textFormat = 'percent'
 	p.statusIcons.role  = true
@@ -558,10 +565,8 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 		end
 	end
 
-	-- Absorbs / heal prediction overlay (when healPrediction is enabled)
-	if(config.health and config.health.healPrediction ~= false) then
-		F.Elements.Absorbs.Setup(self, self.Health, {})
-	end
+	-- Health prediction is now handled entirely by Health.lua's Setup
+	-- via the healPrediction, damageAbsorb, healAbsorb, overAbsorb config keys.
 
 	-- --------------------------------------------------------
 	-- 5. Status icons
@@ -873,3 +878,104 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 		end
 	end
 end, 'StyleBuilder.TextConfig')
+
+-- ============================================================
+-- Live config updates for health bar / loss color modes
+-- ============================================================
+
+local HEALTH_COLOR_KEYS = {
+	['health.colorMode']          = true,
+	['health.colorThreat']        = true,
+	['health.customColor']        = true,
+	['health.gradientColor1']     = true,
+	['health.gradientColor2']     = true,
+	['health.gradientColor3']     = true,
+	['health.gradientThreshold1'] = true,
+	['health.gradientThreshold2'] = true,
+	['health.gradientThreshold3'] = true,
+	['health.lossColorMode']          = true,
+	['health.lossCustomColor']        = true,
+	['health.lossGradientColor1']     = true,
+	['health.lossGradientColor2']     = true,
+	['health.lossGradientColor3']     = true,
+	['health.lossGradientThreshold1'] = true,
+	['health.lossGradientThreshold2'] = true,
+	['health.lossGradientThreshold3'] = true,
+}
+
+--- Rebuild the colorSmooth curve on a frame from its current config.
+local function rebuildHealthCurve(frame, cfg)
+	if(not rawget(frame, 'colors')) then
+		frame.colors = setmetatable({}, { __index = F.oUF.colors })
+	end
+	if(not rawget(frame.colors, 'health')) then
+		frame.colors.health = F.oUF:CreateColor(0.2, 0.8, 0.2)
+	end
+	frame.colors.health:SetCurve({
+		[(cfg.gradientThreshold3 or 5)  / 100] = CreateColor(unpack(cfg.gradientColor3 or { 0.8, 0.1, 0.1 })),
+		[(cfg.gradientThreshold2 or 50) / 100] = CreateColor(unpack(cfg.gradientColor2 or { 0.9, 0.6, 0.1 })),
+		[(cfg.gradientThreshold1 or 95) / 100] = CreateColor(unpack(cfg.gradientColor1 or { 0.2, 0.8, 0.2 })),
+	})
+end
+
+F.EventBus:Register('CONFIG_CHANGED', function(path, value)
+	local unitType, remainder = path:match('unitConfigs%.([^.]+)%.(.+)')
+	if(not unitType or not HEALTH_COLOR_KEYS[remainder]) then return end
+
+	local oUF = F.oUF
+	if(not oUF or not oUF.objects) then return end
+
+	for _, frame in next, oUF.objects do
+		if(frame._framedUnitType == unitType and frame.Health) then
+			local health = frame.Health
+
+			if(remainder == 'health.colorThreat') then
+				health.colorThreat = value
+			elseif(remainder == 'health.colorMode') then
+				-- Update mutable state for PostUpdate
+				health._colorMode = value
+
+				-- Reset all color flags
+				health.colorClass  = false
+				health.colorSmooth = false
+				health.UpdateColor = nil  -- restore oUF default
+
+				if(value == 'class') then
+					health.colorClass = true
+				elseif(value == 'gradient') then
+					health.colorSmooth = true
+					-- Rebuild curve from current config
+					local cfg = F.StyleBuilder.GetConfig(unitType)
+					rebuildHealthCurve(frame, cfg.health or {})
+				else
+					-- dark / custom — no oUF concept
+					health.UpdateColor = function() end
+				end
+			elseif(remainder == 'health.customColor') then
+				health._customColor = value
+			elseif(remainder == 'health.lossColorMode') then
+				health._lossColorMode = value
+			elseif(remainder == 'health.lossCustomColor') then
+				health._lossCustomColor = value
+			elseif(remainder:match('^health%.lossGradient')) then
+				-- Loss gradient color/threshold changed — update mutable state
+				local field = remainder:match('^health%.(.+)$')
+				if(field) then
+					health['_' .. field] = value
+				end
+			elseif(remainder:match('^health%.gradient')) then
+				-- Gradient color/threshold changed — rebuild the curve
+				if(health.colorSmooth) then
+					local cfg = F.StyleBuilder.GetConfig(unitType)
+					rebuildHealthCurve(frame, cfg.health or {})
+				end
+			end
+
+			-- Force oUF to re-run Health:Update → PostUpdate with new config
+			local unit = frame.unit or frame:GetAttribute('unit')
+			if(unit) then
+				health:ForceUpdate()
+			end
+		end
+	end
+end, 'StyleBuilder.HealthColorConfig')
