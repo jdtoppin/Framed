@@ -122,6 +122,7 @@ Presets/AutoSwitch.lua
 Presets/Manager.lua
 
 # Edit Mode
+EditMode/EditCache.lua
 EditMode/EditMode.lua
 
 # Preview
