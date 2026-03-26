@@ -27,63 +27,152 @@ local legacyDisplayModeMap = {
 	['both']   = DisplayMode.BOTH,
 }
 
+local UnitIsUnit = UnitIsUnit
+
 -- ============================================================
 -- Helpers
 -- ============================================================
 
---- Show the active incoming spell on the element's indicators.
+--- Hide all indicators on the element — pool entries + glow.
 --- @param element table
---- @param spellId number
---- @param iconTexture number|string|nil
-local function showSpell(element, spellId, iconTexture)
-	local displayMode = element._displayMode
-
-	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
-		if(element._borderIcon) then
-			element._borderIcon:SetAura(spellId, iconTexture, 0, 0, 0, nil)
-			-- Apply configured border color
-			local bc = element._borderColor
-			if(bc) then
-				element._borderIcon:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
-			end
-			element._borderIcon:Show()
+local function hideAll(element)
+	local pool = element._pool
+	if(pool) then
+		for _, bi in next, pool do
+			bi:Clear()
+			bi:SetAlpha(1)
 		end
-	end
-
-	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
-		if(element._glow) then
-			element._glow:Start(element._glowColor, element._glowType, element._glowConfig)
-		end
-	end
-end
-
---- Hide all indicators on the element.
---- @param element table
-local function hideSpell(element)
-	if(element._borderIcon) then
-		element._borderIcon:Clear()
 	end
 	if(element._glow) then
 		element._glow:Stop()
 	end
+	-- Reset glow frame alpha in case SetAlphaFromBoolean was used
+	if(element._glowFrame) then
+		element._glowFrame:SetAlpha(1)
+		element._glowFrame:Show()
+	end
+end
+
+--- Display casts on this element (non-secret path).
+--- @param element table
+--- @param castList table  Sorted casts from CastTracker
+local function showCasts(element, castList)
+	local displayMode = element._displayMode
+	local maxDisplayed = element._maxDisplayed or 1
+	local count = math.min(#castList, maxDisplayed)
+	local pool = element._pool
+
+	-- Icons display
+	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
+		for i = 1, count do
+			local cast = castList[i]
+			local bi = pool[i]
+			if(bi) then
+				local duration = cast.endTime - cast.startTime
+				bi.cooldown:SetReverse(not cast.isChanneling)
+				bi:SetAura(cast.spellId, cast.icon, duration, cast.endTime, 0, nil)
+				local bc = element._borderColor
+				if(bc) then
+					bi:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
+				end
+				bi:Show()
+			end
+		end
+		-- Hide unused pool entries
+		for i = count + 1, #pool do
+			pool[i]:Clear()
+		end
+	end
+
+	-- Glow display
+	if(count > 0 and (displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH)) then
+		if(element._glow) then
+			element._glow:Start(element._glowColor, element._glowType, element._glowConfig)
+		end
+	elseif(element._glow) then
+		element._glow:Stop()
+	end
+end
+
+--- Display casts on this element (secret path — uses SetAlphaFromBoolean).
+--- @param element table
+--- @param castList table  All active casts from CastTracker
+--- @param unit string  This frame's unit token
+local function showCastsSecret(element, castList, unit)
+	local displayMode = element._displayMode
+	local maxDisplayed = element._maxDisplayed or 1
+	local count = math.min(#castList, maxDisplayed)
+	local pool = element._pool
+
+	-- Icons display
+	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
+		for i = 1, count do
+			local cast = castList[i]
+			local bi = pool[i]
+			if(bi) then
+				local duration = cast.endTime - cast.startTime
+				bi.cooldown:SetReverse(not cast.isChanneling)
+				bi:SetAura(cast.spellId, cast.icon, duration, cast.endTime, 0, nil)
+				local bc = element._borderColor
+				if(bc) then
+					bi:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
+				end
+				bi:Show()
+				-- C-level: set alpha 1 if targeting this unit, 0 otherwise
+				bi:SetAlphaFromBoolean(UnitIsUnit(cast.sourceUnit .. 'target', unit), 1, 0)
+			end
+		end
+		-- Hide unused pool entries
+		for i = count + 1, #pool do
+			pool[i]:Clear()
+			pool[i]:SetAlpha(1)
+		end
+	end
+
+	-- Glow display
+	if(count > 0 and (displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH)) then
+		if(element._glow) then
+			element._glow:Start(element._glowColor, element._glowType, element._glowConfig)
+		end
+		-- Use SetAlphaFromBoolean on the glow frame
+		if(element._glowFrame) then
+			element._glowFrame:Show()
+			element._glowFrame:SetAlphaFromBoolean(UnitIsUnit(castList[1].sourceUnit .. 'target', unit), 1, 0)
+		end
+	elseif(element._glow) then
+		element._glow:Stop()
+		if(element._glowFrame) then
+			element._glowFrame:SetAlpha(1)
+		end
+	end
 end
 
 -- ============================================================
--- Update (called by UNIT_AURA for re-validation; CLEU does
--- the real work via the listener frame)
+-- Update
 -- ============================================================
 
 local function Update(self, event, unit)
 	local element = self.FramedTargetedSpells
 	if(not element) then return end
 
-	if(not unit or self.unit ~= unit) then return end
+	if(not unit) then unit = self.unit end
+	if(not unit) then return end
 
-	-- If we had an active targeted spell, re-validate the source is still alive.
-	-- If no active spell, nothing to do.
-	if(not element._activeSourceGUID) then return end
-
-	-- Source unit checks are not reliable from aura events; let CLEU manage state.
+	if(F.CastTracker:IsSecretPath()) then
+		local allCasts = F.CastTracker:GetAllActiveCasts()
+		if(#allCasts == 0) then
+			hideAll(element)
+		else
+			showCastsSecret(element, allCasts, unit)
+		end
+	else
+		local unitCasts = F.CastTracker:GetCastsOnUnit(unit)
+		if(#unitCasts == 0) then
+			hideAll(element)
+		else
+			showCasts(element, unitCasts)
+		end
+	end
 end
 
 -- ============================================================
@@ -92,56 +181,6 @@ end
 
 local function ForceUpdate(element)
 	return Update(element.__owner, 'ForceUpdate', element.__owner.unit)
-end
-
--- ============================================================
--- CLEU listener builder
--- ============================================================
-
---- Build and return the CLEU OnEvent handler closure for this element.
---- Closes over `ownerFrame` (the oUF unit frame).
---- @param ownerFrame Frame
---- @return function
-local function makeCLEUHandler(ownerFrame)
-	return function()
-		local element = ownerFrame.FramedTargetedSpells
-		if(not element) then return end
-
-		local unit = ownerFrame.unit
-		if(not unit) then return end
-
-		local destGUID = UnitGUID(unit)
-		if(not destGUID) then return end
-
-		local _, subEvent, _, sourceGUID, _, _, _,
-		      eventDestGUID, _, _, _, spellId, _, _ = CombatLogGetCurrentEventInfo()
-
-		if(subEvent == 'SPELL_CAST_START') then
-			if(eventDestGUID == destGUID) then
-				-- Spell now targeting our unit
-				local iconTexture = nil
-				if(C_Spell and C_Spell.GetSpellInfo) then
-					local info = C_Spell.GetSpellInfo(spellId)
-					if(info) then iconTexture = info.iconID end
-				elseif(GetSpellInfo) then
-					local _, _, icon = GetSpellInfo(spellId)
-					iconTexture = icon
-				end
-				element._activeSourceGUID = sourceGUID
-				element._activeSpellId    = spellId
-				showSpell(element, spellId, iconTexture)
-			end
-		elseif(subEvent == 'SPELL_CAST_STOP'
-			or subEvent == 'SPELL_CAST_FAILED'
-			or subEvent == 'SPELL_CAST_SUCCESS') then
-			-- Clear if this is from the same source that was targeting us
-			if(sourceGUID == element._activeSourceGUID) then
-				element._activeSourceGUID = nil
-				element._activeSpellId    = nil
-				hideSpell(element)
-			end
-		end
-	end
 end
 
 -- ============================================================
