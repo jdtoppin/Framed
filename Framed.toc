@@ -113,11 +113,12 @@ ClickCasting/Defaults.lua
 # Blizzard Frame Hiding
 BlizzardFrames.lua
 
-# Layouts
-Layouts/Defaults.lua
-Layouts/ContentDetection.lua
-Layouts/AutoSwitch.lua
-Layouts/Manager.lua
+# Presets
+Presets/AuraDefaults.lua
+Presets/Defaults.lua
+Presets/ContentDetection.lua
+Presets/AutoSwitch.lua
+Presets/Manager.lua
 
 # Edit Mode
 EditMode/EditMode.lua
@@ -133,7 +134,7 @@ Settings/FrameSettingsBuilder.lua
 Settings/Builders/BorderIconSettings.lua
 Settings/Builders/IndicatorCRUD.lua
 Settings/Panels/Appearance.lua
-Settings/Panels/Layouts.lua
+Settings/Panels/FramePresets.lua
 Settings/Panels/Profiles.lua
 Settings/Panels/ClickCasting.lua
 Settings/Panels/Player.lua
@@ -143,10 +144,6 @@ Settings/Panels/Focus.lua
 Settings/Panels/Pet.lua
 Settings/Panels/Boss.lua
 Settings/Panels/PartyFrames.lua
-Settings/Panels/RaidFrames.lua
-Settings/Panels/Battlegrounds.lua
-Settings/Panels/WorldRaids.lua
-Settings/Panels/ArenaFrames.lua
 Settings/Panels/Buffs.lua
 Settings/Panels/Debuffs.lua
 Settings/Panels/RaidDebuffs.lua
