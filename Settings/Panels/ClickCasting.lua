@@ -53,12 +53,30 @@ local TYPE_OPTIONS = {
 -- Config helpers
 -- ============================================================
 
-local function getBindings()
-	return (F.Config and F.Config:Get('clickCasting.bindings')) or {}
+local function getSpecID()
+	local specIndex = GetSpecialization and GetSpecialization() or 1
+	local specID = GetSpecializationInfo and GetSpecializationInfo(specIndex) or 0
+	return tostring(specID)
 end
+
+local function getBindings()
+	local specID = getSpecID()
+	local charBindings = F.Config and F.Config:GetChar('clickCastBindings')
+	if(charBindings and charBindings[specID]) then
+		return charBindings[specID]
+	end
+	-- Fall back to defaults
+	local numSpecID = tonumber(specID)
+	if(F.ClickCasting.Defaults) then
+		return F.ClickCasting.Defaults[numSpecID] or F.ClickCasting.Defaults['generic'] or {}
+	end
+	return {}
+end
+
 local function setBindings(bindings)
+	local specID = getSpecID()
 	if(F.Config) then
-		F.Config:Set('clickCasting.bindings', bindings)
+		F.Config:SetChar('clickCastBindings.' .. specID, bindings)
 	end
 	if(F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED:clickCasting')
@@ -126,12 +144,20 @@ F.Settings.RegisterPanel({
 		local function saveAllBindings()
 			local bindings = {}
 			for _, row in next, bindingRows do
-				bindings[#bindings + 1] = {
+				local bindType = row._typeDD:GetValue()
+				local entry = {
 					button   = row._btnDD:GetValue(),
 					modifier = row._modDD:GetValue(),
-					bindType = row._typeDD:GetValue(),
-					value    = row._valueEB:GetText(),
+					type     = bindType,
 				}
+				-- Runtime reads 'spell' or 'macro' field, not 'value'
+				local val = row._valueEB:GetText()
+				if(bindType == 'spell') then
+					entry.spell = val
+				elseif(bindType == 'macro') then
+					entry.macro = val
+				end
+				bindings[#bindings + 1] = entry
 			end
 			setBindings(bindings)
 		end
@@ -162,7 +188,7 @@ F.Settings.RegisterPanel({
 			local row = CreateFrame('Frame', nil, rowContainer)
 			row:ClearAllPoints()
 			Widgets.SetPoint(row, 'TOPLEFT', rowContainer, 'TOPLEFT', 0, rowY)
-			row:SetHeight(ROW_H)
+			row:SetSize(width, ROW_H)
 
 			-- Button dropdown
 			local btnDD = Widgets.CreateDropdown(row, BTN_DD_W)
@@ -225,7 +251,7 @@ F.Settings.RegisterPanel({
 		local savedBindings = getBindings()
 		if(#savedBindings > 0) then
 			for _, b in next, savedBindings do
-				addBindingRow(b.button, b.modifier, b.bindType, b.value)
+				addBindingRow(b.button, b.modifier, b.type, b.spell or b.macro or '')
 			end
 		else
 			-- Start with one empty row
