@@ -10,7 +10,8 @@ local C = F.Constants
 -- ShowMessageDialog. Only one dialog is visible at a time.
 -- ============================================================
 
-local DIALOG_WIDTH  = 350
+local DIALOG_WIDTH_2  = 350    -- 2-button dialogs
+local DIALOG_WIDTH_3  = 420    -- 3-button dialogs
 local PAD           = 16   -- padding inside dialog
 local BUTTON_WIDTH  = 90
 local BUTTON_HEIGHT = 24
@@ -40,7 +41,7 @@ local function BuildDialog()
 	local frame = CreateFrame('Frame', nil, dimmer, 'BackdropTemplate')
 	frame:SetFrameStrata('FULLSCREEN_DIALOG')
 	frame:SetFrameLevel(10)
-	Widgets.SetSize(frame, DIALOG_WIDTH, 120)   -- height adjusted on show
+	Widgets.SetSize(frame, DIALOG_WIDTH_2, 120)   -- height adjusted on show
 	frame:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
 
 	-- Background: panel color
@@ -84,6 +85,10 @@ local function BuildDialog()
 	local btnNo = Widgets.CreateButton(frame, 'No', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
 	frame._btnNo = btnNo
 
+	-- Third button (3-button dialogs)
+	local btnThird = Widgets.CreateButton(frame, '', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
+	frame._btnThird = btnThird
+
 	-- OK button (message dialogs)
 	local btnOK = Widgets.CreateButton(frame, 'OK', 'accent', BUTTON_WIDTH, BUTTON_HEIGHT)
 	frame._btnOK = btnOK
@@ -105,6 +110,7 @@ local function BuildDialog()
 	frame:HookScript('OnHide', function(self)
 		self._onConfirm = nil
 		self._onCancel  = nil
+		self._onThird   = nil
 		self._onDismiss = nil
 		-- Dimmer hides via its own FadeOut; force-hide as fallback
 		if(dimmer:IsShown() and dimmer:GetAlpha() <= 0.01) then
@@ -127,15 +133,16 @@ local function BuildDialog()
 					+ MSG_BTN_GAP
 					+ BUTTON_HEIGHT
 					+ PAD                  -- bottom padding
-		Widgets.SetSize(self, DIALOG_WIDTH, math.max(total, 100))
+		Widgets.SetSize(self, self._activeWidth, math.max(total, 100))
 	end
 
 	--- Position buttons centered at the bottom of the dialog.
-	--- mode: 'confirm' shows Yes+No, 'message' shows OK only.
+	--- mode: 'confirm' shows Yes+No, 'three' shows Yes+No+Third, else shows OK only.
 	function frame:_LayoutButtons(mode)
 		self._btnYes:Hide()
 		self._btnNo:Hide()
 		self._btnOK:Hide()
+		self._btnThird:Hide()
 
 		if(mode == 'confirm') then
 			-- Yes left of center, No right of center
@@ -147,6 +154,18 @@ local function BuildDialog()
 			self._btnNo:SetPoint('BOTTOM', self, 'BOTTOM', leftX + BUTTON_WIDTH + BUTTON_GAP + BUTTON_WIDTH / 2, PAD)
 			self._btnYes:Show()
 			self._btnNo:Show()
+		elseif(mode == 'three') then
+			local totalW = BUTTON_WIDTH * 3 + BUTTON_GAP * 2
+			local leftX  = -(totalW / 2)
+			self._btnYes:ClearAllPoints()
+			self._btnYes:SetPoint('BOTTOM', self, 'BOTTOM', leftX + BUTTON_WIDTH / 2, PAD)
+			self._btnNo:ClearAllPoints()
+			self._btnNo:SetPoint('BOTTOM', self, 'BOTTOM', leftX + BUTTON_WIDTH + BUTTON_GAP + BUTTON_WIDTH / 2, PAD)
+			self._btnThird:ClearAllPoints()
+			self._btnThird:SetPoint('BOTTOM', self, 'BOTTOM', leftX + (BUTTON_WIDTH + BUTTON_GAP) * 2 + BUTTON_WIDTH / 2, PAD)
+			self._btnYes:Show()
+			self._btnNo:Show()
+			self._btnThird:Show()
 		else
 			-- OK centered
 			self._btnOK:ClearAllPoints()
@@ -156,13 +175,15 @@ local function BuildDialog()
 	end
 
 	--- Unified dismiss: fires the appropriate callback then fades out.
-	--- reason: 'confirm' | 'cancel' | 'dismiss'
+	--- reason: 'confirm' | 'cancel' | 'third' | 'dismiss'
 	function frame:_Dismiss(reason)
 		local cb
 		if(reason == 'confirm') then
 			cb = self._onConfirm
 		elseif(reason == 'cancel') then
 			cb = self._onCancel
+		elseif(reason == 'third') then
+			cb = self._onThird
 		else
 			cb = self._onDismiss
 		end
@@ -174,9 +195,12 @@ local function BuildDialog()
 	end
 
 	-- Wire button clicks
-	btnYes:SetOnClick(function() frame:_Dismiss('confirm') end)
-	btnNo:SetOnClick(function()  frame:_Dismiss('cancel')  end)
-	btnOK:SetOnClick(function()  frame:_Dismiss('dismiss') end)
+	btnYes:SetOnClick(function()   frame:_Dismiss('confirm') end)
+	btnNo:SetOnClick(function()    frame:_Dismiss('cancel')  end)
+	btnOK:SetOnClick(function()    frame:_Dismiss('dismiss') end)
+	btnThird:SetOnClick(function() frame:_Dismiss('third')   end)
+
+	frame._activeWidth = DIALOG_WIDTH_2
 
 	-- Register for pixel updates
 	Widgets.AddToPixelUpdater_OnShow(frame)
@@ -208,6 +232,7 @@ local function ShowDialog(title, message, mode)
 
 	d._title:SetText(title or '')
 	d._message:SetText(message or '')
+	d._activeWidth = DIALOG_WIDTH_2
 	d:_UpdateHeight()
 	d:_LayoutButtons(mode)
 
@@ -245,5 +270,42 @@ function Widgets.ShowMessageDialog(title, message, onDismiss)
 	d._onConfirm = nil
 	d._onCancel  = nil
 	d._onDismiss = onDismiss
+	return d
+end
+
+--- Show a modal dialog with three buttons.
+--- @param title      string
+--- @param message    string
+--- @param btn1Label  string   Left button label (accent style)
+--- @param btn2Label  string   Middle button label (widget style)
+--- @param btn3Label  string   Right button label (widget style)
+--- @param onBtn1     function Called when left button clicked
+--- @param onBtn2?    function Called when middle button clicked
+--- @param onBtn3?    function Called when right button clicked (or Escape)
+--- @return Frame dialog
+function Widgets.ShowThreeButtonDialog(title, message, btn1Label, btn2Label, btn3Label, onBtn1, onBtn2, onBtn3)
+	local d = GetDialog()
+
+	if(d._anim) then d._anim['fade'] = nil end
+
+	d._title:SetText(title or '')
+	d._message:SetText(message or '')
+
+	d._btnYes._label:SetText(btn1Label)
+	d._btnNo._label:SetText(btn2Label)
+	d._btnThird._label:SetText(btn3Label)
+
+	d._activeWidth = DIALOG_WIDTH_3
+	d:_UpdateHeight()
+	d:_LayoutButtons('three')
+
+	d._onConfirm = onBtn1
+	d._onCancel  = onBtn2
+	d._onThird   = onBtn3
+	d._onDismiss = nil
+
+	Widgets.FadeIn(d._dimmer, C.Animation.durationNormal)
+	Widgets.FadeIn(d, C.Animation.durationNormal)
+
 	return d
 end
