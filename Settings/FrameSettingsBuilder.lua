@@ -96,9 +96,16 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	local function getConfig(key)
+		if(F.EditCache and F.EditCache.IsActive()) then
+			return F.EditCache.Get(unitType, key)
+		end
 		return F.Config:Get('presets.' .. getPresetName() .. '.unitConfigs.' .. unitType .. '.' .. key)
 	end
 	local function setConfig(key, value)
+		if(F.EditCache and F.EditCache.IsActive()) then
+			F.EditCache.Set(unitType, key, value)
+			return
+		end
 		F.Config:Set('presets.' .. getPresetName() .. '.unitConfigs.' .. unitType .. '.' .. key, value)
 		F.PresetManager.MarkCustomized(getPresetName())
 	end
@@ -137,6 +144,67 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	cardY = placeWidget(heightSlider, inner, cardY, SLIDER_H)
 
 	yOffset = Widgets.EndCard(sizeCard, content, cardY)
+
+	-- ============================================================
+	-- Position & Layout
+	-- ============================================================
+
+	yOffset = placeHeading(content, 'Position & Layout', 2, yOffset)
+
+	local posCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
+
+	-- Info icon for this card
+	local posInfo = Widgets.CreateInfoIcon(inner,
+		'Position & Layout',
+		'Anchor point determines which corner of the frame is pinned to its position. '
+		.. 'Growth direction controls which way group frames expand. '
+		.. 'These two settings work together to control frame placement.')
+	posInfo:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', -4, -4)
+
+	-- Frame Anchor Point picker
+	cardY = placeHeading(inner, 'Frame Anchor', 3, cardY)
+	local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local savedAnchor = getConfig('position.anchor') or 'CENTER'
+	local savedPosX = getConfig('position.x') or 0
+	local savedPosY = getConfig('position.y') or 0
+	anchorPicker:SetAnchor(savedAnchor, savedPosX, savedPosY)
+	anchorPicker:SetOnChanged(function(point, x, y)
+		setConfig('position.anchor', point)
+		setConfig('position.x', x)
+		setConfig('position.y', y)
+	end)
+	cardY = placeWidget(anchorPicker, inner, cardY, 80)
+
+	-- Pixel nudge arrows
+	cardY = placeHeading(inner, 'Pixel Nudge', 3, cardY)
+
+	local nudgeFrame = CreateFrame('Frame', nil, inner)
+	nudgeFrame:SetSize(100, 50)
+
+	local nudgeUp = Widgets.CreateButton(nudgeFrame, '^', 'widget', 24, 20)
+	nudgeUp:SetPoint('TOP', nudgeFrame, 'TOP', 0, 0)
+	local nudgeDown = Widgets.CreateButton(nudgeFrame, 'v', 'widget', 24, 20)
+	nudgeDown:SetPoint('BOTTOM', nudgeFrame, 'BOTTOM', 0, 0)
+	local nudgeLeft = Widgets.CreateButton(nudgeFrame, '<', 'widget', 24, 20)
+	nudgeLeft:SetPoint('LEFT', nudgeFrame, 'LEFT', 0, 0)
+	local nudgeRight = Widgets.CreateButton(nudgeFrame, '>', 'widget', 24, 20)
+	nudgeRight:SetPoint('RIGHT', nudgeFrame, 'RIGHT', 0, 0)
+
+	local function nudge(dx, dy)
+		local point, curX, curY = anchorPicker:GetAnchor()
+		anchorPicker:SetAnchor(point, curX + dx, curY + dy)
+		setConfig('position.x', curX + dx)
+		setConfig('position.y', curY + dy)
+	end
+
+	nudgeUp:SetOnClick(function() nudge(0, 1) end)
+	nudgeDown:SetOnClick(function() nudge(0, -1) end)
+	nudgeLeft:SetOnClick(function() nudge(-1, 0) end)
+	nudgeRight:SetOnClick(function() nudge(1, 0) end)
+
+	cardY = placeWidget(nudgeFrame, inner, cardY, 50)
+
+	yOffset = Widgets.EndCard(posCard, content, cardY)
 
 	if(isGroup) then
 		-- ── Group Layout ──────────────────────────────────────
@@ -290,6 +358,18 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(nameTruncSlider, inner, cardY, SLIDER_H)
 
+	-- Name text position anchor
+	cardY = placeHeading(inner, 'Text Position', 3, cardY)
+	local nameAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local savedNameAnchor = getConfig('name.anchor') or 'LEFT'
+	nameAnchor:SetAnchor(savedNameAnchor, 0, 0)
+	nameAnchor:SetOnChanged(function(point)
+		setConfig('name.anchor', point)
+	end)
+	nameAnchor._xInput:Hide()
+	nameAnchor._yInput:Hide()
+	cardY = placeWidget(nameAnchor, inner, cardY, 56)
+
 	yOffset = Widgets.EndCard(nameCard, content, cardY)
 
 	-- ── Card: Health Text ─────────────────────────────────────
@@ -320,6 +400,18 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(healthFormatDropdown, inner, cardY, DROPDOWN_H)
 
+	-- Health text position anchor
+	cardY = placeHeading(inner, 'Text Position', 3, cardY)
+	local healthTextAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local savedHealthAnchor = getConfig('health.textAnchor') or 'CENTER'
+	healthTextAnchor:SetAnchor(savedHealthAnchor, 0, 0)
+	healthTextAnchor:SetOnChanged(function(point)
+		setConfig('health.textAnchor', point)
+	end)
+	healthTextAnchor._xInput:Hide()
+	healthTextAnchor._yInput:Hide()
+	cardY = placeWidget(healthTextAnchor, inner, cardY, 56)
+
 	-- Show power text checkbox
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text')
 	showPowerTextCheck:SetChecked(getConfig('power.showText') or false)
@@ -327,6 +419,18 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		setConfig('power.showText', checked)
 	end
 	cardY = placeWidget(showPowerTextCheck, inner, cardY, CHECK_H)
+
+	-- Power text position anchor
+	cardY = placeHeading(inner, 'Power Text Position', 3, cardY)
+	local powerTextAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local savedPowerAnchor = getConfig('power.textAnchor') or 'CENTER'
+	powerTextAnchor:SetAnchor(savedPowerAnchor, 0, 0)
+	powerTextAnchor:SetOnChanged(function(point)
+		setConfig('power.textAnchor', point)
+	end)
+	powerTextAnchor._xInput:Hide()
+	powerTextAnchor._yInput:Hide()
+	cardY = placeWidget(powerTextAnchor, inner, cardY, 56)
 
 	yOffset = Widgets.EndCard(healthTextCard, content, cardY)
 
