@@ -17,7 +17,7 @@ local DIM_OVERLAY_ALPHA = 0.7
 local function DestroyCatchers()
 	for _, catcher in next, catchers do
 		catcher:Hide()
-		catcher:SetParent(nil)
+		catcher:SetParent(EditMode._trashFrame)
 	end
 	catchers = {}
 end
@@ -99,6 +99,15 @@ end, 'ClickCatchers')
 
 F.EventBus:Register('EDIT_MODE_EXITED', function()
 	DestroyCatchers()
+	-- Restore original drag handlers on all frames
+	for _, def in next, EditMode.FRAME_KEYS do
+		local frame = def.getter()
+		if(frame and frame._editModeSavedHandlers) then
+			frame:SetScript('OnDragStart', frame._editModeSavedHandlers.onDragStart)
+			frame:SetScript('OnDragStop', frame._editModeSavedHandlers.onDragStop)
+			frame._editModeSavedHandlers = nil
+		end
+	end
 end, 'ClickCatchers')
 
 F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
@@ -114,6 +123,13 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 			if(def.key == frameKey) then
 				local frame = def.getter()
 				if(frame) then
+					-- Save original handlers for restoration
+					if(not frame._editModeSavedHandlers) then
+						frame._editModeSavedHandlers = {
+							onDragStart = frame:GetScript('OnDragStart'),
+							onDragStop = frame:GetScript('OnDragStop'),
+						}
+					end
 					Widgets.MakeDraggable(frame,
 						function(f) -- onDragStart
 							F.EventBus:Fire('EDIT_MODE_DRAG_STARTED', frameKey)

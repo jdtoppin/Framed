@@ -119,7 +119,7 @@ end
 local function DestroyGuideFrame()
 	if(guideFrame) then
 		guideFrame:Hide()
-		guideFrame:SetParent(nil)
+		guideFrame:SetParent(EditMode._trashFrame)
 		guideFrame = nil
 	end
 	guides = { centerH = nil, centerV = nil }

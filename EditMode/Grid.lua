@@ -77,7 +77,7 @@ local function RenderDots()
 	local h = GetScreenHeight()
 	local idx = 0
 	-- Larger spacing for dots to reduce texture count
-	local spacing = GRID_SPACING * 4
+	local spacing = GRID_SPACING * 8
 
 	for x = spacing, w, spacing do
 		for y = spacing, h, spacing do
@@ -120,7 +120,7 @@ local function DestroyGridFrame()
 	ClearGrid()
 	if(gridFrame) then
 		gridFrame:Hide()
-		gridFrame:SetParent(nil)
+		gridFrame:SetParent(EditMode._trashFrame)
 		gridFrame = nil
 	end
 end

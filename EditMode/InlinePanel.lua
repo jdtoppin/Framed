@@ -60,7 +60,7 @@ end
 local function DestroyPanel()
 	if(panel) then
 		panel:Hide()
-		panel:SetParent(nil)
+		panel:SetParent(EditMode._trashFrame)
 		panel = nil
 		contentFrame = nil
 		activeTab = nil
@@ -142,7 +142,7 @@ local function BuildPanel(frameKey, targetFrame)
 		-- Clear content
 		for _, child in next, { contentFrame:GetChildren() } do
 			child:Hide()
-			child:SetParent(nil)
+			child:SetParent(EditMode._trashFrame)
 		end
 
 		-- Use FrameSettingsBuilder to create the same content as sidebar
@@ -167,7 +167,7 @@ local function BuildPanel(frameKey, targetFrame)
 		-- Clear content
 		for _, child in next, { contentFrame:GetChildren() } do
 			child:Hide()
-			child:SetParent(nil)
+			child:SetParent(EditMode._trashFrame)
 		end
 
 		-- ── Aura group dropdown ─────────────────────────────
@@ -198,7 +198,7 @@ local function BuildPanel(frameKey, targetFrame)
 			-- Clear previous aura panel
 			for _, child in next, { auraContent:GetChildren() } do
 				child:Hide()
-				child:SetParent(nil)
+				child:SetParent(EditMode._trashFrame)
 			end
 
 			activeAuraGroup = groupId

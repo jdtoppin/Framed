@@ -106,7 +106,7 @@ end
 local function DestroyTopBar()
 	if(topBar) then
 		topBar:Hide()
-		topBar:SetParent(nil)
+		topBar:SetParent(EditMode._trashFrame)
 		topBar = nil
 	end
 end

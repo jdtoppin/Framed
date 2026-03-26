@@ -26,6 +26,11 @@ local selectedFrameKey = nil
 local overlay          = nil
 local sessionPresetOverride = nil   -- nil = auto-detect, string = manual choice
 
+-- Hidden frame for safe disposal (SetParent(nil) is unsafe in WoW)
+local trashFrame = CreateFrame('Frame')
+trashFrame:Hide()
+EditMode._trashFrame = trashFrame
+
 -- ============================================================
 -- Frame Key Definitions
 -- ============================================================
@@ -115,12 +120,14 @@ local function BuildOverlay()
 	end
 	overlay._borders = borders
 
-	-- Keyboard: Escape triggers cancel
-	overlay:SetPropagateKeyboardInput(false)
+	-- Keyboard: Escape triggers cancel, propagate all other keys
 	overlay:EnableKeyboard(true)
 	overlay:SetScript('OnKeyDown', function(self, key)
 		if(key == 'ESCAPE') then
+			self:SetPropagateKeyboardInput(false)
 			EditMode.RequestCancel()
+		else
+			self:SetPropagateKeyboardInput(true)
 		end
 	end)
 end
@@ -294,7 +301,26 @@ combatFrame:SetScript('OnEvent', function(self, event)
 	if(not isActive) then return end
 
 	if(event == 'PLAYER_REGEN_DISABLED') then
-		-- Stop any active drag, hide overlay
+		-- Stop any active drag
+		local selKey = EditMode.GetSelectedFrameKey()
+		if(selKey) then
+			for _, def in next, EditMode.FRAME_KEYS do
+				if(def.key == selKey) then
+					local frame = def.getter()
+					if(frame and frame:IsMovable()) then
+						frame:StopMovingOrSizing()
+						-- Snapshot current position to cache
+						local point, _, relPoint, x, y = frame:GetPoint()
+						if(point and x and y) then
+							EditCache.Set(selKey, 'position.x', x)
+							EditCache.Set(selKey, 'position.y', y)
+						end
+					end
+					break
+				end
+			end
+		end
+		-- Hide overlay
 		if(overlay and overlay:IsShown()) then
 			overlay:Hide()
 		end

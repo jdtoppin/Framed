@@ -36,7 +36,7 @@ local CURSORS = {
 local function DestroyHandles()
 	for _, handle in next, handles do
 		handle:Hide()
-		handle:SetParent(nil)
+		handle:SetParent(EditMode._trashFrame)
 	end
 	handles = {}
 end
