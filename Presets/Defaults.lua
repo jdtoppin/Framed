@@ -1,0 +1,443 @@
+local addonName, Framed = ...
+local F = Framed
+local C = F.Constants
+local A = F.AuraDefaults
+
+F.PresetDefaults = {}
+
+-- ============================================================
+-- Unit config templates (NO aura fields — those live in preset.auras)
+-- ============================================================
+
+local function playerConfig()
+	return {
+		width  = 200,
+		height = 40,
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = false,
+			textFormat     = 'none',
+			healPrediction = true,
+		},
+		power = { height = 2, showText = false },
+		name = {
+			colorMode = 'class',
+			truncate  = 12,
+			fontSize  = C.Font.sizeNormal,
+		},
+		castbar = {
+			height   = 16,
+			showIcon = true,
+			showText = true,
+			showTime = true,
+		},
+		portrait = { type = '2D' },
+		threat   = { aggroBlink = false },
+		range    = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role       = true,
+			leader     = true,
+			readyCheck = true,
+			raidIcon   = true,
+			combat     = true,
+		},
+		statusText         = true,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+local function targetConfig()
+	return {
+		width  = 200,
+		height = 40,
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = false,
+			textFormat     = 'none',
+			healPrediction = false,
+		},
+		power = { height = 2, showText = false },
+		name = {
+			colorMode = 'class',
+			truncate  = 12,
+			fontSize  = C.Font.sizeNormal,
+		},
+		castbar = {
+			height   = 16,
+			showIcon = true,
+			showText = true,
+			showTime = true,
+		},
+		portrait = { type = '2D' },
+		threat   = { aggroBlink = false },
+		range    = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role       = true,
+			leader     = true,
+			readyCheck = true,
+			raidIcon   = true,
+			combat     = false,
+		},
+		statusText         = true,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+local function targettargetConfig()
+	return {
+		width  = 120,
+		height = 24,
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = false,
+			textFormat     = 'none',
+			healPrediction = false,
+		},
+		power = { height = 2, showText = false },
+		name  = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		range = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role = false, leader = false, readyCheck = false,
+			raidIcon = true, combat = false,
+		},
+		statusText         = false,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+local function focusConfig()
+	return {
+		width  = 150,
+		height = 30,
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = false,
+			textFormat     = 'none',
+			healPrediction = false,
+		},
+		power   = { height = 2, showText = false },
+		name    = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
+		range   = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role = false, leader = false, readyCheck = false,
+			raidIcon = true, combat = false,
+		},
+		statusText         = false,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+local function petConfig()
+	return {
+		width  = 120,
+		height = 24,
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = false,
+			textFormat     = 'none',
+			healPrediction = false,
+		},
+		power  = { height = 2, showText = false },
+		name   = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		range  = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role = false, leader = false, readyCheck = false,
+			raidIcon = false, combat = false,
+		},
+		statusText         = false,
+		targetHighlight    = false,
+		mouseoverHighlight = true,
+	}
+end
+
+local function bossConfig()
+	return {
+		width  = 150,
+		height = 30,
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = true,
+			textFormat     = 'current',
+			healPrediction = false,
+		},
+		power   = { height = 2, showText = false },
+		name    = { colorMode = 'class', truncate = 12, fontSize = C.Font.sizeSmall },
+		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
+		range   = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role = false, leader = false, readyCheck = false,
+			raidIcon = true, combat = false,
+		},
+		statusText         = false,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+local function partyConfig()
+	return {
+		width  = 120,
+		height = 36,
+		spacing          = 2,
+		orientation      = 'vertical',
+		growthDirection  = 'topToBottom',
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = true,
+			textFormat     = 'percent',
+			healPrediction = true,
+		},
+		power = { height = 2, showText = false },
+		name  = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		threat = { aggroBlink = false },
+		range  = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role       = true,
+			leader     = true,
+			readyCheck = true,
+			raidIcon   = true,
+			combat     = false,
+		},
+		statusText         = true,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+local function raidConfig()
+	return {
+		width  = 72,
+		height = 36,
+		spacing          = 2,
+		orientation      = 'vertical',
+		growthDirection  = 'topToBottom',
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = true,
+			textFormat     = 'percent',
+			healPrediction = true,
+		},
+		power = { height = 2, showText = false },
+		name  = { colorMode = 'class', truncate = 6, fontSize = C.Font.sizeSmall },
+		range = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role       = true,
+			leader     = true,
+			readyCheck = true,
+			raidIcon   = true,
+			combat     = false,
+		},
+		statusText         = true,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+local function arenaConfig()
+	return {
+		width  = 150,
+		height = 30,
+		spacing          = 2,
+		orientation      = 'vertical',
+		growthDirection  = 'topToBottom',
+		health = {
+			colorMode      = 'class',
+			smooth         = true,
+			showText       = true,
+			textFormat     = 'current',
+			healPrediction = false,
+		},
+		power = { height = 2, showText = false },
+		name  = { colorMode = 'class', truncate = 10, fontSize = C.Font.sizeSmall },
+		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
+		range   = { outsideAlpha = 0.4 },
+		statusIcons = {
+			role = false, leader = false, readyCheck = false,
+			raidIcon = true, combat = false,
+		},
+		statusText         = false,
+		targetHighlight    = true,
+		mouseoverHighlight = true,
+	}
+end
+
+-- ============================================================
+-- Shared aura size tables
+-- ============================================================
+
+local PARTY_AURA_SIZES = {
+	iconSize = 16, bigIconSize = 22,
+	raidDebuffIcon = 16, raidDebuffBigIcon = 20,
+	externalsIcon = 16, defensivesIcon = 16,
+	targetedSpellsIcon = 16, dispellableIcon = 16,
+	privateAurasIcon = 16, missingBuffsIcon = 12,
+}
+
+local RAID_AURA_SIZES = {
+	iconSize = 14, bigIconSize = 18,
+	raidDebuffIcon = 14, raidDebuffBigIcon = 18,
+	externalsIcon = 14, defensivesIcon = 14,
+	externalsMax = 1, defensivesMax = 1,
+	debuffMax = 1, raidDebuffMax = 1,
+	targetedSpellsIcon = 14, dispellableIcon = 14,
+	privateAurasIcon = 14, missingBuffsIcon = 12,
+}
+
+-- ============================================================
+-- Shared solo unit aura set (player, target, focus, etc.)
+-- ============================================================
+
+local function soloUnitAuras()
+	return {
+		player       = A.Solo(14, 6),
+		target       = A.Solo(14, 6),
+		targettarget = A.Minimal(),
+		focus        = A.Solo(14, 6),
+		pet          = A.Minimal(),
+		boss         = A.Boss(),
+	}
+end
+
+-- ============================================================
+-- GetAll — returns complete default preset table
+-- ============================================================
+
+function F.PresetDefaults.GetAll()
+	local presets = {}
+
+	-- Solo
+	presets['Solo'] = {
+		isBase    = true,
+		positions = {},
+		unitConfigs = {
+			player       = playerConfig(),
+			target       = targetConfig(),
+			targettarget = targettargetConfig(),
+			focus        = focusConfig(),
+			pet          = petConfig(),
+			boss         = bossConfig(),
+		},
+		auras = soloUnitAuras(),
+	}
+
+	-- Party
+	local partyAuras = soloUnitAuras()
+	partyAuras.party = A.Group(PARTY_AURA_SIZES)
+
+	presets['Party'] = {
+		isBase    = true,
+		positions = {},
+		unitConfigs = {
+			player       = playerConfig(),
+			target       = targetConfig(),
+			targettarget = targettargetConfig(),
+			focus        = focusConfig(),
+			pet          = (function()
+				local p = petConfig()
+				p.width  = 72
+				p.height = 18
+				p.name.truncate = 6
+				return p
+			end)(),
+			boss  = bossConfig(),
+			party = partyConfig(),
+		},
+		auras = partyAuras,
+	}
+
+	-- Raid
+	local raidAuras = soloUnitAuras()
+	raidAuras.raid = A.Group(RAID_AURA_SIZES)
+
+	presets['Raid'] = {
+		isBase    = true,
+		positions = {},
+		unitConfigs = {
+			player       = playerConfig(),
+			target       = targetConfig(),
+			targettarget = targettargetConfig(),
+			focus        = focusConfig(),
+			pet          = petConfig(),
+			boss         = bossConfig(),
+			raid         = raidConfig(),
+		},
+		auras = raidAuras,
+	}
+
+	-- Arena
+	local arenaAuras = soloUnitAuras()
+	arenaAuras.party = (function()
+		local a = A.Group(PARTY_AURA_SIZES)
+		a.raidDebuffs.enabled = false
+		return a
+	end)()
+	arenaAuras.arena = A.Arena()
+
+	presets['Arena'] = {
+		isBase    = true,
+		positions = {},
+		unitConfigs = {
+			player = (function()
+				local p = playerConfig()
+				p.portrait = nil
+				return p
+			end)(),
+			target = (function()
+				local t = targetConfig()
+				t.portrait = nil
+				return t
+			end)(),
+			targettarget = targettargetConfig(),
+			focus        = focusConfig(),
+			pet          = petConfig(),
+			boss         = bossConfig(),
+			party        = partyConfig(),
+			arena        = arenaConfig(),
+		},
+		auras = arenaAuras,
+	}
+
+	-- Derived presets (copy from Raid, mark as not customized)
+	for _, name in next, { 'Mythic Raid', 'World Raid', 'Battleground' } do
+		local info = C.PresetInfo[name]
+		presets[name] = F.DeepCopy(presets[info.fallback])
+		presets[name].isBase     = nil
+		presets[name].customized = false
+		presets[name].fallback   = info.fallback
+	end
+
+	return presets
+end
+
+-- ============================================================
+-- EnsureDefaults — populate FramedDB.presets on first run
+-- ============================================================
+
+function F.PresetDefaults.EnsureDefaults()
+	if(not FramedDB) then FramedDB = {} end
+	if(not FramedDB.presets) then
+		FramedDB.presets = F.PresetDefaults.GetAll()
+		return
+	end
+
+	-- Ensure each preset exists (don't overwrite user data)
+	local defaults = F.PresetDefaults.GetAll()
+	for name, preset in next, defaults do
+		if(not FramedDB.presets[name]) then
+			FramedDB.presets[name] = preset
+		end
+	end
+end
