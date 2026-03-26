@@ -17,30 +17,47 @@ local function Update(self, event, unit)
 	if(not unit or self.unit ~= unit) then return end
 
 	local cfg = element._config
-	local maxDisplayed = cfg.maxDisplayed or 3
+	local maxDisplayed   = cfg.maxDisplayed or 3
+	local visibilityMode = cfg.visibilityMode or 'all'
+	local playerColor    = cfg.playerColor or { 0, 0.8, 0 }
+	local otherColor     = cfg.otherColor or { 1, 0.85, 0 }
 
-	-- Collect auras
+	-- Build filter string based on visibility mode
+	local filter = 'HELPFUL|BIG_DEFENSIVE'
+	if(visibilityMode == 'player') then
+		filter = 'HELPFUL|BIG_DEFENSIVE|PLAYER'
+	end
+
+	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter)
+
+	-- Collect auras with source classification
 	local auraList = {}
-	local i = 1
-	while(true) do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HELPFUL')
-		if(not auraData) then break end
-
+	for _, auraData in next, rawAuras do
 		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId) and F.Data.DefensiveSpellIDs[spellId]) then
-			local sourceUnit = auraData.sourceUnit
-			-- Only show defensives cast by the player themselves
-			if(F.IsValueNonSecret(sourceUnit) and sourceUnit == 'player') then
+		if(F.IsValueNonSecret(spellId)) then
+			-- Determine if player-cast via |PLAYER filter (avoids secret sourceUnit)
+			local isPlayerCast = false
+			if(visibilityMode == 'player') then
+				isPlayerCast = true
+			else
+				isPlayerCast = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+					unit, auraData.auraInstanceID, 'HELPFUL|BIG_DEFENSIVE|PLAYER')
+			end
+
+			-- Apply "others only" filter
+			if(visibilityMode == 'others' and isPlayerCast) then
+				-- Skip player-cast auras in "others" mode
+			else
 				auraList[#auraList + 1] = {
 					spellId        = spellId,
 					icon           = auraData.icon,
 					duration       = auraData.duration,
 					expirationTime = auraData.expirationTime,
 					stacks         = auraData.applications or 0,
+					isPlayerCast   = isPlayerCast,
 				}
 			end
 		end
-		i = i + 1
 	end
 
 	-- Display up to maxDisplayed using BorderIcon pool
@@ -52,7 +69,6 @@ local function Update(self, event, unit)
 	for idx = 1, count do
 		local aura = auraList[idx]
 
-		-- Lazily create pool entries
 		if(not pool[idx]) then
 			pool[idx] = F.Indicators.BorderIcon.Create(self, iconSize, {
 				showCooldown = true,
@@ -69,7 +85,6 @@ local function Update(self, event, unit)
 		bi:ClearAllPoints()
 		bi:SetSize(iconSize)
 
-		-- Position
 		local offset = (idx - 1) * (iconSize + 2)
 
 		if(orientation == 'RIGHT') then
@@ -80,6 +95,11 @@ local function Update(self, event, unit)
 			bi:SetPoint('TOPLEFT', element._container, 'TOPLEFT', 0, -offset)
 		elseif(orientation == 'UP') then
 			bi:SetPoint('BOTTOMLEFT', element._container, 'BOTTOMLEFT', 0, offset)
+		end
+
+		local borderColor = aura.isPlayerCast and playerColor or otherColor
+		if(bi.SetBorderColor) then
+			bi:SetBorderColor(borderColor[1], borderColor[2], borderColor[3])
 		end
 
 		bi:SetAura(
@@ -93,7 +113,6 @@ local function Update(self, event, unit)
 		bi:Show()
 	end
 
-	-- Hide pool entries beyond active count
 	for idx = count + 1, #pool do
 		pool[idx]:Clear()
 	end
@@ -145,13 +164,16 @@ oUF:AddElement('FramedDefensives', Update, Enable, Disable)
 -- ============================================================
 
 --- Create a Defensives element on a unit frame.
---- Shows BorderIcons for self-cast defensive cooldowns
---- (Ice Block, Divine Shield, Cloak of Shadows, etc.).
+--- Shows BorderIcons for major personal defensive cooldowns
+--- (Ice Block, Divine Shield, Shield Wall, etc.).
+--- Supports visibility modes: 'all' (default), 'player', 'others'.
+--- Border color differentiates player-cast (green) from other-cast (yellow).
 --- Assigns result to self.FramedDefensives, activating the element.
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config: iconSize, maxDisplayed, showDuration,
 ---                       showStacks, orientation, anchor, frameLevel,
----                       stackFont, durationFont
+---                       stackFont, durationFont, visibilityMode,
+---                       playerColor, otherColor
 function F.Elements.Defensives.Setup(self, config)
 	config = config or {}
 
