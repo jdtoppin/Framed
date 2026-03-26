@@ -21,7 +21,7 @@ local accountDefaults = {
 		tooltipOffsetX = 0,
 		tooltipOffsetY = 0,
 	},
-	layouts = {},       -- populated by Layouts/Defaults.lua in Phase 5
+	presets = {},       -- populated by Layouts/Defaults.lua
 	raidDebuffs = {
 		overrides = {},
 		custom = {},
@@ -31,16 +31,15 @@ local accountDefaults = {
 
 local charDefaults = {
 	autoSwitch = {
-		[Constants.ContentType.SOLO]         = 'Default Solo',
-		[Constants.ContentType.PARTY]        = 'Default Party',
-		[Constants.ContentType.RAID]         = 'Default Raid',
-		[Constants.ContentType.MYTHIC_RAID]  = 'Default Mythic Raid',
-		[Constants.ContentType.WORLD_RAID]   = 'Default World Raid',
-		[Constants.ContentType.BATTLEGROUND]  = 'Default Battleground',
-		[Constants.ContentType.ARENA]        = 'Default Arena',
+		['solo']         = 'Solo',
+		['party']        = 'Party',
+		['raid']         = 'Raid',
+		['mythicRaid']   = 'Mythic Raid',
+		['worldRaid']    = 'World Raid',
+		['battleground'] = 'Battleground',
+		['arena']        = 'Arena',
 	},
 	specOverrides = {},
-	editModePositions = {},
 	tourState = {
 		completed = false,
 		lastStep = 0,
