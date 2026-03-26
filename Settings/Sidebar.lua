@@ -52,6 +52,36 @@ local function AnimateWidth(texture, targetWidth, duration, onDone)
 end
 
 -- ============================================================
+-- AnimateHeight
+-- OnUpdate-based linear interpolation of a frame's height.
+-- ============================================================
+
+local function AnimateHeight(frame, targetHeight, duration, onDone)
+	local startHeight = frame:GetHeight()
+	if(math.abs(startHeight - targetHeight) < 0.5) then
+		frame:SetHeight(targetHeight)
+		if(onDone) then onDone() end
+		return
+	end
+	local elapsed = 0
+	frame._heightAnimOnDone = onDone
+	frame:SetScript('OnUpdate', function(self, dt)
+		elapsed = elapsed + dt
+		local t = math.min(elapsed / duration, 1)
+		local h = startHeight + (targetHeight - startHeight) * t
+		self:SetHeight(math.max(h, 0.001))
+		if(t >= 1) then
+			self:SetScript('OnUpdate', nil)
+			self:SetHeight(targetHeight)
+			if(self._heightAnimOnDone) then
+				self._heightAnimOnDone()
+				self._heightAnimOnDone = nil
+			end
+		end
+	end)
+end
+
+-- ============================================================
 -- Sidebar Selection
 -- ============================================================
 
