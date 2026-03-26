@@ -28,6 +28,7 @@ Core/DispelCapability.lua
 Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
+Core/CastTracker.lua
 
 # Widgets
 Widgets/Base.lua
