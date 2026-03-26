@@ -45,6 +45,7 @@ Widgets/Dialog.lua
 Widgets/StatusBar.lua
 Widgets/SpellList.lua
 Widgets/AnchorPicker.lua
+Widgets/InfoIcon.lua
 
 # Elements - Core
 Elements/Core/Health.lua
