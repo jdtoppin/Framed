@@ -253,6 +253,7 @@ local function CreatePickerFrame()
 	-- Vertical black gradient overlay (brightness: black at bottom, clear at top)
 	local darkOverlay = sbPane:CreateTexture(nil, 'ARTWORK', nil, 1)
 	darkOverlay:SetAllPoints(sbPane)
+	darkOverlay:SetTexture(F.Media.GetPlainTexture())
 	darkOverlay:SetGradient('VERTICAL', CreateColor(0, 0, 0, 1), CreateColor(0, 0, 0, 0))
 
 	-- --------------------------------------------------------

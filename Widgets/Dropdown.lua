@@ -11,6 +11,12 @@ local C = Framed.Constants
 local ITEM_HEIGHT   = 22
 local MAX_VISIBLE   = 10
 local LIST_PAD      = 4     -- inner padding inside the list frame
+local SCROLLBAR_W   = 5
+local SCROLLBAR_GAP = 2
+local SCROLL_STEP   = ITEM_HEIGHT * 2
+local THUMB_MIN_H   = 16
+
+local ARROW_ICON    = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
 
 local dropdownList          -- singleton list frame, created lazily
 local dropdownBlocker       -- invisible full-screen click-catcher
@@ -21,10 +27,58 @@ local EnsureDropdownList
 local CloseDropdownList
 local OpenDropdownList
 
+-- ── Scroll helpers ─────────────────────────────────────────
+
+local function Clamp(v, lo, hi)
+	return math.max(lo, math.min(hi, v))
+end
+
+local function GetScrollMax()
+	local contentH = dropdownList._content:GetHeight()
+	local viewH    = dropdownList._scrollFrame:GetHeight()
+	return math.max(0, contentH - viewH)
+end
+
+local function UpdateThumb()
+	local contentH = dropdownList._content:GetHeight()
+	local viewH    = dropdownList._scrollFrame:GetHeight()
+	local trackH   = dropdownList._scrollbar:GetHeight()
+
+	if(contentH <= viewH or viewH <= 0) then
+		dropdownList._scrollbar:Hide()
+		dropdownList._thumb:Hide()
+		return
+	end
+
+	dropdownList._scrollbar:Show()
+	dropdownList._thumb:Show()
+
+	local ratio  = viewH / contentH
+	local thumbH = math.max(THUMB_MIN_H, math.floor(ratio * trackH + 0.5))
+	dropdownList._thumb:SetHeight(thumbH)
+
+	local maxScroll = contentH - viewH
+	local current   = dropdownList._scrollFrame:GetVerticalScroll()
+	local frac      = (maxScroll > 0) and (current / maxScroll) or 0
+	local maxY      = trackH - thumbH
+	local thumbY    = math.floor(frac * maxY + 0.5)
+
+	dropdownList._thumb:ClearAllPoints()
+	dropdownList._thumb:SetPoint('TOP', dropdownList._scrollbar, 'TOP', 0, -thumbY)
+end
+
+local function ApplyScroll(offset)
+	offset = Clamp(offset, 0, GetScrollMax())
+	dropdownList._scrollFrame:SetVerticalScroll(offset)
+	UpdateThumb()
+end
+
+-- ── Create the singleton ───────────────────────────────────
+
 local function EnsureDropdownList()
 	if(dropdownList) then return end
 
-	-- Full-screen invisible blocker behind the list — clicking it closes the list
+	-- Full-screen invisible blocker behind the list
 	dropdownBlocker = CreateFrame('Frame', 'FramedDropdownBlocker', UIParent)
 	dropdownBlocker:SetFrameStrata('FULLSCREEN_DIALOG')
 	dropdownBlocker:SetFrameLevel(90)
@@ -46,11 +100,79 @@ local function EnsureDropdownList()
 	dropdownList._borderColor = C.Colors.border
 	Widgets.ApplyBackdrop(dropdownList, C.Colors.panel, C.Colors.border)
 
-	-- Container for item rows (inside LIST_PAD margin)
-	local container = CreateFrame('Frame', nil, dropdownList)
-	container:SetPoint('TOPLEFT',     dropdownList, 'TOPLEFT',     LIST_PAD, -LIST_PAD)
-	container:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', -LIST_PAD, LIST_PAD)
-	dropdownList._container = container
+	-- ScrollFrame for the item rows
+	local sf = CreateFrame('ScrollFrame', 'FramedDropdownScrollFrame', dropdownList)
+	sf:SetPoint('TOPLEFT', dropdownList, 'TOPLEFT', LIST_PAD, -LIST_PAD)
+	sf:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', -LIST_PAD, LIST_PAD)
+	dropdownList._scrollFrame = sf
+
+	-- Content child (anchored to scroll frame, rows go here)
+	local content = CreateFrame('Frame', nil, sf)
+	content:SetPoint('TOPLEFT', sf, 'TOPLEFT', 0, 0)
+	sf:SetScrollChild(content)
+	dropdownList._content = content
+
+	-- Mouse-wheel scrolling
+	sf:EnableMouseWheel(true)
+	sf:SetScript('OnMouseWheel', function(self, delta)
+		local current = self:GetVerticalScroll()
+		ApplyScroll(current - delta * SCROLL_STEP)
+	end)
+
+	-- Scrollbar track (right edge, inside the list frame)
+	local track = CreateFrame('Frame', nil, dropdownList, 'BackdropTemplate')
+	track:SetWidth(SCROLLBAR_W)
+	track:SetPoint('TOPRIGHT', dropdownList, 'TOPRIGHT', -1, -LIST_PAD)
+	track:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', -1, LIST_PAD)
+	Widgets.ApplyBackdrop(track, C.Colors.panel, C.Colors.panel)
+	track:Hide()
+	dropdownList._scrollbar = track
+
+	-- Scrollbar thumb
+	local thumb = CreateFrame('Frame', nil, track)
+	thumb:SetWidth(SCROLLBAR_W)
+	thumb:SetHeight(THUMB_MIN_H)
+	thumb:SetPoint('TOP', track, 'TOP', 0, 0)
+
+	local thumbTex = thumb:CreateTexture(nil, 'OVERLAY')
+	thumbTex:SetAllPoints(thumb)
+	thumbTex:SetColorTexture(
+		C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], C.Colors.accent[4] or 1)
+	thumb:Hide()
+	dropdownList._thumb = thumb
+
+	-- Thumb dragging
+	thumb:EnableMouse(true)
+	thumb:SetScript('OnMouseDown', function(self, button)
+		if(button ~= 'LeftButton') then return end
+		self._dragging = true
+		local _, cursorY = GetCursorPosition()
+		local scale = track:GetEffectiveScale()
+		self._dragStartY = cursorY / scale
+		self._dragStartThumbY = select(5, self:GetPoint()) or 0
+	end)
+	thumb:SetScript('OnMouseUp', function(self)
+		self._dragging = false
+	end)
+	thumb:SetScript('OnUpdate', function(self)
+		if(not self._dragging) then return end
+		local _, cursorY = GetCursorPosition()
+		local scale = track:GetEffectiveScale()
+		cursorY = cursorY / scale
+
+		local delta = self._dragStartY - cursorY
+		local trackH = track:GetHeight()
+		local thumbH = self:GetHeight()
+		local maxThumbY = trackH - thumbH
+		local newOffset = Clamp((-self._dragStartThumbY) + delta, 0, maxThumbY)
+
+		local maxScroll = GetScrollMax()
+		local frac = (maxThumbY > 0) and (newOffset / maxThumbY) or 0
+		dropdownList._scrollFrame:SetVerticalScroll(math.floor(frac * maxScroll + 0.5))
+
+		self:ClearAllPoints()
+		self:SetPoint('TOP', track, 'TOP', 0, -math.floor(newOffset + 0.5))
+	end)
 
 	-- Pool of item row frames (re-used each open)
 	dropdownList._rows = {}
@@ -62,19 +184,19 @@ CloseDropdownList = function()
 	currentOwner = nil
 end
 
--- Build a single item row inside the container.
+-- Build a single item row inside the content frame.
 local function GetOrCreateRow(index)
 	local row = dropdownList._rows[index]
 	if(row) then return row end
 
-	local container = dropdownList._container
+	local content = dropdownList._content
 
-	row = CreateFrame('Frame', nil, container, 'BackdropTemplate')
+	row = CreateFrame('Frame', nil, content, 'BackdropTemplate')
 	row:SetHeight(ITEM_HEIGHT)
-	row:SetPoint('LEFT',  container, 'LEFT',  0, 0)
-	row:SetPoint('RIGHT', container, 'RIGHT', 0, 0)
+	row:SetPoint('LEFT',  content, 'LEFT',  0, 0)
+	row:SetPoint('RIGHT', content, 'RIGHT', 0, 0)
 	row._bgColor     = C.Colors.panel
-	row._borderColor = { 0, 0, 0, 0 }   -- transparent border normally
+	row._borderColor = { 0, 0, 0, 0 }
 	Widgets.ApplyBackdrop(row, C.Colors.panel, { 0, 0, 0, 0 })
 	row:EnableMouse(true)
 
@@ -116,33 +238,42 @@ OpenDropdownList = function(owner)
 
 	local items     = owner._items or {}
 	local selected  = owner._value
-	local showCount = math.min(#items, MAX_VISIBLE)
+	local totalCount = #items
+	local showCount  = math.min(totalCount, MAX_VISIBLE)
+	local needsScroll = totalCount > MAX_VISIBLE
 
 	if(showCount == 0) then
-		-- Nothing to show — still allow open to display empty state
 		showCount = 1
 	end
 
-	local containerW = owner:GetWidth() - LIST_PAD * 2
-	local listH = showCount * ITEM_HEIGHT + LIST_PAD * 2
+	local ownerW = owner:GetWidth()
+	local listH  = showCount * ITEM_HEIGHT + LIST_PAD * 2
 
-	Widgets.SetSize(dropdownList, owner:GetWidth(), listH)
-
-	-- Position below the owner button
+	-- Anchor both sides to the owner so width always matches exactly
 	dropdownList:ClearAllPoints()
 	dropdownList:SetPoint('TOPLEFT', owner, 'BOTTOMLEFT', 0, -2)
+	dropdownList:SetPoint('TOPRIGHT', owner, 'BOTTOMRIGHT', 0, -2)
+	dropdownList:SetHeight(listH)
 
-	-- Populate rows
-	local container = dropdownList._container
+	-- Adjust scroll frame right edge for scrollbar
+	local sfRight = needsScroll and (-LIST_PAD - SCROLLBAR_W - SCROLLBAR_GAP) or -LIST_PAD
+	dropdownList._scrollFrame:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', sfRight, LIST_PAD)
+
+	-- Set content width to match the scroll frame inner area
+	local contentW = ownerW - LIST_PAD * 2 - (needsScroll and (SCROLLBAR_W + SCROLLBAR_GAP) or 0)
+	dropdownList._content:SetWidth(contentW)
 
 	-- Hide all existing rows first
 	for _, row in next, dropdownList._rows do
 		row:Hide()
 	end
 
-	if(#items == 0) then
+	-- Reset scroll position
+	dropdownList._scrollFrame:SetVerticalScroll(0)
+
+	if(totalCount == 0) then
 		local row = GetOrCreateRow(1)
-		row:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, 0)
+		row:SetPoint('TOPLEFT', dropdownList._content, 'TOPLEFT', 0, 0)
 		row._swatch:Hide()
 		row._label:SetPoint('LEFT', row, 'LEFT', 4, 0)
 		row._label:SetText('(empty)')
@@ -150,13 +281,15 @@ OpenDropdownList = function(owner)
 		row._label:SetTextColor(ts[1], ts[2], ts[3], ts[4] or 1)
 		row:SetScript('OnMouseDown', nil)
 		row:Show()
+		dropdownList._content:SetHeight(ITEM_HEIGHT)
 	else
-		for i = 1, showCount do
+		-- Create ALL rows (not just visible), scroll frame handles clipping
+		for i = 1, totalCount do
 			local item = items[i]
 			if(not item) then break end
 
 			local row = GetOrCreateRow(i)
-			row:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -(i - 1) * ITEM_HEIGHT)
+			row:SetPoint('TOPLEFT', dropdownList._content, 'TOPLEFT', 0, -(i - 1) * ITEM_HEIGHT)
 
 			-- Swatch (texture preview)
 			if(item._texturePath) then
@@ -199,8 +332,25 @@ OpenDropdownList = function(owner)
 
 			row:Show()
 		end
+
+		dropdownList._content:SetHeight(totalCount * ITEM_HEIGHT)
 	end
 
+	-- Scroll the selected item into view
+	if(selected and totalCount > MAX_VISIBLE) then
+		for i, item in next, items do
+			if(item.value == selected) then
+				local targetY = (i - 1) * ITEM_HEIGHT
+				local viewH = showCount * ITEM_HEIGHT
+				if(targetY > viewH - ITEM_HEIGHT) then
+					ApplyScroll(targetY - viewH + ITEM_HEIGHT)
+				end
+				break
+			end
+		end
+	end
+
+	UpdateThumb()
 	dropdownBlocker:Show()
 	dropdownList:Show()
 end
@@ -236,10 +386,14 @@ function Widgets.CreateDropdown(parent, width)
 	label:SetText('')
 	dropdown._label = label
 
-	-- Arrow indicator (right-aligned)
-	local arrow = Widgets.CreateFontString(dropdown, C.Font.sizeNormal, C.Colors.textSecondary)
+	-- Arrow indicator (right-aligned, texture icon)
+	local arrow = dropdown:CreateTexture(nil, 'ARTWORK')
+	arrow:SetSize(12, 12)
 	arrow:SetPoint('RIGHT', dropdown, 'RIGHT', -6, 0)
-	arrow:SetText('\226\150\188')   -- UTF-8 for down arrow
+	arrow:SetTexture(ARROW_ICON)
+	arrow:SetTexCoord(0.15, 0.85, 0.85, 0.15)  -- flip vertically for down arrow
+	local ts = C.Colors.textSecondary
+	arrow:SetVertexColor(ts[1], ts[2], ts[3], ts[4] or 1)
 	dropdown._arrow = arrow
 
 	-- Hover/Leave
@@ -346,7 +500,7 @@ function Widgets.CreateDropdown(parent, width)
 			local tn = C.Colors.textNormal
 			self._label:SetTextColor(tn[1], tn[2], tn[3], tn[4] or 1)
 			local ts = C.Colors.textSecondary
-			self._arrow:SetTextColor(ts[1], ts[2], ts[3], ts[4] or 1)
+			self._arrow:SetVertexColor(ts[1], ts[2], ts[3], ts[4] or 1)
 		else
 			-- Close if open
 			if(currentOwner == self) then CloseDropdownList() end
@@ -356,7 +510,7 @@ function Widgets.CreateDropdown(parent, width)
 			self:SetBackdropBorderColor(0, 0, 0, 1)
 			local td = C.Colors.textDisabled
 			self._label:SetTextColor(td[1], td[2], td[3], td[4] or 1)
-			self._arrow:SetTextColor(td[1], td[2], td[3], td[4] or 1)
+			self._arrow:SetVertexColor(td[1], td[2], td[3], td[4] or 1)
 		end
 	end
 
