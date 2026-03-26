@@ -3,6 +3,7 @@ local F = Framed
 
 local Widgets = F.Widgets
 local C = F.Constants
+local EditCache = F.EditCache
 
 F.EditMode = {}
 local EditMode = F.EditMode
@@ -11,248 +12,163 @@ local EditMode = F.EditMode
 -- Constants
 -- ============================================================
 
-local TOP_BAR_WIDTH  = 480
-local TOP_BAR_HEIGHT = 40
-local HANDLE_ALPHA   = 0.6
-local BUTTON_WIDTH   = 90
-local BUTTON_HEIGHT  = 22
+local BORDER_SIZE     = 1
+local DIM_ALPHA       = 0.85
+local BORDER_RED      = { 0.8, 0.1, 0.1, 1 }
+local BORDER_GREEN    = { 0.1, 0.8, 0.2, 1 }
 
 -- ============================================================
 -- State
 -- ============================================================
 
-local isActive       = false
-local savedPositions = {}
-local gridSnap       = true
-
--- overlay and handle frames (created lazily)
-local overlay    = nil
-local topBar     = nil
-local handles    = {}
+local isActive         = false
+local selectedFrameKey = nil
+local overlay          = nil
+local sessionPresetOverride = nil   -- nil = auto-detect, string = manual choice
 
 -- ============================================================
--- Frame key definitions
+-- Frame Key Definitions
 -- ============================================================
 
 local FRAME_KEYS = {
-	{ key = 'player',       label = 'Player',        getter = function() return F.Units.Player and F.Units.Player.frame end },
-	{ key = 'target',       label = 'Target',        getter = function() return F.Units.Target and F.Units.Target.frame end },
-	{ key = 'targettarget', label = 'Target of Target', getter = function() return F.Units.TargetTarget and F.Units.TargetTarget.frame end },
-	{ key = 'focus',        label = 'Focus',         getter = function() return F.Units.Focus and F.Units.Focus.frame end },
-	{ key = 'pet',          label = 'Pet',           getter = function() return F.Units.Pet and F.Units.Pet.frame end },
-	{ key = 'party',        label = 'Party Frames',  getter = function() return F.Units.Party and F.Units.Party.header end },
-	{ key = 'raid',         label = 'Raid Frames',   getter = function() return F.Units.Raid and F.Units.Raid.header end },
-	{ key = 'boss',         label = 'Boss Frames',   getter = function() return F.Units.Boss and F.Units.Boss.frames and F.Units.Boss.frames[1] end },
-	{ key = 'arena',        label = 'Arena Frames',  getter = function() return F.Units.Arena and F.Units.Arena.frames and F.Units.Arena.frames[1] end },
+	{ key = 'player',       label = 'Player',           isGroup = false, getter = function() return F.Units.Player and F.Units.Player.frame end },
+	{ key = 'target',       label = 'Target',           isGroup = false, getter = function() return F.Units.Target and F.Units.Target.frame end },
+	{ key = 'targettarget', label = 'Target of Target', isGroup = false, getter = function() return F.Units.TargetTarget and F.Units.TargetTarget.frame end },
+	{ key = 'focus',        label = 'Focus',            isGroup = false, getter = function() return F.Units.Focus and F.Units.Focus.frame end },
+	{ key = 'pet',          label = 'Pet',              isGroup = false, getter = function() return F.Units.Pet and F.Units.Pet.frame end },
+	{ key = 'party',        label = 'Party Frames',     isGroup = true,  getter = function() return F.Units.Party and F.Units.Party.header end },
+	{ key = 'raid',         label = 'Raid Frames',      isGroup = true,  getter = function() return F.Units.Raid and F.Units.Raid.header end },
+	{ key = 'boss',         label = 'Boss Frames',      isGroup = true,  getter = function() return F.Units.Boss and F.Units.Boss.frames and F.Units.Boss.frames[1] end },
+	{ key = 'arena',        label = 'Arena Frames',     isGroup = true,  getter = function() return F.Units.Arena and F.Units.Arena.frames and F.Units.Arena.frames[1] end },
 }
 
--- ============================================================
--- Grid snap
--- ============================================================
-
-local function SnapToGrid(x, y)
-	if(not gridSnap) then return x, y end
-	local grid = C.Spacing.base  -- 4px
-	return Widgets.Round(x / grid) * grid, Widgets.Round(y / grid) * grid
-end
+EditMode.FRAME_KEYS = FRAME_KEYS
 
 -- ============================================================
--- Position save / restore / persist
+-- Position Snapshot (for discard/restore)
 -- ============================================================
 
 local function SaveCurrentPositions()
-	savedPositions = {}
-	for _, def in next, FRAME_KEYS do
-		local frame = def.getter()
-		if(frame) then
-			local point, relativeTo, relPoint, x, y = frame:GetPoint()
-			if(point) then
-				savedPositions[def.key] = { point, relativeTo, relPoint, x, y }
-			end
-		end
-	end
-end
-
-local function RestorePositions()
-	for _, def in next, FRAME_KEYS do
-		local saved = savedPositions[def.key]
-		if(saved) then
-			local frame = def.getter()
-			if(frame) then
-				frame:ClearAllPoints()
-				frame:SetPoint(saved[1], saved[2], saved[3], saved[4], saved[5])
-			end
-		end
-	end
-end
-
-local function PersistPositions()
-	local presetName = F.Settings.GetEditingPreset()
+	local positions = {}
 	for _, def in next, FRAME_KEYS do
 		local frame = def.getter()
 		if(frame) then
 			local point, relativeTo, relPoint, x, y = frame:GetPoint()
 			if(point) then
 				local relName = relativeTo and relativeTo:GetName() or 'UIParent'
-				F.Config:Set(
-					'presets.' .. presetName .. '.positions.' .. def.key,
-					{ point, relName, relPoint, x, y })
+				positions[def.key] = { point, relName, relPoint, x, y }
+			end
+		end
+	end
+	EditCache.SavePreEditPositions(positions)
+end
+
+local function RestorePositions()
+	local positions = EditCache.GetPreEditPositions()
+	for _, def in next, FRAME_KEYS do
+		local saved = positions[def.key]
+		if(saved) then
+			local frame = def.getter()
+			if(frame) then
+				frame:ClearAllPoints()
+				local relFrame = (saved[2] == 'UIParent') and UIParent or _G[saved[2]]
+				frame:SetPoint(saved[1], relFrame, saved[3], saved[4], saved[5])
 			end
 		end
 	end
 end
 
 -- ============================================================
--- Handle management
--- ============================================================
-
-local function DestroyHandles()
-	for _, handle in next, handles do
-		handle:Hide()
-		handle:SetParent(nil)
-	end
-	handles = {}
-end
-
-local function CreateHandleForFrame(targetFrame, label)
-	local handle = CreateFrame('Frame', nil, UIParent, 'BackdropTemplate')
-	handle:SetFrameStrata('HIGH')
-	handle:SetFrameLevel(100)
-
-	-- Match size and position of the target frame
-	handle:SetAllPoints(targetFrame)
-
-	-- Solid accent border at 50% alpha (simulates dashed border)
-	local accent = C.Colors.accent
-	handle:SetBackdrop({
-		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
-		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
-		edgeSize = 1,
-	})
-	handle:SetBackdropColor(accent[1], accent[2], accent[3], 0.08)
-	handle:SetBackdropBorderColor(accent[1], accent[2], accent[3], HANDLE_ALPHA)
-
-	-- Label at top of handle
-	local fs = handle:CreateFontString(nil, 'OVERLAY')
-	fs:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
-	fs:SetShadowOffset(1, -1)
-	fs:SetTextColor(accent[1], accent[2], accent[3], 1)
-	fs:SetPoint('TOP', handle, 'TOP', 0, -C.Spacing.base)
-	fs:SetText(label)
-
-	return handle
-end
-
-local function CreateHandles()
-	DestroyHandles()
-	for _, def in next, FRAME_KEYS do
-		local frame = def.getter()
-		if(frame and frame:IsShown()) then
-			local handle = CreateHandleForFrame(frame, def.label)
-			handles[#handles + 1] = handle
-
-			-- Wire up dragging on the underlying frame
-			local key = def.key
-			Widgets.MakeDraggable(frame,
-				nil,
-				function(dragFrame, x, y)
-					local snappedX, snappedY = SnapToGrid(x, y)
-					if(snappedX ~= x or snappedY ~= y) then
-						local point, relativeTo, relPoint = dragFrame:GetPoint()
-						dragFrame:ClearAllPoints()
-						dragFrame:SetPoint(point, relativeTo, relPoint, snappedX, snappedY)
-					end
-					-- Keep handle in sync
-					handle:ClearAllPoints()
-					handle:SetAllPoints(dragFrame)
-				end,
-				true)
-		end
-	end
-end
-
--- ============================================================
--- Overlay UI construction (lazy)
+-- Overlay Construction (lazy)
 -- ============================================================
 
 local function BuildOverlay()
-	-- Invisible full-screen catch frame for Escape key
 	overlay = CreateFrame('Frame', 'FramedEditModeOverlay', UIParent)
 	overlay:SetAllPoints(UIParent)
-	overlay:SetFrameStrata('HIGH')
-	overlay:SetFrameLevel(90)
-	overlay:EnableMouse(false)   -- pass-through; individual handles are interactive
+	overlay:SetFrameStrata('FULLSCREEN_DIALOG')
+	overlay:SetFrameLevel(1)
+	overlay:EnableMouse(false)
 	overlay:Hide()
 
+	-- Dark fill
+	local dimTex = overlay:CreateTexture(nil, 'BACKGROUND')
+	dimTex:SetAllPoints(overlay)
+	dimTex:SetColorTexture(0, 0, 0, DIM_ALPHA)
+	overlay._dimTex = dimTex
+
+	-- Red border (4 edge textures)
+	local borders = {}
+	local edges = {
+		{ 'TOPLEFT', 'TOPRIGHT', 'TOPLEFT', 'TOPRIGHT', nil, BORDER_SIZE },       -- top
+		{ 'BOTTOMLEFT', 'BOTTOMRIGHT', 'BOTTOMLEFT', 'BOTTOMRIGHT', nil, BORDER_SIZE }, -- bottom
+		{ 'TOPLEFT', 'BOTTOMLEFT', 'TOPLEFT', 'BOTTOMLEFT', BORDER_SIZE, nil },   -- left
+		{ 'TOPRIGHT', 'BOTTOMRIGHT', 'TOPRIGHT', 'BOTTOMRIGHT', BORDER_SIZE, nil }, -- right
+	}
+	for _, e in next, edges do
+		local tex = overlay:CreateTexture(nil, 'OVERLAY')
+		tex:SetPoint(e[1], overlay, e[3], 0, 0)
+		tex:SetPoint(e[2], overlay, e[4], 0, 0)
+		if(e[5]) then tex:SetWidth(e[5]) end
+		if(e[6]) then tex:SetHeight(e[6]) end
+		tex:SetColorTexture(BORDER_RED[1], BORDER_RED[2], BORDER_RED[3], BORDER_RED[4])
+		borders[#borders + 1] = tex
+	end
+	overlay._borders = borders
+
+	-- Keyboard: Escape triggers cancel
 	overlay:SetPropagateKeyboardInput(false)
 	overlay:EnableKeyboard(true)
 	overlay:SetScript('OnKeyDown', function(self, key)
 		if(key == 'ESCAPE') then
-			EditMode.Cancel()
+			EditMode.RequestCancel()
 		end
 	end)
+end
 
-	-- Top bar: centered at top of screen
-	topBar = Widgets.CreateBorderedFrame(overlay, TOP_BAR_WIDTH, TOP_BAR_HEIGHT, C.Colors.panel, C.Colors.border)
-	topBar:SetFrameStrata('HIGH')
-	topBar:SetFrameLevel(110)
-	topBar:SetPoint('TOP', UIParent, 'TOP', 0, -C.Spacing.tight)
-
-	-- "Edit Mode" label
-	local titleText = Widgets.CreateFontString(topBar, C.Font.sizeTitle, C.Colors.accent)
-	titleText:SetPoint('LEFT', topBar, 'LEFT', C.Spacing.normal, 0)
-	titleText:SetText('Edit Mode')
-	topBar.__titleText = titleText
-
-	-- Cancel button (rightmost)
-	local cancelBtn = Widgets.CreateButton(topBar, 'Cancel', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
-	cancelBtn:SetPoint('RIGHT', topBar, 'RIGHT', -C.Spacing.normal, 0)
-	cancelBtn:SetOnClick(function()
-		EditMode.Cancel()
-	end)
-
-	-- Save button (left of Cancel)
-	local saveBtn = Widgets.CreateButton(topBar, 'Save', 'accent', BUTTON_WIDTH, BUTTON_HEIGHT)
-	saveBtn:SetPoint('RIGHT', cancelBtn, 'LEFT', -C.Spacing.base, 0)
-	saveBtn:SetOnClick(function()
-		EditMode.Save()
-	end)
-
-	-- Grid Snap toggle button (left of Save)
-	local snapBtn = Widgets.CreateButton(topBar, 'Grid Snap', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
-	snapBtn:SetPoint('RIGHT', saveBtn, 'LEFT', -C.Spacing.base, 0)
-
-	local function UpdateSnapButton()
-		if(gridSnap) then
-			local accent = C.Colors.accent
-			snapBtn:SetBackdropColor(C.Colors.accentDim[1], C.Colors.accentDim[2], C.Colors.accentDim[3], C.Colors.accentDim[4] or 1)
-			snapBtn:SetBackdropBorderColor(accent[1], accent[2], accent[3], accent[4] or 1)
-			snapBtn._label:SetTextColor(1, 1, 1, 1)
-		else
-			local s = snapBtn._scheme
-			snapBtn:SetBackdropColor(s.bg[1], s.bg[2], s.bg[3], s.bg[4] or 1)
-			local bc = s.border
-			snapBtn:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
-			local tc = s.textColor
-			snapBtn._label:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
-		end
+--- Flash the border to a color then fade out.
+local function FlashBorder(color, callback)
+	if(not overlay or not overlay._borders) then
+		if(callback) then callback() end
+		return
 	end
-
-	snapBtn:SetOnClick(function()
-		gridSnap = not gridSnap
-		UpdateSnapButton()
+	for _, tex in next, overlay._borders do
+		tex:SetColorTexture(color[1], color[2], color[3], color[4])
+	end
+	-- Brief hold then fade
+	C_Timer.After(0.3, function()
+		if(callback) then callback() end
 	end)
+end
 
-	-- Initialise snap button to reflect default state
-	UpdateSnapButton()
+--- Reset border to red.
+local function ResetBorderColor()
+	if(not overlay or not overlay._borders) then return end
+	for _, tex in next, overlay._borders do
+		tex:SetColorTexture(BORDER_RED[1], BORDER_RED[2], BORDER_RED[3], BORDER_RED[4])
+	end
+end
+
+-- ============================================================
+-- Session Preset Management
+-- ============================================================
+
+--- Get the preset to use. Returns manual override if set, else auto-detect.
+--- @return string presetName
+function EditMode.GetSessionPreset()
+	return sessionPresetOverride or F.Settings.GetEditingPreset()
+end
+
+--- Set a manual preset override for the session.
+--- @param presetName string
+function EditMode.SetSessionPreset(presetName)
+	sessionPresetOverride = presetName
 end
 
 -- ============================================================
 -- Public API
 -- ============================================================
 
---- Enter Edit Mode: show overlay, save positions, create handles.
---- No-op in combat (protected frames cannot be moved in combat).
+--- Enter edit mode.
 function EditMode.Enter()
 	if(InCombatLockdown()) then
 		if(DEFAULT_CHAT_FRAME) then
@@ -264,51 +180,128 @@ function EditMode.Enter()
 	if(isActive) then return end
 	isActive = true
 
+	-- Close sidebar if open
+	F.Settings.Hide()
+
 	SaveCurrentPositions()
+	EditCache.Activate()
 
 	if(not overlay) then
 		BuildOverlay()
 	end
 
-	-- Update the label to reflect the currently editing preset
-	if(topBar and topBar.__titleText) then
-		local presetName = F.Settings.GetEditingPreset()
-		topBar.__titleText:SetText('Edit Mode: ' .. presetName .. ' Frame Preset')
-	end
+	ResetBorderColor()
 
-	-- Reset grid snap label state in case it drifted
-	CreateHandles()
+	-- Build sub-components (TopBar, ClickCatchers, Grid will hook in here)
+	F.EventBus:Fire('EDIT_MODE_ENTERED')
 
 	Widgets.FadeIn(overlay)
 	overlay:EnableKeyboard(true)
 end
 
---- Save: persist positions, exit overlay.
-function EditMode.Save()
+--- Perform save: commit cache, flash green, exit.
+--- @param returnToMenu boolean  If true, reopen sidebar after exit
+function EditMode.Save(returnToMenu)
 	if(not isActive) then return end
 
-	PersistPositions()
+	EditCache.Commit()
 
-	isActive = false
-	DestroyHandles()
-	Widgets.FadeOut(overlay)
-	overlay:EnableKeyboard(false)
+	FlashBorder(BORDER_GREEN, function()
+		EditMode.Exit(returnToMenu)
+	end)
 end
 
---- Cancel: restore original positions, exit overlay.
-function EditMode.Cancel()
+--- Perform discard: clear cache, restore positions, exit.
+--- @param returnToMenu boolean  If true, reopen sidebar after exit
+function EditMode.Discard(returnToMenu)
 	if(not isActive) then return end
 
+	EditCache.Discard()
 	RestorePositions()
-
-	isActive = false
-	DestroyHandles()
-	Widgets.FadeOut(overlay)
-	overlay:EnableKeyboard(false)
+	EditMode.Exit(returnToMenu)
 end
 
---- Query whether Edit Mode is currently active.
+--- Exit edit mode (internal, called after save or discard).
+--- @param returnToMenu boolean
+function EditMode.Exit(returnToMenu)
+	isActive = false
+	selectedFrameKey = nil
+
+	EditCache.Deactivate()
+
+	F.EventBus:Fire('EDIT_MODE_EXITED')
+
+	Widgets.FadeOut(overlay, nil, function()
+		overlay:EnableKeyboard(false)
+	end)
+
+	if(returnToMenu) then
+		F.Settings.Show()
+	end
+end
+
+--- Request cancel (called by Escape or Cancel button).
+--- Shows the cancel confirmation dialog if there are unsaved edits.
+function EditMode.RequestCancel()
+	if(not isActive) then return end
+	if(EditCache.HasAnyEdits()) then
+		F.EventBus:Fire('EDIT_MODE_SHOW_CANCEL_DIALOG')
+	else
+		EditMode.Discard(false)
+	end
+end
+
+--- Request save (called by Save button).
+--- Shows the save confirmation dialog.
+function EditMode.RequestSave()
+	if(not isActive) then return end
+	F.EventBus:Fire('EDIT_MODE_SHOW_SAVE_DIALOG')
+end
+
+--- Get the currently selected frame key.
+--- @return string|nil
+function EditMode.GetSelectedFrameKey()
+	return selectedFrameKey
+end
+
+--- Set the selected frame key.
+--- @param key string|nil
+function EditMode.SetSelectedFrameKey(key)
+	selectedFrameKey = key
+	F.EventBus:Fire('EDIT_MODE_FRAME_SELECTED', key)
+end
+
+--- Query whether edit mode is active.
 --- @return boolean
 function EditMode.IsActive()
 	return isActive
 end
+
+--- Get the overlay frame.
+--- @return Frame|nil
+function EditMode.GetOverlay()
+	return overlay
+end
+
+-- ============================================================
+-- Combat Protection
+-- ============================================================
+
+local combatFrame = CreateFrame('Frame')
+combatFrame:RegisterEvent('PLAYER_REGEN_DISABLED')
+combatFrame:RegisterEvent('PLAYER_REGEN_ENABLED')
+combatFrame:SetScript('OnEvent', function(self, event)
+	if(not isActive) then return end
+
+	if(event == 'PLAYER_REGEN_DISABLED') then
+		-- Stop any active drag, hide overlay
+		if(overlay and overlay:IsShown()) then
+			overlay:Hide()
+		end
+	elseif(event == 'PLAYER_REGEN_ENABLED') then
+		-- Re-show overlay
+		if(isActive and overlay) then
+			overlay:Show()
+		end
+	end
+end)
