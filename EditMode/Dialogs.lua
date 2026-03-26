@@ -31,8 +31,8 @@ F.EventBus:Register('EDIT_MODE_SHOW_SAVE_DIALOG', function()
 		'Save + Exit',
 		'Save + Menu',
 		'Continue Editing',
-		function() EditMode.Save(false) end,
-		function() EditMode.Save(true) end,
+		function() RestoreOverlayKeyboard() EditMode.Save(false) end,
+		function() RestoreOverlayKeyboard() EditMode.Save(true) end,
 		function() RestoreOverlayKeyboard() end
 	)
 end, 'EditMode.Dialogs')
@@ -46,8 +46,8 @@ F.EventBus:Register('EDIT_MODE_SHOW_CANCEL_DIALOG', function()
 		'Discard + Exit',
 		'Discard + Menu',
 		'Continue Editing',
-		function() EditMode.Discard(false) end,
-		function() EditMode.Discard(true) end,
+		function() RestoreOverlayKeyboard() EditMode.Discard(false) end,
+		function() RestoreOverlayKeyboard() EditMode.Discard(true) end,
 		function() RestoreOverlayKeyboard() end
 	)
 end, 'EditMode.Dialogs')

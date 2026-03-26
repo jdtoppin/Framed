@@ -100,7 +100,11 @@ local function BuildDialog()
 	frame:SetPropagateKeyboardInput(false)
 	frame:SetScript('OnKeyDown', function(self, key)
 		if(key == 'ESCAPE') then
-			self:_Dismiss('cancel')
+			if(self._layoutMode == 'three') then
+				self:_Dismiss('third')
+			else
+				self:_Dismiss('cancel')
+			end
 		end
 	end)
 
@@ -139,6 +143,7 @@ local function BuildDialog()
 	--- Position buttons centered at the bottom of the dialog.
 	--- mode: 'confirm' shows Yes+No, 'three' shows Yes+No+Third, else shows OK only.
 	function frame:_LayoutButtons(mode)
+		self._layoutMode = mode
 		self._btnYes:Hide()
 		self._btnNo:Hide()
 		self._btnOK:Hide()
