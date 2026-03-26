@@ -194,14 +194,7 @@ local function Enable(self, unit)
 	element.__owner     = self
 	element.ForceUpdate = ForceUpdate
 
-	-- CLEU fires without a unit argument so it cannot be registered through
-	-- oUF's standard RegisterEvent. Use a dedicated listener frame instead.
-	if(not element._cleuFrame) then
-		local cleuFrame = CreateFrame('Frame')
-		cleuFrame:RegisterEvent('COMBAT_LOG_EVENT_UNFILTERED')
-		cleuFrame:SetScript('OnEvent', makeCLEUHandler(self))
-		element._cleuFrame = cleuFrame
-	end
+	F.CastTracker:Register(self)
 
 	return true
 end
@@ -210,16 +203,8 @@ local function Disable(self)
 	local element = self.FramedTargetedSpells
 	if(not element) then return end
 
-	-- Tear down the CLEU listener
-	if(element._cleuFrame) then
-		element._cleuFrame:UnregisterAllEvents()
-		element._cleuFrame:SetScript('OnEvent', nil)
-		element._cleuFrame = nil
-	end
-
-	element._activeSourceGUID = nil
-	element._activeSpellId    = nil
-	hideSpell(element)
+	F.CastTracker:Unregister(self)
+	hideAll(element)
 end
 
 -- ============================================================
@@ -233,7 +218,8 @@ oUF:AddElement('FramedTargetedSpells', Update, Enable, Disable)
 -- ============================================================
 
 --- Create a TargetedSpells element on a unit frame.
---- Shows a BorderIcon and/or Glow when an enemy is casting a spell at this unit.
+--- Shows BorderIcons and/or Glow when enemies are casting at this unit.
+--- Uses F.CastTracker for cast detection (not CLEU).
 --- Assigns result to self.FramedTargetedSpells, activating the element.
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config: displayMode, iconSize, borderColor, anchor,
@@ -245,9 +231,10 @@ function F.Elements.TargetedSpells.Setup(self, config)
 	local rawMode = config.displayMode or DisplayMode.BOTH
 	local displayMode = legacyDisplayModeMap[rawMode] or rawMode
 
-	local iconSize   = config.iconSize   or 16
-	local anchor     = config.anchor     or { 'CENTER', self, 'CENTER', 0, 0 }
-	local frameLevel = config.frameLevel or nil
+	local iconSize     = config.iconSize     or 16
+	local maxDisplayed = config.maxDisplayed  or 1
+	local anchor       = config.anchor       or { 'CENTER', self, 'CENTER', 0, 0 }
+	local frameLevel   = config.frameLevel   or nil
 
 	-- Border color for the BorderIcon border
 	local borderColor = config.borderColor
@@ -266,42 +253,54 @@ function F.Elements.TargetedSpells.Setup(self, config)
 		}
 	end
 
-	local borderIcon, glow
-
+	-- Create BorderIcon pool
+	local pool = {}
 	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
-		local biConfig = {
-			showCooldown = false,
-			showStacks   = false,
-			showDuration = false,
-			borderColor  = borderColor,
-		}
-		if(frameLevel) then
-			biConfig.frameLevel = frameLevel
+		for i = 1, maxDisplayed do
+			local biConfig = {
+				showCooldown = true,
+				showStacks   = false,
+				showDuration = false,
+				borderColor  = borderColor,
+			}
+			if(frameLevel) then
+				biConfig.frameLevel = frameLevel
+			end
+			local bi = F.Indicators.BorderIcon.Create(self, iconSize, biConfig)
+			local a = anchor
+			local offset = (i - 1) * (iconSize + 2)
+			bi:SetPoint(a[1], a[2], a[3], (a[4] or 0) + offset, a[5] or 0)
+			pool[i] = bi
 		end
-		borderIcon = F.Indicators.BorderIcon.Create(self, iconSize, biConfig)
-		local a = anchor
-		borderIcon:SetPoint(a[1], a[2], a[3], a[4] or 0, a[5] or 0)
 	end
 
+	-- Create glow
+	local glow, glowFrame
 	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
+		-- Glow needs a dedicated wrapper frame for SetAlphaFromBoolean on secret path.
+		-- Glow.Create applies glow effects to the parent frame directly (_parent),
+		-- so we create a wrapper frame that the glow attaches to, and we control
+		-- that wrapper's alpha via SetAlphaFromBoolean.
+		glowFrame = CreateFrame('Frame', nil, self)
+		glowFrame:SetAllPoints(self)
+		glowFrame:SetFrameLevel(self:GetFrameLevel() + (frameLevel or 10))
 		local glowCreateConfig = {
 			glowType = glowType,
 			color    = glowColor,
 		}
-		glow = F.Indicators.Glow.Create(self, glowCreateConfig)
+		glow = F.Indicators.Glow.Create(glowFrame, glowCreateConfig)
 	end
 
 	local container = {
-		_borderIcon       = borderIcon,
-		_glow             = glow,
-		_displayMode      = displayMode,
-		_borderColor      = borderColor,
-		_glowColor        = glowColor,
-		_glowType         = glowType,
-		_glowConfig       = glowConfig,
-		_activeSourceGUID = nil,
-		_activeSpellId    = nil,
-		_cleuFrame        = nil,
+		_pool          = pool,
+		_glow          = glow,
+		_glowFrame     = glowFrame,
+		_displayMode   = displayMode,
+		_maxDisplayed  = maxDisplayed,
+		_borderColor   = borderColor,
+		_glowColor     = glowColor,
+		_glowType      = glowType,
+		_glowConfig    = glowConfig,
 	}
 
 	self.FramedTargetedSpells = container
