@@ -51,6 +51,74 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 		yOffset = yOffset - CHECK_H - C.Spacing.normal
 	end
 
+	-- ── Visibility Mode (Externals / Defensives) ────────────
+	if(opts.showVisibilityMode) then
+		local visLabel, visLabelH = Widgets.CreateHeading(parent, 'Visibility', 2)
+		visLabel:ClearAllPoints()
+		Widgets.SetPoint(visLabel, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - visLabelH
+
+		local visCard, visInner, visCardY
+		visCard, visInner, visCardY = Widgets.StartCard(parent, width, yOffset)
+
+		local visDD = Widgets.CreateDropdown(visInner, WIDGET_W)
+		visDD:SetItems({
+			{ text = 'All',          value = 'all' },
+			{ text = 'Player Only',  value = 'player' },
+			{ text = 'Others Only',  value = 'others' },
+		})
+		visDD:SetValue(get('visibilityMode') or 'all')
+		visDD:SetOnSelect(function(v) set('visibilityMode', v) end)
+		visDD:ClearAllPoints()
+		Widgets.SetPoint(visDD, 'TOPLEFT', visInner, 'TOPLEFT', 0, visCardY)
+		visCardY = visCardY - DROPDOWN_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(visCard, parent, visCardY)
+	end
+
+	-- ── Source Colors (Externals / Defensives) ──────────────
+	if(opts.showSourceColors and Widgets.CreateColorPicker) then
+		local colorHeading, colorHeadingH = Widgets.CreateHeading(parent, 'Border Colors', 2)
+		colorHeading:ClearAllPoints()
+		Widgets.SetPoint(colorHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - colorHeadingH
+
+		local colorCard, colorInner, colorCardY
+		colorCard, colorInner, colorCardY = Widgets.StartCard(parent, width, yOffset)
+
+		-- Player-cast color
+		local playerCP = Widgets.CreateColorPicker(colorInner, 'Player Cast')
+		playerCP:ClearAllPoints()
+		Widgets.SetPoint(playerCP, 'TOPLEFT', colorInner, 'TOPLEFT', 0, colorCardY)
+		local savedPlayerColor = get('playerColor')
+		if(savedPlayerColor) then
+			playerCP:SetColor(savedPlayerColor[1], savedPlayerColor[2], savedPlayerColor[3])
+		else
+			playerCP:SetColor(0, 0.8, 0)
+		end
+		playerCP:SetOnColorChanged(function(r, g, b)
+			set('playerColor', { r, g, b })
+		end)
+		colorCardY = colorCardY - playerCP:GetHeight() - C.Spacing.normal
+
+		-- Other-cast color
+		local otherCP = Widgets.CreateColorPicker(colorInner, 'Other Cast')
+		otherCP:ClearAllPoints()
+		Widgets.SetPoint(otherCP, 'TOPLEFT', colorInner, 'TOPLEFT', 0, colorCardY)
+		local savedOtherColor = get('otherColor')
+		if(savedOtherColor) then
+			otherCP:SetColor(savedOtherColor[1], savedOtherColor[2], savedOtherColor[3])
+		else
+			otherCP:SetColor(1, 0.85, 0)
+		end
+		otherCP:SetOnColorChanged(function(r, g, b)
+			set('otherColor', { r, g, b })
+		end)
+		colorCardY = colorCardY - otherCP:GetHeight() - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(colorCard, parent, colorCardY)
+	end
+
 	-- ── Display section ─────────────────────────────────────
 	local displayHeading, displayHeadingH = Widgets.CreateHeading(parent, 'Display Settings', 2)
 	displayHeading:ClearAllPoints()
