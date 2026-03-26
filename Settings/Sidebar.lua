@@ -314,12 +314,17 @@ local function buildSidebarContent(sidebar)
 			sep:SetHeight(1)
 			sep:SetColorTexture(0.25, 0.25, 0.25, 1)
 			sep:ClearAllPoints()
-			sep:SetPoint('TOPLEFT',  sidebar, 'TOPLEFT',  6, yOffset - 4)
-			sep:SetPoint('TOPRIGHT', sidebar, 'TOPRIGHT', -6, yOffset - 4)
+			if(isBottomSection and sidebar._lastPresetContainer) then
+				sep:SetPoint('TOPLEFT', sidebar._lastPresetContainer, 'BOTTOMLEFT', 4, -4)
+				sep:SetPoint('TOPRIGHT', sidebar._lastPresetContainer, 'BOTTOMRIGHT', -4, -4)
+				sidebar._bottomSep = sep
+			else
+				sep:SetPoint('TOPLEFT',  sidebar, 'TOPLEFT',  6, yOffset - 4)
+				sep:SetPoint('TOPRIGHT', sidebar, 'TOPRIGHT', -6, yOffset - 4)
+			end
 			yOffset = yOffset - 10
 		end
 
-		-- ── PRESET_SCOPED section: custom rendering ──────────────
 		if(isPresetScoped) then
 			local panels = sectionPanels[sectionId]
 
@@ -334,54 +339,169 @@ local function buildSidebarContent(sidebar)
 				end
 			end
 
-			-- FRAMES sub-heading
-			local framesHeading = sidebar:CreateFontString(nil, 'OVERLAY')
-			framesHeading:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
-			framesHeading:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
-			framesHeading:SetText('FRAMES')
-			framesHeading:ClearAllPoints()
-			framesHeading:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 12, yOffset)
-			yOffset = yOffset - SUBHEADING_H
+			-- ── Helper: build one collapsible section ──────────────
+			local function buildCollapsibleSection(anchorFrame, anchorPoint, sectionName, sectionPanelList, configKey)
+				local isCollapsed = F.Config:Get(configKey) or false
 
-			-- Frame panel buttons
-			for _, panel in next, framePanels do
-				local btn = createNavButton(sidebar, panel, yOffset)
-				Settings._sidebarButtons[panel.id] = btn
+				-- Section header toggle button
+				local headerBtn = CreateFrame('Button', nil, sidebar)
+				headerBtn:SetHeight(SUBHEADING_H)
+				headerBtn:ClearAllPoints()
+				headerBtn:SetPoint('TOPLEFT', anchorFrame, anchorPoint, 2, 0)
+				headerBtn:SetPoint('TOPRIGHT', sidebar, 'TOPRIGHT', -3, 0)
 
-				-- Group frame button — dynamic label & visibility per preset
-				if(panel.id == 'party') then
-					groupFrameBtn = btn
-					local groupLabel = getGroupFrameLabel()
-					if(groupLabel) then
-						btn._label:SetText(groupLabel)
-						btn:Show()
+				-- Arrow indicator
+				local arrow = headerBtn:CreateFontString(nil, 'OVERLAY')
+				arrow:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+				arrow:SetPoint('LEFT', 8, 0)
+
+				-- Section label
+				local headerLabel = headerBtn:CreateFontString(nil, 'OVERLAY')
+				headerLabel:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+				headerLabel:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
+				headerLabel:SetText(sectionName)
+				headerLabel:SetPoint('LEFT', arrow, 'RIGHT', 4, 0)
+
+				-- Child container with clipping
+				local container = CreateFrame('Frame', nil, sidebar)
+				container:SetClipsChildren(true)
+				container:ClearAllPoints()
+				container:SetPoint('TOPLEFT', headerBtn, 'BOTTOMLEFT', 0, 0)
+				container:SetPoint('TOPRIGHT', headerBtn, 'BOTTOMRIGHT', 0, 0)
+
+				-- Create child nav buttons inside the container
+				local children = {}
+				local childYOffset = 0
+				for _, panel in next, sectionPanelList do
+					local btn = createNavButton(container, panel, childYOffset)
+					Settings._sidebarButtons[panel.id] = btn
+					children[#children + 1] = btn
+
+					-- Group frame button — dynamic label & visibility per preset
+					if(panel.id == 'party') then
+						groupFrameBtn = btn
+						local groupLabel = getGroupFrameLabel()
+						if(groupLabel) then
+							btn._label:SetText(groupLabel)
+							btn:Show()
+						else
+							btn:Hide()
+						end
+					end
+
+					childYOffset = childYOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+				end
+
+				-- Set initial state
+				local fullHeight = recalcContainerHeight(children)
+				if(isCollapsed) then
+					container:SetHeight(0.001)
+					arrow:SetText('\226\150\182')  -- ▶
+					arrow:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
+				else
+					container:SetHeight(fullHeight)
+					arrow:SetText('\226\150\188')  -- ▼
+					arrow:SetTextColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3])
+				end
+
+				-- Toggle on click
+				headerBtn:SetScript('OnClick', function()
+					isCollapsed = not isCollapsed
+					F.Config:Set(configKey, isCollapsed)
+
+					local targetContainerH = isCollapsed and 0.001 or recalcContainerHeight(children)
+					local delta = targetContainerH - container:GetHeight()
+					local currentWindowH = Settings._mainFrame:GetHeight()
+					local targetWindowH = math.max(WINDOW_MIN_H, math.min(currentWindowH + delta, WINDOW_MAX_H))
+
+					if(isCollapsed) then
+						arrow:SetText('\226\150\182')  -- ▶
+						arrow:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
 					else
-						btn:Hide()
+						arrow:SetText('\226\150\188')  -- ▼
+						arrow:SetTextColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3])
+					end
+
+					local dur = C.Animation.durationNormal
+					AnimateHeight(container, targetContainerH, dur)
+					AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
+						if(Settings._contentParent) then
+							local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H
+							Settings._contentParent:SetHeight(contentH)
+							Settings._contentParent._explicitHeight = contentH
+						end
+					end)
+				end)
+
+				-- Store references for external recalculation
+				container._children = children
+				container._isCollapsed = function() return isCollapsed end
+				container._recalc = function(animate)
+					local newH = recalcContainerHeight(children)
+					fullHeight = newH
+					if(isCollapsed) then return end
+					local oldH = container:GetHeight()
+					local delta = newH - oldH
+					if(math.abs(delta) < 0.5) then return end
+					local currentWindowH = Settings._mainFrame:GetHeight()
+					local targetWindowH = math.max(WINDOW_MIN_H, math.min(currentWindowH + delta, WINDOW_MAX_H))
+					if(animate) then
+						local dur = C.Animation.durationNormal
+						AnimateHeight(container, newH, dur)
+						AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
+							if(Settings._contentParent) then
+								local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H
+								Settings._contentParent:SetHeight(contentH)
+								Settings._contentParent._explicitHeight = contentH
+							end
+						end)
+					else
+						container:SetHeight(newH)
+						Settings._mainFrame:SetHeight(targetWindowH)
+						if(Settings._contentParent) then
+							local contentH = targetWindowH - HEADER_HEIGHT - SUB_HEADER_H
+							Settings._contentParent:SetHeight(contentH)
+							Settings._contentParent._explicitHeight = contentH
+						end
 					end
 				end
 
-				-- Boss button is always visible regardless of preset
-				-- (no special handling needed — it stays shown)
-
-				yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+				return headerBtn, container
 			end
 
-			-- AURAS sub-heading (only if there are aura panels)
-			if(#auraPanels > 0) then
-				local aurasHeading = sidebar:CreateFontString(nil, 'OVERLAY')
-				aurasHeading:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
-				aurasHeading:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
-				aurasHeading:SetText('AURAS')
-				aurasHeading:ClearAllPoints()
-				aurasHeading:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 12, yOffset)
-				yOffset = yOffset - SUBHEADING_H
+			-- ── Build FRAMES section ────────────────────────────────
+			local framesHeader, framesContainer = buildCollapsibleSection(
+				sidebar, 'TOPLEFT',
+				'FRAMES', framePanels,
+				'sidebar.framesCollapsed'
+			)
+			-- Position the FRAMES header at the current yOffset
+			framesHeader:ClearAllPoints()
+			framesHeader:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 2, yOffset)
+			framesHeader:SetPoint('TOPRIGHT', sidebar, 'TOPRIGHT', -3, yOffset)
 
-				-- Aura panel buttons
-				for _, panel in next, auraPanels do
-					local btn = createNavButton(sidebar, panel, yOffset)
-					Settings._sidebarButtons[panel.id] = btn
-					yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
-				end
+			-- ── Build AURAS section (anchored to FRAMES container bottom) ──
+			local aurasHeader, aurasContainer
+			if(#auraPanels > 0) then
+				aurasHeader, aurasContainer = buildCollapsibleSection(
+					framesContainer, 'BOTTOMLEFT',
+					'AURAS', auraPanels,
+					'sidebar.aurasCollapsed'
+				)
+			end
+
+			-- Store container references for EDITING_PRESET_CHANGED
+			sidebar._framesContainer = framesContainer
+			sidebar._aurasContainer = aurasContainer
+
+			-- The BOTTOM divider will anchor to the last container via anchor chain
+			sidebar._lastPresetContainer = aurasContainer or framesContainer
+
+			-- Compute yOffset for window sizing from actual container heights
+			-- (containers are already sized: 0.001 if collapsed, full if expanded)
+			yOffset = yOffset - SUBHEADING_H - framesContainer:GetHeight()
+			if(#auraPanels > 0) then
+				yOffset = yOffset - SUBHEADING_H - aurasContainer:GetHeight()
 			end
 		else
 			-- ── Standard section rendering ───────────────────────────
@@ -400,10 +520,22 @@ local function buildSidebarContent(sidebar)
 
 			-- Panel buttons for this section
 			local panels = sectionPanels[sectionId]
-			for _, panel in next, panels do
-				local btn = createNavButton(sidebar, panel, yOffset)
-				Settings._sidebarButtons[panel.id] = btn
-				yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+			if(isBottomSection and sidebar._bottomSep) then
+				local bottomYOff = -6
+				for _, panel in next, panels do
+					local btn = createNavButton(sidebar, panel, 0)
+					btn:ClearAllPoints()
+					btn:SetPoint('TOPLEFT', sidebar._bottomSep, 'BOTTOMLEFT', 0, bottomYOff)
+					btn:SetPoint('TOPRIGHT', sidebar._bottomSep, 'BOTTOMRIGHT', 0, bottomYOff)
+					Settings._sidebarButtons[panel.id] = btn
+					bottomYOff = bottomYOff - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+				end
+			else
+				for _, panel in next, panels do
+					local btn = createNavButton(sidebar, panel, yOffset)
+					Settings._sidebarButtons[panel.id] = btn
+					yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+				end
 			end
 		end
 	end
@@ -417,6 +549,10 @@ local function buildSidebarContent(sidebar)
 				groupFrameBtn._label:SetText(groupLabel)
 			else
 				groupFrameBtn:Hide()
+			end
+			-- Recalc FRAMES container height since groupFrameBtn visibility changed
+			if(sidebar._framesContainer and sidebar._framesContainer._recalc) then
+				sidebar._framesContainer._recalc(true)
 			end
 		end
 	end, 'Sidebar')
