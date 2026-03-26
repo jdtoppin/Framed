@@ -189,6 +189,24 @@ local function createNavButton(parent, panelInfo, yOffset)
 end
 
 -- ============================================================
+-- Sub-heading Heights
+-- ============================================================
+
+local SUBHEADING_H    = 16   -- vertical space consumed by a sub-heading label
+local EDITING_LABEL_H = 16   -- vertical space consumed by the editing preset label
+
+-- ============================================================
+-- Dynamic Group Frame Label
+-- ============================================================
+
+--- Return the sidebar label for the group frame button based on the
+--- current editing preset, or nil if the preset has no group frames.
+local function getGroupFrameLabel()
+	local info = C.PresetInfo[Settings.GetEditingPreset()]
+	return info and info.groupLabel or nil
+end
+
+-- ============================================================
 -- Sidebar Builder
 -- ============================================================
 
@@ -212,7 +230,7 @@ local function buildSidebarContent(sidebar)
 	local orderedSections = {}
 
 	for _, panel in next, registeredPanels do
-		local sid = panel.section or 'GENERAL'
+		local sid = panel.section or 'GLOBAL'
 		if(not sectionPanels[sid]) then
 			sectionPanels[sid] = {}
 			orderedSections[#orderedSections + 1] = sid
@@ -222,15 +240,23 @@ local function buildSidebarContent(sidebar)
 
 	local yOffset = -8
 
+	-- References for dynamic elements updated by EDITING_PRESET_CHANGED
+	local editingLabel
+	local groupFrameBtn
+
 	for _, sectionId in next, orderedSections do
 		-- Find section definition
 		local sectionLabel = sectionId
 		local isBottomSection = false
+		local isPresetScoped = false
 		for _, s in next, SECTIONS do
 			if(s.id == sectionId) then
 				sectionLabel = s.label
 				if(s.id == 'BOTTOM') then
 					isBottomSection = true
+				end
+				if(s.id == 'PRESET_SCOPED') then
+					isPresetScoped = true
 				end
 				break
 			end
@@ -247,26 +273,119 @@ local function buildSidebarContent(sidebar)
 			yOffset = yOffset - 10
 		end
 
-		-- Section header text (skip empty label for BOTTOM)
-		if(sectionLabel ~= '') then
-			local headerText = sidebar:CreateFontString(nil, 'ARTWORK')
-			headerText:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
-			headerText:SetShadowOffset(1, -1)
-			headerText:ClearAllPoints()
-			headerText:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 8, yOffset)
-			headerText:SetText(sectionLabel)
-			headerText:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
-			yOffset = yOffset - SIDEBAR_SECTION_H
-		end
+		-- ── PRESET_SCOPED section: custom rendering ──────────────
+		if(isPresetScoped) then
+			local panels = sectionPanels[sectionId]
 
-		-- Panel buttons for this section
-		local panels = sectionPanels[sectionId]
-		for _, panel in next, panels do
-			local btn = createNavButton(sidebar, panel, yOffset)
-			Settings._sidebarButtons[panel.id] = btn
-			yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+			-- Split panels into frames vs auras sub-groups
+			local framePanels = {}
+			local auraPanels = {}
+			for _, panel in next, panels do
+				if(panel.subSection == 'auras') then
+					auraPanels[#auraPanels + 1] = panel
+				else
+					framePanels[#framePanels + 1] = panel
+				end
+			end
+
+			-- "Editing: X Frame Preset" accent label
+			editingLabel = sidebar:CreateFontString(nil, 'OVERLAY')
+			editingLabel:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+			editingLabel:SetTextColor(ACCENT_R, ACCENT_G, ACCENT_B)
+			editingLabel:SetText('Editing: ' .. Settings.GetEditingPreset() .. ' Frame Preset')
+			editingLabel:ClearAllPoints()
+			editingLabel:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 12, yOffset)
+			yOffset = yOffset - EDITING_LABEL_H
+
+			-- FRAMES sub-heading
+			local framesHeading = sidebar:CreateFontString(nil, 'OVERLAY')
+			framesHeading:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+			framesHeading:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
+			framesHeading:SetText('FRAMES')
+			framesHeading:ClearAllPoints()
+			framesHeading:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 12, yOffset)
+			yOffset = yOffset - SUBHEADING_H
+
+			-- Frame panel buttons
+			for _, panel in next, framePanels do
+				local btn = createNavButton(sidebar, panel, yOffset)
+				Settings._sidebarButtons[panel.id] = btn
+
+				-- Group frame button — dynamic label & visibility per preset
+				if(panel.id == 'party') then
+					groupFrameBtn = btn
+					local groupLabel = getGroupFrameLabel()
+					if(groupLabel) then
+						btn._label:SetText(groupLabel)
+						btn:Show()
+					else
+						btn:Hide()
+					end
+				end
+
+				-- Boss button is always visible regardless of preset
+				-- (no special handling needed — it stays shown)
+
+				yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+			end
+
+			-- AURAS sub-heading (only if there are aura panels)
+			if(#auraPanels > 0) then
+				local aurasHeading = sidebar:CreateFontString(nil, 'OVERLAY')
+				aurasHeading:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+				aurasHeading:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
+				aurasHeading:SetText('AURAS')
+				aurasHeading:ClearAllPoints()
+				aurasHeading:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 12, yOffset)
+				yOffset = yOffset - SUBHEADING_H
+
+				-- Aura panel buttons
+				for _, panel in next, auraPanels do
+					local btn = createNavButton(sidebar, panel, yOffset)
+					Settings._sidebarButtons[panel.id] = btn
+					yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+				end
+			end
+		else
+			-- ── Standard section rendering ───────────────────────────
+
+			-- Section header text (skip empty label for BOTTOM)
+			if(sectionLabel ~= '') then
+				local headerText = sidebar:CreateFontString(nil, 'ARTWORK')
+				headerText:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
+				headerText:SetShadowOffset(1, -1)
+				headerText:ClearAllPoints()
+				headerText:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 8, yOffset)
+				headerText:SetText(sectionLabel)
+				headerText:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
+				yOffset = yOffset - SIDEBAR_SECTION_H
+			end
+
+			-- Panel buttons for this section
+			local panels = sectionPanels[sectionId]
+			for _, panel in next, panels do
+				local btn = createNavButton(sidebar, panel, yOffset)
+				Settings._sidebarButtons[panel.id] = btn
+				yOffset = yOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+			end
 		end
 	end
+
+	-- ── EDITING_PRESET_CHANGED listener ──────────────────────
+	F.EventBus:Register('EDITING_PRESET_CHANGED', function(presetName)
+		if(editingLabel) then
+			editingLabel:SetText('Editing: ' .. presetName .. ' Frame Preset')
+		end
+		if(groupFrameBtn) then
+			local groupLabel = getGroupFrameLabel()
+			if(groupLabel) then
+				groupFrameBtn:Show()
+				groupFrameBtn._label:SetText(groupLabel)
+			else
+				groupFrameBtn:Hide()
+			end
+		end
+	end, 'Sidebar')
 
 	-- Deferred highlight fix — button widths aren't final until first layout
 	C_Timer.After(0, function()
