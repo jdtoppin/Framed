@@ -120,11 +120,19 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 			-- so the opposite edge stays fixed visually
 			local offsetX = frameStartX
 			local offsetY = frameStartY
+
+			-- Frames are CENTER-anchored during edit mode drag,
+			-- so center shifts by half the size delta
+			local anchorPoint = select(1, targetFrame:GetPoint(1))
+			local isCenter = (anchorPoint == 'CENTER')
+
 			if(resizesLeft) then
-				offsetX = frameStartX - (newW - startW)
+				local delta = newW - startW
+				offsetX = frameStartX - (isCenter and delta / 2 or delta)
 			end
 			if(resizesTop) then
-				offsetY = frameStartY + (newH - startH)
+				local delta = newH - startH
+				offsetY = frameStartY + (isCenter and delta / 2 or delta)
 			end
 
 			if(resizesLeft or resizesTop) then
