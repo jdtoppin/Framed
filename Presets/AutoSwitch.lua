@@ -19,8 +19,9 @@ local function ResolvePresetName(contentType)
 	local specIndex = GetSpecialization and GetSpecialization()
 	local specID = specIndex and GetSpecializationInfo and select(1, GetSpecializationInfo(specIndex)) or nil
 	local specOverrides = F.Config:GetChar('specOverrides')
-	if(specOverrides and specID and specOverrides[specID]) then
-		local override = specOverrides[specID][contentType]
+	local specKey = specID and tostring(specID)
+	if(specOverrides and specKey and specOverrides[specKey]) then
+		local override = specOverrides[specKey][contentType]
 		if(override) then return override end
 	end
 
@@ -120,7 +121,7 @@ end)
 
 -- Listen for preset data changes (copy/reset) and re-fire PRESET_CHANGED
 -- so runtime frames refresh their config
-F.EventBus:On('PRESET_DATA_CHANGED', function(presetName)
+F.EventBus:Register('PRESET_DATA_CHANGED', function(presetName)
 	if(presetName == currentPreset) then
 		F.EventBus:Fire('PRESET_CHANGED', presetName)
 	end

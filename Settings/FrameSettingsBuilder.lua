@@ -155,10 +155,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		-- Orientation switch
 		cardY = placeHeading(inner, 'Orientation', 3, cardY)
 		local orientSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
-			{ text = 'Vertical',   value = 'Vertical' },
-			{ text = 'Horizontal', value = 'Horizontal' },
+			{ text = 'Vertical',   value = 'vertical' },
+			{ text = 'Horizontal', value = 'horizontal' },
 		})
-		orientSwitch:SetValue(getConfig('orientation') or 'Vertical')
+		orientSwitch:SetValue(getConfig('orientation') or 'vertical')
 		orientSwitch:SetOnSelect(function(value)
 			setConfig('orientation', value)
 		end)
@@ -168,12 +168,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		cardY = placeHeading(inner, 'Growth Direction', 3, cardY)
 		local growthDropdown = Widgets.CreateDropdown(inner, WIDGET_W)
 		growthDropdown:SetItems({
-			{ text = 'Top to Bottom',  value = 'TOP_TO_BOTTOM' },
-			{ text = 'Bottom to Top',  value = 'BOTTOM_TO_TOP' },
-			{ text = 'Left to Right',  value = 'LEFT_TO_RIGHT' },
-			{ text = 'Right to Left',  value = 'RIGHT_TO_LEFT' },
+			{ text = 'Top to Bottom',  value = 'topToBottom' },
+			{ text = 'Bottom to Top',  value = 'bottomToTop' },
+			{ text = 'Left to Right',  value = 'leftToRight' },
+			{ text = 'Right to Left',  value = 'rightToLeft' },
 		})
-		growthDropdown:SetValue(getConfig('growthDirection') or 'TOP_TO_BOTTOM')
+		growthDropdown:SetValue(getConfig('growthDirection') or 'topToBottom')
 		growthDropdown:SetOnSelect(function(value)
 			setConfig('growthDirection', value)
 		end)
@@ -193,21 +193,21 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- Health color mode switch
 	cardY = placeHeading(inner, 'Color Mode', 3, cardY)
 	local healthColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
-		{ text = 'Class',    value = 'Class' },
-		{ text = 'Gradient', value = 'Gradient' },
-		{ text = 'Custom',   value = 'Custom' },
+		{ text = 'Class',    value = 'class' },
+		{ text = 'Gradient', value = 'gradient' },
+		{ text = 'Custom',   value = 'custom' },
 	})
-	healthColorSwitch:SetValue(getConfig('healthColorMode') or 'Class')
+	healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
 	healthColorSwitch:SetOnSelect(function(value)
-		setConfig('healthColorMode', value)
+		setConfig('health.colorMode', value)
 	end)
 	cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
 
 	-- Smooth interpolation checkbox
 	local smoothCheck = Widgets.CreateCheckButton(inner, 'Smooth Interpolation')
-	smoothCheck:SetChecked(getConfig('smoothHealth') ~= false)
+	smoothCheck:SetChecked(getConfig('health.smooth') ~= false)
 	smoothCheck._callback = function(checked)
-		setConfig('smoothHealth', checked)
+		setConfig('health.smooth', checked)
 	end
 	cardY = placeWidget(smoothCheck, inner, cardY, CHECK_H)
 
@@ -227,9 +227,9 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	-- Power bar height slider
 	local powerHeightSlider = Widgets.CreateSlider(inner, 'Power Bar Height', WIDGET_W, 1, 20, 1)
-	powerHeightSlider:SetValue(getConfig('powerHeight') or 4)
+	powerHeightSlider:SetValue(getConfig('power.height') or 2)
 	powerHeightSlider:SetAfterValueChanged(function(value)
-		setConfig('powerHeight', value)
+		setConfig('power.height', value)
 	end)
 	cardY = placeWidget(powerHeightSlider, inner, cardY, SLIDER_H)
 
@@ -272,21 +272,21 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- Name color mode switch
 	cardY = placeHeading(inner, 'Name Color', 3, cardY)
 	local nameColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
-		{ text = 'Class',  value = 'Class' },
-		{ text = 'White',  value = 'White' },
-		{ text = 'Custom', value = 'Custom' },
+		{ text = 'Class',  value = 'class' },
+		{ text = 'White',  value = 'white' },
+		{ text = 'Custom', value = 'custom' },
 	})
-	nameColorSwitch:SetValue(getConfig('nameColorMode') or 'Class')
+	nameColorSwitch:SetValue(getConfig('name.colorMode') or 'class')
 	nameColorSwitch:SetOnSelect(function(value)
-		setConfig('nameColorMode', value)
+		setConfig('name.colorMode', value)
 	end)
 	cardY = placeWidget(nameColorSwitch, inner, cardY, SWITCH_H)
 
 	-- Name truncation slider
 	local nameTruncSlider = Widgets.CreateSlider(inner, 'Name Truncation', WIDGET_W, 4, 20, 1)
-	nameTruncSlider:SetValue(getConfig('nameTruncation') or 10)
+	nameTruncSlider:SetValue(getConfig('name.truncate') or 10)
 	nameTruncSlider:SetAfterValueChanged(function(value)
-		setConfig('nameTruncation', value)
+		setConfig('name.truncate', value)
 	end)
 	cardY = placeWidget(nameTruncSlider, inner, cardY, SLIDER_H)
 
@@ -298,9 +298,9 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	local healthTextCard, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
 	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text')
-	showHealthTextCheck:SetChecked(getConfig('showHealthText') ~= false)
+	showHealthTextCheck:SetChecked(getConfig('health.showText') or false)
 	showHealthTextCheck._callback = function(checked)
-		setConfig('showHealthText', checked)
+		setConfig('health.showText', checked)
 	end
 	cardY = placeWidget(showHealthTextCheck, inner, cardY, CHECK_H)
 
@@ -308,23 +308,23 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	cardY = placeHeading(inner, 'Health Text Format', 3, cardY)
 	local healthFormatDropdown = Widgets.CreateDropdown(inner, WIDGET_W)
 	healthFormatDropdown:SetItems({
-		{ text = 'Percentage',   value = 'Percentage' },
-		{ text = 'Current',      value = 'Current' },
-		{ text = 'Deficit',      value = 'Deficit' },
-		{ text = 'Current-Max',  value = 'CurrentMax' },
-		{ text = 'None',         value = 'None' },
+		{ text = 'Percentage',   value = 'percent' },
+		{ text = 'Current',      value = 'current' },
+		{ text = 'Deficit',      value = 'deficit' },
+		{ text = 'Current-Max',  value = 'currentMax' },
+		{ text = 'None',         value = 'none' },
 	})
-	healthFormatDropdown:SetValue(getConfig('healthTextFormat') or 'Percentage')
+	healthFormatDropdown:SetValue(getConfig('health.textFormat') or 'none')
 	healthFormatDropdown:SetOnSelect(function(value)
-		setConfig('healthTextFormat', value)
+		setConfig('health.textFormat', value)
 	end)
 	cardY = placeWidget(healthFormatDropdown, inner, cardY, DROPDOWN_H)
 
 	-- Show power text checkbox
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text')
-	showPowerTextCheck:SetChecked(getConfig('showPowerText') or false)
+	showPowerTextCheck:SetChecked(getConfig('power.showText') or false)
 	showPowerTextCheck._callback = function(checked)
-		setConfig('showPowerText', checked)
+		setConfig('power.showText', checked)
 	end
 	cardY = placeWidget(showPowerTextCheck, inner, cardY, CHECK_H)
 
@@ -337,41 +337,41 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	-- Show role icon checkbox
 	local showRoleCheck = Widgets.CreateCheckButton(inner, 'Show Role Icon')
-	showRoleCheck:SetChecked(getConfig('showRoleIcon') ~= false)
+	showRoleCheck:SetChecked(getConfig('statusIcons.role') ~= false)
 	showRoleCheck._callback = function(checked)
-		setConfig('showRoleIcon', checked)
+		setConfig('statusIcons.role', checked)
 	end
 	cardY = placeWidget(showRoleCheck, inner, cardY, CHECK_H)
 
 	-- Show leader icon checkbox
 	local showLeaderCheck = Widgets.CreateCheckButton(inner, 'Show Leader Icon')
-	showLeaderCheck:SetChecked(getConfig('showLeaderIcon') ~= false)
+	showLeaderCheck:SetChecked(getConfig('statusIcons.leader') ~= false)
 	showLeaderCheck._callback = function(checked)
-		setConfig('showLeaderIcon', checked)
+		setConfig('statusIcons.leader', checked)
 	end
 	cardY = placeWidget(showLeaderCheck, inner, cardY, CHECK_H)
 
 	-- Show ready check checkbox
 	local showReadyCheckCheck = Widgets.CreateCheckButton(inner, 'Show Ready Check')
-	showReadyCheckCheck:SetChecked(getConfig('showReadyCheck') ~= false)
+	showReadyCheckCheck:SetChecked(getConfig('statusIcons.readyCheck') ~= false)
 	showReadyCheckCheck._callback = function(checked)
-		setConfig('showReadyCheck', checked)
+		setConfig('statusIcons.readyCheck', checked)
 	end
 	cardY = placeWidget(showReadyCheckCheck, inner, cardY, CHECK_H)
 
 	-- Show raid icon checkbox
 	local showRaidIconCheck = Widgets.CreateCheckButton(inner, 'Show Raid Icon')
-	showRaidIconCheck:SetChecked(getConfig('showRaidIcon') ~= false)
+	showRaidIconCheck:SetChecked(getConfig('statusIcons.raidIcon') ~= false)
 	showRaidIconCheck._callback = function(checked)
-		setConfig('showRaidIcon', checked)
+		setConfig('statusIcons.raidIcon', checked)
 	end
 	cardY = placeWidget(showRaidIconCheck, inner, cardY, CHECK_H)
 
 	-- Show combat icon checkbox
 	local showCombatIconCheck = Widgets.CreateCheckButton(inner, 'Show Combat Icon')
-	showCombatIconCheck:SetChecked(getConfig('showCombatIcon') or false)
+	showCombatIconCheck:SetChecked(getConfig('statusIcons.combat') or false)
 	showCombatIconCheck._callback = function(checked)
-		setConfig('showCombatIcon', checked)
+		setConfig('statusIcons.combat', checked)
 	end
 	cardY = placeWidget(showCombatIconCheck, inner, cardY, CHECK_H)
 
@@ -386,6 +386,15 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- the Settings framework knows to rebuild on next panel activation.
 	F.EventBus:Register('EDITING_PRESET_CHANGED', function(newPreset)
 		scroll._builtForPreset = nil
+		if(F.Settings and F.Settings._panelFrames) then
+			-- Invalidate cache so panel rebuilds with new preset data
+			for panelId, frame in next, F.Settings._panelFrames do
+				if(frame == scroll) then
+					F.Settings._panelFrames[panelId] = nil
+					break
+				end
+			end
+		end
 	end, 'FrameSettingsBuilder.' .. unitType)
 
 	return scroll

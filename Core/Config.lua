@@ -21,7 +21,7 @@ local accountDefaults = {
 		tooltipOffsetX = 0,
 		tooltipOffsetY = 0,
 	},
-	presets = {},       -- populated by Layouts/Defaults.lua
+	presets = {},       -- populated by Presets/Defaults.lua
 	raidDebuffs = {
 		overrides = {},
 		custom = {},

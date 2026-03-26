@@ -437,7 +437,7 @@ F.Settings.RegisterPanel({
 
 		-- ── Listen for editing preset changes ──────────────────
 		if(F.EventBus) then
-			F.EventBus:On('EDITING_PRESET_CHANGED', function()
+			F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 				-- Refresh preset row highlights and tags
 				local editingPreset = F.Settings.GetEditingPreset()
 				for _, row in next, presetRowPool do

@@ -29,7 +29,7 @@ local SCOPE_RAID_DEBUFF = 'raidDebuffs'
 -- Helpers
 -- ============================================================
 
---- Return a sorted list of {text, value} items for all layouts.
+--- Return a sorted list of {text, value} items for all presets.
 local function getLayoutItems()
 	local names = (F.PresetManager and F.PresetManager.GetNames) and
 		F.PresetManager.GetNames() or {}

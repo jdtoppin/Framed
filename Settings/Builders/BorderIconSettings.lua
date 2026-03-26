@@ -6,26 +6,27 @@ local C = F.Constants
 F.Settings = F.Settings or {}
 F.Settings.Builders = F.Settings.Builders or {}
 
--- Layout constants
+-- Widget constants
 local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
 local LABEL_H      = 16
 local WIDGET_W     = 220
 
--- Helper: get/set config values scoped to the editing layout + unit type + config key
+-- Helper: get/set config values scoped to the editing preset + unit type + config key
 local function makeConfigHelpers(unitType, configKey)
 	local function get(key)
-		local layoutName = F.Settings.GetEditingPreset()
-		return F.Config and F.Config:Get('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey .. '.' .. key)
+		local presetName = F.Settings.GetEditingPreset()
+		return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.' .. configKey .. '.' .. key)
 	end
 	local function set(key, value)
-		local layoutName = F.Settings.GetEditingPreset()
+		local presetName = F.Settings.GetEditingPreset()
 		if(F.Config) then
-			F.Config:Set('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey .. '.' .. key, value)
+			F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.' .. configKey .. '.' .. key, value)
 		end
+		if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
 		if(F.EventBus) then
-			F.EventBus:Fire('CONFIG_CHANGED', 'layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey)
+			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.' .. configKey)
 		end
 	end
 	return get, set

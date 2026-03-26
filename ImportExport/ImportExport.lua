@@ -123,7 +123,7 @@ function ImportExport.ExportFullProfile()
 
 	local data = {
 		general    = F.DeepCopy(FramedDB.general)    or {},
-		layouts    = F.DeepCopy(FramedDB.presets)    or {},
+		presets    = F.DeepCopy(FramedDB.presets)    or {},
 		raidDebuffs = F.DeepCopy(FramedDB.raidDebuffs) or {},
 	}
 

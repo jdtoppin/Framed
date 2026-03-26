@@ -4,7 +4,7 @@ local Widgets = F.Widgets
 local C = F.Constants
 
 -- ============================================================
--- Layout constants
+-- Widget constants
 -- ============================================================
 
 local SLIDER_H     = 26
@@ -15,19 +15,20 @@ local WIDGET_W     = 220
 -- ============================================================
 
 local function get(key)
-	local layoutName = F.Settings.GetEditingPreset()
+	local presetName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
-	return F.Config and F.Config:Get('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.privateAuras.' .. key)
+	return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.privateAuras.' .. key)
 end
 
 local function set(key, value)
-	local layoutName = F.Settings.GetEditingPreset()
+	local presetName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	if(F.Config) then
-		F.Config:Set('layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.privateAuras.' .. key, value)
+		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.privateAuras.' .. key, value)
 	end
+	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
 	if(F.EventBus) then
-		F.EventBus:Fire('CONFIG_CHANGED', 'layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.privateAuras')
+		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.privateAuras')
 	end
 end
 
