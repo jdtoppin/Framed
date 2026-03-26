@@ -25,6 +25,68 @@ local SUB_HEADER_H     = 32
 local CLOSE_BTN_SIZE   = 20
 
 -- ============================================================
+-- Animated Accent Hover (for borderless header buttons)
+-- ============================================================
+
+--- Override a button's hover to smoothly fade between dim and accent color.
+--- @param btn Button  The button frame
+--- @param target Texture|FontString  The element to tint
+--- @param isTexture boolean  true for SetVertexColor, false for SetTextColor
+local function SetupAccentHover(btn, target, isTexture)
+	local ac  = C.Colors.accent
+	local dim = C.Colors.textSecondary
+	local dur = C.Animation.durationFast
+
+	local function setColor(r, g, b)
+		if(isTexture) then
+			target:SetVertexColor(r, g, b)
+		else
+			target:SetTextColor(r, g, b)
+		end
+	end
+
+	local function getColor()
+		if(isTexture) then
+			return target:GetVertexColor()
+		else
+			return target:GetTextColor()
+		end
+	end
+
+	btn:SetScript('OnEnter', function(self)
+		local startR, startG, startB = getColor()
+		local elapsed = 0
+		self:SetScript('OnUpdate', function(_, dt)
+			elapsed = elapsed + dt
+			local t = math.min(elapsed / dur, 1)
+			setColor(
+				startR + (ac[1] - startR) * t,
+				startG + (ac[2] - startG) * t,
+				startB + (ac[3] - startB) * t)
+			if(t >= 1) then self:SetScript('OnUpdate', nil) end
+		end)
+		if(Widgets.ShowTooltip and self._tooltipTitle) then
+			Widgets.ShowTooltip(self, self._tooltipTitle, self._tooltipBody)
+		end
+	end)
+
+	btn:SetScript('OnLeave', function(self)
+		local startR, startG, startB = getColor()
+		local elapsed = 0
+		self:SetScript('OnUpdate', function(_, dt)
+			elapsed = elapsed + dt
+			local t = math.min(elapsed / dur, 1)
+			setColor(
+				startR + (dim[1] - startR) * t,
+				startG + (dim[2] - startG) * t,
+				startB + (dim[3] - startB) * t)
+			if(t >= 1) then self:SetScript('OnUpdate', nil) end
+		end)
+		if(Widgets.HideTooltip) then Widgets.HideTooltip() end
+	end)
+end
+
+-- ============================================================
 -- Main Frame Constructor
 -- ============================================================
 
@@ -59,6 +121,8 @@ function Settings.CreateMainFrame()
 		Widgets.FadeOut(frame)
 	end)
 	closeBtn:SetWidgetTooltip('Close')
+	closeBtn:SetBackdrop(nil)
+	SetupAccentHover(closeBtn, closeBtn._icon, true)
 
 	-- ── Fullscreen toggle button (left of close) ─────────────
 	local FULLSCREEN_PAD = 20
@@ -112,10 +176,12 @@ function Settings.CreateMainFrame()
 		end
 		if(Settings._contentParent) then
 			Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
-			Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H
+			Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 		end
 	end)
 	fullscreenBtn:SetWidgetTooltip('Maximize')
+	fullscreenBtn:SetBackdrop(nil)
+	SetupAccentHover(fullscreenBtn, fullscreenBtn._icon, true)
 
 	-- ── Edit Mode button (header, left of fullscreen) ────────
 	local editModeBtn = Widgets.CreateButton(header, 'Edit Mode', 'widget', 80, CLOSE_BTN_SIZE)
@@ -128,6 +194,8 @@ function Settings.CreateMainFrame()
 		end
 	end)
 	editModeBtn:SetWidgetTooltip('Edit Mode', 'Drag and resize unit frames directly on screen.')
+	editModeBtn:SetBackdrop(nil)
+	SetupAccentHover(editModeBtn, editModeBtn._label, false)
 
 	-- ── Resize button ─────────────────────────────────────────
 	resizeBtn = Widgets.CreateResizeButton(frame,
@@ -143,7 +211,7 @@ function Settings.CreateMainFrame()
 			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
 				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
-				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H
+				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 			end
 		end)
 
@@ -166,36 +234,45 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(sidebar, 'BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
 	sidebar:SetWidth(SIDEBAR_W)
 
-	-- ── Sub-header bar (below title bar, above content) ───────
-	local subHeader = Widgets.CreateBorderedFrame(frame, WINDOW_W - SIDEBAR_W, SUB_HEADER_H, C.Colors.widget, C.Colors.border)
-	subHeader:ClearAllPoints()
-	Widgets.SetPoint(subHeader, 'TOPLEFT',  sidebar, 'TOPRIGHT',  0, 0)
-	Widgets.SetPoint(subHeader, 'TOPRIGHT', frame,   'TOPRIGHT',  0, -HEADER_HEIGHT)
-
-	-- Panel title (left of sub-header)
-	Settings._headerPanelText = Widgets.CreateFontString(subHeader, C.Font.sizeNormal, C.Colors.textActive)
-	Settings._headerPanelText:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', subHeader, 'LEFT', C.Spacing.normal, 0)
-	Settings._headerPanelText:SetText('')
-
-	-- ── Content area (right of sidebar, below sub-header) ─────
+	-- ── Content area (right of sidebar, below title bar) ──────
 	local contentArea = CreateFrame('Frame', nil, frame)
 	contentArea:ClearAllPoints()
-	Widgets.SetPoint(contentArea, 'TOPLEFT',     subHeader, 'BOTTOMLEFT',  0,  0)
-	Widgets.SetPoint(contentArea, 'BOTTOMRIGHT', frame,     'BOTTOMRIGHT', 0,  0)
+	Widgets.SetPoint(contentArea, 'TOPLEFT',     sidebar, 'TOPRIGHT',   C.Spacing.normal, -C.Spacing.normal)
+	Widgets.SetPoint(contentArea, 'BOTTOMRIGHT', frame,   'BOTTOMRIGHT', 0,  0)
 
-	-- Panel container (plain Frame — each panel manages its own scrolling)
+	-- ── Panel title card (top of content area) ────────────────
+	local titleCard = CreateFrame('Frame', nil, contentArea, 'BackdropTemplate')
+	titleCard:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 1,
+	})
+	local bg = C.Colors.card
+	local border = C.Colors.cardBorder
+	titleCard:SetBackdropColor(bg[1], bg[2], bg[3], bg[4] or 1)
+	titleCard:SetBackdropBorderColor(border[1], border[2], border[3], border[4] or 1)
+	titleCard:ClearAllPoints()
+	Widgets.SetPoint(titleCard, 'TOPLEFT',  contentArea, 'TOPLEFT',  0, 0)
+	Widgets.SetPoint(titleCard, 'TOPRIGHT', contentArea, 'TOPRIGHT', -C.Spacing.normal * 2, 0)
+	titleCard:SetHeight(SUB_HEADER_H)
+
+	Settings._headerPanelText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
+	Settings._headerPanelText:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', titleCard, 'LEFT', C.Spacing.normal, 0)
+	Settings._headerPanelText:SetText('')
+
+	-- Panel container (below title card — each panel manages its own scrolling)
 	-- Uses full anchor-based sizing (TOPLEFT + BOTTOMRIGHT) so child
 	-- SetAllPoints resolves correctly in the layout engine.
 	local panelContainer = CreateFrame('Frame', nil, contentArea)
 	panelContainer:ClearAllPoints()
-	Widgets.SetPoint(panelContainer, 'TOPLEFT',     contentArea, 'TOPLEFT',     C.Spacing.normal, 0)
+	Widgets.SetPoint(panelContainer, 'TOPLEFT',     titleCard,   'BOTTOMLEFT',  0, 0)
 	Widgets.SetPoint(panelContainer, 'BOTTOMRIGHT', contentArea, 'BOTTOMRIGHT', 0, 0)
 
 	Settings._contentParent = panelContainer
 	-- Store explicit dimensions for panels to read during create()
 	Settings._contentParent._explicitWidth  = WINDOW_W - SIDEBAR_W - C.Spacing.normal
-	Settings._contentParent._explicitHeight = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H
+	Settings._contentParent._explicitHeight = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 
 	-- ── Pixel updater ─────────────────────────────────────────
 	Widgets.AddToPixelUpdater_OnShow(frame)
@@ -213,7 +290,7 @@ function Settings.CreateMainFrame()
 			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
 				Settings._contentParent._explicitWidth  = sz[1] - SIDEBAR_W - C.Spacing.normal
-				Settings._contentParent._explicitHeight = sz[2] - HEADER_HEIGHT - SUB_HEADER_H
+				Settings._contentParent._explicitHeight = sz[2] - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 			end
 		end
 	end

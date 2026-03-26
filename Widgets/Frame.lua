@@ -259,6 +259,7 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 	frame:SetResizeBounds(minWidth, minHeight, maxWidth, maxHeight)
 
 	local button = CreateFrame('Button', nil, frame)
+	button:SetFrameLevel(frame:GetFrameLevel() + 10)
 	Widgets.SetSize(button, RESIZE_BUTTON_SIZE, RESIZE_BUTTON_SIZE)
 	button:ClearAllPoints()
 	Widgets.SetPoint(button, 'BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)

@@ -15,6 +15,7 @@ local C = F.Constants
 --       └── scroll._content  (child content frame, width = SF - 7px)
 --   scroll._scrollbar        (5px track, right edge of container)
 --   scroll._thumb            (accent-colored draggable thumb)
+--   scroll._scrollHint       (pulsing down arrow at bottom center)
 -- ============================================================
 
 local SCROLLBAR_WIDTH  = 5   -- track and thumb width in logical px
@@ -22,6 +23,17 @@ local SCROLLBAR_GAP    = 2   -- gap between content and scrollbar
 local SCROLLBAR_OFFSET = SCROLLBAR_WIDTH + SCROLLBAR_GAP  -- 7px total
 local THUMB_MIN_HEIGHT = 20  -- minimum thumb height in logical px
 local SCROLL_STEP      = 20  -- px per mouse-wheel tick
+
+local FADE_IN_DUR      = 0.15  -- scrollbar fade-in duration
+local FADE_OUT_DUR     = 0.4   -- scrollbar fade-out duration
+local FADE_OUT_DELAY   = 1.0   -- seconds idle before scrollbar fades out
+
+local HINT_SIZE        = 12
+local HINT_PULSE_MIN   = 0.2
+local HINT_PULSE_MAX   = 0.7
+local HINT_PULSE_SPEED = 1.0  -- full cycles per second
+
+local ARROW_ICON = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
 
 local uniqueScrollIndex = 0
 
@@ -46,12 +58,92 @@ local function GetScrollMax(scroll)
 	return math.max(0, contentH - viewH)
 end
 
+-- ============================================================
+-- Scrollbar fade helpers
+-- ============================================================
+
+--- Fade the scrollbar track + thumb to a target alpha over duration.
+local function FadeScrollbar(scroll, targetAlpha, duration)
+	local track = scroll._scrollbar
+	local thumb = scroll._thumb
+	local startAlpha = track:GetAlpha()
+	if(math.abs(startAlpha - targetAlpha) < 0.01) then
+		track:SetAlpha(targetAlpha)
+		thumb:SetAlpha(targetAlpha)
+		return
+	end
+
+	local elapsed = 0
+	scroll._fadeTarget = targetAlpha
+	scroll:SetScript('OnUpdate', function(self, dt)
+		elapsed = elapsed + dt
+		local t = math.min(elapsed / duration, 1)
+		local a = startAlpha + (targetAlpha - startAlpha) * t
+		track:SetAlpha(a)
+		thumb:SetAlpha(a)
+		if(t >= 1) then
+			self:SetScript('OnUpdate', nil)
+		end
+	end)
+end
+
+--- Mark scrollbar as active (show it), schedule fade-out after delay.
+local function OnScrollActivity(scroll)
+	local maxScroll = GetScrollMax(scroll)
+	if(maxScroll <= 0) then return end
+
+	-- Cancel pending fade-out
+	if(scroll._fadeOutTimer) then
+		scroll._fadeOutTimer:Cancel()
+		scroll._fadeOutTimer = nil
+	end
+
+	-- Fade in if not already visible
+	if(scroll._scrollbar:GetAlpha() < 0.9) then
+		FadeScrollbar(scroll, 1, FADE_IN_DUR)
+	end
+
+	-- Schedule fade-out
+	scroll._fadeOutTimer = C_Timer.NewTimer(FADE_OUT_DELAY, function()
+		scroll._fadeOutTimer = nil
+		-- Don't fade if thumb is being dragged
+		if(scroll._thumb._dragging) then return end
+		FadeScrollbar(scroll, 0, FADE_OUT_DUR)
+	end)
+end
+
+-- ============================================================
+-- Scroll hint (pulsing down arrow)
+-- ============================================================
+
+--- Update the scroll hint visibility: show only when content overflows
+--- and the user hasn't scrolled to the bottom.
+local function UpdateScrollHint(scroll)
+	local hint = scroll._scrollHint
+	if(not hint) then return end
+
+	local maxScroll = GetScrollMax(scroll)
+	if(maxScroll <= 0) then
+		hint:Hide()
+		return
+	end
+
+	local currentOffset = scroll._scrollFrame:GetVerticalScroll()
+	if(currentOffset >= maxScroll - 1) then
+		hint:Hide()
+	else
+		hint:Show()
+	end
+end
+
 --- Move the WoW ScrollFrame to the given offset and sync the thumb.
 local function ApplyScroll(scroll, offset)
 	local maxScroll = GetScrollMax(scroll)
 	offset = Clamp(offset, 0, maxScroll)
 	scroll._scrollFrame:SetVerticalScroll(offset)
 	scroll:_UpdateThumb()
+	OnScrollActivity(scroll)
+	UpdateScrollHint(scroll)
 end
 
 -- ============================================================
@@ -69,6 +161,7 @@ function Widgets._ScrollFrame_UpdateThumb(scroll)
 		-- Content fits: hide scrollbar entirely
 		scroll._scrollbar:Hide()
 		scroll._thumb:Hide()
+		UpdateScrollHint(scroll)
 		return
 	end
 
@@ -89,6 +182,8 @@ function Widgets._ScrollFrame_UpdateThumb(scroll)
 
 	scroll._thumb:ClearAllPoints()
 	scroll._thumb:SetPoint('TOP', scroll._scrollbar, 'TOP', 0, -thumbY)
+
+	UpdateScrollHint(scroll)
 end
 
 -- ============================================================
@@ -98,6 +193,13 @@ end
 --- Return the child content frame that callers add content to.
 function Widgets._ScrollFrame_GetContentFrame(scroll)
 	return scroll._content
+end
+
+--- Reset scroll position to the top and refresh the hint/thumb.
+function Widgets._ScrollFrame_ScrollToTop(scroll)
+	scroll._scrollFrame:SetVerticalScroll(0)
+	scroll:_UpdateThumb()
+	UpdateScrollHint(scroll)
 end
 
 --- Recalculate the scroll range.  Call after adding or removing content.
@@ -133,6 +235,7 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 	scroll._UpdateThumb       = Widgets._ScrollFrame_UpdateThumb
 	scroll.GetContentFrame    = Widgets._ScrollFrame_GetContentFrame
 	scroll.UpdateScrollRange  = Widgets._ScrollFrame_UpdateScrollRange
+	scroll.ScrollToTop        = Widgets._ScrollFrame_ScrollToTop
 
 	-- ── WoW ScrollFrame ────────────────────────────────────────
 	local sf = CreateFrame('ScrollFrame', name, scroll)
@@ -159,7 +262,8 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 	track:SetPoint('TOPRIGHT',    scroll, 'TOPRIGHT', 0,  0)
 	track:SetPoint('BOTTOMRIGHT', scroll, 'BOTTOMRIGHT', 0, 0)
 	Widgets.ApplyBackdrop(track, C.Colors.panel, C.Colors.panel)
-	track:Hide()   -- hidden until UpdateScrollRange shows it
+	track:SetAlpha(0)   -- start hidden, fade in on scroll
+	track:Hide()        -- hidden until content overflows
 	scroll._scrollbar = track
 
 	-- ── Scrollbar thumb ────────────────────────────────────────
@@ -175,7 +279,33 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 		C.Colors.accent[2],
 		C.Colors.accent[3],
 		C.Colors.accent[4] or 1)
+	thumb:SetAlpha(0)  -- match track initial alpha
 	scroll._thumb = thumb
+
+	-- ── Scroll hint (pulsing down arrow) ───────────────────────
+	local hint = CreateFrame('Frame', nil, scroll)
+	hint:SetSize(HINT_SIZE, HINT_SIZE)
+	hint:SetPoint('BOTTOM', scroll, 'BOTTOM', 0, 8)
+	hint:SetFrameLevel(scroll:GetFrameLevel() + 5)
+
+	local hintTex = hint:CreateTexture(nil, 'OVERLAY')
+	hintTex:SetAllPoints(hint)
+	hintTex:SetTexture(ARROW_ICON)
+	hintTex:SetTexCoord(0.15, 0.85, 0.85, 0.15)  -- flip for down arrow
+	local ac = C.Colors.accent
+	hintTex:SetVertexColor(ac[1], ac[2], ac[3], ac[4] or 1)
+	hint:Hide()
+
+	-- Pulse animation via OnUpdate
+	local pulseElapsed = 0
+	hint:SetScript('OnUpdate', function(self, dt)
+		pulseElapsed = pulseElapsed + dt
+		local t = (math.sin(pulseElapsed * HINT_PULSE_SPEED * 2 * math.pi) + 1) / 2
+		local a = HINT_PULSE_MIN + (HINT_PULSE_MAX - HINT_PULSE_MIN) * t
+		hintTex:SetAlpha(a)
+	end)
+
+	scroll._scrollHint = hint
 
 	-- ── Mouse-wheel scrolling ───────────────────────────────────
 	sf:EnableMouseWheel(true)
@@ -199,6 +329,8 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 	thumb:SetScript('OnMouseUp', function(self, button)
 		if(button == 'LeftButton') then
 			self._dragging = false
+			-- Schedule fade-out now that dragging stopped
+			OnScrollActivity(scroll)
 		end
 	end)
 
@@ -228,6 +360,8 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 		-- Reposition thumb directly (skip full UpdateThumb to avoid jitter)
 		self:ClearAllPoints()
 		self:SetPoint('TOP', track, 'TOP', 0, -Widgets.Round(newOffset))
+
+		UpdateScrollHint(scroll)
 	end)
 
 	-- ── Deferred content-width init ────────────────────────────

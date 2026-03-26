@@ -435,7 +435,7 @@ local function buildSidebarContent(sidebar, contentParent)
 					Widgets.AnimateHeight(container, targetContainerH, dur)
 					Widgets.AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
 						if(Settings._contentParent) then
-							local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H
+							local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 							Settings._contentParent:SetHeight(contentH)
 							Settings._contentParent._explicitHeight = contentH
 						end
@@ -472,7 +472,7 @@ local function buildSidebarContent(sidebar, contentParent)
 						Widgets.AnimateHeight(container, newH, dur)
 						Widgets.AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
 							if(Settings._contentParent) then
-								local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H
+								local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 								Settings._contentParent:SetHeight(contentH)
 								Settings._contentParent._explicitHeight = contentH
 							end
@@ -484,7 +484,7 @@ local function buildSidebarContent(sidebar, contentParent)
 						container:SetHeight(newH)
 						Settings._mainFrame:SetHeight(targetWindowH)
 						if(Settings._contentParent) then
-							local contentH = targetWindowH - HEADER_HEIGHT - SUB_HEADER_H
+							local contentH = targetWindowH - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 							Settings._contentParent:SetHeight(contentH)
 							Settings._contentParent._explicitHeight = contentH
 						end
@@ -638,7 +638,7 @@ function Settings.BuildSidebar()
 	if(neededH ~= WINDOW_H) then
 		Settings._mainFrame:SetHeight(neededH)
 		if(Settings._contentParent) then
-			local contentH = neededH - HEADER_HEIGHT - SUB_HEADER_H
+			local contentH = neededH - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 			Settings._contentParent:SetHeight(contentH)
 			Settings._contentParent._explicitHeight = contentH
 		end

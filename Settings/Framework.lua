@@ -252,6 +252,10 @@ function Settings.SetActivePanel(panelId)
 	Settings._activePanelFrame = Settings._panelFrames[panelId]
 	if(Settings._activePanelFrame) then
 		Settings._activePanelFrame:Show()
+		-- Reset scroll to top so the hint arrow refreshes for the new panel
+		if(Settings._activePanelFrame.ScrollToTop) then
+			Settings._activePanelFrame:ScrollToTop()
+		end
 	end
 
 	-- Update sidebar selection
