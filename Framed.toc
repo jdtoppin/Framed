@@ -125,6 +125,7 @@ Presets/Manager.lua
 EditMode/EditCache.lua
 EditMode/EditMode.lua
 EditMode/ClickCatchers.lua
+EditMode/TopBar.lua
 
 # Preview
 Preview/Preview.lua
