@@ -1,4 +1,4 @@
-## Interface: 120000
+## Interface: 120001
 ## Title: Framed
 ## Notes: Modern, customizable unit frames and raid frames
 ## Author: jdtoppin
@@ -81,7 +81,6 @@ Elements/Indicators/BorderIcon.lua
 # Data
 Data/RaidDebuffs/Registry.lua
 Data/RaidDebuffs/Midnight/Dungeons.lua
-Data/DefensiveSpells.lua
 
 # Elements - Auras
 Elements/Auras/Buffs.lua
