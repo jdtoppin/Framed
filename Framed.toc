@@ -126,6 +126,7 @@ EditMode/EditCache.lua
 EditMode/EditMode.lua
 EditMode/ClickCatchers.lua
 EditMode/TopBar.lua
+EditMode/Dialogs.lua
 
 # Preview
 Preview/Preview.lua
