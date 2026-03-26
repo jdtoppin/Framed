@@ -21,7 +21,7 @@ F.Settings.RegisterPanel({
 		local yOffset = -C.Spacing.normal
 
 		-- Unit type dropdown + copy-to
-		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'externals')
+		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'externals', 'externals')
 
 		-- Description
 		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)

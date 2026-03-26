@@ -56,7 +56,7 @@ F.Settings.RegisterPanel({
 		local yOffset = -C.Spacing.normal
 
 		-- Unit type dropdown + copy-to
-		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'missingbuffs')
+		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'missingbuffs', 'missingBuffs')
 
 		-- ── Description ────────────────────────────────────────
 		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)

@@ -55,7 +55,7 @@ F.Settings.RegisterPanel({
 		local yOffset = -C.Spacing.normal
 
 		-- Unit type dropdown + copy-to
-		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'targetedspells')
+		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'targetedspells', 'targetedSpells')
 
 		-- ── Description ────────────────────────────────────────
 		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
