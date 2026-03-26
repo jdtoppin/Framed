@@ -4,6 +4,7 @@ local F = Framed
 local Widgets = F.Widgets
 local C = F.Constants
 local EditMode = F.EditMode
+local EditCache = F.EditCache
 
 -- ============================================================
 -- ClickCatchers — transparent frames over unit frames for
@@ -105,5 +106,38 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 	ShowAllCatchers()
 	if(frameKey) then
 		HideCatcher(frameKey)
+	end
+
+	-- Wire dragging on the selected frame
+	if(frameKey) then
+		for _, def in next, EditMode.FRAME_KEYS do
+			if(def.key == frameKey) then
+				local frame = def.getter()
+				if(frame) then
+					Widgets.MakeDraggable(frame,
+						function(f) -- onDragStart
+							F.EventBus:Fire('EDIT_MODE_DRAG_STARTED', frameKey)
+						end,
+						function(f, x, y) -- onDragStop
+							-- Snap to grid
+							x, y = EditMode.SnapToGrid(x, y)
+							f:ClearAllPoints()
+							f:SetPoint('CENTER', UIParent, 'BOTTOMLEFT', x, y)
+							-- Save to edit cache
+							EditCache.Set(frameKey, 'position.x', x)
+							EditCache.Set(frameKey, 'position.y', y)
+							-- Hide alignment guides
+							EditMode.HideAlignmentGuides()
+							F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', frameKey)
+						end,
+						true, -- clampToParent
+						function(f, x, y) -- onMove
+							EditMode.UpdateAlignmentGuides(f)
+						end
+					)
+				end
+				break
+			end
+		end
 	end
 end, 'ClickCatchers')
