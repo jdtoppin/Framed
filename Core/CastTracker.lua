@@ -139,10 +139,6 @@ CheckUnitCast = function(sourceUnit, isRecheck)
 		end
 		recheckFrame:Show()
 	end
-
-	if(not useSecretPath and previousTarget and previousTarget ~= targetUnit) then
-		BroadcastUpdate()
-	end
 end
 
 -- ============================================================
@@ -239,6 +235,13 @@ end
 -- Query API
 -- ============================================================
 
+local function castSortComparator(a, b)
+	if(a.isImportant ~= b.isImportant) then
+		return a.isImportant
+	end
+	return a.startTime < b.startTime
+end
+
 function F.CastTracker:IsSecretPath()
 	return useSecretPath
 end
@@ -253,12 +256,7 @@ function F.CastTracker:GetAllActiveCasts()
 			casts[sourceKey] = nil
 		end
 	end
-	table.sort(result, function(a, b)
-		if(a.isImportant ~= b.isImportant) then
-			return a.isImportant
-		end
-		return a.startTime < b.startTime
-	end)
+	table.sort(result, castSortComparator)
 	return result
 end
 
@@ -267,19 +265,16 @@ function F.CastTracker:GetCastsOnUnit(unit)
 	local now = GetTime()
 	for sourceKey, castInfo in next, casts do
 		if(castInfo.endTime > now) then
-			if(castInfo.targetUnit == unit) then
+			-- Use UnitIsUnit for matching: unit tokens can differ for the same
+			-- character (e.g. 'player' vs 'raid5'), so string equality fails.
+			if(castInfo.targetUnit and UnitIsUnit(castInfo.targetUnit, unit)) then
 				result[#result + 1] = castInfo
 			end
 		else
 			casts[sourceKey] = nil
 		end
 	end
-	table.sort(result, function(a, b)
-		if(a.isImportant ~= b.isImportant) then
-			return a.isImportant
-		end
-		return a.startTime < b.startTime
-	end)
+	table.sort(result, castSortComparator)
 	return result
 end
 
