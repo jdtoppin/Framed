@@ -122,9 +122,9 @@ function ImportExport.ExportFullProfile()
 	end
 
 	local data = {
-		general    = F.LayoutManager and F.LayoutManager.DeepCopy(FramedDB.general)    or {},
-		layouts    = F.LayoutManager and F.LayoutManager.DeepCopy(FramedDB.layouts)    or {},
-		raidDebuffs = F.LayoutManager and F.LayoutManager.DeepCopy(FramedDB.raidDebuffs) or {},
+		general    = F.DeepCopy(FramedDB.general)    or {},
+		layouts    = F.DeepCopy(FramedDB.presets)    or {},
+		raidDebuffs = F.DeepCopy(FramedDB.raidDebuffs) or {},
 	}
 
 	return ImportExport.Export(data, 'full')
@@ -134,21 +134,21 @@ end
 --- @param layoutName string
 --- @return string|nil encoded, string|nil err
 function ImportExport.ExportLayout(layoutName)
-	if(not FramedDB or not FramedDB.layouts) then
+	if(not FramedDB or not FramedDB.presets) then
 		return nil, 'SavedVariables not ready'
 	end
 	if(not layoutName or layoutName == '') then
 		return nil, 'Layout name is required'
 	end
 
-	local layout = FramedDB.layouts[layoutName]
+	local layout = FramedDB.presets[layoutName]
 	if(not layout) then
 		return nil, 'Layout not found: ' .. layoutName
 	end
 
 	local data = {
 		name   = layoutName,
-		layout = F.LayoutManager and F.LayoutManager.DeepCopy(layout) or layout,
+		layout = F.DeepCopy(layout) or layout,
 	}
 
 	return ImportExport.Export(data, 'layout')
@@ -162,7 +162,7 @@ function ImportExport.ExportRaidDebuffs()
 	end
 
 	local data = {
-		overrides = F.LayoutManager and F.LayoutManager.DeepCopy(FramedDB.raidDebuffs.overrides) or {},
+		overrides = F.DeepCopy(FramedDB.raidDebuffs.overrides) or {},
 	}
 
 	return ImportExport.Export(data, 'raidDebuffs')
@@ -182,7 +182,7 @@ local function deepMerge(dst, src)
 		if(type(v) == 'table' and type(dst[k]) == 'table') then
 			deepMerge(dst[k], v)
 		else
-			dst[k] = F.LayoutManager and F.LayoutManager.DeepCopy(v) or v
+			dst[k] = F.DeepCopy(v) or v
 		end
 	end
 end
@@ -201,15 +201,15 @@ function ImportExport.ApplyImport(payload, mode)
 	-- ── Full profile ──────────────────────────────────────────
 	if(scope == 'full') then
 		if(mode == 'replace') then
-			if(data.general)     then FramedDB.general     = F.LayoutManager.DeepCopy(data.general) end
-			if(data.layouts)     then FramedDB.layouts     = F.LayoutManager.DeepCopy(data.layouts) end
-			if(data.raidDebuffs) then FramedDB.raidDebuffs = F.LayoutManager.DeepCopy(data.raidDebuffs) end
+			if(data.general)     then FramedDB.general     = F.DeepCopy(data.general) end
+			if(data.presets)     then FramedDB.presets     = F.DeepCopy(data.presets) end
+			if(data.raidDebuffs) then FramedDB.raidDebuffs = F.DeepCopy(data.raidDebuffs) end
 		else  -- merge
 			if(data.general and type(data.general) == 'table') then
 				deepMerge(FramedDB.general, data.general)
 			end
-			if(data.layouts and type(data.layouts) == 'table') then
-				deepMerge(FramedDB.layouts, data.layouts)
+			if(data.presets and type(data.presets) == 'table') then
+				deepMerge(FramedDB.presets, data.presets)
 			end
 			if(data.raidDebuffs and type(data.raidDebuffs) == 'table') then
 				deepMerge(FramedDB.raidDebuffs, data.raidDebuffs)
@@ -224,13 +224,13 @@ function ImportExport.ApplyImport(payload, mode)
 		if(not name or not layout) then return end
 
 		if(mode == 'replace') then
-			FramedDB.layouts[name] = F.LayoutManager.DeepCopy(layout)
+			FramedDB.presets[name] = F.DeepCopy(layout)
 		else  -- merge
 			-- Append " (imported)" suffix on name conflict
-			if(FramedDB.layouts[name]) then
+			if(FramedDB.presets[name]) then
 				name = name .. ' (imported)'
 			end
-			FramedDB.layouts[name] = F.LayoutManager.DeepCopy(layout)
+			FramedDB.presets[name] = F.DeepCopy(layout)
 		end
 
 		if(F.EventBus) then
@@ -242,7 +242,7 @@ function ImportExport.ApplyImport(payload, mode)
 		if(not data.overrides) then return end
 
 		if(mode == 'replace') then
-			FramedDB.raidDebuffs.overrides = F.LayoutManager.DeepCopy(data.overrides)
+			FramedDB.raidDebuffs.overrides = F.DeepCopy(data.overrides)
 		else  -- merge
 			deepMerge(FramedDB.raidDebuffs.overrides, data.overrides)
 		end

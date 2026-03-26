@@ -31,18 +31,18 @@ local SCOPE_RAID_DEBUFF = 'raidDebuffs'
 
 --- Return a sorted list of {text, value} items for all layouts.
 local function getLayoutItems()
-	local names = (F.LayoutManager and F.LayoutManager.GetNames) and
-		F.LayoutManager.GetNames() or {}
+	local names = (F.PresetManager and F.PresetManager.GetNames) and
+		F.PresetManager.GetNames() or {}
 	local items = {}
 	for _, name in next, names do
 		items[#items + 1] = { text = name, value = name }
 	end
 	if(#items == 0) then
-		-- Fallback if LayoutManager not yet ready
+		-- Fallback if PresetManager not yet ready
 		for _, name in next, {
-			'Default Solo', 'Default Party', 'Default Raid',
-			'Default Mythic Raid', 'Default World Raid',
-			'Default Battleground', 'Default Arena',
+			'Solo', 'Party', 'Raid',
+			'Mythic Raid', 'World Raid',
+			'Battleground', 'Arena',
 		} do
 			items[#items + 1] = { text = name, value = name }
 		end
