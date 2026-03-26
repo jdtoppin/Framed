@@ -53,8 +53,8 @@ local CLASS_ORDER = { 'DRUID', 'EVOKER', 'MONK', 'PALADIN', 'PRIEST', 'SHAMAN' }
 -- ============================================================
 local function makeConfigHelpers(unitType, configKey)
 	local function basePath()
-		local layoutName = F.Settings.GetEditingPreset()
-		return 'layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey .. '.indicators'
+		local presetName = F.Settings.GetEditingPreset()
+		return 'presets.' .. presetName .. '.auras.' .. unitType .. '.' .. configKey .. '.indicators'
 	end
 
 	local function getIndicators()
@@ -64,19 +64,23 @@ local function makeConfigHelpers(unitType, configKey)
 
 	local function fireChange()
 		if(not F.EventBus) then return end
-		local layoutName = F.Settings.GetEditingPreset()
-		F.EventBus:Fire('CONFIG_CHANGED', 'layouts.' .. layoutName .. '.unitConfigs.' .. unitType .. '.' .. configKey)
+		local presetName = F.Settings.GetEditingPreset()
+		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.' .. configKey)
 	end
 
 	local function setIndicator(name, data)
 		if(not F.Config) then return end
+		local presetName = F.Settings.GetEditingPreset()
 		F.Config:Set(basePath() .. '.' .. name, data)
+		F.PresetManager.MarkCustomized(presetName)
 		fireChange()
 	end
 
 	local function removeIndicator(name)
 		if(not F.Config) then return end
+		local presetName = F.Settings.GetEditingPreset()
 		F.Config:Set(basePath() .. '.' .. name, nil)
+		F.PresetManager.MarkCustomized(presetName)
 		fireChange()
 	end
 
