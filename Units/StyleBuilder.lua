@@ -397,6 +397,14 @@ function F.StyleBuilder.GetAuraConfig(unitType, auraType)
 		return presetData.auras[unitType][auraType] or {}
 	end
 
+	-- Fall back to built-in preset config fields.
+	-- Presets define aura configs directly as top-level keys (e.g., preset.buffs,
+	-- preset.debuffs) rather than under a nested .auras table.
+	local preset = F.StyleBuilder.Presets[unitType]
+	if(preset and preset[auraType]) then
+		return preset[auraType]
+	end
+
 	return {}
 end
 
@@ -553,22 +561,22 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- --------------------------------------------------------
 
 	local buffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'buffs')
-	if(buffsConfig and buffsConfig.enabled ~= false and F.Elements.Buffs) then
+	if(buffsConfig and buffsConfig.enabled and F.Elements.Buffs) then
 		F.Elements.Buffs.Setup(self, buffsConfig)
 	end
 
 	local debuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'debuffs')
-	if(debuffsConfig and debuffsConfig.enabled ~= false and F.Elements.Debuffs) then
+	if(debuffsConfig and debuffsConfig.enabled and F.Elements.Debuffs) then
 		F.Elements.Debuffs.Setup(self, debuffsConfig)
 	end
 
 	local raidDebuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'raidDebuffs')
-	if(raidDebuffsConfig and raidDebuffsConfig.enabled ~= false and F.Elements.RaidDebuffs) then
+	if(raidDebuffsConfig and raidDebuffsConfig.enabled and F.Elements.RaidDebuffs) then
 		F.Elements.RaidDebuffs.Setup(self, raidDebuffsConfig)
 	end
 
 	local dispellableConfig = F.StyleBuilder.GetAuraConfig(unitType, 'dispellable')
-	if(dispellableConfig and dispellableConfig.enabled ~= false and F.Elements.Dispellable) then
+	if(dispellableConfig and dispellableConfig.enabled and F.Elements.Dispellable) then
 		F.Elements.Dispellable.Setup(self, dispellableConfig)
 	end
 
@@ -578,7 +586,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	end
 
 	local targetedSpellsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'targetedSpells')
-	if(targetedSpellsConfig and targetedSpellsConfig.enabled ~= false and F.Elements.TargetedSpells) then
+	if(targetedSpellsConfig and targetedSpellsConfig.enabled and F.Elements.TargetedSpells) then
 		F.Elements.TargetedSpells.Setup(self, targetedSpellsConfig)
 	end
 
@@ -589,13 +597,13 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 
 	-- Externals (optional)
 	local externalsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'externals')
-	if(externalsConfig and externalsConfig.enabled ~= false and F.Elements.Externals) then
+	if(externalsConfig and externalsConfig.enabled and F.Elements.Externals) then
 		F.Elements.Externals.Setup(self, externalsConfig)
 	end
 
 	-- Defensives (optional)
 	local defensivesConfig = F.StyleBuilder.GetAuraConfig(unitType, 'defensives')
-	if(defensivesConfig and defensivesConfig.enabled ~= false and F.Elements.Defensives) then
+	if(defensivesConfig and defensivesConfig.enabled and F.Elements.Defensives) then
 		F.Elements.Defensives.Setup(self, defensivesConfig)
 	end
 
