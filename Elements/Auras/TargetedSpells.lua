@@ -152,11 +152,6 @@ local function Enable(self, unit)
 	local element = self.FramedTargetedSpells
 	if(not element) then return end
 
-	-- COMBAT_LOG_EVENT_UNFILTERED was removed in 12.0. This element relies
-	-- entirely on CLEU for detecting incoming casts, so it cannot function
-	-- without it. Bail out and leave the element disabled.
-	if(not CombatLogGetCurrentEventInfo) then return end
-
 	element.__owner     = self
 	element.ForceUpdate = ForceUpdate
 
