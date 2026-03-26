@@ -2644,12 +2644,335 @@ In-game, test the full flow:
 8. `/framed edit` again → make changes → Cancel → 3-button dialog → Discard
 9. Switch preset dropdown with edits → swap dialog appears
 10. Enter combat during edit mode → overlay hides → leave combat → overlay re-shows
+11. Drag Player frame near Target frame's edge → red edge alignment guide appears
+12. Click a frame → Auras tab → dropdown with 11 groups → select Debuffs → settings load, other auras dim
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add Framed.toc Init.lua
 git commit -m "chore: bump version to 0.2.1-alpha, finalize edit mode TOC order"
+```
+
+---
+
+## Task 17: Edge Alignment Guides
+
+**Purpose:** Extend `AlignmentGuides.lua` (Task 11) to detect and show red alignment lines when a dragged frame's edges align with other visible frames' edges, not just screen center.
+
+**Files:**
+- Modify: `EditMode/AlignmentGuides.lua`
+
+- [ ] **Step 1: Add edge guide pool and helper to collect visible frame bounds**
+
+Add after the `edgeGuides = {}` declaration and before `CreateGuide`:
+
+```lua
+local EDGE_GUIDE_POOL_SIZE = 8  -- max simultaneous edge guides (4 edges x 2 axes)
+
+--- Collect screen bounds for all visible frames except the one being dragged.
+--- @param excludeFrame Frame
+--- @return table[] Array of { left, right, top, bottom }
+local function GetOtherFrameBounds(excludeFrame)
+	local bounds = {}
+	for _, def in next, EditMode.FRAME_KEYS do
+		local frame = def.getter()
+		if(frame and frame ~= excludeFrame and frame:IsVisible()) then
+			local left = frame:GetLeft()
+			local right = frame:GetRight()
+			local top = frame:GetTop()
+			local bottom = frame:GetBottom()
+			if(left and right and top and bottom) then
+				bounds[#bounds + 1] = {
+					left   = left,
+					right  = right,
+					top    = top,
+					bottom = bottom,
+				}
+			end
+		end
+	end
+	return bounds
+end
+```
+
+- [ ] **Step 2: Add edge alignment detection to `UpdateAlignmentGuides`**
+
+Replace the comment block at the end of `UpdateAlignmentGuides`:
+
+```lua
+	-- Edge alignment with other frames (future: iterate other frame positions)
+	-- For now, center guides only. Edge guides will be added when more frames are
+	-- integrated into the drag system.
+```
+
+With:
+
+```lua
+	-- ── Edge alignment with other visible frames ────────────
+	local otherBounds = GetOtherFrameBounds(dragFrame)
+	local edgeIdx = 0
+
+	-- Edges to check: left, right of dragged frame against left, right of others (vertical guides)
+	-- And: top, bottom of dragged frame against top, bottom of others (horizontal guides)
+	local dragEdges = {
+		{ val = left,   isH = false },  -- drag left edge
+		{ val = right,  isH = false },  -- drag right edge
+		{ val = top,    isH = true  },  -- drag top edge
+		{ val = bottom, isH = true  },  -- drag bottom edge
+	}
+
+	for _, de in next, dragEdges do
+		for _, ob in next, otherBounds do
+			local otherEdges
+			if(de.isH) then
+				otherEdges = { ob.top, ob.bottom }
+			else
+				otherEdges = { ob.left, ob.right }
+			end
+
+			for _, oe in next, otherEdges do
+				if(math.abs(de.val - oe) < SNAP_THRESHOLD) then
+					edgeIdx = edgeIdx + 1
+					if(edgeIdx > EDGE_GUIDE_POOL_SIZE) then break end
+
+					-- Acquire or create edge guide
+					if(not edgeGuides[edgeIdx]) then
+						edgeGuides[edgeIdx] = CreateGuide(guideFrame, de.isH)
+					end
+
+					local guide = edgeGuides[edgeIdx]
+					guide._isHorizontal = de.isH
+					guide._targetAlpha = GUIDE_COLOR[4]
+
+					-- Position the guide at the aligned edge
+					guide:ClearAllPoints()
+					if(de.isH) then
+						guide:SetHeight(GUIDE_THICKNESS)
+						guide:SetPoint('LEFT', guideFrame, 'LEFT', 0, 0)
+						guide:SetPoint('RIGHT', guideFrame, 'RIGHT', 0, 0)
+						-- Offset from center: oe is screen Y, center is screenH/2
+						local yOff = oe - screenH / 2
+						guide:SetPoint('TOP', guideFrame, 'CENTER', 0, yOff)
+					else
+						guide:SetWidth(GUIDE_THICKNESS)
+						guide:SetPoint('TOP', guideFrame, 'TOP', 0, 0)
+						guide:SetPoint('BOTTOM', guideFrame, 'BOTTOM', 0, 0)
+						-- Offset from center: oe is screen X, center is screenW/2
+						local xOff = oe - screenW / 2
+						guide:SetPoint('LEFT', guideFrame, 'CENTER', xOff, 0)
+					end
+				end
+			end
+			if(edgeIdx > EDGE_GUIDE_POOL_SIZE) then break end
+		end
+		if(edgeIdx > EDGE_GUIDE_POOL_SIZE) then break end
+	end
+
+	-- Fade out unused edge guides
+	for i = edgeIdx + 1, #edgeGuides do
+		edgeGuides[i]._targetAlpha = 0
+	end
+```
+
+- [ ] **Step 3: Test in-game**
+
+```
+/reload
+/framed edit
+```
+- Drag Player frame near Target frame's left edge → red vertical line appears
+- Drag a frame so its top aligns with another frame's bottom → red horizontal line appears
+- Move away → guides fade out
+- Center guides still work as before
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add EditMode/AlignmentGuides.lua
+git commit -m "feat: add edge-to-edge alignment guides between frames during drag"
+```
+
+---
+
+## Task 18: Auras Tab Implementation
+
+**Purpose:** Replace the "coming soon" placeholder in `InlinePanel.lua`'s Auras tab with a full implementation: aura group dropdown, per-group settings panel loading via the registered panel `create()` functions, and dimming of non-selected aura groups on the live frame.
+
+**Files:**
+- Modify: `EditMode/InlinePanel.lua`
+
+- [ ] **Step 1: Add aura group definitions and active group state**
+
+Add after the `local contentFrame = nil` declaration:
+
+```lua
+local activeAuraGroup = nil  -- current aura group panel id
+
+--- All aura group panels in display order.
+--- These match the panel ids registered in Settings/Panels/*.lua with subSection = 'auras'.
+local AURA_GROUPS = {
+	{ id = 'buffs',          label = 'Buffs' },
+	{ id = 'debuffs',        label = 'Debuffs' },
+	{ id = 'externals',      label = 'Externals' },
+	{ id = 'raiddebuffs',    label = 'Raid Debuffs' },
+	{ id = 'defensives',     label = 'Defensives' },
+	{ id = 'targetedspells', label = 'Targeted Spells' },
+	{ id = 'dispels',        label = 'Dispels' },
+	{ id = 'missingbuffs',   label = 'Missing Buffs' },
+	{ id = 'privateauras',   label = 'Private Auras' },
+	{ id = 'lossofcontrol',  label = 'Loss of Control' },
+	{ id = 'crowdcontrol',   label = 'Crowd Control' },
+}
+
+--- Find a registered panel's create function by its id.
+--- @param panelId string
+--- @return function|nil create
+local function GetPanelCreate(panelId)
+	for _, p in next, F.Settings._panels do
+		if(p.id == panelId) then
+			return p.create
+		end
+	end
+	return nil
+end
+```
+
+- [ ] **Step 2: Add aura dimming helpers**
+
+Add after the aura group definitions:
+
+```lua
+--- Dim all aura elements on a frame except the active group.
+--- @param frameKey string  The selected frame key
+--- @param activeGroup string|nil  The active aura group id, or nil to restore all
+local function DimNonActiveAuras(frameKey, activeGroup)
+	-- Fire event so aura elements can respond
+	F.EventBus:Fire('EDIT_MODE_AURA_DIM', frameKey, activeGroup)
+end
+```
+
+- [ ] **Step 3: Replace the `ShowAurasTab` placeholder**
+
+Replace the entire `ShowAurasTab` function:
+
+```lua
+	local function ShowAurasTab()
+		activeTab = 'auras'
+		-- Clear content
+		for _, child in next, { contentFrame:GetChildren() } do
+			child:Hide()
+			child:SetParent(nil)
+		end
+
+		-- ── Aura group dropdown ─────────────────────────────
+		local dropdownItems = {}
+		for _, group in next, AURA_GROUPS do
+			dropdownItems[#dropdownItems + 1] = { text = group.label, value = group.id }
+		end
+
+		local ddLabel = Widgets.CreateFontString(contentFrame, C.Font.sizeSmall, C.Colors.textSecondary)
+		ddLabel:SetText('Aura Group:')
+		ddLabel:ClearAllPoints()
+		Widgets.SetPoint(ddLabel, 'TOPLEFT', contentFrame, 'TOPLEFT', C.Spacing.normal, -C.Spacing.normal)
+
+		local auraDropdown = Widgets.CreateDropdown(contentFrame, PANEL_WIDTH - C.Spacing.normal * 2)
+		auraDropdown:SetItems(dropdownItems)
+		auraDropdown:ClearAllPoints()
+		Widgets.SetPoint(auraDropdown, 'TOPLEFT', ddLabel, 'BOTTOMLEFT', 0, -C.Spacing.small)
+
+		-- ── Aura settings content area ──────────────────────
+		local auraContent = CreateFrame('Frame', nil, contentFrame)
+		auraContent:ClearAllPoints()
+		Widgets.SetPoint(auraContent, 'TOPLEFT', auraDropdown, 'BOTTOMLEFT', 0, -C.Spacing.normal)
+		auraContent:SetPoint('BOTTOMRIGHT', contentFrame, 'BOTTOMRIGHT', 0, 0)
+		auraContent._explicitWidth = PANEL_WIDTH - C.Spacing.normal * 2
+		auraContent._explicitHeight = PANEL_MIN_H - TAB_HEIGHT - 60
+
+		local function LoadAuraGroup(groupId)
+			-- Clear previous aura panel
+			for _, child in next, { auraContent:GetChildren() } do
+				child:Hide()
+				child:SetParent(nil)
+			end
+
+			activeAuraGroup = groupId
+
+			-- Find the registered panel's create function
+			local createFn = GetPanelCreate(groupId)
+			if(not createFn) then
+				local noPanel = Widgets.CreateFontString(auraContent, C.Font.sizeNormal, C.Colors.textSecondary)
+				noPanel:SetPoint('CENTER', auraContent, 'CENTER', 0, 0)
+				noPanel:SetText('Panel not available')
+				return
+			end
+
+			-- Build the aura settings panel inside our content area
+			local auraPanel = createFn(auraContent)
+			if(auraPanel) then
+				auraPanel:ClearAllPoints()
+				auraPanel:SetAllPoints(auraContent)
+				auraPanel._width = nil
+				auraPanel._height = nil
+				auraPanel:Show()
+			end
+
+			-- Dim non-active aura groups on the live frame
+			DimNonActiveAuras(currentKey, groupId)
+		end
+
+		auraDropdown:SetOnSelect(function(value)
+			LoadAuraGroup(value)
+		end)
+
+		-- Default to first group or restore previous selection
+		local defaultGroup = activeAuraGroup or AURA_GROUPS[1].id
+		auraDropdown:SetValue(defaultGroup)
+		LoadAuraGroup(defaultGroup)
+
+		-- Update tab visual
+		aurasTabBtn._label:SetTextColor(1, 1, 1, 1)
+		frameTabBtn._label:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3], 1)
+	end
+```
+
+- [ ] **Step 4: Reset aura dimming on tab switch and exit**
+
+In `ShowFrameTab`, add at the top after `activeTab = 'frame'`:
+
+```lua
+		-- Restore all aura visibility when switching to frame tab
+		DimNonActiveAuras(currentKey, nil)
+		activeAuraGroup = nil
+```
+
+In the `EDIT_MODE_EXITED` handler, add before `DestroyPanel()`:
+
+```lua
+	-- Restore aura visibility
+	if(currentKey) then
+		DimNonActiveAuras(currentKey, nil)
+	end
+	activeAuraGroup = nil
+```
+
+- [ ] **Step 5: Test in-game**
+
+```
+/reload
+/framed edit
+```
+- Click a frame → click Auras tab → dropdown appears with all 11 aura groups
+- Select "Debuffs" → debuff settings panel loads, other aura groups dim on the frame
+- Switch to "Buffs" → panel rebuilds with buff settings, dimming updates
+- Switch back to Frame tab → all aura groups restore to normal visibility
+- Exit edit mode → aura visibility restored
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add EditMode/InlinePanel.lua
+git commit -m "feat: implement auras tab with group dropdown and aura dimming"
 ```
 
 ---
@@ -2669,14 +2992,16 @@ git commit -m "chore: bump version to 0.2.1-alpha, finalize edit mode TOC order"
 | 8 | Top Bar | EditMode/TopBar.lua | 6 |
 | 9 | Dialogs | EditMode/Dialogs.lua | 3, 5, 6 |
 | 10 | Grid | EditMode/Grid.lua | 6 |
-| 11 | Alignment Guides | EditMode/AlignmentGuides.lua | 2, 6 |
+| 11 | Alignment Guides (center) | EditMode/AlignmentGuides.lua | 2, 6 |
 | 12 | Resize Handles | EditMode/ResizeHandles.lua | 5, 6 |
 | 13 | Position & Layout card | Settings/FrameSettingsBuilder.lua | 4 |
 | 14 | Inline Panel | EditMode/InlinePanel.lua | 6, 7, 13 |
 | 15 | Frame Drag Wiring | EditMode/EditMode.lua | 2, 10, 11 |
-| 16 | TOC & Integration | Framed.toc, Init.lua | All |
+| 16 | TOC & Integration | Framed.toc, Init.lua | All except 17, 18 |
+| 17 | Edge Alignment Guides | EditMode/AlignmentGuides.lua | 11 |
+| 18 | Auras Tab | EditMode/InlinePanel.lua | 14 |
 
-Tasks 0-5 can run in parallel (no dependencies). Tasks 6-12 depend on 5/6. Tasks 13-16 integrate everything.
+Tasks 0-5 can run in parallel (no dependencies). Tasks 6-12 depend on 5/6. Tasks 13-16 integrate the core. Tasks 17-18 extend completed components.
 
 ---
 
@@ -2690,10 +3015,6 @@ Throughout the plan, sub-components (TopBar, ClickCatchers, InlinePanel, etc.) a
 
 ClickCatchers use `SetAllPoints(unitFrame)` but are parented to the overlay at a different strata. If position tracking is unreliable due to different parent hierarchies, switch to an `OnUpdate` script that syncs catcher position to the unit frame's screen coordinates each frame.
 
-### Incomplete Features (Follow-Up Tasks)
+### Keyboard Input Propagation
 
-The following spec requirements are stubbed but not fully implemented in this plan:
-
-1. **Edge alignment guides** (Task 11) — Only center alignment is implemented. Edge-to-edge alignment between frames requires iterating all visible frame positions during drag. Add as a follow-up task.
-2. **Auras tab in InlinePanel** (Task 14) — Shows a placeholder. Full implementation requires aura group dropdown, per-group settings panel loading, and dimming of non-selected aura groups on the live frame. Add as a follow-up task.
-3. **Keyboard input propagation** (M6) — The overlay swallows all keyboard input while active, matching Blizzard's edit mode behavior. If chat typing is needed during edit mode, add selective key propagation later.
+The overlay swallows all keyboard input while active, matching Blizzard's edit mode behavior. If chat typing is needed during edit mode, add selective key propagation later.
