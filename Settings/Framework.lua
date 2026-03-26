@@ -90,6 +90,86 @@ function Settings.SetEditingPreset(presetName)
 end
 
 -- ============================================================
+-- Aura Panel: Unit Type Dropdown + Copy-To Button
+-- Shared builder used by all aura panels.
+-- ============================================================
+
+local DROPDOWN_H = 22
+
+--- Build the unit type items list based on the active preset.
+--- @return table[] Array of { text, value }
+local function getUnitTypeItems()
+	local presetName = Settings.GetEditingPreset()
+	local info = C.PresetInfo[presetName]
+	local items = {
+		{ text = 'Player',           value = 'player' },
+		{ text = 'Target',           value = 'target' },
+		{ text = 'Target of Target', value = 'targettarget' },
+		{ text = 'Focus',            value = 'focus' },
+		{ text = 'Pet',              value = 'pet' },
+		{ text = 'Boss',             value = 'boss' },
+	}
+	if(info and info.groupKey) then
+		items[#items + 1] = { text = info.groupLabel, value = info.groupKey }
+	end
+	return items
+end
+
+--- Get a sensible default unit type for the current preset.
+--- @return string
+local function getDefaultUnitType()
+	local info = C.PresetInfo[Settings.GetEditingPreset()]
+	return (info and info.groupKey) or 'player'
+end
+
+--- Append a "Configure for:" dropdown and "Copy to..." button to an
+--- aura panel's scroll content frame.
+--- @param content Frame   The scroll content frame
+--- @param width   number  Available content width
+--- @param yOffset number  Current vertical cursor
+--- @param panelId string  Panel id used for rebuild on change
+--- @return number yOffset Updated vertical cursor
+function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId)
+	-- ── "Configure for:" label ───────────────────────────────
+	local label = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+	label:SetText('Configure for:')
+	label:ClearAllPoints()
+	Widgets.SetPoint(label, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset - 4)
+
+	-- ── Unit type dropdown ───────────────────────────────────
+	local unitTypeDD = Widgets.CreateDropdown(content, 180)
+	unitTypeDD:SetItems(getUnitTypeItems())
+	unitTypeDD:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
+	unitTypeDD:ClearAllPoints()
+	Widgets.SetPoint(unitTypeDD, 'TOPLEFT', content, 'TOPLEFT', 90, yOffset)
+	unitTypeDD:SetOnSelect(function(value)
+		Settings.SetEditingUnitType(value)
+		-- Invalidate and rebuild the current panel
+		Settings._panelFrames[panelId] = nil
+		Settings.SetActivePanel(panelId)
+	end)
+
+	-- ── "Copy to..." button ──────────────────────────────────
+	local copyBtn = Widgets.CreateButton(content, 'Copy to...', 'widget', 90, DROPDOWN_H)
+	copyBtn:ClearAllPoints()
+	Widgets.SetPoint(copyBtn, 'TOPLEFT', content, 'TOPLEFT', 280, yOffset)
+	copyBtn:SetScript('OnClick', function()
+		print('Framed: Copy to... (coming soon)')
+	end)
+
+	yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
+
+	-- ── Scoped preset banner ─────────────────────────────────
+	local banner = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.accent)
+	banner:SetText('Editing: ' .. Settings.GetEditingPreset() .. ' / ' .. (Settings.GetEditingUnitType() or getDefaultUnitType()))
+	banner:ClearAllPoints()
+	Widgets.SetPoint(banner, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	yOffset = yOffset - 16 - C.Spacing.tight
+
+	return yOffset
+end
+
+-- ============================================================
 -- Shared State
 -- Populated by MainFrame.lua and Sidebar.lua at creation time.
 -- ============================================================
