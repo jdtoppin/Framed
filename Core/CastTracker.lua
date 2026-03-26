@@ -40,6 +40,110 @@ local Reset
 local BroadcastUpdate
 
 -- ============================================================
+-- Check if a source unit is casting at a group member
+-- ============================================================
+
+CheckUnitCast = function(sourceUnit, isRecheck)
+	if(not UnitIsEnemy('player', sourceUnit)) then return end
+
+	local sourceKey = sourceUnit
+	local previousTarget
+
+	if(casts[sourceKey]) then
+		previousTarget = casts[sourceKey].targetUnit
+		if(casts[sourceKey].endTime <= GetTime()) then
+			casts[sourceKey] = nil
+			BroadcastUpdate()
+			previousTarget = nil
+		end
+	end
+
+	-- Query cast info: UnitCastingInfo or UnitChannelInfo
+	local name, _, texture, startTimeMS, endTimeMS, _, _, _, spellId = UnitCastingInfo(sourceUnit)
+	local isChanneling = false
+	if(not name) then
+		name, _, texture, startTimeMS, endTimeMS, _, _, spellId = UnitChannelInfo(sourceUnit)
+		isChanneling = true
+	end
+
+	if(not name) then return end
+
+	-- Get icon: C_Spell.GetSpellTexture is C-level and accepts secret spellId
+	if(C_Spell and C_Spell.GetSpellTexture and spellId) then
+		local tex = C_Spell.GetSpellTexture(spellId)
+		if(tex) then texture = tex end
+	end
+
+	-- Determine importance (priority signal, not hard filter)
+	local isImportant = false
+	if(C_Spell and C_Spell.IsSpellImportant and spellId) then
+		local result = C_Spell.IsSpellImportant(spellId)
+		if(not F.IsValueNonSecret(result)) then
+			-- Secret boolean — treat as important
+			isImportant = true
+		elseif(result) then
+			isImportant = true
+		end
+	end
+
+	-- Time values may be secret
+	local startTime, endTime
+	if(F.IsValueNonSecret(startTimeMS) and F.IsValueNonSecret(endTimeMS)) then
+		startTime = startTimeMS / 1000
+		endTime = endTimeMS / 1000
+	else
+		startTime = GetTime()
+		endTime = GetTime() + 3
+	end
+
+	-- Update or create cast entry
+	if(casts[sourceKey]) then
+		casts[sourceKey].startTime = startTime
+		casts[sourceKey].endTime = endTime
+		casts[sourceKey].icon = texture
+		casts[sourceKey].spellId = spellId
+		casts[sourceKey].isImportant = isImportant
+		casts[sourceKey].isChanneling = isChanneling
+	else
+		casts[sourceKey] = {
+			startTime    = startTime,
+			endTime      = endTime,
+			icon         = texture,
+			isChanneling = isChanneling,
+			sourceUnit   = sourceUnit,
+			spellId      = spellId,
+			isImportant  = isImportant,
+			targetUnit   = nil,
+			recheck      = 0,
+		}
+	end
+
+	-- Resolve target
+	local targetUnit, isSecret = GetTargetUnitID_Safe(sourceUnit .. 'target')
+
+	if(isSecret) then
+		useSecretPath = true
+		casts[sourceKey].targetUnit = nil
+		BroadcastUpdate()
+	else
+		casts[sourceKey].targetUnit = targetUnit
+		BroadcastUpdate()
+	end
+
+	-- Schedule recheck (target can change mid-cast)
+	if(not isRecheck) then
+		if(not recheck[sourceKey]) then
+			recheck[sourceKey] = sourceUnit
+		end
+		recheckFrame:Show()
+	end
+
+	if(not useSecretPath and previousTarget and previousTarget ~= targetUnit) then
+		BroadcastUpdate()
+	end
+end
+
+-- ============================================================
 -- Secret-safe UnitIsUnit
 -- ============================================================
 
@@ -176,6 +280,90 @@ function F.CastTracker:GetCastsOnUnit(unit)
 	end)
 	return result
 end
+
+-- ============================================================
+-- Event handler
+-- ============================================================
+
+eventFrame:SetScript('OnEvent', function(_, event, sourceUnit)
+	if(event == 'ENCOUNTER_END' or event == 'PLAYER_REGEN_ENABLED' or event == 'PLAYER_ENTERING_WORLD') then
+		Reset()
+		return
+	end
+
+	-- Filter soft-target units
+	if(sourceUnit and strfind(sourceUnit, '^soft')) then return end
+
+	if(event == 'PLAYER_TARGET_CHANGED') then
+		CheckUnitCast('target')
+
+	elseif(event == 'UNIT_SPELLCAST_START'
+		or event == 'UNIT_SPELLCAST_CHANNEL_START'
+		or event == 'UNIT_SPELLCAST_DELAYED'
+		or event == 'UNIT_SPELLCAST_CHANNEL_UPDATE'
+		or event == 'NAME_PLATE_UNIT_ADDED') then
+		CheckUnitCast(sourceUnit)
+
+	elseif(event == 'UNIT_SPELLCAST_STOP'
+		or event == 'UNIT_SPELLCAST_INTERRUPTED'
+		or event == 'UNIT_SPELLCAST_FAILED'
+		or event == 'UNIT_SPELLCAST_CHANNEL_STOP') then
+		local sourceKey = sourceUnit
+		if(casts[sourceKey]) then
+			casts[sourceKey] = nil
+			BroadcastUpdate()
+		end
+
+	elseif(event == 'NAME_PLATE_UNIT_REMOVED') then
+		local sourceKey = sourceUnit
+		if(casts[sourceKey]) then
+			casts[sourceKey] = nil
+			BroadcastUpdate()
+		end
+	end
+end)
+
+-- ============================================================
+-- Recheck OnUpdate (0.1s interval, up to 6 rechecks)
+-- ============================================================
+
+recheckFrame:SetScript('OnUpdate', function(self, elapsed)
+	self.elapsed = (self.elapsed or 0) + elapsed
+	if(self.elapsed < 0.1) then return end
+	self.elapsed = 0
+
+	local empty = true
+
+	for sourceKey, unit in next, recheck do
+		if(casts[sourceKey]) then
+			casts[sourceKey].recheck = casts[sourceKey].recheck + 1
+			if(casts[sourceKey].recheck >= 6) then
+				recheck[sourceKey] = nil
+			else
+				empty = false
+				if(useSecretPath) then
+					CheckUnitCast(unit, true)
+				else
+					local recheckRequired
+					if(not casts[sourceKey].targetUnit) then
+						recheckRequired = UnitExists(unit .. 'target')
+					else
+						recheckRequired = not SafeUnitIsUnit(unit .. 'target', casts[sourceKey].targetUnit)
+					end
+					if(recheckRequired) then
+						CheckUnitCast(unit, true)
+					end
+				end
+			end
+		else
+			recheck[sourceKey] = nil
+		end
+	end
+
+	if(empty) then
+		self:Hide()
+	end
+end)
 
 -- ============================================================
 -- Enable / Disable the tracker globally
