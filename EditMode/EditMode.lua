@@ -186,6 +186,8 @@ function EditMode.Enter()
 
 	if(isActive) then return end
 	isActive = true
+	combatFrame:RegisterEvent('PLAYER_REGEN_DISABLED')
+	combatFrame:RegisterEvent('PLAYER_REGEN_ENABLED')
 
 	-- Close sidebar if open
 	F.Settings.Hide()
@@ -232,6 +234,7 @@ end
 --- @param returnToMenu boolean
 function EditMode.Exit(returnToMenu)
 	isActive = false
+	combatFrame:UnregisterAllEvents()
 	selectedFrameKey = nil
 
 	EditCache.Deactivate()
@@ -295,8 +298,6 @@ end
 -- ============================================================
 
 local combatFrame = CreateFrame('Frame')
-combatFrame:RegisterEvent('PLAYER_REGEN_DISABLED')
-combatFrame:RegisterEvent('PLAYER_REGEN_ENABLED')
 combatFrame:SetScript('OnEvent', function(self, event)
 	if(not isActive) then return end
 

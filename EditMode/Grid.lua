@@ -10,6 +10,7 @@ local EditMode = F.EditMode
 -- ============================================================
 
 local GRID_SPACING = C.Spacing.base  -- 4px
+local LINE_SPACING = GRID_SPACING * 4  -- 16px visual grid; snap stays at 4px
 local GRID_COLOR   = { 1, 1, 1, 0.06 }
 local DOT_SIZE     = 1
 
@@ -47,7 +48,7 @@ local function RenderLines()
 	local idx = 0
 
 	-- Vertical lines
-	for x = GRID_SPACING, w, GRID_SPACING do
+	for x = LINE_SPACING, w, LINE_SPACING do
 		idx = idx + 1
 		local tex = AcquireTexture()
 		tex:SetColorTexture(GRID_COLOR[1], GRID_COLOR[2], GRID_COLOR[3], GRID_COLOR[4])
@@ -58,7 +59,7 @@ local function RenderLines()
 	end
 
 	-- Horizontal lines
-	for y = GRID_SPACING, h, GRID_SPACING do
+	for y = LINE_SPACING, h, LINE_SPACING do
 		idx = idx + 1
 		local tex = AcquireTexture()
 		tex:SetColorTexture(GRID_COLOR[1], GRID_COLOR[2], GRID_COLOR[3], GRID_COLOR[4])

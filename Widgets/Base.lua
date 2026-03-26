@@ -427,6 +427,7 @@ function Widgets.MakeDraggable(frame, onDragStart, onDragStop, clampToParent, on
 		if(onDragStart) then onDragStart(self) end
 		if(onMove) then
 			self._dragOnMove = onMove
+			self._prevOnUpdate = self:GetScript('OnUpdate')
 			self:SetScript('OnUpdate', function(s)
 				local point, _, relPoint, x, y = s:GetPoint()
 				if(s._dragOnMove) then s._dragOnMove(s, x, y) end
@@ -437,8 +438,9 @@ function Widgets.MakeDraggable(frame, onDragStart, onDragStop, clampToParent, on
 	frame:SetScript('OnDragStop', function(self)
 		self:StopMovingOrSizing()
 		if(self._dragOnMove) then
-			self:SetScript('OnUpdate', nil)
+			self:SetScript('OnUpdate', self._prevOnUpdate)
 			self._dragOnMove = nil
+			self._prevOnUpdate = nil
 		end
 		local point, _, relPoint, x, y = self:GetPoint()
 		if(onDragStop) then onDragStop(self, x, y) end

@@ -106,6 +106,7 @@ F.EventBus:Register('EDIT_MODE_EXITED', function()
 			frame:SetScript('OnDragStart', frame._editModeSavedHandlers.onDragStart)
 			frame:SetScript('OnDragStop', frame._editModeSavedHandlers.onDragStop)
 			frame._editModeSavedHandlers = nil
+			frame._editModeDragWired = nil
 		end
 	end
 end, 'ClickCatchers')
@@ -123,6 +124,9 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 			if(def.key == frameKey) then
 				local frame = def.getter()
 				if(frame) then
+					-- Skip drag wiring if already set up for this frame
+					if(frame._editModeDragWired) then break end
+					frame._editModeDragWired = true
 					-- Save original handlers for restoration
 					if(not frame._editModeSavedHandlers) then
 						frame._editModeSavedHandlers = {
