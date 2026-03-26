@@ -193,7 +193,6 @@ end
 -- ============================================================
 
 local SUBHEADING_H    = 16   -- vertical space consumed by a sub-heading label
-local EDITING_LABEL_H = 16   -- vertical space consumed by the editing preset label
 
 -- ============================================================
 -- Dynamic Group Frame Label
@@ -241,7 +240,6 @@ local function buildSidebarContent(sidebar)
 	local yOffset = -8
 
 	-- References for dynamic elements updated by EDITING_PRESET_CHANGED
-	local editingLabel
 	local groupFrameBtn
 
 	for _, sectionId in next, orderedSections do
@@ -287,15 +285,6 @@ local function buildSidebarContent(sidebar)
 					framePanels[#framePanels + 1] = panel
 				end
 			end
-
-			-- "Editing: X Frame Preset" accent label
-			editingLabel = sidebar:CreateFontString(nil, 'OVERLAY')
-			editingLabel:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
-			editingLabel:SetTextColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3])
-			editingLabel:SetText('Editing: ' .. Settings.GetEditingPreset() .. ' Frame Preset')
-			editingLabel:ClearAllPoints()
-			editingLabel:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 12, yOffset)
-			yOffset = yOffset - EDITING_LABEL_H
 
 			-- FRAMES sub-heading
 			local framesHeading = sidebar:CreateFontString(nil, 'OVERLAY')
@@ -373,9 +362,6 @@ local function buildSidebarContent(sidebar)
 
 	-- ── EDITING_PRESET_CHANGED listener ──────────────────────
 	F.EventBus:Register('EDITING_PRESET_CHANGED', function(presetName)
-		if(editingLabel) then
-			editingLabel:SetText('Editing: ' .. presetName .. ' Frame Preset')
-		end
 		if(groupFrameBtn) then
 			local groupLabel = getGroupFrameLabel()
 			if(groupLabel) then
