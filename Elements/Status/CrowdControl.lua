@@ -8,48 +8,6 @@ F.Elements = F.Elements or {}
 F.Elements.CrowdControl = {}
 
 -- ============================================================
--- Known player-cast CC spell IDs
--- ============================================================
-
-local CC_SPELLS = {
-	[118]    = true,    -- Polymorph (Mage)
-	[28271]  = true,    -- Polymorph: Turtle (Mage)
-	[28272]  = true,    -- Polymorph: Pig (Mage)
-	[61305]  = true,    -- Polymorph: Black Cat (Mage)
-	[61721]  = true,    -- Polymorph: Rabbit (Mage)
-	[61780]  = true,    -- Polymorph: Turkey (Mage)
-	[51514]  = true,    -- Hex (Shaman)
-	[211015] = true,    -- Hex: Cockroach (Shaman)
-	[211010] = true,    -- Hex: Snake (Shaman)
-	[269352] = true,    -- Hex: Skeletal Hatchling (Shaman)
-	[277778] = true,    -- Hex: Zandalari Tendonripper (Shaman)
-	[309328] = true,    -- Hex: Living Honey (Shaman)
-	[6770]   = true,    -- Sap (Rogue)
-	[217832] = true,    -- Imprison (Demon Hunter)
-	[710]    = true,    -- Banish (Warlock)
-	[33786]  = true,    -- Cyclone (Druid)
-	[20066]  = true,    -- Repentance (Paladin)
-	[9484]   = true,    -- Shackle Undead (Priest)
-	[2637]   = true,    -- Hibernate (Druid)
-	[3355]   = true,    -- Freezing Trap (Hunter)
-	[19386]  = true,    -- Wyvern Sting (Hunter)
-	[187650] = true,    -- Freezing Trap (Hunter — BfA+ ID)
-}
-
--- ============================================================
--- CC Detection (Blizzard API with table fallback)
--- ============================================================
-
-local function IsCrowdControl(spellID)
-	-- Primary: Blizzard's own CC classification (12.0.1)
-	if(C_Spell and C_Spell.IsSpellCrowdControl) then
-		return C_Spell.IsSpellCrowdControl(spellID)
-	end
-	-- Fallback: our curated table
-	return CC_SPELLS[spellID]
-end
-
--- ============================================================
 -- Update
 -- ============================================================
 
@@ -59,31 +17,23 @@ local function Update(self, event, unit)
 
 	if(unit ~= self.unit) then return end
 
-	-- Scan unit's debuffs for player-applied CC
+	-- Scan for player-cast crowd control debuffs
 	local foundIcon   = nil
 	local foundExpiry = nil
 	local foundCount  = 0
 
-	local i = 1
-	while true do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HARMFUL')
-		if(not auraData) then break end
+	local ccAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL|PLAYER')
 
+	for _, auraData in next, ccAuras do
 		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId) and IsCrowdControl(spellId)) then
-			-- Check that this debuff was applied by the player
-			local sourceUnit = auraData.sourceUnit
-			if(F.IsValueNonSecret(sourceUnit) and UnitIsUnit(sourceUnit, 'player')) then
-				-- Take the first matching CC (or highest-expiry one)
-				if(foundIcon == nil) then
-					foundIcon   = auraData.icon
-					foundExpiry = auraData.expirationTime
-					foundCount  = auraData.applications or 1
-				end
+		if(F.IsValueNonSecret(spellId)) then
+			-- Take the first matching CC
+			if(foundIcon == nil) then
+				foundIcon   = auraData.icon
+				foundExpiry = auraData.expirationTime
+				foundCount  = auraData.applications or 1
 			end
 		end
-
-		i = i + 1
 	end
 
 	if(foundIcon) then
