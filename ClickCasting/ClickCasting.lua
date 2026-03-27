@@ -23,7 +23,7 @@ function F.ClickCasting.ApplyBindings(frame)
 	if(not bindings) then return end
 
 	for _, binding in next, bindings do
-		local prefix = binding.modifier and (binding.modifier .. '-') or ''
+		local prefix = (binding.modifier and binding.modifier ~= '') and (binding.modifier .. '-') or ''
 		local button = binding.button or 'LeftButton'
 		local buttonNum = (button == 'LeftButton' and '1') or
 		                  (button == 'RightButton' and '2') or
@@ -55,16 +55,18 @@ end
 function F.ClickCasting.GetBindings()
 	local specIndex = GetSpecialization and GetSpecialization() or 1
 	local specID = GetSpecializationInfo and GetSpecializationInfo(specIndex) or 0
+	local specKey = tostring(specID)
 
 	local charBindings = F.Config:GetChar('clickCastBindings')
 	if(charBindings) then
-		local specBindings = charBindings[specID]
+		-- Check both string and number keys (config stores string keys)
+		local specBindings = charBindings[specKey] or charBindings[specID]
 		if(specBindings) then return specBindings end
 	end
 
 	-- Fall back to defaults
 	if(F.ClickCasting.Defaults) then
-		return F.ClickCasting.Defaults[specID] or F.ClickCasting.Defaults['generic']
+		return F.ClickCasting.Defaults[specID] or F.ClickCasting.Defaults[specKey] or F.ClickCasting.Defaults['generic']
 	end
 
 	return nil

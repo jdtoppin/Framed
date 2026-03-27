@@ -9,36 +9,19 @@ local C = F.Constants
 -- ============================================================
 
 local ROW_H        = 28
-local DROPDOWN_H   = 22
 local BUTTON_H     = 22
 local EDITBOX_H    = 22
 
 -- Binding field widths
-local BTN_DD_W    = 80
-local MOD_DD_W    = 70
+local CAPTURE_W   = 160
 local TYPE_DD_W   = 80
-local VALUE_EB_W  = 100
-local ADD_BTN_W   = 60
+local VALUE_EB_W  = 140
+local ADD_BTN_W   = 100
 local REM_BTN_W   = 22
 
 -- ============================================================
--- Dropdown option tables (reused across rows)
+-- Dropdown option tables
 -- ============================================================
-
-local BUTTON_OPTIONS = {
-	{ text = 'Left',    value = 'LeftButton' },
-	{ text = 'Right',   value = 'RightButton' },
-	{ text = 'Middle',  value = 'MiddleButton' },
-	{ text = 'Button4', value = 'Button4' },
-	{ text = 'Button5', value = 'Button5' },
-}
-
-local MODIFIER_OPTIONS = {
-	{ text = 'None',  value = '' },
-	{ text = 'Shift', value = 'shift' },
-	{ text = 'Ctrl',  value = 'ctrl' },
-	{ text = 'Alt',   value = 'alt' },
-}
 
 local TYPE_OPTIONS = {
 	{ text = 'Spell',  value = 'spell' },
@@ -48,6 +31,43 @@ local TYPE_OPTIONS = {
 	{ text = 'Assist', value = 'assist' },
 	{ text = 'Menu',   value = 'menu' },
 }
+
+-- ============================================================
+-- Bind capture formatting
+-- ============================================================
+
+local BUTTON_LABELS = {
+	LeftButton   = 'Left Click',
+	RightButton  = 'Right Click',
+	MiddleButton = 'Middle Click',
+	Button4      = 'Button 4',
+	Button5      = 'Button 5',
+}
+
+--- Build a display string from modifier + button values.
+--- @param modifier string  e.g. '', 'shift', 'ctrl-shift'
+--- @param button   string  e.g. 'LeftButton'
+--- @return string
+local function FormatBindText(modifier, button)
+	local parts = {}
+	if(modifier and modifier ~= '') then
+		for mod in modifier:gmatch('[^-]+') do
+			parts[#parts + 1] = mod:sub(1, 1):upper() .. mod:sub(2)
+		end
+	end
+	parts[#parts + 1] = BUTTON_LABELS[button] or button
+	return table.concat(parts, ' + ')
+end
+
+--- Read current modifier keys and return a combined modifier string.
+--- @return string  e.g. '', 'shift', 'ctrl-alt'
+local function GetCurrentModifiers()
+	local mods = {}
+	if(IsShiftKeyDown()) then mods[#mods + 1] = 'shift' end
+	if(IsControlKeyDown()) then mods[#mods + 1] = 'ctrl' end
+	if(IsAltKeyDown()) then mods[#mods + 1] = 'alt' end
+	return table.concat(mods, '-')
+end
 
 -- ============================================================
 -- Config helpers
@@ -115,7 +135,7 @@ F.Settings.RegisterPanel({
 			infoFS:ClearAllPoints()
 			Widgets.SetPoint(infoFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 			infoFS:SetWidth(width)
-			infoFS:SetText('Clique detected \xe2\x80\x94 bindings are managed by Clique.')
+			infoFS:SetText('Clique detected — bindings are managed by Clique.')
 			infoFS:SetWordWrap(true)
 
 			content:SetHeight(80)
@@ -141,13 +161,16 @@ F.Settings.RegisterPanel({
 		-- Track the list of binding row frames
 		local bindingRows = {}
 
+		-- Track which capture button is currently listening (only one at a time)
+		local activeCapture = nil
+
 		local function saveAllBindings()
 			local bindings = {}
 			for _, row in next, bindingRows do
 				local bindType = row._typeDD:GetValue()
 				local entry = {
-					button   = row._btnDD:GetValue(),
-					modifier = row._modDD:GetValue(),
+					button   = row._button,
+					modifier = row._modifier,
 					type     = bindType,
 				}
 				-- Runtime reads 'spell' or 'macro' field, not 'value'
@@ -163,6 +186,10 @@ F.Settings.RegisterPanel({
 		end
 
 		local function removeRow(rowFrame)
+			-- Cancel capture if this row is active
+			if(activeCapture and activeCapture == rowFrame._captureBtn) then
+				activeCapture = nil
+			end
 			for i, r in next, bindingRows do
 				if(r == rowFrame) then
 					table.remove(bindingRows, i)
@@ -181,6 +208,42 @@ F.Settings.RegisterPanel({
 			saveAllBindings()
 		end
 
+		--- Exit capture mode on a button, restoring its display text.
+		local function stopCapture(captureBtn)
+			if(activeCapture == captureBtn) then
+				activeCapture = nil
+			end
+			captureBtn._capturing = false
+			captureBtn._label:SetTextColor(Widgets.UnpackColor(C.Colors.textActive))
+			captureBtn._label:SetText(captureBtn._displayText)
+			captureBtn:EnableKeyboard(false)
+			captureBtn:SetScript('OnKeyDown', nil)
+		end
+
+		--- Enter capture mode: listen for mouse/key input.
+		local function startCapture(captureBtn)
+			-- Stop any other active capture first
+			if(activeCapture and activeCapture ~= captureBtn) then
+				stopCapture(activeCapture)
+			end
+			activeCapture = captureBtn
+			captureBtn._capturing = true
+			captureBtn._label:SetTextColor(Widgets.UnpackColor(C.Colors.accent))
+			captureBtn._label:SetText('Press a bind...')
+
+			-- Listen for keyboard (Escape to cancel)
+			captureBtn:EnableKeyboard(true)
+			captureBtn:SetPropagateKeyboardInput(true)
+			captureBtn:SetScript('OnKeyDown', function(self, key)
+				if(key == 'ESCAPE') then
+					self:SetPropagateKeyboardInput(false)
+					stopCapture(self)
+				else
+					self:SetPropagateKeyboardInput(true)
+				end
+			end)
+		end
+
 		local function addBindingRow(btnVal, modVal, typeVal, valText)
 			local idx = #bindingRows + 1
 			local rowY = -(idx - 1) * (ROW_H + C.Spacing.base)
@@ -190,28 +253,40 @@ F.Settings.RegisterPanel({
 			Widgets.SetPoint(row, 'TOPLEFT', rowContainer, 'TOPLEFT', 0, rowY)
 			row:SetSize(width, ROW_H)
 
-			-- Button dropdown
-			local btnDD = Widgets.CreateDropdown(row, BTN_DD_W)
-			btnDD:ClearAllPoints()
-			Widgets.SetPoint(btnDD, 'LEFT', row, 'LEFT', 0, 0)
-			btnDD:SetItems(BUTTON_OPTIONS)
-			btnDD:SetValue(btnVal or 'LeftButton')
-			btnDD:SetOnSelect(saveAllBindings)
-			row._btnDD = btnDD
+			-- Store the binding values on the row
+			row._button   = btnVal or 'LeftButton'
+			row._modifier = modVal or ''
 
-			-- Modifier dropdown
-			local modDD = Widgets.CreateDropdown(row, MOD_DD_W)
-			modDD:ClearAllPoints()
-			Widgets.SetPoint(modDD, 'LEFT', btnDD, 'RIGHT', C.Spacing.base, 0)
-			modDD:SetItems(MODIFIER_OPTIONS)
-			modDD:SetValue(modVal or '')
-			modDD:SetOnSelect(saveAllBindings)
-			row._modDD = modDD
+			-- ── Capture button ────────────────────────────────
+			local captureBtn = Widgets.CreateButton(row, '', 'widget', CAPTURE_W, EDITBOX_H)
+			captureBtn:ClearAllPoints()
+			Widgets.SetPoint(captureBtn, 'LEFT', row, 'LEFT', 0, 0)
+			captureBtn._displayText = FormatBindText(row._modifier, row._button)
+			captureBtn._label:SetText(captureBtn._displayText)
+			captureBtn._capturing = false
+			row._captureBtn = captureBtn
+
+			-- Left-click toggles capture mode; any other mouse button is captured
+			captureBtn:RegisterForClicks('AnyDown')
+			captureBtn:SetOnClick(nil)  -- clear default
+			captureBtn:SetScript('OnClick', function(self, mouseButton)
+				if(self._capturing) then
+					-- Capture this click as the binding
+					row._button   = mouseButton
+					row._modifier = GetCurrentModifiers()
+					self._displayText = FormatBindText(row._modifier, row._button)
+					stopCapture(self)
+					saveAllBindings()
+				else
+					-- Enter capture mode
+					startCapture(self)
+				end
+			end)
 
 			-- Type dropdown
 			local typeDD = Widgets.CreateDropdown(row, TYPE_DD_W)
 			typeDD:ClearAllPoints()
-			Widgets.SetPoint(typeDD, 'LEFT', modDD, 'RIGHT', C.Spacing.base, 0)
+			Widgets.SetPoint(typeDD, 'LEFT', captureBtn, 'RIGHT', C.Spacing.base, 0)
 			typeDD:SetItems(TYPE_OPTIONS)
 			typeDD:SetValue(typeVal or 'spell')
 			typeDD:SetOnSelect(saveAllBindings)
@@ -224,13 +299,13 @@ F.Settings.RegisterPanel({
 			if(valText and valText ~= '') then
 				valueEB:SetText(valText)
 			else
-				valueEB:SetPlaceholder('Spell / Macro\xe2\x80\xa6')
+				valueEB:SetPlaceholder('Spell or Macro')
 			end
 			valueEB:SetOnTextChanged(saveAllBindings)
 			row._valueEB = valueEB
 
-			-- Remove button ("\xC3\x97")
-			local remBtn = Widgets.CreateButton(row, '\xC3\x97', 'widget', REM_BTN_W, EDITBOX_H)
+			-- Remove button
+			local remBtn = Widgets.CreateButton(row, 'X', 'widget', REM_BTN_W, EDITBOX_H)
 			remBtn:ClearAllPoints()
 			Widgets.SetPoint(remBtn, 'LEFT', valueEB, 'RIGHT', C.Spacing.base, 0)
 			local capturedRow = row
@@ -263,7 +338,7 @@ F.Settings.RegisterPanel({
 		bindCardY = bindCardY - containerH - C.Spacing.normal
 
 		-- ── Add Binding button ─────────────────────────────────
-		local addBtn = Widgets.CreateButton(bindInner, 'Add Binding', 'accent', ADD_BTN_W + 40, BUTTON_H)
+		local addBtn = Widgets.CreateButton(bindInner, 'Add Binding', 'accent', ADD_BTN_W, BUTTON_H)
 		addBtn:ClearAllPoints()
 		Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, bindCardY)
 		addBtn:SetOnClick(function()

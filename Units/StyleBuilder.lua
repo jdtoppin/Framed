@@ -522,6 +522,9 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- Store unit type for live config lookups
 	self._framedUnitType = unitType
 
+	-- Register for all mouse button clicks (WoW 10.0+ defaults to LeftButtonUp only)
+	self:RegisterForClicks('AnyUp')
+
 	-- --------------------------------------------------------
 	-- 1. Size the frame
 	-- --------------------------------------------------------
