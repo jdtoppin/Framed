@@ -64,7 +64,15 @@ F.Settings.RegisterPanel({
 		descFS:SetWidth(width)
 		descFS:SetText('Shows glowing spell icons for missing raid buffs (Fortitude, Intellect, Battle Shout, Mark of the Wild, Skyfury, Blessing of the Bronze). Icons only appear when the providing class is in your group.')
 		descFS:SetWordWrap(true)
-		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
+		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.tight
+
+		-- Reload notice
+		local reloadInfo = Widgets.CreateInfoIcon(content,
+			'Requires /reload',
+			'Missing Buffs icons are created at frame setup time. Changes to icon size, position, and other settings require a /reload to take effect.')
+		reloadInfo:ClearAllPoints()
+		Widgets.SetPoint(reloadInfo, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - reloadInfo:GetHeight() - C.Spacing.normal
 
 		-- ── Icon Settings ─────────────────────────────────────
 		local iconHeading, iconHeadingH = Widgets.CreateHeading(content, 'Icon Settings', 2)
@@ -76,27 +84,17 @@ F.Settings.RegisterPanel({
 		card, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
 		-- Icon Size
-		local sizeSlider = Widgets.CreateSlider(inner, WIDGET_W, {
-			label    = 'Icon Size',
-			min      = 8,
-			max      = 32,
-			step     = 1,
-			value    = get('iconSize') or 12,
-			onChange = function(v) set('iconSize', v) end,
-		})
+		local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 32, 1)
+		sizeSlider:SetValue(get('iconSize') or 12)
+		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 		sizeSlider:ClearAllPoints()
 		Widgets.SetPoint(sizeSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		cardY = cardY - SLIDER_H - C.Spacing.normal
 
 		-- Frame Level
-		local levelSlider = Widgets.CreateSlider(inner, WIDGET_W, {
-			label    = 'Frame Level',
-			min      = 1,
-			max      = 10,
-			step     = 1,
-			value    = get('frameLevel') or 5,
-			onChange = function(v) set('frameLevel', v) end,
-		})
+		local levelSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 10, 1)
+		levelSlider:SetValue(get('frameLevel') or 5)
+		levelSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
 		levelSlider:ClearAllPoints()
 		Widgets.SetPoint(levelSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		cardY = cardY - SLIDER_H - C.Spacing.normal
@@ -122,39 +120,31 @@ F.Settings.RegisterPanel({
 		cardY = cardY - DROPDOWN_H - C.Spacing.normal
 
 		-- Anchor X Offset
-		local xSlider = Widgets.CreateSlider(inner, WIDGET_W, {
-			label    = 'X Offset',
-			min      = -20,
-			max      = 20,
-			step     = 1,
-			value    = (function()
-				local a = get('anchor')
-				return a and a[4] or -2
-			end)(),
-			onChange = function(v)
-				local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
-				set('anchor', { a[1], nil, a[3], v, a[5] })
-			end,
-		})
+		local currentAnchorX = (function()
+			local a = get('anchor')
+			return a and a[4] or -2
+		end)()
+		local xSlider = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -20, 20, 1)
+		xSlider:SetValue(currentAnchorX)
+		xSlider:SetAfterValueChanged(function(v)
+			local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+			set('anchor', { a[1], nil, a[3], v, a[5] })
+		end)
 		xSlider:ClearAllPoints()
 		Widgets.SetPoint(xSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		cardY = cardY - SLIDER_H - C.Spacing.normal
 
 		-- Anchor Y Offset
-		local ySlider = Widgets.CreateSlider(inner, WIDGET_W, {
-			label    = 'Y Offset',
-			min      = -20,
-			max      = 20,
-			step     = 1,
-			value    = (function()
-				local a = get('anchor')
-				return a and a[5] or 2
-			end)(),
-			onChange = function(v)
-				local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
-				set('anchor', { a[1], nil, a[3], a[4], v })
-			end,
-		})
+		local currentAnchorY = (function()
+			local a = get('anchor')
+			return a and a[5] or 2
+		end)()
+		local ySlider = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -20, 20, 1)
+		ySlider:SetValue(currentAnchorY)
+		ySlider:SetAfterValueChanged(function(v)
+			local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+			set('anchor', { a[1], nil, a[3], a[4], v })
+		end)
 		ySlider:ClearAllPoints()
 		Widgets.SetPoint(ySlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		cardY = cardY - SLIDER_H - C.Spacing.normal

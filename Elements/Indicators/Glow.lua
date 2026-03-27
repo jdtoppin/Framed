@@ -27,13 +27,15 @@ local function LCG_Start(parent, glowType, color, glowConfig)
 		local cfg = glowConfig or {}
 		LCG.PixelGlow_Start(parent, color, cfg.lines, cfg.frequency, cfg.length, cfg.thickness, nil, nil)
 	elseif(glowType == C.GlowType.SOFT) then
-		LCG.AutoCastGlow_Start(parent, color)
+		local cfg = glowConfig or {}
+		LCG.AutoCastGlow_Start(parent, color, cfg.particles, cfg.frequency, cfg.scale)
 	elseif(glowType == C.GlowType.SHINE) then
-		-- Shine uses ButtonGlow with higher frequency for a pulsing "shine" effect
-		LCG.ButtonGlow_Start(parent, color, 0.25, 0.12)
+		local cfg = glowConfig or {}
+		LCG.ButtonGlow_Start(parent, color, cfg.frequency)
 	else
 		-- Default: Proc / ButtonGlow
-		LCG.ButtonGlow_Start(parent, color)
+		local cfg = glowConfig or {}
+		LCG.ButtonGlow_Start(parent, color, cfg.frequency)
 	end
 end
 

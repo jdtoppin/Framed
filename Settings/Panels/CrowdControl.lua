@@ -27,14 +27,19 @@ local DEFAULT_CC_SPELLS = {
 -- ============================================================
 
 local function getCCSpells()
-	return (F.Config and F.Config:Get('auras.crowdControl.spells')) or DEFAULT_CC_SPELLS
+	local presetName = F.Settings.GetEditingPreset()
+	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
+	return (F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.spells')) or DEFAULT_CC_SPELLS
 end
 local function setCCSpells(spells)
+	local presetName = F.Settings.GetEditingPreset()
+	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	if(F.Config) then
-		F.Config:Set('auras.crowdControl.spells', spells)
+		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.spells', spells)
 	end
+	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
 	if(F.EventBus) then
-		F.EventBus:Fire('CONFIG_CHANGED:auras')
+		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl')
 	end
 end
 

@@ -1039,3 +1039,151 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 		end
 	end
 end, 'StyleBuilder.HealthColorConfig')
+
+-- ============================================================
+-- Live config updates for aura elements
+-- ============================================================
+
+local AURA_ELEMENT_MAP = {
+	debuffs        = 'FramedDebuffs',
+	externals      = 'FramedExternals',
+	defensives     = 'FramedDefensives',
+	raidDebuffs    = 'FramedRaidDebuffs',
+	dispellable    = 'FramedDispellable',
+	targetedSpells = 'FramedTargetedSpells',
+}
+
+-- Structural BorderIcon config keys — if these change, wipe and recreate pool
+local STRUCTURAL_KEYS = {
+	showStacks   = true,
+	showDuration = true,
+	showCooldown = true,
+	frameLevel   = true,
+}
+
+--- Wipe and clear all BorderIcon pool entries so they are recreated
+--- with fresh config on the next Update call.
+local function wipePool(element)
+	if(not element._pool) then return end
+	for _, bi in next, element._pool do
+		bi:Clear()
+	end
+	wipe(element._pool)
+end
+
+--- Reposition a container frame from an anchor config table.
+local function repositionContainer(element, anchor)
+	if(not element._container or not anchor) then return end
+	element._container:ClearAllPoints()
+	Widgets.SetPoint(element._container, anchor[1], nil, anchor[3], anchor[4] or 0, anchor[5] or 0)
+end
+
+F.EventBus:Register('CONFIG_CHANGED', function(path)
+	-- Match: presets.*.auras.<unitType>.<auraType>[.<subKey>]
+	local unitType, remainder = path:match('^presets%.[^.]+%.auras%.([^.]+)%.(.+)$')
+	if(not unitType or not remainder) then return end
+
+	-- Extract aura type (first segment) and optional sub-key
+	local auraType = remainder:match('^([^.]+)')
+	if(not auraType) then return end
+
+	local elementKey = AURA_ELEMENT_MAP[auraType]
+	if(not elementKey) then return end
+
+	local oUF = F.oUF
+	if(not oUF or not oUF.objects) then return end
+
+	-- Fetch fresh config once
+	local newConfig = F.StyleBuilder.GetAuraConfig(unitType, auraType)
+	if(not newConfig) then return end
+
+	-- Determine if this is a structural change (sub-key after auraType)
+	local subKey = remainder:match('^[^.]+%.(.+)$')
+	local isStructural = subKey and STRUCTURAL_KEYS[subKey]
+
+	for _, frame in next, oUF.objects do
+		if(frame._framedUnitType == unitType) then
+			local element = frame[elementKey]
+			if(not element) then break end
+
+			-- ── _config-based elements (Debuffs, Externals, Defensives, RaidDebuffs) ──
+			if(element._config) then
+				element._config = newConfig
+
+				-- Reposition container if anchor changed
+				if(not subKey or subKey == 'anchor') then
+					repositionContainer(element, newConfig.anchor)
+				end
+
+				-- Structural change → wipe pool so new entries get fresh config
+				if(isStructural) then
+					wipePool(element)
+				end
+
+				if(element.ForceUpdate) then
+					element:ForceUpdate()
+				end
+
+			-- ── Dispellable (individual properties) ──
+			elseif(elementKey == 'FramedDispellable') then
+				element._onlyDispellableByMe = newConfig.onlyDispellableByMe or false
+				element._showPhysicalDebuffs = newConfig.showPhysicalDebuffs ~= false
+				element._highlightType       = newConfig.highlightType or C.HighlightType.GRADIENT_FULL
+
+				-- Resize icon
+				if(element._borderIcon and newConfig.iconSize) then
+					element._borderIcon:SetSize(newConfig.iconSize)
+				end
+
+				-- Reposition icon
+				if(newConfig.anchor and element._borderIcon) then
+					element._borderIcon:ClearAllPoints()
+					element._borderIcon:SetPoint(unpack(newConfig.anchor))
+				end
+
+				if(element.ForceUpdate) then
+					element:ForceUpdate()
+				end
+
+			-- ── TargetedSpells (individual properties) ──
+			elseif(elementKey == 'FramedTargetedSpells') then
+				element._maxDisplayed = newConfig.maxDisplayed or 1
+				element._borderColor  = newConfig.borderColor
+
+				-- Glow properties
+				local glowCfg = newConfig.glow or {}
+				element._glowColor = glowCfg.color or C.Colors.accent
+				element._glowType  = glowCfg.type or C.GlowType.PROC
+				if(glowCfg.lines or glowCfg.frequency or glowCfg.length or glowCfg.thickness
+					or glowCfg.particles or glowCfg.scale) then
+					element._glowConfig = {
+						lines     = glowCfg.lines,
+						frequency = glowCfg.frequency,
+						length    = glowCfg.length,
+						thickness = glowCfg.thickness,
+						particles = glowCfg.particles,
+						scale     = glowCfg.scale,
+					}
+				else
+					element._glowConfig = nil
+				end
+
+				-- Resize pool icons
+				if(newConfig.iconSize and element._pool) then
+					for _, bi in next, element._pool do
+						bi:SetSize(newConfig.iconSize)
+					end
+				end
+
+				-- Update glow type if changed
+				if(element._glow) then
+					element._glow:SetGlowType(element._glowType)
+				end
+
+				if(element.ForceUpdate) then
+					element:ForceUpdate()
+				end
+			end
+		end
+	end
+end, 'StyleBuilder.AuraConfig')

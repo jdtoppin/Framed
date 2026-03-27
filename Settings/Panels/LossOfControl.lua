@@ -46,14 +46,19 @@ end
 -- ============================================================
 
 local function getLoC(key)
-	return F.Config and F.Config:Get('auras.lossOfControl.' .. key)
+	local presetName = F.Settings.GetEditingPreset()
+	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
+	return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.lossOfControl.' .. key)
 end
 local function setLoC(key, value)
+	local presetName = F.Settings.GetEditingPreset()
+	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	if(F.Config) then
-		F.Config:Set('auras.lossOfControl.' .. key, value)
+		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.lossOfControl.' .. key, value)
 	end
+	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
 	if(F.EventBus) then
-		F.EventBus:Fire('CONFIG_CHANGED:auras')
+		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.lossOfControl')
 	end
 end
 

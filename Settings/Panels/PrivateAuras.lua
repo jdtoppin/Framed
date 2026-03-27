@@ -63,7 +63,15 @@ F.Settings.RegisterPanel({
 		descFS:SetWidth(width)
 		descFS:SetWordWrap(true)
 		descFS:SetText('Private auras are Blizzard-controlled aura anchors. Their spells are defined by the game, but you can configure their size and position on unit frames.')
-		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
+		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.tight
+
+		-- Reload notice
+		local reloadInfo = Widgets.CreateInfoIcon(content,
+			'Requires /reload',
+			'Private Auras are registered at the C-level API. Changes to icon size and anchor require a /reload to take effect.')
+		reloadInfo:ClearAllPoints()
+		Widgets.SetPoint(reloadInfo, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - reloadInfo:GetHeight() - C.Spacing.normal
 
 		-- ── Display section ────────────────────────────────────
 		local displayHeading, displayHeadingH = Widgets.CreateHeading(content, 'Icon Size', 2)
