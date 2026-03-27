@@ -187,75 +187,16 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	Widgets.SetPoint(oriDD, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
 	displayCardY = displayCardY - DROPDOWN_H - C.Spacing.normal
 
-	-- Frame Level
-	local lvlSlider = Widgets.CreateSlider(displayInner, 'Frame Level', WIDGET_W, 1, 20, 1)
-	lvlSlider:SetValue(get('frameLevel') or 5)
-	lvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
-	lvlSlider:ClearAllPoints()
-	Widgets.SetPoint(lvlSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
-	displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
-
 	yOffset = Widgets.EndCard(displayCard, parent, displayCardY)
 
 	-- ── Position section ────────────────────────────────────
-	local posHeading, posHeadingH = Widgets.CreateHeading(parent, 'Icon Position', 2)
-	posHeading:ClearAllPoints()
-	Widgets.SetPoint(posHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - posHeadingH
-
-	local posCard, posInner, posCardY
-	posCard, posInner, posCardY = Widgets.StartCard(parent, width, yOffset)
-
-	-- Anchor picker (if available)
-	if(Widgets.CreateAnchorPicker) then
-		local anchor = get('anchor') or { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 }
-		local picker = Widgets.CreateAnchorPicker(posInner, width)
-		picker:SetAnchor(anchor[1], anchor[4] or 0, anchor[5] or 0)
-		picker:ClearAllPoints()
-		Widgets.SetPoint(picker, 'TOPLEFT', posInner, 'TOPLEFT', 0, posCardY)
-		picker:SetOnChanged(function(point, x, y)
-			set('anchor', { point, nil, point, x, y })
-		end)
-		posCardY = posCardY - picker:GetHeight() - C.Spacing.normal
-	end
-
-	yOffset = Widgets.EndCard(posCard, parent, posCardY)
+	yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
 
 	-- ── Stack Font section ──────────────────────────────────
-	local stackHeading, stackHeadingH = Widgets.CreateHeading(parent, 'Stack Count Font', 2)
-	stackHeading:ClearAllPoints()
-	Widgets.SetPoint(stackHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - stackHeadingH
-
-	local stackCard, stackInner, stackCardY
-	stackCard, stackInner, stackCardY = Widgets.StartCard(parent, width, yOffset)
-
-	local stackSize = Widgets.CreateSlider(stackInner, 'Size', WIDGET_W, 6, 24, 1)
-	stackSize:SetValue(get('stackFont.size') or 10)
-	stackSize:SetAfterValueChanged(function(v) set('stackFont.size', v) end)
-	stackSize:ClearAllPoints()
-	Widgets.SetPoint(stackSize, 'TOPLEFT', stackInner, 'TOPLEFT', 0, stackCardY)
-	stackCardY = stackCardY - SLIDER_H - C.Spacing.normal
-
-	yOffset = Widgets.EndCard(stackCard, parent, stackCardY)
+	yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Count Font', 'stackFont', get, set)
 
 	-- ── Duration Font section ───────────────────────────────
-	local durHeading, durHeadingH = Widgets.CreateHeading(parent, 'Duration Text Font', 2)
-	durHeading:ClearAllPoints()
-	Widgets.SetPoint(durHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - durHeadingH
-
-	local durFontCard, durFontInner, durFontCardY
-	durFontCard, durFontInner, durFontCardY = Widgets.StartCard(parent, width, yOffset)
-
-	local durSize = Widgets.CreateSlider(durFontInner, 'Size', WIDGET_W, 6, 24, 1)
-	durSize:SetValue(get('durationFont.size') or 10)
-	durSize:SetAfterValueChanged(function(v) set('durationFont.size', v) end)
-	durSize:ClearAllPoints()
-	Widgets.SetPoint(durSize, 'TOPLEFT', durFontInner, 'TOPLEFT', 0, durFontCardY)
-	durFontCardY = durFontCardY - SLIDER_H - C.Spacing.normal
-
-	yOffset = Widgets.EndCard(durFontCard, parent, durFontCardY)
+	yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Duration Text Font', 'durationFont', get, set)
 
 	return yOffset
 end

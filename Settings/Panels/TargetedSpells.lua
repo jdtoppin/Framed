@@ -147,154 +147,43 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(glowHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - glowHeadingH
 
-		local glowCard, glowInner, glowCardY
-		glowCard, glowInner, glowCardY = Widgets.StartCard(content, width, yOffset)
-
-		local glowTypeLabel, glowTypeLabelH = Widgets.CreateHeading(glowInner, 'Glow Type', 3)
-		glowTypeLabel:ClearAllPoints()
-		Widgets.SetPoint(glowTypeLabel, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
-		glowCardY = glowCardY - glowTypeLabelH
-
-		local glowDD = Widgets.CreateDropdown(glowInner, WIDGET_W)
-		glowDD:SetItems({
-			{ text = 'Proc',  value = C.GlowType.PROC },
-			{ text = 'Pixel', value = C.GlowType.PIXEL },
-			{ text = 'Soft',  value = C.GlowType.SOFT },
-			{ text = 'Shine', value = C.GlowType.SHINE },
-		})
-		glowDD:SetValue(get('glow.type') or C.GlowType.PROC)
-		glowDD:SetOnSelect(function(v) set('glow.type', v) end)
-		glowDD:ClearAllPoints()
-		Widgets.SetPoint(glowDD, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
-		glowCardY = glowCardY - DROPDOWN_H - C.Spacing.normal
-
-		local glowColorPicker = nil
-		if(Widgets.CreateColorPicker) then
-			glowColorPicker = Widgets.CreateColorPicker(glowInner, 'Glow Color')
-			glowColorPicker:ClearAllPoints()
-			Widgets.SetPoint(glowColorPicker, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
-			local savedColor = get('glow.color')
-			if(savedColor) then
-				glowColorPicker:SetColor(savedColor[1], savedColor[2], savedColor[3])
-			end
-			glowColorPicker:SetOnColorChanged(function(r, g, b)
-				set('glow.color', { r, g, b })
-			end)
-			glowCardY = glowCardY - glowColorPicker:GetHeight() - C.Spacing.normal
+		local function getGlow(key)
+			if(key == 'glowType') then return get('glow.type') end
+			if(key == 'glowColor') then return get('glow.color') end
+			return get('glow.' .. key)
+		end
+		local function setGlow(key, value)
+			if(key == 'glowType') then set('glow.type', value); return end
+			if(key == 'glowColor') then set('glow.color', value); return end
+			set('glow.' .. key, value)
 		end
 
-		-- ── Per glow type parameters (match Cell UX) ───────────
-		-- Pixel: lines, frequency, length, thickness
-		local pixelLinesSlider = Widgets.CreateSlider(glowInner, 'Lines', WIDGET_W, 1, 30, 1)
-		pixelLinesSlider:SetValue(get('glow.lines') or 8)
-		pixelLinesSlider:SetAfterValueChanged(function(v) set('glow.lines', v) end)
-		pixelLinesSlider:ClearAllPoints()
-		Widgets.SetPoint(pixelLinesSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
+		-- Capture child count before building glow card so we can find the new card frame
+		local childrenBefore = { content:GetChildren() }
+		local childCountBefore = #childrenBefore
 
-		local pixelFreqSlider = Widgets.CreateSlider(glowInner, 'Speed', WIDGET_W, -2, 2, 0.1)
-		pixelFreqSlider:SetValue(get('glow.frequency') or 0.25)
-		pixelFreqSlider:SetAfterValueChanged(function(v) set('glow.frequency', v) end)
-		pixelFreqSlider:ClearAllPoints()
-		Widgets.SetPoint(pixelFreqSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY - SLIDER_H - C.Spacing.tight)
+		yOffset = F.Settings.BuildGlowCard(content, width, yOffset, getGlow, setGlow, { allowNone = false })
 
-		local pixelLenSlider = Widgets.CreateSlider(glowInner, 'Length', WIDGET_W, 1, 50, 1)
-		pixelLenSlider:SetValue(get('glow.length') or 6)
-		pixelLenSlider:SetAfterValueChanged(function(v) set('glow.length', v) end)
-		pixelLenSlider:ClearAllPoints()
-		Widgets.SetPoint(pixelLenSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY - (SLIDER_H + C.Spacing.tight) * 2)
-
-		local pixelThickSlider = Widgets.CreateSlider(glowInner, 'Thickness', WIDGET_W, 1, 20, 1)
-		pixelThickSlider:SetValue(get('glow.thickness') or 2)
-		pixelThickSlider:SetAfterValueChanged(function(v) set('glow.thickness', v) end)
-		pixelThickSlider:ClearAllPoints()
-		Widgets.SetPoint(pixelThickSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY - (SLIDER_H + C.Spacing.tight) * 3)
-
-		-- Soft/Shine: particles, frequency, scale
-		local softParticlesSlider = Widgets.CreateSlider(glowInner, 'Particles', WIDGET_W, 1, 30, 1)
-		softParticlesSlider:SetValue(get('glow.particles') or 4)
-		softParticlesSlider:SetAfterValueChanged(function(v) set('glow.particles', v) end)
-		softParticlesSlider:ClearAllPoints()
-		Widgets.SetPoint(softParticlesSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
-
-		local softFreqSlider = Widgets.CreateSlider(glowInner, 'Speed', WIDGET_W, -2, 2, 0.1)
-		softFreqSlider:SetValue(get('glow.frequency') or 0.125)
-		softFreqSlider:SetAfterValueChanged(function(v) set('glow.frequency', v) end)
-		softFreqSlider:ClearAllPoints()
-		Widgets.SetPoint(softFreqSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY - SLIDER_H - C.Spacing.tight)
-
-		local softScaleSlider = Widgets.CreateSlider(glowInner, 'Scale %', WIDGET_W, 50, 500, 5)
-		softScaleSlider:SetValue(math.floor((get('glow.scale') or 1) * 100))
-		softScaleSlider:SetAfterValueChanged(function(v) set('glow.scale', v / 100) end)
-		softScaleSlider:ClearAllPoints()
-		Widgets.SetPoint(softScaleSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY - (SLIDER_H + C.Spacing.tight) * 2)
-
-		-- Proc: frequency only
-		local procFreqSlider = Widgets.CreateSlider(glowInner, 'Speed', WIDGET_W, -2, 2, 0.1)
-		procFreqSlider:SetValue(get('glow.frequency') or 0)
-		procFreqSlider:SetAfterValueChanged(function(v) set('glow.frequency', v) end)
-		procFreqSlider:ClearAllPoints()
-		Widgets.SetPoint(procFreqSlider, 'TOPLEFT', glowInner, 'TOPLEFT', 0, glowCardY)
-
-		-- Track per-type widgets for visibility toggling
-		local pixelWidgets = { pixelLinesSlider, pixelFreqSlider, pixelLenSlider, pixelThickSlider }
-		local softWidgets  = { softParticlesSlider, softFreqSlider, softScaleSlider }
-		local procWidgets  = { procFreqSlider }
-		local allGlowParamWidgets = {}
-		for _, w in next, pixelWidgets do allGlowParamWidgets[#allGlowParamWidgets + 1] = w end
-		for _, w in next, softWidgets  do allGlowParamWidgets[#allGlowParamWidgets + 1] = w end
-		for _, w in next, procWidgets  do allGlowParamWidgets[#allGlowParamWidgets + 1] = w end
-
-		local function updateGlowParamVisibility(glowType)
-			local isPixel = (glowType == C.GlowType.PIXEL)
-			local isSoft  = (glowType == C.GlowType.SOFT or glowType == C.GlowType.SHINE)
-			local isProc  = (glowType == C.GlowType.PROC)
-			for _, w in next, pixelWidgets do w:SetShown(isPixel) end
-			for _, w in next, softWidgets  do w:SetShown(isSoft)  end
-			for _, w in next, procWidgets  do w:SetShown(isProc)  end
-
-			-- Adjust card height based on visible sliders
-			local visibleCount = 0
-			if(isPixel) then visibleCount = 4
-			elseif(isSoft) then visibleCount = 3
-			elseif(isProc) then visibleCount = 1
-			end
-			-- The card was already ended, but we need to recalculate the
-			-- glow card yOffset based on visible params
+		-- Find the card frame(s) added by BuildGlowCard
+		local glowCards = {}
+		local childrenAfter = { content:GetChildren() }
+		for i = childCountBefore + 1, #childrenAfter do
+			glowCards[#glowCards + 1] = childrenAfter[i]
 		end
-
-		updateGlowParamVisibility(get('glow.type') or C.GlowType.PROC)
-
-		-- Determine max slider rows needed for card height (4 = pixel)
-		glowCardY = glowCardY - (SLIDER_H + C.Spacing.tight) * 4 - C.Spacing.normal
-
-		yOffset = Widgets.EndCard(glowCard, content, glowCardY)
 
 		-- ── Display mode visibility ─────────────────────────────
 		local iconWidgets = { iconHeading, sizeSlider, maxSlider, iconLvlSlider }
 		if(iconAnchorPicker) then iconWidgets[#iconWidgets + 1] = iconAnchorPicker end
 
-		local glowWidgets = { glowHeading, glowDD }
-		if(glowColorPicker) then glowWidgets[#glowWidgets + 1] = glowColorPicker end
-		for _, w in next, allGlowParamWidgets do glowWidgets[#glowWidgets + 1] = w end
-
 		local function updatePaneVisibility(mode)
 			local showIcons = (mode == 'Icons' or mode == 'Both')
 			local showGlow  = (mode == 'BorderGlow' or mode == 'Both')
 			for _, w in next, iconWidgets do w:SetShown(showIcons) end
-			for _, w in next, glowWidgets  do w:SetShown(showGlow)  end
-			-- Re-apply per-type visibility within the glow section
-			if(showGlow) then
-				updateGlowParamVisibility(glowDD:GetValue() or C.GlowType.PROC)
-			end
+			glowHeading:SetShown(showGlow)
+			for _, card in next, glowCards do card:SetShown(showGlow) end
 		end
 
 		updatePaneVisibility(get('displayMode') or 'Both')
-
-		-- Wire glow type dropdown to update per-type sliders
-		glowDD:SetOnSelect(function(v)
-			set('glow.type', v)
-			updateGlowParamVisibility(v)
-		end)
 
 		modeDD:SetOnSelect(function(v)
 			set('displayMode', v)

@@ -17,6 +17,7 @@ local REMOVE_SIZE  = 14
 local ARROW_SIZE   = 12
 local ARROW_GAP    = 2
 local PAD_H        = 6   -- horizontal padding inside each row
+local SWATCH_SIZE  = 12  -- per-spell color swatch
 
 -- Use a single arrow icon; flip via TexCoord for the other direction
 local ARROW_ICON = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
@@ -163,9 +164,11 @@ function Widgets.CreateSpellList(parent, width, height)
 	Widgets.ApplyBaseMixin(spellList)
 
 	-- Internal state
-	spellList._spells    = {}  -- ordered array of spellIDs
-	spellList._rowPool   = {}
-	spellList._onChanged = nil
+	spellList._spells           = {}  -- ordered array of spellIDs
+	spellList._rowPool          = {}
+	spellList._onChanged        = nil
+	spellList._showColorPicker  = false
+	spellList._spellColors      = {}
 
 	-- ScrollFrame fills the outer container
 	local scroll = Widgets.CreateScrollFrame(spellList, nil, width, height)
@@ -219,9 +222,35 @@ function Widgets.CreateSpellList(parent, width, height)
 				row._icon:Show()
 			end
 
+			-- Color swatch (shown when _showColorPicker is true)
+			local showSwatch = spellList._showColorPicker
+			if(showSwatch) then
+				-- Create swatch texture on row if not already present
+				if(not row._colorSwatch) then
+					local swatch = row:CreateTexture(nil, 'ARTWORK')
+					Widgets.SetSize(swatch, SWATCH_SIZE, SWATCH_SIZE)
+					row._colorSwatch = swatch
+				end
+				row._colorSwatch:Show()
+				-- Position swatch to the left of the up arrow
+				row._colorSwatch:ClearAllPoints()
+				row._colorSwatch:SetPoint('RIGHT', row._upBtn, 'LEFT', -PAD_H, 0)
+				-- Apply spell color or white default
+				local colors = spellList._spellColors or {}
+				local c = colors[spellID]
+				if(c) then
+					row._colorSwatch:SetColorTexture(c[1] or 1, c[2] or 1, c[3] or 1, 1)
+				else
+					row._colorSwatch:SetColorTexture(1, 1, 1, 1)
+				end
+			elseif(row._colorSwatch) then
+				row._colorSwatch:Hide()
+			end
+
 			-- Clamp name width so it does not overlap controls
 			local idWidth = row._idFS:GetStringWidth()
-			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + idWidth + PAD_H
+			local swatchUsed = showSwatch and (SWATCH_SIZE + PAD_H) or 0
+			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + swatchUsed + idWidth + PAD_H
 			local usedLeft  = PAD_H + ICON_SIZE + ICON_GAP
 			row._nameFS:SetWidth(math.max(1, (contentWidth - usedLeft - usedRight)))
 
@@ -351,6 +380,26 @@ function Widgets.CreateSpellList(parent, width, height)
 	--- @param func function
 	function spellList:SetOnChanged(func)
 		self._onChanged = func
+	end
+
+	--- Enable or disable per-spell color swatches.
+	--- @param show boolean
+	function spellList:SetShowColorPicker(show)
+		self._showColorPicker = show
+		Layout()
+	end
+
+	--- Set the spell color map used by color swatches.
+	--- @param colors table  Map of spellID -> { r, g, b }
+	function spellList:SetSpellColors(colors)
+		self._spellColors = colors or {}
+		Layout()
+	end
+
+	--- Get the current spell color map.
+	--- @return table
+	function spellList:GetSpellColors()
+		return self._spellColors or {}
 	end
 
 	-- Initial layout (empty state)
