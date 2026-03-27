@@ -259,14 +259,30 @@ local function getTypeItems()
 	return {
 		{ text = 'Icons',     value = C.IndicatorType.ICONS },
 		{ text = 'Icon',      value = C.IndicatorType.ICON },
-		{ text = 'Frame Bar', value = C.IndicatorType.FRAME_BAR },
+		{ text = 'Bars',      value = C.IndicatorType.BARS },
 		{ text = 'Bar',       value = C.IndicatorType.BAR },
+		{ text = 'Frame Bar', value = C.IndicatorType.FRAME_BAR },
 		{ text = 'Border',    value = C.IndicatorType.BORDER },
 		{ text = 'Color',     value = C.IndicatorType.COLOR },
 		{ text = 'Overlay',   value = C.IndicatorType.OVERLAY },
 		{ text = 'Glow',      value = C.IndicatorType.GLOW },
 	}
 end
+
+-- ============================================================
+-- Type descriptions for Create card
+-- ============================================================
+local TYPE_DESCRIPTIONS = {
+	Icon    = 'Single spell icon or colored square',
+	Icons   = 'Row/grid of spell icons or colored squares',
+	Bar     = 'Single depleting status bar',
+	Bars    = 'Row/grid of depleting status bars',
+	Color   = 'Colored rectangle positioned on frame',
+	Overlay = 'Health bar overlay — depleting, static fill, or both',
+	Border  = 'Colored border around the frame edge',
+	Glow    = 'Glow effect around the frame',
+	FrameBar = 'Full-frame status bar overlay',
+}
 
 -- ============================================================
 -- List row creation
@@ -340,6 +356,31 @@ local function createListRow(scrollContent)
 end
 
 -- ============================================================
+-- Shared dropdown item tables
+-- ============================================================
+local DURATION_MODE_ITEMS = {
+	{ text = 'Never',  value = 'Never' },
+	{ text = 'Always', value = 'Always' },
+	{ text = '< 75%',  value = '<75' },
+	{ text = '< 50%',  value = '<50' },
+	{ text = '< 25%',  value = '<25' },
+	{ text = '< 15s',  value = '<15s' },
+	{ text = '< 5s',   value = '<5s' },
+}
+
+local ORIENTATION_ITEMS = {
+	{ text = 'Right', value = 'RIGHT' },
+	{ text = 'Left',  value = 'LEFT' },
+	{ text = 'Up',    value = 'UP' },
+	{ text = 'Down',  value = 'DOWN' },
+}
+
+local BAR_ORIENTATION_ITEMS = {
+	{ text = 'Horizontal', value = 'Horizontal' },
+	{ text = 'Vertical',   value = 'Vertical' },
+}
+
+-- ============================================================
 -- Build type-specific indicator settings
 -- ============================================================
 local function buildIndicatorSettings(parent, width, yOffset, name, data, setIndicator)
@@ -347,6 +388,10 @@ local function buildIndicatorSettings(parent, width, yOffset, name, data, setInd
 		data[key] = value
 		setIndicator(name, data)
 	end
+
+	-- get/set wrappers for SharedCards
+	local function get(key) return data[key] end
+	local function set(key, value) update(key, value) end
 
 	-- ── Cast By card ─────────────────────────────────────
 	yOffset = placeHeading(parent, 'Cast By', 2, yOffset)
@@ -405,52 +450,340 @@ local function buildIndicatorSettings(parent, width, yOffset, name, data, setInd
 
 	yOffset = Widgets.EndCard(spCard, parent, spY)
 
-	-- ── Type-specific settings card ───────────────────────
+	-- ── Type-specific settings ────────────────────────────
 	local iType = data.type
 
-	if(iType == C.IndicatorType.ICONS or iType == C.IndicatorType.ICON) then
-		yOffset = placeHeading(parent, 'Display Settings', 2, yOffset)
-		local dispCard, dispInner, dispY = Widgets.StartCard(parent, width, yOffset)
+	if(iType == C.IndicatorType.ICON or iType == C.IndicatorType.ICONS) then
+		-- Size card
+		yOffset = placeHeading(parent, 'Size', 2, yOffset)
+		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
 
-		local sz = Widgets.CreateSlider(dispInner, 'Icon Size', WIDGET_W, 8, 48, 1)
-		sz:SetValue(data.iconSize or 16)
-		sz:SetAfterValueChanged(function(v) update('iconSize', v) end)
-		dispY = placeWidget(sz, dispInner, dispY, SLIDER_H)
+		local wSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 8, 48, 1)
+		wSlider:SetValue(data.iconWidth or 16)
+		wSlider:SetAfterValueChanged(function(v) update('iconWidth', v) end)
+		szY = placeWidget(wSlider, szInner, szY, SLIDER_H)
 
+		local hSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 8, 48, 1)
+		hSlider:SetValue(data.iconHeight or 16)
+		hSlider:SetAfterValueChanged(function(v) update('iconHeight', v) end)
+		szY = placeWidget(hSlider, szInner, szY, SLIDER_H)
+
+		yOffset = Widgets.EndCard(szCard, parent, szY)
+
+		-- Layout card (Icons only)
 		if(iType == C.IndicatorType.ICONS) then
-			local mx = Widgets.CreateSlider(dispInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
-			mx:SetValue(data.maxDisplayed or 3)
-			mx:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
-			dispY = placeWidget(mx, dispInner, dispY, SLIDER_H)
+			yOffset = placeHeading(parent, 'Layout', 2, yOffset)
+			local layCard, layInner, layY = Widgets.StartCard(parent, width, yOffset)
 
-			local ori = Widgets.CreateDropdown(dispInner, WIDGET_W)
-			ori:SetItems({
-				{ text = 'Right', value = 'RIGHT' }, { text = 'Left', value = 'LEFT' },
-				{ text = 'Up', value = 'UP' }, { text = 'Down', value = 'DOWN' },
-			})
-			ori:SetValue(data.orientation or 'RIGHT')
-			ori:SetOnSelect(function(v) update('orientation', v) end)
-			dispY = placeWidget(ori, dispInner, dispY, DROPDOWN_H)
+			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
+			mxSlider:SetValue(data.maxDisplayed or 3)
+			mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
+			layY = placeWidget(mxSlider, layInner, layY, SLIDER_H)
+
+			local nplSlider = Widgets.CreateSlider(layInner, 'Num Per Line', WIDGET_W, 0, 10, 1)
+			nplSlider:SetValue(data.numPerLine or 0)
+			nplSlider:SetAfterValueChanged(function(v) update('numPerLine', v) end)
+			layY = placeWidget(nplSlider, layInner, layY, SLIDER_H)
+
+			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', WIDGET_W, 0, 20, 1)
+			spxSlider:SetValue(data.spacingX or 2)
+			spxSlider:SetAfterValueChanged(function(v) update('spacingX', v) end)
+			layY = placeWidget(spxSlider, layInner, layY, SLIDER_H)
+
+			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', WIDGET_W, 0, 20, 1)
+			spySlider:SetValue(data.spacingY or 2)
+			spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
+			layY = placeWidget(spySlider, layInner, layY, SLIDER_H)
+
+			local oriDD = Widgets.CreateDropdown(layInner, WIDGET_W)
+			oriDD:SetItems(ORIENTATION_ITEMS)
+			oriDD:SetValue(data.orientation or 'RIGHT')
+			oriDD:SetOnSelect(function(v) update('orientation', v) end)
+			layY = placeWidget(oriDD, layInner, layY, DROPDOWN_H)
+
+			yOffset = Widgets.EndCard(layCard, parent, layY)
 		end
 
-		yOffset = Widgets.EndCard(dispCard, parent, dispY)
+		-- Cooldown & Duration card
+		yOffset = placeHeading(parent, 'Cooldown & Duration', 2, yOffset)
+		local cdCard, cdInner, cdY = Widgets.StartCard(parent, width, yOffset)
+
+		local cdSwitch = Widgets.CreateCheckButton(cdInner, 'Show Cooldown', function(checked)
+			update('showCooldown', checked)
+		end)
+		cdSwitch:SetChecked(data.showCooldown ~= false)
+		cdY = placeWidget(cdSwitch, cdInner, cdY, CHECK_H)
+
+		local durDD = Widgets.CreateDropdown(cdInner, WIDGET_W)
+		durDD:SetItems(DURATION_MODE_ITEMS)
+		durDD:SetValue(data.durationMode or 'Never')
+		durDD:SetOnSelect(function(v) update('durationMode', v) end)
+		cdY = placeWidget(durDD, cdInner, cdY, DROPDOWN_H)
+
+		yOffset = Widgets.EndCard(cdCard, parent, cdY)
+
+		-- Duration font (shown when durationMode != Never)
+		if(data.durationMode and data.durationMode ~= 'Never') then
+			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Duration Font', 'durationFont', get, set)
+		end
+
+		-- Stack card
+		yOffset = placeHeading(parent, 'Stacks', 2, yOffset)
+		local stCard, stInner, stY = Widgets.StartCard(parent, width, yOffset)
+
+		local stSwitch = Widgets.CreateCheckButton(stInner, 'Show Stacks', function(checked)
+			update('showStacks', checked)
+		end)
+		stSwitch:SetChecked(data.showStacks == true)
+		stY = placeWidget(stSwitch, stInner, stY, CHECK_H)
+
+		yOffset = Widgets.EndCard(stCard, parent, stY)
+
+		if(data.showStacks) then
+			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Font', 'stackFont', get, set)
+		end
+
+		-- Glow card
+		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = true })
+
+		-- Position card
+		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
+
+	elseif(iType == C.IndicatorType.BAR or iType == C.IndicatorType.BARS) then
+		-- Size card
+		yOffset = placeHeading(parent, 'Size', 2, yOffset)
+		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
+
+		local bwSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 3, 500, 1)
+		bwSlider:SetValue(data.barWidth or 100)
+		bwSlider:SetAfterValueChanged(function(v) update('barWidth', v) end)
+		szY = placeWidget(bwSlider, szInner, szY, SLIDER_H)
+
+		local bhSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 3, 500, 1)
+		bhSlider:SetValue(data.barHeight or 4)
+		bhSlider:SetAfterValueChanged(function(v) update('barHeight', v) end)
+		szY = placeWidget(bhSlider, szInner, szY, SLIDER_H)
+
+		local barOriDD = Widgets.CreateDropdown(szInner, WIDGET_W)
+		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
+		barOriDD:SetValue(data.barOrientation or 'Horizontal')
+		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
+		szY = placeWidget(barOriDD, szInner, szY, DROPDOWN_H)
+
+		yOffset = Widgets.EndCard(szCard, parent, szY)
+
+		-- Layout card (Bars only)
+		if(iType == C.IndicatorType.BARS) then
+			yOffset = placeHeading(parent, 'Layout', 2, yOffset)
+			local layCard, layInner, layY = Widgets.StartCard(parent, width, yOffset)
+
+			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
+			mxSlider:SetValue(data.maxDisplayed or 3)
+			mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
+			layY = placeWidget(mxSlider, layInner, layY, SLIDER_H)
+
+			local nplSlider = Widgets.CreateSlider(layInner, 'Num Per Line', WIDGET_W, 0, 10, 1)
+			nplSlider:SetValue(data.numPerLine or 0)
+			nplSlider:SetAfterValueChanged(function(v) update('numPerLine', v) end)
+			layY = placeWidget(nplSlider, layInner, layY, SLIDER_H)
+
+			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', WIDGET_W, -1, 50, 1)
+			spxSlider:SetValue(data.spacingX or 2)
+			spxSlider:SetAfterValueChanged(function(v) update('spacingX', v) end)
+			layY = placeWidget(spxSlider, layInner, layY, SLIDER_H)
+
+			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', WIDGET_W, -1, 50, 1)
+			spySlider:SetValue(data.spacingY or 2)
+			spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
+			layY = placeWidget(spySlider, layInner, layY, SLIDER_H)
+
+			local dirDD = Widgets.CreateDropdown(layInner, WIDGET_W)
+			dirDD:SetItems(ORIENTATION_ITEMS)
+			dirDD:SetValue(data.orientation or 'DOWN')
+			dirDD:SetOnSelect(function(v) update('orientation', v) end)
+			layY = placeWidget(dirDD, layInner, layY, DROPDOWN_H)
+
+			yOffset = Widgets.EndCard(layCard, parent, layY)
+		end
+
+		-- Threshold color card
+		yOffset = F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, { showBorderColor = true, showBgColor = true })
+
+		-- Duration dropdown
+		yOffset = placeHeading(parent, 'Duration', 2, yOffset)
+		local durCard, durInner, durY = Widgets.StartCard(parent, width, yOffset)
+
+		local durDD = Widgets.CreateDropdown(durInner, WIDGET_W)
+		durDD:SetItems(DURATION_MODE_ITEMS)
+		durDD:SetValue(data.durationMode or 'Never')
+		durDD:SetOnSelect(function(v) update('durationMode', v) end)
+		durY = placeWidget(durDD, durInner, durY, DROPDOWN_H)
+
+		yOffset = Widgets.EndCard(durCard, parent, durY)
+
+		if(data.durationMode and data.durationMode ~= 'Never') then
+			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Duration Font', 'durationFont', get, set)
+		end
+
+		-- Stack card
+		yOffset = placeHeading(parent, 'Stacks', 2, yOffset)
+		local stCard, stInner, stY = Widgets.StartCard(parent, width, yOffset)
+
+		local stSwitch = Widgets.CreateCheckButton(stInner, 'Show Stacks', function(checked)
+			update('showStacks', checked)
+		end)
+		stSwitch:SetChecked(data.showStacks == true)
+		stY = placeWidget(stSwitch, stInner, stY, CHECK_H)
+
+		yOffset = Widgets.EndCard(stCard, parent, stY)
+
+		if(data.showStacks) then
+			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Font', 'stackFont', get, set)
+		end
+
+		-- Glow + Position
+		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = true })
+		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
+
+	elseif(iType == C.IndicatorType.COLOR) then
+		-- Size card
+		yOffset = placeHeading(parent, 'Size', 2, yOffset)
+		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
+
+		local rwSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 3, 500, 1)
+		rwSlider:SetValue(data.rectWidth or 10)
+		rwSlider:SetAfterValueChanged(function(v) update('rectWidth', v) end)
+		szY = placeWidget(rwSlider, szInner, szY, SLIDER_H)
+
+		local rhSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 3, 500, 1)
+		rhSlider:SetValue(data.rectHeight or 10)
+		rhSlider:SetAfterValueChanged(function(v) update('rectHeight', v) end)
+		szY = placeWidget(rhSlider, szInner, szY, SLIDER_H)
+
+		yOffset = Widgets.EndCard(szCard, parent, szY)
+
+		-- Threshold colors with border
+		yOffset = F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, { showBorderColor = true })
+
+		-- Stack card
+		yOffset = placeHeading(parent, 'Stacks', 2, yOffset)
+		local stCard, stInner, stY = Widgets.StartCard(parent, width, yOffset)
+
+		local stSwitch = Widgets.CreateCheckButton(stInner, 'Show Stacks', function(checked)
+			update('showStacks', checked)
+		end)
+		stSwitch:SetChecked(data.showStacks == true)
+		stY = placeWidget(stSwitch, stInner, stY, CHECK_H)
+
+		yOffset = Widgets.EndCard(stCard, parent, stY)
+
+		if(data.showStacks) then
+			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Font', 'stackFont', get, set)
+		end
+
+		-- Glow + Position
+		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = true })
+		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
+
+	elseif(iType == C.IndicatorType.OVERLAY) then
+		-- Mode card
+		yOffset = placeHeading(parent, 'Overlay Mode', 2, yOffset)
+		local modeCard, modeInner, modeY = Widgets.StartCard(parent, width, yOffset)
+
+		local modeDD = Widgets.CreateDropdown(modeInner, WIDGET_W)
+		modeDD:SetItems({
+			{ text = 'Overlay',  value = 'Overlay' },
+			{ text = 'FrameBar', value = 'FrameBar' },
+			{ text = 'Both',     value = 'Both' },
+		})
+		modeDD:SetValue(data.overlayMode or 'Overlay')
+		modeDD:SetOnSelect(function(v) update('overlayMode', v) end)
+		modeY = placeWidget(modeDD, modeInner, modeY, DROPDOWN_H)
+
+		local ovColor = data.color or { 0, 0, 0, 0.6 }
+		local colorPicker = Widgets.CreateColorPicker(modeInner, 'Color', true, function(r, g, b, a)
+			update('color', { r, g, b, a })
+		end)
+		colorPicker:SetColor(ovColor[1], ovColor[2], ovColor[3], ovColor[4] or 1)
+		modeY = placeWidget(colorPicker, modeInner, modeY, DROPDOWN_H)
+
+		yOffset = Widgets.EndCard(modeCard, parent, modeY)
+
+		-- Conditional: Overlay or Both — threshold colors + smooth + bar orientation
+		local ovMode = data.overlayMode or 'Overlay'
+		if(ovMode == 'Overlay' or ovMode == 'Both') then
+			yOffset = F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, {})
+
+			yOffset = placeHeading(parent, 'Animation', 2, yOffset)
+			local animCard, animInner, animY = Widgets.StartCard(parent, width, yOffset)
+
+			local smoothSwitch = Widgets.CreateCheckButton(animInner, 'Smooth Animation', function(checked)
+				update('smooth', checked)
+			end)
+			smoothSwitch:SetChecked(data.smooth ~= false)
+			animY = placeWidget(smoothSwitch, animInner, animY, CHECK_H)
+
+			local barOriDD = Widgets.CreateDropdown(animInner, WIDGET_W)
+			barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
+			barOriDD:SetValue(data.barOrientation or 'Horizontal')
+			barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
+			animY = placeWidget(barOriDD, animInner, animY, DROPDOWN_H)
+
+			yOffset = Widgets.EndCard(animCard, parent, animY)
+		end
+
+		-- Position (frame level only)
+		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
+
+	elseif(iType == C.IndicatorType.BORDER) then
+		-- Border settings card
+		yOffset = placeHeading(parent, 'Border Settings', 2, yOffset)
+		local borCard, borInner, borY = Widgets.StartCard(parent, width, yOffset)
+
+		local thkSlider = Widgets.CreateSlider(borInner, 'Thickness', WIDGET_W, 1, 15, 1)
+		thkSlider:SetValue(data.borderThickness or 2)
+		thkSlider:SetAfterValueChanged(function(v) update('borderThickness', v) end)
+		borY = placeWidget(thkSlider, borInner, borY, SLIDER_H)
+
+		local borColor = data.color or { 1, 1, 1, 1 }
+		local colorPicker = Widgets.CreateColorPicker(borInner, 'Color', true, function(r, g, b, a)
+			update('color', { r, g, b, a })
+		end)
+		colorPicker:SetColor(borColor[1], borColor[2], borColor[3], borColor[4] or 1)
+		borY = placeWidget(colorPicker, borInner, borY, DROPDOWN_H)
+
+		local fadeSwitch = Widgets.CreateCheckButton(borInner, 'Fade Out', function(checked)
+			update('fadeOut', checked)
+		end)
+		fadeSwitch:SetChecked(data.fadeOut == true)
+		borY = placeWidget(fadeSwitch, borInner, borY, CHECK_H)
+
+		yOffset = Widgets.EndCard(borCard, parent, borY)
+
+		-- Position (frame level only)
+		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
 
 	elseif(iType == C.IndicatorType.GLOW) then
+		-- Fade Out + Glow type card
 		yOffset = placeHeading(parent, 'Glow Settings', 2, yOffset)
-		local glowCard, glowInner, glowY = Widgets.StartCard(parent, width, yOffset)
+		local glowSettCard, glowSettInner, glowSettY = Widgets.StartCard(parent, width, yOffset)
 
-		local gdd = Widgets.CreateDropdown(glowInner, WIDGET_W)
-		gdd:SetItems({
-			{ text = 'Proc', value = C.GlowType.PROC }, { text = 'Pixel', value = C.GlowType.PIXEL },
-			{ text = 'Soft', value = C.GlowType.SOFT }, { text = 'Shine', value = C.GlowType.SHINE },
-		})
-		gdd:SetValue(data.glowType or C.GlowType.PROC)
-		gdd:SetOnSelect(function(v) update('glowType', v) end)
-		glowY = placeWidget(gdd, glowInner, glowY, DROPDOWN_H)
+		local fadeSwitch = Widgets.CreateCheckButton(glowSettInner, 'Fade Out', function(checked)
+			update('fadeOut', checked)
+		end)
+		fadeSwitch:SetChecked(data.fadeOut == true)
+		glowSettY = placeWidget(fadeSwitch, glowSettInner, glowSettY, CHECK_H)
 
-		yOffset = Widgets.EndCard(glowCard, parent, glowY)
+		yOffset = Widgets.EndCard(glowSettCard, parent, glowSettY)
 
-	elseif(iType == C.IndicatorType.BAR or iType == C.IndicatorType.FRAME_BAR) then
+		-- Glow card (no None)
+		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = false })
+
+		-- Position (frame level only)
+		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
+
+	elseif(iType == C.IndicatorType.FRAME_BAR) then
+		-- Legacy Frame Bar — basic bar height + position
 		yOffset = placeHeading(parent, 'Bar Settings', 2, yOffset)
 		local barCard, barInner, barY = Widgets.StartCard(parent, width, yOffset)
 
@@ -460,20 +793,8 @@ local function buildIndicatorSettings(parent, width, yOffset, name, data, setInd
 		barY = placeWidget(bh, barInner, barY, SLIDER_H)
 
 		yOffset = Widgets.EndCard(barCard, parent, barY)
-	end
 
-	-- ── Position card ─────────────────────────────────────
-	if(Widgets.CreateAnchorPicker) then
-		yOffset = placeHeading(parent, 'Position', 2, yOffset)
-		local posCard, posInner, posY = Widgets.StartCard(parent, width, yOffset)
-
-		local anch = data.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 0, 0 }
-		local pick = Widgets.CreateAnchorPicker(posInner, width - 24)
-		pick:SetAnchor(anch[1], anch[4] or 0, anch[5] or 0)
-		posY = placeWidget(pick, posInner, posY, pick:GetHeight())
-		pick:SetOnChanged(function(pt, x, y) update('anchor', { pt, nil, pt, x, y }) end)
-
-		yOffset = Widgets.EndCard(posCard, parent, posY)
+		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
 	end
 
 	return yOffset
@@ -501,6 +822,9 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 	local createCard, createInner, createY = Widgets.StartCard(parent, width, yOffset)
 
+	local selectedType = C.IndicatorType.ICONS
+	local selectedDisplayType = 'spell'  -- 'spell' or 'square'
+
 	local typeDD = Widgets.CreateDropdown(createInner, 120)
 	typeDD:SetItems(getTypeItems())
 	typeDD:SetValue(C.IndicatorType.ICONS)
@@ -515,6 +839,58 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	local createBtn = Widgets.CreateButton(createInner, 'Create', 'accent', 60, BUTTON_H)
 	createBtn:SetPoint('LEFT', nameBox, 'RIGHT', C.Spacing.tight, 0)
 	createY = createY - BUTTON_H - C.Spacing.normal
+
+	-- Type description FontString
+	local typeDescFS = Widgets.CreateFontString(createInner, C.Font.sizeSmall, C.Colors.textSecondary)
+	typeDescFS:ClearAllPoints()
+	Widgets.SetPoint(typeDescFS, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+	typeDescFS:SetJustifyH('LEFT')
+	typeDescFS:SetText(TYPE_DESCRIPTIONS[selectedType] or '')
+	createY = createY - 14 - C.Spacing.tight
+
+	-- displayType toggle row (Spell Icons / Square Colors) — only for Icon/Icons
+	local displayTypeRow = CreateFrame('Frame', nil, createInner)
+	displayTypeRow:SetSize(width, BUTTON_H)
+	displayTypeRow:ClearAllPoints()
+	Widgets.SetPoint(displayTypeRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+
+	local spellIconsBtn = Widgets.CreateButton(displayTypeRow, 'Spell Icons', 'accent', 100, BUTTON_H)
+	spellIconsBtn:SetPoint('TOPLEFT', displayTypeRow, 'TOPLEFT', 0, 0)
+	spellIconsBtn.value = 'spell'
+
+	local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Square Colors', 'widget', 110, BUTTON_H)
+	squareColorsBtn:SetPoint('LEFT', spellIconsBtn, 'RIGHT', C.Spacing.tight, 0)
+	squareColorsBtn.value = 'square'
+
+	local displayTypeGroup = Widgets.CreateButtonGroup({ spellIconsBtn, squareColorsBtn }, function(value)
+		selectedDisplayType = value
+	end)
+	displayTypeGroup:SetValue('spell')
+
+	local displayTypeRowH = BUTTON_H + C.Spacing.normal
+
+	-- Show/hide the displayType row based on type
+	local function isIconType(t)
+		return t == C.IndicatorType.ICON or t == C.IndicatorType.ICONS
+	end
+
+	if(isIconType(selectedType)) then
+		displayTypeRow:Show()
+		createY = createY - displayTypeRowH
+	else
+		displayTypeRow:Hide()
+	end
+
+	-- Hook type dropdown to update description and displayType row
+	typeDD:SetOnSelect(function(value)
+		selectedType = value
+		typeDescFS:SetText(TYPE_DESCRIPTIONS[value] or '')
+		if(isIconType(value)) then
+			displayTypeRow:Show()
+		else
+			displayTypeRow:Hide()
+		end
+	end)
 
 	yOffset = Widgets.EndCard(createCard, parent, createY)
 
@@ -700,13 +1076,36 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 		local data = { type = iType, enabled = true, spells = {} }
 
 		if(iType == C.IndicatorType.ICONS) then
-			data.iconSize = 16; data.maxDisplayed = 3; data.orientation = 'RIGHT'
+			data.iconWidth = 16
+			data.iconHeight = 16
+			data.maxDisplayed = 3
+			data.orientation = 'RIGHT'
+			data.displayType = selectedDisplayType
 		elseif(iType == C.IndicatorType.ICON) then
-			data.iconSize = 16
+			data.iconWidth = 16
+			data.iconHeight = 16
+			data.displayType = selectedDisplayType
 		elseif(iType == C.IndicatorType.GLOW) then
 			data.glowType = C.GlowType.PROC
-		elseif(iType == C.IndicatorType.BAR or iType == C.IndicatorType.FRAME_BAR) then
+		elseif(iType == C.IndicatorType.BAR) then
+			data.barWidth = 100
 			data.barHeight = 4
+		elseif(iType == C.IndicatorType.BARS) then
+			data.barWidth = 50
+			data.barHeight = 4
+			data.maxDisplayed = 3
+			data.orientation = 'DOWN'
+		elseif(iType == C.IndicatorType.FRAME_BAR) then
+			data.barHeight = 4
+		elseif(iType == C.IndicatorType.COLOR) then
+			data.rectWidth = 10
+			data.rectHeight = 10
+		elseif(iType == C.IndicatorType.OVERLAY) then
+			data.overlayMode = 'Overlay'
+			data.color = { 0, 0, 0, 0.6 }
+		elseif(iType == C.IndicatorType.BORDER) then
+			data.borderThickness = 2
+			data.color = { 1, 1, 1, 1 }
 		end
 
 		setIndicator(iName, data)
