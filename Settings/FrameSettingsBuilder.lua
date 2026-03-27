@@ -972,6 +972,62 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 	cardY = placeWidget(showCombatIconCheck, inner, cardY, CHECK_H)
 
+	-- Show resting icon checkbox
+	local showRestingCheck = Widgets.CreateCheckButton(inner, 'Show Resting Icon')
+	showRestingCheck:SetChecked(getConfig('statusIcons.resting') or false)
+	showRestingCheck._callback = function(checked)
+		setConfig('statusIcons.resting', checked)
+	end
+	cardY = placeWidget(showRestingCheck, inner, cardY, CHECK_H)
+
+	-- Show phase icon checkbox
+	local showPhaseCheck = Widgets.CreateCheckButton(inner, 'Show Phase Icon')
+	showPhaseCheck:SetChecked(getConfig('statusIcons.phase') or false)
+	showPhaseCheck._callback = function(checked)
+		setConfig('statusIcons.phase', checked)
+	end
+	cardY = placeWidget(showPhaseCheck, inner, cardY, CHECK_H)
+
+	-- Show resurrect icon checkbox
+	local showResurrectCheck = Widgets.CreateCheckButton(inner, 'Show Resurrect Icon')
+	showResurrectCheck:SetChecked(getConfig('statusIcons.resurrect') or false)
+	showResurrectCheck._callback = function(checked)
+		setConfig('statusIcons.resurrect', checked)
+	end
+	cardY = placeWidget(showResurrectCheck, inner, cardY, CHECK_H)
+
+	-- Show summon icon checkbox
+	local showSummonCheck = Widgets.CreateCheckButton(inner, 'Show Summon Icon')
+	showSummonCheck:SetChecked(getConfig('statusIcons.summon') or false)
+	showSummonCheck._callback = function(checked)
+		setConfig('statusIcons.summon', checked)
+	end
+	cardY = placeWidget(showSummonCheck, inner, cardY, CHECK_H)
+
+	-- Show raid role icon checkbox
+	local showRaidRoleCheck = Widgets.CreateCheckButton(inner, 'Show Raid Role Icon')
+	showRaidRoleCheck:SetChecked(getConfig('statusIcons.raidRole') or false)
+	showRaidRoleCheck._callback = function(checked)
+		setConfig('statusIcons.raidRole', checked)
+	end
+	cardY = placeWidget(showRaidRoleCheck, inner, cardY, CHECK_H)
+
+	-- Show PvP icon checkbox
+	local showPvPCheck = Widgets.CreateCheckButton(inner, 'Show PvP Icon')
+	showPvPCheck:SetChecked(getConfig('statusIcons.pvp') or false)
+	showPvPCheck._callback = function(checked)
+		setConfig('statusIcons.pvp', checked)
+	end
+	cardY = placeWidget(showPvPCheck, inner, cardY, CHECK_H)
+
+	-- Show status text checkbox
+	local showStatusTextCheck = Widgets.CreateCheckButton(inner, 'Show Status Text')
+	showStatusTextCheck:SetChecked(getConfig('statusText') ~= false)
+	showStatusTextCheck._callback = function(checked)
+		setConfig('statusText', checked)
+	end
+	cardY = placeWidget(showStatusTextCheck, inner, cardY, CHECK_H)
+
 	restY = Widgets.EndCard(iconsCard, afterColorContainer, cardY)
 
 	-- ── Resize content to fit all widgets ─────────────────────

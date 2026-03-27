@@ -140,7 +140,7 @@ local function AcquireRow(pool, parent)
 		if(not r:IsShown()) then r:Show(); return r end
 	end
 	local r = CreateRow(parent)
-	table.insert(pool, r)
+	pool[#pool + 1] = r
 	return r
 end
 
@@ -280,7 +280,7 @@ function Widgets.CreateSpellList(parent, width, height)
 		for _, id in next, self._spells do
 			if(id == spellID) then return end
 		end
-		table.insert(self._spells, spellID)
+		self._spells[#self._spells + 1] = spellID
 		NotifyChanged()
 	end
 
@@ -324,7 +324,7 @@ function Widgets.CreateSpellList(parent, width, height)
 						if(existing == n) then dup = true; break end
 					end
 					if(not dup) then
-						table.insert(self._spells, n)
+						self._spells[#self._spells + 1] = n
 					end
 				end
 			end

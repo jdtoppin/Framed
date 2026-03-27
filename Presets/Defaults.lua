@@ -40,6 +40,12 @@ local function playerConfig()
 			readyCheck = true,
 			raidIcon   = true,
 			combat     = true,
+			resting    = true,
+			phase      = false,
+			resurrect  = false,
+			summon     = false,
+			raidRole   = false,
+			pvp        = false,
 		},
 		statusText         = true,
 		targetHighlight    = true,
@@ -81,6 +87,12 @@ local function targetConfig()
 			readyCheck = true,
 			raidIcon   = true,
 			combat     = false,
+			resting    = false,
+			phase      = true,
+			resurrect  = false,
+			summon     = false,
+			raidRole   = false,
+			pvp        = false,
 		},
 		statusText         = true,
 		targetHighlight    = true,
@@ -108,6 +120,8 @@ local function targettargetConfig()
 		statusIcons = {
 			role = false, leader = false, readyCheck = false,
 			raidIcon = true, combat = false,
+			resting = false, phase = false, resurrect = false,
+			summon = false, raidRole = false, pvp = false,
 		},
 		statusText         = false,
 		targetHighlight    = true,
@@ -136,6 +150,8 @@ local function focusConfig()
 		statusIcons = {
 			role = false, leader = false, readyCheck = false,
 			raidIcon = true, combat = false,
+			resting = false, phase = false, resurrect = false,
+			summon = false, raidRole = false, pvp = false,
 		},
 		statusText         = false,
 		targetHighlight    = true,
@@ -163,6 +179,8 @@ local function petConfig()
 		statusIcons = {
 			role = false, leader = false, readyCheck = false,
 			raidIcon = false, combat = false,
+			resting = false, phase = false, resurrect = false,
+			summon = false, raidRole = false, pvp = false,
 		},
 		statusText         = false,
 		targetHighlight    = false,
@@ -191,6 +209,8 @@ local function bossConfig()
 		statusIcons = {
 			role = false, leader = false, readyCheck = false,
 			raidIcon = true, combat = false,
+			resting = false, phase = false, resurrect = false,
+			summon = false, raidRole = false, pvp = false,
 		},
 		statusText         = false,
 		targetHighlight    = true,
@@ -222,6 +242,12 @@ local function partyConfig()
 			readyCheck = true,
 			raidIcon   = true,
 			combat     = false,
+			resting    = false,
+			phase      = true,
+			resurrect  = true,
+			summon     = true,
+			raidRole   = true,
+			pvp        = false,
 		},
 		statusText         = true,
 		targetHighlight    = true,
@@ -252,6 +278,12 @@ local function raidConfig()
 			readyCheck = true,
 			raidIcon   = true,
 			combat     = false,
+			resting    = false,
+			phase      = true,
+			resurrect  = true,
+			summon     = true,
+			raidRole   = true,
+			pvp        = false,
 		},
 		statusText         = true,
 		targetHighlight    = true,
@@ -283,6 +315,8 @@ local function arenaConfig()
 		statusIcons = {
 			role = false, leader = false, readyCheck = false,
 			raidIcon = true, combat = false,
+			resting = false, phase = false, resurrect = false,
+			summon = false, raidRole = false, pvp = true,
 		},
 		statusText         = false,
 		targetHighlight    = true,
@@ -453,6 +487,31 @@ function F.PresetDefaults.EnsureDefaults()
 	for name, preset in next, defaults do
 		if(not FramedDB.presets[name]) then
 			FramedDB.presets[name] = preset
+		else
+			-- Backfill missing keys inside existing unitConfigs
+			local savedUC = FramedDB.presets[name].unitConfigs
+			local defaultUC = preset.unitConfigs
+			if(savedUC and defaultUC) then
+				for unitType, defaultConf in next, defaultUC do
+					if(savedUC[unitType]) then
+						-- Backfill statusIcons keys
+						if(defaultConf.statusIcons) then
+							if(not savedUC[unitType].statusIcons) then
+								savedUC[unitType].statusIcons = {}
+							end
+							for key, val in next, defaultConf.statusIcons do
+								if(savedUC[unitType].statusIcons[key] == nil) then
+									savedUC[unitType].statusIcons[key] = val
+								end
+							end
+						end
+						-- Backfill statusText
+						if(savedUC[unitType].statusText == nil and defaultConf.statusText ~= nil) then
+							savedUC[unitType].statusText = defaultConf.statusText
+						end
+					end
+				end
+			end
 		end
 	end
 end

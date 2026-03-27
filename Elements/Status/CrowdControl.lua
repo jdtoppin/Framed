@@ -7,6 +7,10 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.CrowdControl = {}
 
+-- Forward declarations for timer functions (defined after Update)
+local StartTimer
+local StopTimer
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -53,28 +57,54 @@ local function Update(self, event, unit)
 		end
 
 		element._expiry = foundExpiry
+		StartTimer(element)
 		element:Show()
 	else
 		element._expiry = nil
+		StopTimer(element)
 		element:Hide()
 	end
 end
 
 -- ============================================================
--- OnUpdate ticker for duration countdown
+-- Duration ticker — dedicated frame, only runs when active
 -- ============================================================
 
-local function OnUpdate(frame, elapsed)
-	local element = frame.FramedCrowdControl
-	if(not element or not element._expiry) then return end
+local tickerFrame = CreateFrame('Frame')
+tickerFrame:Hide()
 
-	local remaining = element._expiry - GetTime()
-	if(remaining > 0) then
-		element.duration:SetText(F.FormatDuration(remaining))
-	else
-		element.duration:Hide()
-		element._expiry = nil
+local activeTimers = {}
+
+tickerFrame:SetScript('OnUpdate', function(_, elapsed)
+	local now = GetTime()
+	local anyActive = false
+	for element in next, activeTimers do
+		if(element._expiry) then
+			local remaining = element._expiry - now
+			if(remaining > 0) then
+				element.duration:SetText(F.FormatDuration(remaining))
+				anyActive = true
+			else
+				element.duration:Hide()
+				element._expiry = nil
+				activeTimers[element] = nil
+			end
+		else
+			activeTimers[element] = nil
+		end
 	end
+	if(not anyActive) then
+		tickerFrame:Hide()
+	end
+end)
+
+StartTimer = function(element)
+	activeTimers[element] = true
+	tickerFrame:Show()
+end
+
+StopTimer = function(element)
+	activeTimers[element] = nil
 end
 
 -- ============================================================
@@ -93,11 +123,12 @@ local function Enable(self, unit)
 	local element = self.FramedCrowdControl
 	if(not element) then return end
 
-	element.__owner   = self
+	element.__owner     = self
 	element.ForceUpdate = ForceUpdate
+	element._startTimer = StartTimer
+	element._stopTimer  = StopTimer
 
 	self:RegisterEvent('UNIT_AURA', Update)
-	self:HookScript('OnUpdate', OnUpdate)
 
 	return true
 end
@@ -108,6 +139,7 @@ local function Disable(self)
 
 	element:Hide()
 	self:UnregisterEvent('UNIT_AURA', Update)
+	StopTimer(element)
 	element._expiry = nil
 end
 

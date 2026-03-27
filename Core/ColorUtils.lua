@@ -186,14 +186,3 @@ function ColorUtils.HSBToRGB(h, s, b)
 
 	return R, G, B
 end
-
---- Clamp a value between min and max.
---- @param value number
---- @param lo number
---- @param hi number
---- @return number
-function ColorUtils.Clamp(value, lo, hi)
-	if(value < lo) then return lo end
-	if(value > hi) then return hi end
-	return value
-end

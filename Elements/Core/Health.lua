@@ -346,8 +346,8 @@ function F.Elements.Health.Setup(self, width, height, config)
 			if(fmt == 'none' or max <= 0) then
 				h.text:SetText('')
 			elseif(fmt == 'percent') then
-				local pct = math.floor(cur / max * 100 + 0.5)
-				h.text:SetText(prefix .. pct .. '%')
+				local pctDisplay = math.floor(cur / max * 100 + 0.5)
+				h.text:SetText(prefix .. pctDisplay .. '%')
 			elseif(fmt == 'current') then
 				h.text:SetText(prefix .. F.AbbreviateNumber(cur))
 			elseif(fmt == 'deficit') then

@@ -10,11 +10,10 @@ local EditMode = F.EditMode
 -- save/cancel buttons. Centered at top of screen.
 -- ============================================================
 
-local TOP_BAR_WIDTH   = 580
 local TOP_BAR_HEIGHT  = 40
-local BUTTON_WIDTH    = 90
 local BUTTON_HEIGHT   = 22
 local DROPDOWN_W      = 140
+local ITEM_GAP        = C.Spacing.normal  -- gap between top bar items
 
 local topBar = nil
 
@@ -22,20 +21,21 @@ local function BuildTopBar()
 	local overlay = EditMode.GetOverlay()
 	if(not overlay) then return end
 
-	topBar = Widgets.CreateBorderedFrame(overlay, TOP_BAR_WIDTH, TOP_BAR_HEIGHT, C.Colors.panel, C.Colors.border)
+	topBar = Widgets.CreateBorderedFrame(overlay, 100, TOP_BAR_HEIGHT, C.Colors.panel, C.Colors.border)
 	topBar:SetFrameLevel(overlay:GetFrameLevel() + 50)
-	topBar:SetPoint('TOP', UIParent, 'TOP', 0, -C.Spacing.tight)
+	topBar:EnableMouse(true)  -- consume clicks so they don't deselect via bgCatcher
 
-	-- ── Preset dropdown (left) ──────────────────────────────
+	-- Build all items, then measure total width to center the bar.
+	-- Items are chained left-to-right with ITEM_GAP between them.
+
+	-- ── Preset dropdown ─────────────────────────────────────
 	local presetDD = Widgets.CreateDropdown(topBar, DROPDOWN_W)
-	local items = {}
+	local ddItems = {}
 	for _, name in next, C.PresetOrder do
-		items[#items + 1] = { text = name, value = name }
+		ddItems[#ddItems + 1] = { text = name, value = name }
 	end
-	presetDD:SetItems(items)
+	presetDD:SetItems(ddItems)
 	presetDD:SetValue(EditMode.GetSessionPreset())
-	presetDD:ClearAllPoints()
-	presetDD:SetPoint('LEFT', topBar, 'LEFT', C.Spacing.normal, 0)
 	presetDD:SetOnSelect(function(value)
 		F.EventBus:Fire('EDIT_MODE_PRESET_SWAP_REQUESTED', value)
 	end)
@@ -43,39 +43,11 @@ local function BuildTopBar()
 
 	-- ── "Editing: X" label ──────────────────────────────────
 	local editLabel = Widgets.CreateFontString(topBar, C.Font.sizeNormal, { 0.2, 0.8, 0.2, 1 })
-	editLabel:SetPoint('LEFT', presetDD, 'RIGHT', C.Spacing.normal, 0)
 	editLabel:SetText('Editing: ' .. EditMode.GetSessionPreset())
 	topBar._editLabel = editLabel
 
-	-- ── Cancel button (rightmost) ───────────────────────────
-	local cancelBtn = Widgets.CreateButton(topBar, 'Cancel', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
-	cancelBtn:SetPoint('RIGHT', topBar, 'RIGHT', -C.Spacing.normal, 0)
-	cancelBtn:SetOnClick(function()
-		EditMode.RequestCancel()
-	end)
-
-	-- ── Save button ─────────────────────────────────────────
-	local saveBtn = Widgets.CreateButton(topBar, 'Save', 'accent', BUTTON_WIDTH, BUTTON_HEIGHT)
-	saveBtn:SetPoint('RIGHT', cancelBtn, 'LEFT', -C.Spacing.base, 0)
-	saveBtn:SetOnClick(function()
-		EditMode.RequestSave()
-	end)
-
-	-- ── Grid Style selector ─────────────────────────────────
-	local gridStyleSwitch = Widgets.CreateSwitch(topBar, 100, BUTTON_HEIGHT, {
-		{ text = 'Lines', value = 'lines' },
-		{ text = 'Dots',  value = 'dots' },
-	})
-	gridStyleSwitch:SetValue('lines')
-	gridStyleSwitch:SetPoint('RIGHT', saveBtn, 'LEFT', -C.Spacing.normal, 0)
-	gridStyleSwitch:SetOnSelect(function(value)
-		F.EventBus:Fire('EDIT_MODE_GRID_STYLE_CHANGED', value)
-	end)
-	topBar._gridStyleSwitch = gridStyleSwitch
-
 	-- ── Grid Snap toggle ────────────────────────────────────
-	local snapBtn = Widgets.CreateButton(topBar, 'Grid Snap', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
-	snapBtn:SetPoint('RIGHT', gridStyleSwitch, 'LEFT', -C.Spacing.base, 0)
+	local snapBtn = Widgets.CreateButton(topBar, 'Grid Snap', 'widget', 80, BUTTON_HEIGHT)
 	topBar._snapBtn = snapBtn
 	topBar._gridSnap = true
 
@@ -101,6 +73,54 @@ local function BuildTopBar()
 		F.EventBus:Fire('EDIT_MODE_GRID_SNAP_CHANGED', topBar._gridSnap)
 	end)
 	UpdateSnapButton()
+
+	-- ── Grid Style selector ─────────────────────────────────
+	local gridStyleSwitch = Widgets.CreateSwitch(topBar, 100, BUTTON_HEIGHT, {
+		{ text = 'Lines', value = 'lines' },
+		{ text = 'Dots',  value = 'dots' },
+	})
+	gridStyleSwitch:SetValue('lines')
+	gridStyleSwitch:SetOnSelect(function(value)
+		F.EventBus:Fire('EDIT_MODE_GRID_STYLE_CHANGED', value)
+	end)
+	topBar._gridStyleSwitch = gridStyleSwitch
+
+	-- ── Save button ─────────────────────────────────────────
+	local saveBtn = Widgets.CreateButton(topBar, 'Save', 'accent', 70, BUTTON_HEIGHT)
+	saveBtn:SetOnClick(function()
+		EditMode.RequestSave()
+	end)
+
+	-- ── Cancel button ───────────────────────────────────────
+	local cancelBtn = Widgets.CreateButton(topBar, 'Cancel', 'widget', 70, BUTTON_HEIGHT)
+	cancelBtn:SetOnClick(function()
+		EditMode.RequestCancel()
+	end)
+
+	-- ── Layout: chain items left-to-right, measure, size bar ──
+	local allItems = { presetDD, editLabel, snapBtn, gridStyleSwitch, saveBtn, cancelBtn }
+	local totalW = ITEM_GAP  -- left padding
+
+	for _, item in next, allItems do
+		local w = item.GetWidth and item:GetWidth() or 0
+		totalW = totalW + w + ITEM_GAP
+	end
+
+	Widgets.SetSize(topBar, totalW, TOP_BAR_HEIGHT)
+	topBar:ClearAllPoints()
+	topBar:SetPoint('TOP', UIParent, 'TOP', 0, -C.Spacing.tight)
+
+	-- Anchor items left-to-right
+	local prev = nil
+	for _, item in next, allItems do
+		item:ClearAllPoints()
+		if(not prev) then
+			item:SetPoint('LEFT', topBar, 'LEFT', ITEM_GAP, 0)
+		else
+			item:SetPoint('LEFT', prev, 'RIGHT', ITEM_GAP, 0)
+		end
+		prev = item
+	end
 end
 
 local function DestroyTopBar()

@@ -6,36 +6,6 @@ local Widgets = F.Widgets
 F.StyleBuilder = {}
 
 -- ============================================================
--- DeferHeaderInit
--- Patches a SecureGroupHeader so that oUF's initObject chain
--- (style function, hooks, element enabling) runs outside the
--- restricted CallMethod context where SetPoint errors.
---
--- SecureGroupHeaderTemplate's CallMethod wraps everything in
--- securecall(pcall, ...). SetPoint calls on restricted child
--- frames error with "Wrong object type" and abort initObject.
--- By deferring, the full init runs on the next frame where
--- SetPoint works normally. Keeps Libs/oUF/ouf.lua unmodified.
--- ============================================================
-
-function F.StyleBuilder.DeferHeaderInit(header)
-	local originalStyleFunc = header.styleFunction
-	header.styleFunction = function(self, frameName)
-		C_Timer.After(0, function()
-			originalStyleFunc(self, frameName)
-
-			-- The frame missed onAttributeChanged / onShow events
-			-- that fired during configureChildren (before hooks
-			-- existed). Force a full element update now.
-			local frame = _G[frameName]
-			if(frame and frame.UpdateAllElements and frame.unit) then
-				frame:UpdateAllElements('FRAMED_DEFERRED_INIT')
-			end
-		end)
-	end
-end
-
--- ============================================================
 -- Default Config Template
 -- ============================================================
 
@@ -104,6 +74,12 @@ local DEFAULT_CONFIG = {
 		readyCheck = true,
 		raidIcon   = true,
 		combat     = false,
+		resting    = false,
+		phase      = true,
+		resurrect  = true,
+		summon     = true,
+		raidRole   = true,
+		pvp        = false,
 	},
 	statusText          = true,
 	targetHighlight     = true,
@@ -126,7 +102,8 @@ do
 		showTime = true,
 	}
 	p.portrait = { type = '2D' }
-	p.statusIcons.combat = true
+	p.statusIcons.combat  = true
+	p.statusIcons.resting = true
 	p.buffs = {
 		enabled    = true,
 		indicators = {},
@@ -649,6 +626,48 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 			F.Elements.CombatIcon.Setup(self, {
 				size  = 12,
 				point = { 'TOPRIGHT', self, 'TOPRIGHT', -2, -2 },
+			})
+		end
+
+		if(icons.resting) then
+			F.Elements.RestingIcon.Setup(self, {
+				size  = 12,
+				point = { 'BOTTOMLEFT', self, 'BOTTOMLEFT', 2, 2 },
+			})
+		end
+
+		if(icons.phase) then
+			F.Elements.PhaseIcon.Setup(self, {
+				size  = 16,
+				point = { 'CENTER', self, 'CENTER', 0, 0 },
+			})
+		end
+
+		if(icons.resurrect) then
+			F.Elements.ResurrectIcon.Setup(self, {
+				size  = 16,
+				point = { 'CENTER', self, 'CENTER', 0, 0 },
+			})
+		end
+
+		if(icons.summon) then
+			F.Elements.SummonIcon.Setup(self, {
+				size  = 16,
+				point = { 'CENTER', self, 'CENTER', 0, 0 },
+			})
+		end
+
+		if(icons.raidRole) then
+			F.Elements.RaidRoleIcon.Setup(self, {
+				size  = 12,
+				point = { 'BOTTOMRIGHT', self, 'BOTTOMRIGHT', -2, 2 },
+			})
+		end
+
+		if(icons.pvp) then
+			F.Elements.PvPIcon.Setup(self, {
+				size  = 16,
+				point = { 'BOTTOMLEFT', self, 'BOTTOMLEFT', 2, 2 },
 			})
 		end
 	end

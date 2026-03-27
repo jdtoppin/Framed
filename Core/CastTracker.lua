@@ -223,8 +223,8 @@ function F.CastTracker:Register(frame)
 end
 
 function F.CastTracker:Unregister(frame)
-	for i, f in next, registeredFrames do
-		if(f == frame) then
+	for i = #registeredFrames, 1, -1 do
+		if(registeredFrames[i] == frame) then
 			table.remove(registeredFrames, i)
 			return
 		end

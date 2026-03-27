@@ -80,6 +80,15 @@ oUF:Factory(function(self)
 	F.Units.Raid.Spawn()
 	F.Units.Boss.Spawn()
 	F.Units.Arena.Spawn()
+
+	-- Force initial element updates on all spawned frames.
+	-- oUF's initObject enables elements but doesn't call UpdateAllElements;
+	-- it relies on PLAYER_ENTERING_WORLD which may have already fired.
+	for _, object in next, self.objects do
+		if(object.unit and object.UpdateAllElements) then
+			object:UpdateAllElements('ForceUpdate')
+		end
+	end
 end)
 
 -- Slash commands
@@ -110,6 +119,33 @@ SlashCmdList['FRAMED'] = function(msg)
 			FramedDB = F.DeepCopy(FramedBackupDB)
 			ReloadUI()
 		end)
+	elseif(cmd == 'debugicons') then
+		-- Force show all indicator elements on player frame
+		local pf = F.Units.Player and F.Units.Player.frame
+		if(not pf) then print('|cff00ccff Framed|r No player frame') return end
+		print('|cff00ccff Framed|r Player frame unit: ' .. tostring(pf.unit))
+		local checks = {
+			'GroupRoleIndicator', 'LeaderIndicator', 'AssistantIndicator',
+			'CombatIndicator', 'RestingIndicator', 'RaidTargetIndicator',
+			'ReadyCheckIndicator', 'PhaseIndicator', 'ResurrectIndicator',
+			'SummonIndicator', 'RaidRoleIndicator', 'PvPIndicator',
+		}
+		for _, name in next, checks do
+			local el = pf[name]
+			if(el) then
+				local w, h = el:GetSize()
+				local visible = el:IsVisible()
+				local shown = el:IsShown()
+				local alpha = el:GetAlpha()
+				local tex = el.GetTexture and tostring(el:GetTexture()) or 'n/a'
+				local atlas = el.GetAtlas and tostring(el:GetAtlas()) or 'n/a'
+				local enabled = pf.IsElementEnabled and pf:IsElementEnabled(name) or '?'
+				print(('  %s: enabled=%s vis=%s shown=%s alpha=%.1f size=%dx%d tex=%s atlas=%s'):format(
+					name, tostring(enabled), tostring(visible), tostring(shown), alpha, w, h, tex, atlas))
+			else
+				print('  ' .. name .. ': NOT ON FRAME')
+			end
+		end
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
 		print('  /framed — Open settings')
@@ -118,6 +154,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed events — Print registered events')
 		print('  /framed edit — Toggle Edit Mode')
 		print('  /framed restore — Restore settings from last session backup')
+		print('  /framed debugicons — Debug indicator element state')
 	else
 		-- Default: open settings
 		if(F.Settings and F.Settings.Toggle) then

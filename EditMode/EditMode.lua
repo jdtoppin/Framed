@@ -95,6 +95,19 @@ local function BuildOverlay()
 	overlay:EnableMouse(false)
 	overlay:Hide()
 
+	-- Background click-catcher: sits above the dim fill but below catchers/TopBar.
+	-- Catches clicks on empty overlay space to deselect the current frame.
+	local bgCatcher = CreateFrame('Button', nil, overlay)
+	bgCatcher:SetAllPoints(overlay)
+	bgCatcher:SetFrameLevel(overlay:GetFrameLevel() + 5)
+	bgCatcher:RegisterForClicks('AnyDown')
+	bgCatcher:SetScript('OnClick', function()
+		if(selectedFrameKey) then
+			EditMode.SetSelectedFrameKey(nil)
+		end
+	end)
+	overlay._bgCatcher = bgCatcher
+
 	-- Dark fill
 	local dimTex = overlay:CreateTexture(nil, 'BACKGROUND')
 	dimTex:SetAllPoints(overlay)
@@ -260,7 +273,8 @@ function EditMode.RequestCancel()
 	if(EditCache.HasAnyEdits()) then
 		F.EventBus:Fire('EDIT_MODE_SHOW_CANCEL_DIALOG')
 	else
-		EditMode.Discard(false)
+		-- No changes — exit and return to settings menu
+		EditMode.Discard(true)
 	end
 end
 

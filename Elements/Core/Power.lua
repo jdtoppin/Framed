@@ -84,8 +84,7 @@ function F.Elements.Power.Setup(self, width, height, config)
 	power.PostUpdate = function(p, unit, cur, max)
 		-- Power type filtering
 		if(config.powerFilter) then
-			local powerType = UnitPowerType(unit)   -- returns numeric token
-			-- Convert numeric token to string key for table lookup
+			-- UnitPowerType returns numeric token and string token
 			local _, powerToken = UnitPowerType(unit)
 			if(powerToken and config.powerFilter[powerToken] == false) then
 				p._wrapper:Hide()

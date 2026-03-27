@@ -12,16 +12,12 @@ local EditCache = F.EditCache
 
 local PANEL_WIDTH    = 380
 local PANEL_MIN_H    = 300
-local PANEL_MAX_H    = 600
-local TAB_HEIGHT     = 28
-local TAB_GAP        = 2
 local EDGE_MARGIN    = 16
 
-local panel       = nil
-local activeTab   = nil   -- 'frame' or 'auras'
-local currentKey  = nil
+local panel        = nil
+local currentKey   = nil
 local contentFrame = nil
-local activeAuraGroup = nil  -- current aura group panel id
+local activePanelId = nil  -- 'frame' or an aura group id
 
 --- All aura group panels in display order.
 local AURA_GROUPS = {
@@ -63,7 +59,6 @@ local function DestroyPanel()
 		panel:SetParent(EditMode._trashFrame)
 		panel = nil
 		contentFrame = nil
-		activeTab = nil
 		currentKey = nil
 	end
 end
@@ -101,6 +96,7 @@ local function BuildPanel(frameKey, targetFrame)
 	-- Create panel frame
 	panel = Widgets.CreateBorderedFrame(overlay, PANEL_WIDTH, PANEL_MIN_H, C.Colors.panel, C.Colors.border)
 	panel:SetFrameLevel(overlay:GetFrameLevel() + 30)
+	panel:EnableMouse(true)  -- consume clicks so they don't deselect via overlay
 
 	-- Position relative to target frame
 	local side = GetSmartSide(targetFrame)
@@ -111,7 +107,7 @@ local function BuildPanel(frameKey, targetFrame)
 		panel:SetPoint('TOPRIGHT', targetFrame, 'TOPLEFT', -EDGE_MARGIN, 0)
 	end
 
-	-- ── Tab buttons ─────────────────────────────────────────
+	-- ── Resolve frame definition ────────────────────────────
 	local frameDef = nil
 	for _, def in next, EditMode.FRAME_KEYS do
 		if(def.key == frameKey) then
@@ -120,34 +116,45 @@ local function BuildPanel(frameKey, targetFrame)
 		end
 	end
 
-	local frameTabBtn = Widgets.CreateButton(panel, frameDef and frameDef.label or frameKey, 'accent', PANEL_WIDTH / 2 - TAB_GAP, TAB_HEIGHT)
-	frameTabBtn:SetPoint('TOPLEFT', panel, 'TOPLEFT', 0, 0)
+	local frameLabel = frameDef and frameDef.label or frameKey
 
-	local aurasTabBtn = Widgets.CreateButton(panel, 'Auras', 'widget', PANEL_WIDTH / 2 - TAB_GAP, TAB_HEIGHT)
-	aurasTabBtn:SetPoint('TOPRIGHT', panel, 'TOPRIGHT', 0, 0)
+	-- ── Panel selector dropdown ─────────────────────────────
+	-- First item = frame settings, rest = aura groups
+	local ddItems = {
+		{ text = frameLabel .. ' Settings', value = 'frame' },
+	}
+	for _, group in next, AURA_GROUPS do
+		ddItems[#ddItems + 1] = { text = group.label, value = group.id }
+	end
+
+	local panelDD = Widgets.CreateDropdown(panel, PANEL_WIDTH - C.Spacing.normal * 2)
+	panelDD:SetItems(ddItems)
+	panelDD:ClearAllPoints()
+	panelDD:SetPoint('TOP', panel, 'TOP', 0, -C.Spacing.tight)
 
 	-- ── Content area ────────────────────────────────────────
+	local ddHeight = panelDD.GetHeight and panelDD:GetHeight() or 24
 	contentFrame = CreateFrame('Frame', nil, panel)
-	contentFrame:SetPoint('TOPLEFT', panel, 'TOPLEFT', 0, -TAB_HEIGHT - 2)
+	contentFrame:SetPoint('TOPLEFT', panelDD, 'BOTTOMLEFT', 0, -C.Spacing.tight)
 	contentFrame:SetPoint('BOTTOMRIGHT', panel, 'BOTTOMRIGHT', 0, 0)
 	contentFrame._explicitWidth = PANEL_WIDTH
-	contentFrame._explicitHeight = PANEL_MIN_H - TAB_HEIGHT - 2
+	contentFrame._explicitHeight = PANEL_MIN_H - ddHeight - C.Spacing.tight * 2
 
-	-- ── Build frame settings tab content ────────────────────
-	local function ShowFrameTab()
-		activeTab = 'frame'
-		-- Restore all aura visibility when switching to frame tab
-		DimNonActiveAuras(currentKey, nil)
-		activeAuraGroup = nil
-		-- Clear content
+	-- ── Clear content helper ────────────────────────────────
+	local function ClearContent()
 		for _, child in next, { contentFrame:GetChildren() } do
 			child:Hide()
 			child:SetParent(EditMode._trashFrame)
 		end
+	end
 
-		-- Use FrameSettingsBuilder to create the same content as sidebar
+	-- ── Show frame settings ─────────────────────────────────
+	local function ShowFrameSettings()
+		activePanelId = 'frame'
+		DimNonActiveAuras(currentKey, nil)
+		ClearContent()
+
 		local unitType = frameKey
-		-- Group frames use their config key
 		if(frameDef and frameDef.isGroup) then
 			local info = C.PresetInfo[F.Settings.GetEditingPreset()]
 			unitType = (info and info.groupKey) or frameKey
@@ -156,95 +163,51 @@ local function BuildPanel(frameKey, targetFrame)
 		local scrollPanel = F.FrameSettingsBuilder.Create(contentFrame, unitType)
 		scrollPanel:SetAllPoints(contentFrame)
 		scrollPanel:Show()
-
-		-- Update tab visual
-		frameTabBtn._label:SetTextColor(1, 1, 1, 1)
-		aurasTabBtn._label:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3], 1)
 	end
 
-	local function ShowAurasTab()
-		activeTab = 'auras'
-		-- Clear content
-		for _, child in next, { contentFrame:GetChildren() } do
-			child:Hide()
-			child:SetParent(EditMode._trashFrame)
-		end
+	-- ── Show aura group settings ────────────────────────────
+	local function ShowAuraGroup(groupId)
+		activePanelId = groupId
+		ClearContent()
 
-		-- ── Aura group dropdown ─────────────────────────────
-		local dropdownItems = {}
-		for _, group in next, AURA_GROUPS do
-			dropdownItems[#dropdownItems + 1] = { text = group.label, value = group.id }
-		end
-
-		local ddLabel = Widgets.CreateFontString(contentFrame, C.Font.sizeSmall, C.Colors.textSecondary)
-		ddLabel:SetText('Aura Group:')
-		ddLabel:ClearAllPoints()
-		Widgets.SetPoint(ddLabel, 'TOPLEFT', contentFrame, 'TOPLEFT', C.Spacing.normal, -C.Spacing.normal)
-
-		local auraDropdown = Widgets.CreateDropdown(contentFrame, PANEL_WIDTH - C.Spacing.normal * 2)
-		auraDropdown:SetItems(dropdownItems)
-		auraDropdown:ClearAllPoints()
-		Widgets.SetPoint(auraDropdown, 'TOPLEFT', ddLabel, 'BOTTOMLEFT', 0, -C.Spacing.small)
-
-		-- ── Aura settings content area ──────────────────────
-		local auraContent = CreateFrame('Frame', nil, contentFrame)
-		auraContent:ClearAllPoints()
-		Widgets.SetPoint(auraContent, 'TOPLEFT', auraDropdown, 'BOTTOMLEFT', 0, -C.Spacing.normal)
-		auraContent:SetPoint('BOTTOMRIGHT', contentFrame, 'BOTTOMRIGHT', 0, 0)
-		auraContent._explicitWidth = PANEL_WIDTH - C.Spacing.normal * 2
-		auraContent._explicitHeight = PANEL_MIN_H - TAB_HEIGHT - 60
-
-		local function LoadAuraGroup(groupId)
-			-- Clear previous aura panel
-			for _, child in next, { auraContent:GetChildren() } do
-				child:Hide()
-				child:SetParent(EditMode._trashFrame)
-			end
-
-			activeAuraGroup = groupId
-
-			-- Find the registered panel's create function
-			local createFn = GetPanelCreate(groupId)
-			if(not createFn) then
-				local noPanel = Widgets.CreateFontString(auraContent, C.Font.sizeNormal, C.Colors.textSecondary)
-				noPanel:SetPoint('CENTER', auraContent, 'CENTER', 0, 0)
-				noPanel:SetText('Panel not available')
-				return
-			end
-
-			-- Build the aura settings panel inside our content area
-			local auraPanel = createFn(auraContent)
-			if(auraPanel) then
-				auraPanel:ClearAllPoints()
-				auraPanel:SetAllPoints(auraContent)
-				auraPanel._width = nil
-				auraPanel._height = nil
-				auraPanel:Show()
-			end
-
-			-- Dim non-active aura groups on the live frame
+		local createFn = GetPanelCreate(groupId)
+		if(not createFn) then
+			local noPanel = Widgets.CreateFontString(contentFrame, C.Font.sizeNormal, C.Colors.textSecondary)
+			noPanel:SetPoint('CENTER', contentFrame, 'CENTER', 0, 0)
+			noPanel:SetText('Panel not available')
 			DimNonActiveAuras(currentKey, groupId)
+			return
 		end
 
-		auraDropdown:SetOnSelect(function(value)
-			LoadAuraGroup(value)
-		end)
+		local auraPanel = createFn(contentFrame)
+		if(auraPanel) then
+			auraPanel:ClearAllPoints()
+			auraPanel:SetAllPoints(contentFrame)
+			auraPanel._width = nil
+			auraPanel._height = nil
+			auraPanel:Show()
+		end
 
-		-- Default to first group or restore previous selection
-		local defaultGroup = activeAuraGroup or AURA_GROUPS[1].id
-		auraDropdown:SetValue(defaultGroup)
-		LoadAuraGroup(defaultGroup)
-
-		-- Update tab visual
-		aurasTabBtn._label:SetTextColor(1, 1, 1, 1)
-		frameTabBtn._label:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3], 1)
+		DimNonActiveAuras(currentKey, groupId)
 	end
 
-	frameTabBtn:SetOnClick(function() ShowFrameTab() end)
-	aurasTabBtn:SetOnClick(function() ShowAurasTab() end)
+	-- ── Dropdown selection handler ──────────────────────────
+	panelDD:SetOnSelect(function(value)
+		if(value == 'frame') then
+			ShowFrameSettings()
+		else
+			ShowAuraGroup(value)
+		end
+	end)
 
-	-- Default to frame tab
-	ShowFrameTab()
+	-- Default: restore previous selection or frame settings
+	local defaultPanel = activePanelId or 'frame'
+	panelDD:SetValue(defaultPanel)
+	if(defaultPanel == 'frame') then
+		ShowFrameSettings()
+	else
+		ShowAuraGroup(defaultPanel)
+	end
 
 	-- Slide in animation
 	Widgets.FadeIn(panel)
@@ -289,6 +252,6 @@ F.EventBus:Register('EDIT_MODE_EXITED', function()
 	if(currentKey) then
 		DimNonActiveAuras(currentKey, nil)
 	end
-	activeAuraGroup = nil
+	activePanelId = nil
 	DestroyPanel()
 end, 'InlinePanel')

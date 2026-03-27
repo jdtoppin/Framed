@@ -19,7 +19,7 @@ function F.DisableBlizzardFrames()
 		if(frame) then
 			frame:UnregisterAllEvents()
 			frame:Hide()
-			frame.Show = function() end
+			RegisterAttributeDriver(frame, 'state-visibility', 'hide')
 		end
 	end
 

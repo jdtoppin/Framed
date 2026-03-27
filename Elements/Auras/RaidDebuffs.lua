@@ -7,6 +7,14 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.RaidDebuffs = {}
 
+-- Pre-defined sort comparator (avoids closure allocation per UNIT_AURA)
+local function raidDebuffSortComparator(a, b)
+	if(a.priority ~= b.priority) then
+		return a.priority > b.priority
+	end
+	return (a.expirationTime or 0) > (b.expirationTime or 0)
+end
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -75,12 +83,7 @@ local function Update(self, event, unit)
 	end
 
 	-- Sort: highest priority first; break ties by most recent expiration (highest expirationTime)
-	table.sort(auraList, function(a, b)
-		if(a.priority ~= b.priority) then
-			return a.priority > b.priority
-		end
-		return (a.expirationTime or 0) > (b.expirationTime or 0)
-	end)
+	table.sort(auraList, element._sortComparator)
 
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
@@ -221,9 +224,10 @@ function F.Elements.RaidDebuffs.Setup(self, config)
 	container:SetAllPoints(self)
 
 	local element = {
-		_container = container,
-		_config    = config,
-		_pool      = {},
+		_container      = container,
+		_config         = config,
+		_pool           = {},
+		_sortComparator = raidDebuffSortComparator,
 	}
 
 	local a = config.anchor

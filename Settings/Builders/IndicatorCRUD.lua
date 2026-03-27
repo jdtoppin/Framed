@@ -196,7 +196,7 @@ local function BuildImportPopup()
 				end
 
 				yOff = yOff - CHECK_H
-				table.insert(frame.__checkboxes, { checkbox = cb, spellID = spellID })
+				frame.__checkboxes[#frame.__checkboxes + 1] = { checkbox = cb, spellID = spellID }
 			end
 			yOff = yOff - C.Spacing.tight
 		end
@@ -241,7 +241,7 @@ local function ShowImportPopup(onImport)
 	importPopup.__importBtn:SetOnClick(function()
 		local selected = {}
 		for _, e in next, importPopup.__checkboxes do
-			if(e.checkbox:GetChecked()) then table.insert(selected, e.spellID) end
+			if(e.checkbox:GetChecked()) then selected[#selected + 1] = e.spellID end
 		end
 		importPopup.__dismiss()
 		if(onImport) then onImport(selected) end
@@ -387,7 +387,7 @@ local function buildIndicatorSettings(parent, width, yOffset, name, data, setInd
 			if(not selectedSpells or #selectedSpells == 0) then return end
 			local existing = spList:GetSpells()
 			for _, spellID in next, selectedSpells do
-				table.insert(existing, spellID)
+				existing[#existing + 1] = spellID
 			end
 			spList:SetSpells(existing)
 			update('spells', existing)

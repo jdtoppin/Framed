@@ -35,9 +35,6 @@ function F.Units.Party.Spawn()
 		'sortMethod', 'INDEX'
 	)
 
-	-- Defer child frame init to outside CallMethod's restricted context
-	F.StyleBuilder.DeferHeaderInit(header)
-
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('party')
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', 20, -200)

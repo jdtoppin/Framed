@@ -20,7 +20,10 @@ local function Update(self, event, unit)
 	local frameUnit = self.unit
 	if(not frameUnit) then return end
 
-	if(UnitIsUnit(frameUnit, 'target')) then
+	local isTarget = UnitIsUnit(frameUnit, 'target')
+	if(not F.IsValueNonSecret(isTarget)) then return end
+
+	if(isTarget) then
 		element:Show()
 	else
 		element:Hide()

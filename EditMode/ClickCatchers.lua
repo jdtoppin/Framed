@@ -40,7 +40,7 @@ local function CreateCatcher(def, overlay)
 	-- "Click to edit" label
 	local label = Widgets.CreateFontString(catcher, C.Font.sizeSmall, C.Colors.textNormal)
 	label:SetPoint('CENTER', catcher, 'CENTER', 0, 0)
-	label:SetText('Click to edit')
+	label:SetText(def.label .. ' - Click to edit')
 	catcher._label = label
 
 	-- Hover highlight
@@ -98,63 +98,116 @@ F.EventBus:Register('EDIT_MODE_ENTERED', function()
 end, 'ClickCatchers')
 
 F.EventBus:Register('EDIT_MODE_EXITED', function()
-	DestroyCatchers()
-	-- Restore original drag handlers on all frames
+	-- Restore movable state on all frames
 	for _, def in next, EditMode.FRAME_KEYS do
 		local frame = def.getter()
-		if(frame and frame._editModeSavedHandlers) then
-			frame:SetScript('OnDragStart', frame._editModeSavedHandlers.onDragStart)
-			frame:SetScript('OnDragStop', frame._editModeSavedHandlers.onDragStop)
-			frame._editModeSavedHandlers = nil
-			frame._editModeDragWired = nil
+		if(frame) then
+			frame:SetMovable(false)
 		end
 	end
+	DestroyCatchers()
 end, 'ClickCatchers')
 
+--- Convert a catcher into a drag proxy for the selected frame.
+--- The catcher overlay becomes transparent and draggable; moving it
+--- repositions the real unit frame underneath.
+local function ConvertToDragProxy(catcher, def)
+	local frame = def.getter()
+	if(not frame) then return end
+
+	-- Visual: hide label and dim overlay so the live frame shows through
+	catcher._label:SetText('')
+	catcher._dimTex:SetAlpha(0)
+	catcher:SetScript('OnEnter', nil)
+	catcher:SetScript('OnLeave', nil)
+	catcher:SetScript('OnClick', nil)
+	catcher._isDragProxy = true
+
+	-- Wire drag on the catcher (which lives in the overlay strata).
+	-- The catcher captures drag events; StartMoving/StopMoving act on the real frame.
+	local frameKey = def.key
+	frame:SetMovable(true)
+	frame:SetClampedToScreen(true)
+	catcher:RegisterForDrag('LeftButton')
+
+	catcher:SetScript('OnDragStart', function(self)
+		frame:StartMoving()
+		F.EventBus:Fire('EDIT_MODE_DRAG_STARTED', frameKey)
+		-- OnUpdate for alignment guides (tracks real frame position)
+		self._prevOnUpdate = self:GetScript('OnUpdate')
+		self:SetScript('OnUpdate', function()
+			EditMode.UpdateAlignmentGuides(frame)
+		end)
+	end)
+
+	catcher:SetScript('OnDragStop', function(self)
+		frame:StopMovingOrSizing()
+		-- Restore OnUpdate
+		self:SetScript('OnUpdate', self._prevOnUpdate or nil)
+		self._prevOnUpdate = nil
+		-- Snap & reposition
+		local _, _, _, x, y = frame:GetPoint()
+		x, y = EditMode.SnapToGrid(x, y)
+		frame:ClearAllPoints()
+		frame:SetPoint('CENTER', UIParent, 'BOTTOMLEFT', x, y)
+		-- Re-anchor catcher to follow frame
+		self:ClearAllPoints()
+		self:SetAllPoints(frame)
+		-- Save to edit cache
+		EditCache.Set(frameKey, 'position.x', x)
+		EditCache.Set(frameKey, 'position.y', y)
+		EditMode.HideAlignmentGuides()
+		F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', frameKey)
+	end)
+end
+
+--- Restore a catcher from drag-proxy mode back to its default click-to-select state.
+local function RestoreCatcher(catcher, def)
+	if(not catcher._isDragProxy) then return end
+	catcher._isDragProxy = nil
+
+	catcher:RegisterForDrag()  -- unregister drag
+	catcher:SetScript('OnDragStart', nil)
+	catcher:SetScript('OnDragStop', nil)
+	catcher:SetScript('OnUpdate', nil)
+
+	-- Restore label and visuals
+	catcher._label:SetText(def.label .. ' - Click to edit')
+	catcher._dimTex:SetAlpha(DIM_OVERLAY_ALPHA)
+
+	catcher:SetScript('OnEnter', function(self)
+		self._dimTex:SetAlpha(DIM_OVERLAY_ALPHA * 0.5)
+		self._label:SetTextColor(1, 1, 1, 1)
+	end)
+	catcher:SetScript('OnLeave', function(self)
+		self._dimTex:SetAlpha(DIM_OVERLAY_ALPHA)
+		local tn = C.Colors.textNormal
+		self._label:SetTextColor(tn[1], tn[2], tn[3], tn[4] or 1)
+	end)
+
+	catcher._frameKey = def.key
+	catcher:SetScript('OnClick', function(self)
+		EditMode.SetSelectedFrameKey(self._frameKey)
+	end)
+end
+
 F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
-	-- Show all catchers first, then hide the selected one
-	ShowAllCatchers()
-	if(frameKey) then
-		HideCatcher(frameKey)
+	-- Restore all catchers to default state first
+	for _, def in next, EditMode.FRAME_KEYS do
+		local catcher = catchers[def.key]
+		if(catcher) then
+			RestoreCatcher(catcher, def)
+			catcher:Show()
+		end
 	end
 
-	-- Wire dragging on the selected frame
+	-- Convert the selected catcher into a drag proxy
 	if(frameKey) then
 		for _, def in next, EditMode.FRAME_KEYS do
 			if(def.key == frameKey) then
-				local frame = def.getter()
-				if(frame) then
-					-- Skip drag wiring if already set up for this frame
-					if(frame._editModeDragWired) then break end
-					frame._editModeDragWired = true
-					-- Save original handlers for restoration
-					if(not frame._editModeSavedHandlers) then
-						frame._editModeSavedHandlers = {
-							onDragStart = frame:GetScript('OnDragStart'),
-							onDragStop = frame:GetScript('OnDragStop'),
-						}
-					end
-					Widgets.MakeDraggable(frame,
-						function(f) -- onDragStart
-							F.EventBus:Fire('EDIT_MODE_DRAG_STARTED', frameKey)
-						end,
-						function(f, x, y) -- onDragStop
-							-- Snap to grid
-							x, y = EditMode.SnapToGrid(x, y)
-							f:ClearAllPoints()
-							f:SetPoint('CENTER', UIParent, 'BOTTOMLEFT', x, y)
-							-- Save to edit cache
-							EditCache.Set(frameKey, 'position.x', x)
-							EditCache.Set(frameKey, 'position.y', y)
-							-- Hide alignment guides
-							EditMode.HideAlignmentGuides()
-							F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', frameKey)
-						end,
-						true, -- clampToParent
-						function(f, x, y) -- onMove
-							EditMode.UpdateAlignmentGuides(f)
-						end
-					)
+				local catcher = catchers[def.key]
+				if(catcher) then
+					ConvertToDragProxy(catcher, def)
 				end
 				break
 			end

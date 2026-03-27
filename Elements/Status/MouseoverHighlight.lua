@@ -19,15 +19,20 @@ local function Enable(self, unit)
 
 	element.__owner = self
 
-	self:HookScript('OnEnter', function(frame)
-		local el = frame.FramedMouseoverHighlight
-		if(el) then el:Show() end
-	end)
+	-- Guard against hook accumulation on repeated Enable/Disable cycles
+	if(not self.__framedMouseoverHooked) then
+		self.__framedMouseoverHooked = true
 
-	self:HookScript('OnLeave', function(frame)
-		local el = frame.FramedMouseoverHighlight
-		if(el) then el:Hide() end
-	end)
+		self:HookScript('OnEnter', function(frame)
+			local el = frame.FramedMouseoverHighlight
+			if(el) then el:Show() end
+		end)
+
+		self:HookScript('OnLeave', function(frame)
+			local el = frame.FramedMouseoverHighlight
+			if(el) then el:Hide() end
+		end)
+	end
 
 	return true
 end

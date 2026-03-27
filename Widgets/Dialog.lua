@@ -13,7 +13,8 @@ local C = F.Constants
 local DIALOG_WIDTH_2  = 350    -- 2-button dialogs
 local DIALOG_WIDTH_3  = 420    -- 3-button dialogs
 local PAD           = 16   -- padding inside dialog
-local BUTTON_WIDTH  = 90
+local BUTTON_MIN_W  = 90
+local BUTTON_PAD_H  = 16   -- horizontal text padding per side
 local BUTTON_HEIGHT = 24
 local BUTTON_GAP    = 8
 local TITLE_MSG_GAP = 10   -- gap between title and message
@@ -78,19 +79,19 @@ local function BuildDialog()
 	frame._message = message
 
 	-- Yes button (confirm dialogs)
-	local btnYes = Widgets.CreateButton(frame, 'Yes', 'accent', BUTTON_WIDTH, BUTTON_HEIGHT)
+	local btnYes = Widgets.CreateButton(frame, 'Yes', 'accent', BUTTON_MIN_W, BUTTON_HEIGHT)
 	frame._btnYes = btnYes
 
 	-- No button (confirm dialogs)
-	local btnNo = Widgets.CreateButton(frame, 'No', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
+	local btnNo = Widgets.CreateButton(frame, 'No', 'widget', BUTTON_MIN_W, BUTTON_HEIGHT)
 	frame._btnNo = btnNo
 
 	-- Third button (3-button dialogs)
-	local btnThird = Widgets.CreateButton(frame, '', 'widget', BUTTON_WIDTH, BUTTON_HEIGHT)
+	local btnThird = Widgets.CreateButton(frame, '', 'widget', BUTTON_MIN_W, BUTTON_HEIGHT)
 	frame._btnThird = btnThird
 
 	-- OK button (message dialogs)
-	local btnOK = Widgets.CreateButton(frame, 'OK', 'accent', BUTTON_WIDTH, BUTTON_HEIGHT)
+	local btnOK = Widgets.CreateButton(frame, 'OK', 'accent', BUTTON_MIN_W, BUTTON_HEIGHT)
 	frame._btnOK = btnOK
 
 	-- --------------------------------------------------------
@@ -140,6 +141,15 @@ local function BuildDialog()
 		Widgets.SetSize(self, self._activeWidth, math.max(total, 100))
 	end
 
+	--- Measure a button's text and resize to fit with padding.
+	--- Returns the new width.
+	local function FitButton(btn)
+		local textW = btn._label:GetStringWidth()
+		local w = math.max(textW + BUTTON_PAD_H * 2, BUTTON_MIN_W)
+		Widgets.SetSize(btn, w, BUTTON_HEIGHT)
+		return w
+	end
+
 	--- Position buttons centered at the bottom of the dialog.
 	--- mode: 'confirm' shows Yes+No, 'three' shows Yes+No+Third, else shows OK only.
 	function frame:_LayoutButtons(mode)
@@ -150,29 +160,39 @@ local function BuildDialog()
 		self._btnThird:Hide()
 
 		if(mode == 'confirm') then
-			-- Yes left of center, No right of center
-			local totalW = BUTTON_WIDTH * 2 + BUTTON_GAP
+			local w1 = FitButton(self._btnYes)
+			local w2 = FitButton(self._btnNo)
+			local totalW = w1 + w2 + BUTTON_GAP
 			local leftX  = -(totalW / 2)
 			self._btnYes:ClearAllPoints()
-			self._btnYes:SetPoint('BOTTOM', self, 'BOTTOM', leftX + BUTTON_WIDTH / 2, PAD)
+			self._btnYes:SetPoint('BOTTOM', self, 'BOTTOM', leftX + w1 / 2, PAD)
 			self._btnNo:ClearAllPoints()
-			self._btnNo:SetPoint('BOTTOM', self, 'BOTTOM', leftX + BUTTON_WIDTH + BUTTON_GAP + BUTTON_WIDTH / 2, PAD)
+			self._btnNo:SetPoint('BOTTOM', self, 'BOTTOM', leftX + w1 + BUTTON_GAP + w2 / 2, PAD)
 			self._btnYes:Show()
 			self._btnNo:Show()
 		elseif(mode == 'three') then
-			local totalW = BUTTON_WIDTH * 3 + BUTTON_GAP * 2
+			local w1 = FitButton(self._btnYes)
+			local w2 = FitButton(self._btnNo)
+			local w3 = FitButton(self._btnThird)
+			local totalW = w1 + w2 + w3 + BUTTON_GAP * 2
 			local leftX  = -(totalW / 2)
 			self._btnYes:ClearAllPoints()
-			self._btnYes:SetPoint('BOTTOM', self, 'BOTTOM', leftX + BUTTON_WIDTH / 2, PAD)
+			self._btnYes:SetPoint('BOTTOM', self, 'BOTTOM', leftX + w1 / 2, PAD)
 			self._btnNo:ClearAllPoints()
-			self._btnNo:SetPoint('BOTTOM', self, 'BOTTOM', leftX + BUTTON_WIDTH + BUTTON_GAP + BUTTON_WIDTH / 2, PAD)
+			self._btnNo:SetPoint('BOTTOM', self, 'BOTTOM', leftX + w1 + BUTTON_GAP + w2 / 2, PAD)
 			self._btnThird:ClearAllPoints()
-			self._btnThird:SetPoint('BOTTOM', self, 'BOTTOM', leftX + (BUTTON_WIDTH + BUTTON_GAP) * 2 + BUTTON_WIDTH / 2, PAD)
+			self._btnThird:SetPoint('BOTTOM', self, 'BOTTOM', leftX + w1 + BUTTON_GAP + w2 + BUTTON_GAP + w3 / 2, PAD)
 			self._btnYes:Show()
 			self._btnNo:Show()
 			self._btnThird:Show()
+			-- Widen dialog if buttons exceed it
+			local minDialogW = totalW + PAD * 2
+			if(minDialogW > self._activeWidth) then
+				self._activeWidth = minDialogW
+				Widgets.SetSize(self, self._activeWidth, select(2, self:GetSize()))
+			end
 		else
-			-- OK centered
+			local w1 = FitButton(self._btnOK)
 			self._btnOK:ClearAllPoints()
 			self._btnOK:SetPoint('BOTTOM', self, 'BOTTOM', 0, PAD)
 			self._btnOK:Show()

@@ -18,6 +18,15 @@ local THUMB_MIN_H   = 16
 
 local ARROW_ICON    = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
 
+-- Scrollbar auto-hide & hint arrow constants (match ScrollFrame.lua UX)
+local FADE_IN_DUR      = 0.15
+local FADE_OUT_DUR     = 0.4
+local FADE_OUT_DELAY   = 1.0
+local HINT_SIZE        = 12
+local HINT_PULSE_MIN   = 0.2
+local HINT_PULSE_MAX   = 0.7
+local HINT_PULSE_SPEED = 1.0
+
 local dropdownList          -- singleton list frame, created lazily
 local dropdownBlocker       -- invisible full-screen click-catcher
 local currentOwner          -- which dropdown button currently owns the list
@@ -47,9 +56,11 @@ local function UpdateThumb()
 	if(contentH <= viewH or viewH <= 0) then
 		dropdownList._scrollbar:Hide()
 		dropdownList._thumb:Hide()
+		if(dropdownList._scrollHint) then dropdownList._scrollHint:Hide() end
 		return
 	end
 
+	-- Show track/thumb frames (alpha controlled by fade logic)
 	dropdownList._scrollbar:Show()
 	dropdownList._thumb:Show()
 
@@ -71,6 +82,79 @@ local function ApplyScroll(offset)
 	offset = Clamp(offset, 0, GetScrollMax())
 	dropdownList._scrollFrame:SetVerticalScroll(offset)
 	UpdateThumb()
+end
+
+-- ── Scrollbar auto-hide ──────────────────────────────────────
+
+local function FadeDropdownScrollbar(targetAlpha, duration)
+	if(not dropdownList) then return end
+	local track = dropdownList._scrollbar
+	local thumb = dropdownList._thumb
+	local startAlpha = track:GetAlpha()
+	if(math.abs(startAlpha - targetAlpha) < 0.01) then
+		track:SetAlpha(targetAlpha)
+		thumb:SetAlpha(targetAlpha)
+		return
+	end
+
+	local elapsed = 0
+	dropdownList._fadeFrame = dropdownList._fadeFrame or CreateFrame('Frame')
+	dropdownList._fadeFrame:SetScript('OnUpdate', function(self, dt)
+		elapsed = elapsed + dt
+		local t = math.min(elapsed / duration, 1)
+		local a = startAlpha + (targetAlpha - startAlpha) * t
+		track:SetAlpha(a)
+		thumb:SetAlpha(a)
+		if(t >= 1) then
+			self:SetScript('OnUpdate', nil)
+		end
+	end)
+end
+
+local function OnDropdownScrollActivity()
+	if(not dropdownList) then return end
+	local maxScroll = GetScrollMax()
+	if(maxScroll <= 0) then return end
+
+	-- Cancel pending fade-out
+	if(dropdownList._fadeOutTimer) then
+		dropdownList._fadeOutTimer:Cancel()
+		dropdownList._fadeOutTimer = nil
+	end
+
+	-- Fade in if not already visible
+	if(dropdownList._scrollbar:GetAlpha() < 0.9) then
+		FadeDropdownScrollbar(1, FADE_IN_DUR)
+	end
+
+	-- Schedule fade-out
+	dropdownList._fadeOutTimer = C_Timer.NewTimer(FADE_OUT_DELAY, function()
+		dropdownList._fadeOutTimer = nil
+		if(dropdownList._thumb._dragging) then return end
+		FadeDropdownScrollbar(0, FADE_OUT_DUR)
+	end)
+
+	-- Update hint arrow
+	UpdateDropdownHint()
+end
+
+-- ── Scroll hint arrow ────────────────────────────────────────
+
+local UpdateDropdownHint
+UpdateDropdownHint = function()
+	if(not dropdownList or not dropdownList._scrollHint) then return end
+	local hint = dropdownList._scrollHint
+	local maxScroll = GetScrollMax()
+	if(maxScroll <= 0) then
+		hint:Hide()
+		return
+	end
+	local currentOffset = dropdownList._scrollFrame:GetVerticalScroll()
+	if(currentOffset >= maxScroll - 1) then
+		hint:Hide()
+	else
+		hint:Show()
+	end
 end
 
 -- ── Create the singleton ───────────────────────────────────
@@ -117,18 +201,20 @@ local function EnsureDropdownList()
 	sf:SetScript('OnMouseWheel', function(self, delta)
 		local current = self:GetVerticalScroll()
 		ApplyScroll(current - delta * SCROLL_STEP)
+		OnDropdownScrollActivity()
 	end)
 
-	-- Scrollbar track (right edge, inside the list frame)
+	-- Scrollbar track (right edge, inside the list frame — starts hidden, fades in on scroll)
 	local track = CreateFrame('Frame', nil, dropdownList, 'BackdropTemplate')
 	track:SetWidth(SCROLLBAR_W)
 	track:SetPoint('TOPRIGHT', dropdownList, 'TOPRIGHT', -1, -LIST_PAD)
 	track:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', -1, LIST_PAD)
 	Widgets.ApplyBackdrop(track, C.Colors.panel, C.Colors.panel)
+	track:SetAlpha(0)
 	track:Hide()
 	dropdownList._scrollbar = track
 
-	-- Scrollbar thumb
+	-- Scrollbar thumb (starts hidden, fades in on scroll)
 	local thumb = CreateFrame('Frame', nil, track)
 	thumb:SetWidth(SCROLLBAR_W)
 	thumb:SetHeight(THUMB_MIN_H)
@@ -138,8 +224,32 @@ local function EnsureDropdownList()
 	thumbTex:SetAllPoints(thumb)
 	thumbTex:SetColorTexture(
 		C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], C.Colors.accent[4] or 1)
+	thumb:SetAlpha(0)
 	thumb:Hide()
 	dropdownList._thumb = thumb
+
+	-- Scroll hint arrow (pulsing down arrow at bottom-right)
+	local hint = CreateFrame('Frame', nil, dropdownList)
+	hint:SetSize(HINT_SIZE, HINT_SIZE)
+	hint:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', -4, 8)
+	hint:SetFrameLevel(dropdownList:GetFrameLevel() + 5)
+
+	local hintTex = hint:CreateTexture(nil, 'OVERLAY')
+	hintTex:SetAllPoints(hint)
+	hintTex:SetTexture(ARROW_ICON)
+	hintTex:SetTexCoord(0.15, 0.85, 0.85, 0.15)  -- flip for down arrow
+	local hintColor = C.Colors.accent
+	hintTex:SetVertexColor(hintColor[1], hintColor[2], hintColor[3], hintColor[4] or 1)
+	hint:Hide()
+
+	local pulseElapsed = 0
+	hint:SetScript('OnUpdate', function(self, dt)
+		pulseElapsed = pulseElapsed + dt
+		local t = (math.sin(pulseElapsed * HINT_PULSE_SPEED * 2 * math.pi) + 1) / 2
+		local a = HINT_PULSE_MIN + (HINT_PULSE_MAX - HINT_PULSE_MIN) * t
+		hintTex:SetAlpha(a)
+	end)
+	dropdownList._scrollHint = hint
 
 	-- Thumb dragging
 	thumb:EnableMouse(true)
@@ -172,6 +282,7 @@ local function EnsureDropdownList()
 
 		self:ClearAllPoints()
 		self:SetPoint('TOP', track, 'TOP', 0, -math.floor(newOffset + 0.5))
+		UpdateDropdownHint()
 	end)
 
 	-- Pool of item row frames (re-used each open)
@@ -179,7 +290,16 @@ local function EnsureDropdownList()
 end
 
 CloseDropdownList = function()
-	if(dropdownList) then dropdownList:Hide() end
+	if(dropdownList) then
+		dropdownList:Hide()
+		if(dropdownList._fadeOutTimer) then
+			dropdownList._fadeOutTimer:Cancel()
+			dropdownList._fadeOutTimer = nil
+		end
+		if(dropdownList._scrollHint) then
+			dropdownList._scrollHint:Hide()
+		end
+	end
 	if(dropdownBlocker) then dropdownBlocker:Hide() end
 	currentOwner = nil
 end
@@ -350,7 +470,16 @@ OpenDropdownList = function(owner)
 		end
 	end
 
+	-- Reset scrollbar to hidden (will fade in on scroll)
+	dropdownList._scrollbar:SetAlpha(0)
+	dropdownList._thumb:SetAlpha(0)
+	if(dropdownList._fadeOutTimer) then
+		dropdownList._fadeOutTimer:Cancel()
+		dropdownList._fadeOutTimer = nil
+	end
+
 	UpdateThumb()
+	UpdateDropdownHint()
 	dropdownBlocker:Show()
 	dropdownList:Show()
 end

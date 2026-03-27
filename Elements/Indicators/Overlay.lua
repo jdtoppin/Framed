@@ -60,8 +60,7 @@ function F.Indicators.Overlay.Create(parent)
 	-- Overlay frame sits above the parent at OVERLAY strata
 	local frame = CreateFrame('Frame', nil, parent)
 	frame:SetAllPoints(parent)
-	frame:SetFrameStrata('OVERLAY')
-	frame:SetFrameLevel(parent:GetFrameLevel() + 10)
+	frame:SetFrameLevel(parent:GetFrameLevel() + 20)
 	frame:Hide()
 
 	-- Background texture covers the entire overlay frame
