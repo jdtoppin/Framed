@@ -176,6 +176,10 @@ local function buildDialog(configKey, panelLabel, panelId)
 
 		Widgets.FadeOut(dialog, 0.15, function() dialog:Hide() end)
 
+		if(F.Settings.RefreshActivePanel) then
+			F.Settings.RefreshActivePanel()
+		end
+
 		if(#copiedTo > 0) then
 			print('Framed: Copied ' .. panelLabel .. ' settings from ' .. sourceLabel .. ' to ' .. table.concat(copiedTo, ', '))
 		end

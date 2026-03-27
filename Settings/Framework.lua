@@ -198,6 +198,7 @@ Settings._sidebarBuilt   = false
 Settings._activePanelId  = nil
 Settings._activePanelFrame = nil
 Settings._panelFrames    = {}
+Settings._panelRefresh   = {}
 Settings._sidebarButtons = {}
 Settings._contentParent  = nil
 Settings._headerPanelText = nil
@@ -239,7 +240,7 @@ function Settings.SetActivePanel(panelId)
 	-- Build panel frame if not yet created
 	if(not Settings._panelFrames[panelId]) then
 		if(info.create and Settings._contentParent) then
-			local pFrame = info.create(Settings._contentParent)
+			local pFrame, refreshFn = info.create(Settings._contentParent)
 			if(pFrame) then
 				pFrame:ClearAllPoints()
 				pFrame:SetAllPoints(Settings._contentParent)
@@ -249,6 +250,7 @@ function Settings.SetActivePanel(panelId)
 				pFrame._height = nil
 				pFrame:Hide()
 				Settings._panelFrames[panelId] = pFrame
+				Settings._panelRefresh[panelId] = refreshFn  -- may be nil
 			end
 		end
 	end
@@ -286,6 +288,23 @@ function Settings.SetActivePanel(panelId)
 		end
 	end
 
+end
+
+-- Refresh active panel when the editing preset changes
+F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+	local activeId = Settings._activePanelId
+	if(activeId and Settings._panelRefresh[activeId]) then
+		Settings._panelRefresh[activeId]()
+	end
+end, 'Settings.PanelRefresh')
+
+--- Call the active panel's Refresh callback, if it has one.
+--- Used by CopyToDialog after a copy operation completes.
+function Settings.RefreshActivePanel()
+	local activeId = Settings._activePanelId
+	if(activeId and Settings._panelRefresh[activeId]) then
+		Settings._panelRefresh[activeId]()
+	end
 end
 
 -- ============================================================
