@@ -485,6 +485,18 @@ function F.StyleBuilder.GetAuraConfig(unitType, auraType)
 	return {}
 end
 
+--- Iterate all oUF frames matching a unit type.
+--- @param unitType string  'player'|'party'|'raid'|'arena'|'boss'
+--- @param callback function(frame)
+function F.StyleBuilder.ForEachFrame(unitType, callback)
+	local oUF = F.oUF
+	for _, frame in next, oUF.objects do
+		if(frame._framedUnitType == unitType) then
+			callback(frame)
+		end
+	end
+end
+
 -- ============================================================
 -- Apply
 -- Composes all Phase 3A elements onto an oUF frame.
@@ -747,6 +759,18 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	local defensivesConfig = F.StyleBuilder.GetAuraConfig(unitType, 'defensives')
 	if(defensivesConfig and defensivesConfig.enabled and F.Elements.Defensives) then
 		F.Elements.Defensives.Setup(self, defensivesConfig)
+	end
+
+	-- Loss of Control
+	local locConfig = F.StyleBuilder.GetAuraConfig(unitType, 'lossOfControl')
+	if(locConfig and locConfig.enabled) then
+		F.Elements.LossOfControl.Setup(self, locConfig)
+	end
+
+	-- Crowd Control
+	local ccConfig = F.StyleBuilder.GetAuraConfig(unitType, 'crowdControl')
+	if(ccConfig and ccConfig.enabled) then
+		F.Elements.CrowdControl.Setup(self, ccConfig)
 	end
 
 	-- --------------------------------------------------------
