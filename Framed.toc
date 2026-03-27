@@ -152,6 +152,7 @@ Settings/MainFrame.lua
 Settings/Sidebar.lua
 Settings/FrameSettingsBuilder.lua
 Settings/Builders/BorderIconSettings.lua
+Settings/Builders/IndicatorPanels.lua
 Settings/Builders/IndicatorCRUD.lua
 Settings/Builders/SharedCards.lua
 Settings/Panels/Appearance.lua

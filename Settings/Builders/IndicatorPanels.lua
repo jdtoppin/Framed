@@ -12,7 +12,9 @@ F.Settings.Builders = F.Settings.Builders or {}
 local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
+local BUTTON_H     = 24
 local WIDGET_W     = 220
+local PAD          = 16
 
 -- ============================================================
 -- Layout helpers
@@ -54,6 +56,179 @@ local BAR_ORIENTATION_ITEMS = {
 	{ text = 'Horizontal', value = 'Horizontal' },
 	{ text = 'Vertical',   value = 'Vertical' },
 }
+
+-- ============================================================
+-- Healer spell data
+-- ============================================================
+local HEALER_SPELLS = {
+	DRUID   = { 774, 155777, 8936, 48438, 33763, 102342, 203651 },
+	PALADIN = { 53563, 156910, 200025, 223306, 287280, 6940, 1022 },
+	PRIEST  = { 139, 17, 41635, 194384, 33206, 47788, 21562 },
+	SHAMAN  = { 61295, 73920, 77472, 974, 198838 },
+	MONK    = { 119611, 116849, 124682, 116841, 191840 },
+	EVOKER  = { 355941, 376788, 364343, 373861, 360823 },
+}
+local CLASS_ORDER = { 'DRUID', 'EVOKER', 'MONK', 'PALADIN', 'PRIEST', 'SHAMAN' }
+
+-- ============================================================
+-- Spell info helper
+-- ============================================================
+local function getSpellInfo(spellID)
+	if(C_Spell and C_Spell.GetSpellInfo) then
+		local info = C_Spell.GetSpellInfo(spellID)
+		if(info) then return info.name, info.iconID end
+	elseif(GetSpellInfo) then
+		local name, _, icon = GetSpellInfo(spellID)
+		if(name) then return name, icon end
+	end
+	return 'Spell ' .. spellID, nil
+end
+
+-- ============================================================
+-- Import Popup (singleton)
+-- ============================================================
+local importPopup
+
+local function BuildImportPopup()
+	-- Dimmer
+	local dimmer = CreateFrame('Frame', nil, UIParent)
+	dimmer:SetAllPoints(UIParent)
+	dimmer:SetFrameStrata('FULLSCREEN_DIALOG')
+	dimmer:SetFrameLevel(1)
+	local dimTex = dimmer:CreateTexture(nil, 'BACKGROUND')
+	dimTex:SetAllPoints(dimmer)
+	dimTex:SetColorTexture(0, 0, 0, 0.5)
+
+	-- Dialog
+	local frame = CreateFrame('Frame', nil, dimmer, 'BackdropTemplate')
+	frame:SetFrameStrata('FULLSCREEN_DIALOG')
+	frame:SetFrameLevel(10)
+	Widgets.SetSize(frame, 420, 480)
+	frame:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
+	local bg = C.Colors.panel
+	frame:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 1,
+	})
+	frame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4] or 1)
+	frame:SetBackdropBorderColor(0, 0, 0, 1)
+
+	-- Accent bar
+	local accent = frame:CreateTexture(nil, 'OVERLAY')
+	accent:SetHeight(1)
+	accent:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+	accent:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
+	local ac = C.Colors.accent
+	accent:SetColorTexture(ac[1], ac[2], ac[3], ac[4] or 1)
+
+	-- Title
+	local title = Widgets.CreateFontString(frame, C.Font.sizeTitle, C.Colors.textActive)
+	title:SetPoint('TOPLEFT', frame, 'TOPLEFT', PAD, -PAD)
+	title:SetText('Import Healer Spells')
+
+	-- Select All / Deselect All
+	local selAll = Widgets.CreateButton(frame, 'Select All', 'widget', 80, BUTTON_H)
+	selAll:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', -(PAD + 88), -PAD)
+	local deselAll = Widgets.CreateButton(frame, 'Deselect All', 'widget', 80, BUTTON_H)
+	deselAll:SetPoint('LEFT', selAll, 'RIGHT', C.Spacing.base, 0)
+
+	-- Scroll area
+	local scrollTop = -(PAD + 20 + C.Spacing.normal)
+	local scrollH = 480 - 60 - BUTTON_H * 2 - PAD * 2 - C.Spacing.normal * 2
+	local scroll = Widgets.CreateScrollFrame(frame, nil, 420 - PAD * 2, scrollH)
+	scroll:SetPoint('TOPLEFT', frame, 'TOPLEFT', PAD, scrollTop)
+	local content = scroll:GetContentFrame()
+
+	-- Build checkboxes
+	frame.__checkboxes = {}
+	local yOff = 0
+	for _, cls in next, CLASS_ORDER do
+		local spells = HEALER_SPELLS[cls]
+		if(spells) then
+			local hdr = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.accent)
+			hdr:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, yOff)
+			hdr:SetJustifyH('LEFT')
+			hdr:SetText(cls:sub(1, 1) .. cls:sub(2):lower())
+			yOff = yOff - 18
+			for _, spellID in next, spells do
+				local spName, spIcon = getSpellInfo(spellID)
+				local label = spName .. '  (' .. spellID .. ')'
+				local cb = Widgets.CreateCheckButton(content, label, function() end)
+				cb:SetChecked(true)
+				cb:ClearAllPoints()
+				Widgets.SetPoint(cb, 'TOPLEFT', content, 'TOPLEFT', 8, yOff)
+
+				-- Insert spell icon between toggle track and label
+				if(spIcon) then
+					local iconSize = 14
+					local icon = cb:CreateTexture(nil, 'ARTWORK')
+					icon:SetSize(iconSize, iconSize)
+					icon:SetTexture(spIcon)
+					icon:SetPoint('LEFT', cb._track, 'RIGHT', 4, 0)
+					-- Shift the label to the right of the icon
+					cb._labelText:ClearAllPoints()
+					Widgets.SetPoint(cb._labelText, 'LEFT', icon, 'RIGHT', 4, 0)
+					-- Widen frame to account for icon
+					cb:SetWidth(cb:GetWidth() + iconSize + 8)
+				end
+
+				yOff = yOff - CHECK_H
+				frame.__checkboxes[#frame.__checkboxes + 1] = { checkbox = cb, spellID = spellID }
+			end
+			yOff = yOff - C.Spacing.tight
+		end
+	end
+	content:SetHeight(math.abs(yOff))
+	scroll:UpdateScrollRange()
+
+	selAll:SetOnClick(function()
+		for _, e in next, frame.__checkboxes do e.checkbox:SetChecked(true) end
+	end)
+	deselAll:SetOnClick(function()
+		for _, e in next, frame.__checkboxes do e.checkbox:SetChecked(false) end
+	end)
+
+	-- Import / Cancel buttons
+	local importBtn = Widgets.CreateButton(frame, 'Import Selected', 'accent', 140, BUTTON_H)
+	importBtn:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -PAD, PAD)
+	local cancelBtn = Widgets.CreateButton(frame, 'Cancel', 'widget', 80, BUTTON_H)
+	cancelBtn:SetPoint('RIGHT', importBtn, 'LEFT', -C.Spacing.tight, 0)
+
+	local function dismiss() frame:Hide(); dimmer:Hide() end
+	cancelBtn:SetOnClick(dismiss)
+	frame:EnableKeyboard(true)
+	frame:SetPropagateKeyboardInput(false)
+	frame:SetScript('OnKeyDown', function(_, key)
+		if(key == 'ESCAPE') then dismiss() end
+	end)
+	frame:HookScript('OnHide', function() dimmer:Hide() end)
+
+	frame.__importBtn = importBtn
+	frame.__dimmer = dimmer
+	frame.__dismiss = dismiss
+	frame:Hide()
+	dimmer:Hide()
+	Widgets.AddToPixelUpdater_OnShow(frame)
+	return frame
+end
+
+local function ShowImportPopup(onImport)
+	if(not importPopup) then importPopup = BuildImportPopup() end
+	for _, e in next, importPopup.__checkboxes do e.checkbox:SetChecked(true) end
+	importPopup.__importBtn:SetOnClick(function()
+		local selected = {}
+		for _, e in next, importPopup.__checkboxes do
+			if(e.checkbox:GetChecked()) then selected[#selected + 1] = e.spellID end
+		end
+		importPopup.__dismiss()
+		if(onImport) then onImport(selected) end
+	end)
+	importPopup.__dimmer:Show()
+	importPopup.__dimmer:SetAlpha(1)
+	importPopup:Show()
+	Widgets.FadeIn(importPopup, C.Animation.durationNormal)
+end
 
 -- ============================================================
 -- Build type-specific indicator settings
@@ -103,7 +278,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 	local importBtn = Widgets.CreateButton(spInner, 'Import Healer Spells', 'widget', 160, 24)
 	spY = placeWidget(importBtn, spInner, spY, 24)
 	importBtn:SetOnClick(function()
-		F.Settings.Builders.ShowImportPopup(function(selectedSpells)
+		ShowImportPopup(function(selectedSpells)
 			if(not selectedSpells or #selectedSpells == 0) then return end
 			local existing = spList:GetSpells()
 			for _, spellID in next, selectedSpells do
