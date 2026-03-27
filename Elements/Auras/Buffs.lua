@@ -15,7 +15,8 @@ local RENDERERS = {
 	[C.IndicatorType.ICON]      = F.Indicators.Icon,
 	[C.IndicatorType.ICONS]     = F.Indicators.Icons,
 	[C.IndicatorType.BAR]       = F.Indicators.Bar,
-	[C.IndicatorType.FRAME_BAR] = F.Indicators.FrameBar,
+	[C.IndicatorType.BARS]      = F.Indicators.Bars,
+	[C.IndicatorType.FRAME_BAR] = F.Indicators.Overlay,
 	[C.IndicatorType.BORDER]    = F.Indicators.Border,
 	[C.IndicatorType.COLOR]     = F.Indicators.Color,
 	[C.IndicatorType.OVERLAY]   = F.Indicators.Overlay,
@@ -78,13 +79,47 @@ local function Update(self, event, unit)
 	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
-			local auraEntry
-			local sourceUnit = auraData.sourceUnit
+			local dominated = false
+			if(element._hideUnimportantBuffs) then
+				dominated = auraData.duration == 0
+					or auraData.duration > 600
+					or (not auraData.canApplyAura
+						and not auraData.isBossAura
+						and auraData.duration > 120)
+			end
 
-			-- Check spell-specific indicators
-			local indicatorIndices = spellLookup[spellId]
-			if(indicatorIndices) then
-				for _, idx in next, indicatorIndices do
+			if(not dominated) then
+				local auraEntry
+				local sourceUnit = auraData.sourceUnit
+
+				-- Check spell-specific indicators
+				local indicatorIndices = spellLookup[spellId]
+				if(indicatorIndices) then
+					for _, idx in next, indicatorIndices do
+						local ind = indicators[idx]
+						if(passesCastByFilter(sourceUnit, ind._castBy)) then
+							if(not auraEntry) then
+								auraEntry = {
+									spellId        = spellId,
+									icon           = auraData.icon,
+									duration       = auraData.duration,
+									expirationTime = auraData.expirationTime,
+									stacks         = auraData.applications or 0,
+									dispelType     = auraData.dispelName,
+								}
+							end
+							if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
+								local list = iconsAuras[idx]
+								list[#list + 1] = auraEntry
+							elseif(not matched[idx]) then
+								matched[idx] = auraEntry
+							end
+						end
+					end
+				end
+
+				-- Check track-all indicators (empty spells list)
+				for _, idx in next, hasTrackAll do
 					local ind = indicators[idx]
 					if(passesCastByFilter(sourceUnit, ind._castBy)) then
 						if(not auraEntry) then
@@ -97,35 +132,12 @@ local function Update(self, event, unit)
 								dispelType     = auraData.dispelName,
 							}
 						end
-						if(ind._type == C.IndicatorType.ICONS) then
+						if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
 							local list = iconsAuras[idx]
 							list[#list + 1] = auraEntry
 						elseif(not matched[idx]) then
 							matched[idx] = auraEntry
 						end
-					end
-				end
-			end
-
-			-- Check track-all indicators (empty spells list)
-			for _, idx in next, hasTrackAll do
-				local ind = indicators[idx]
-				if(passesCastByFilter(sourceUnit, ind._castBy)) then
-					if(not auraEntry) then
-						auraEntry = {
-							spellId        = spellId,
-							icon           = auraData.icon,
-							duration       = auraData.duration,
-							expirationTime = auraData.expirationTime,
-							stacks         = auraData.applications or 0,
-							dispelType     = auraData.dispelName,
-						}
-					end
-					if(ind._type == C.IndicatorType.ICONS) then
-						local list = iconsAuras[idx]
-						list[#list + 1] = auraEntry
-					elseif(not matched[idx]) then
-						matched[idx] = auraEntry
 					end
 				end
 			end
@@ -165,21 +177,34 @@ local function Update(self, event, unit)
 		elseif(rendererType == C.IndicatorType.BAR) then
 			local aura = matched[idx]
 			if(aura) then
-				renderer:SetDuration(aura.duration, aura.expirationTime)
+				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+					renderer:SetDuration(aura.duration, aura.expirationTime)
+				else
+					renderer:SetValue(1, 1)
+				end
+				if(aura.stacks) then renderer:SetStacks(aura.stacks) end
 			else
 				renderer:Clear()
+			end
+
+		elseif(rendererType == C.IndicatorType.BARS) then
+			local list = iconsAuras[idx]
+			if(#list > 0) then
+				renderer:SetBars(list)
+				renderer:Show()
+			else
+				renderer:Clear()
+				renderer:Hide()
 			end
 
 		elseif(rendererType == C.IndicatorType.FRAME_BAR) then
 			local aura = matched[idx]
 			if(aura) then
-				local remaining = aura.expirationTime - GetTime()
-				if(aura.duration and aura.duration > 0) then
-					renderer:SetValue(remaining, aura.duration)
+				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+					renderer:SetDuration(aura.duration, aura.expirationTime)
 				else
 					renderer:SetValue(1, 1)
 				end
-				renderer:Show()
 			else
 				renderer:Clear()
 			end
@@ -196,8 +221,14 @@ local function Update(self, event, unit)
 		elseif(rendererType == C.IndicatorType.COLOR) then
 			local aura = matched[idx]
 			if(aura) then
-				local color = ind._color or { 0.2, 0.8, 0.2, 1 }
-				renderer:Override(color[1], color[2], color[3], color[4])
+				local color = ind._color or { 1, 1, 1, 1 }
+				renderer:SetColor(color[1], color[2], color[3], color[4] or 1)
+				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+					renderer:SetDuration(aura.duration, aura.expirationTime)
+				else
+					renderer:SetValue(1, 1)
+				end
+				if(aura.stacks) then renderer:SetStacks(aura.stacks) end
 			else
 				renderer:Clear()
 			end
@@ -206,9 +237,14 @@ local function Update(self, event, unit)
 			local aura = matched[idx]
 			if(aura) then
 				local color = ind._color
-				renderer:Show(color)
+				if(color) then renderer:SetColor(color[1], color[2], color[3], color[4] or 1) end
+				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+					renderer:SetDuration(aura.duration, aura.expirationTime)
+				else
+					renderer:SetValue(1, 1)
+				end
 			else
-				renderer:Hide()
+				renderer:Clear()
 			end
 
 		elseif(rendererType == C.IndicatorType.GLOW) then
@@ -260,6 +296,9 @@ local function Disable(self)
 		if(rendererType == C.IndicatorType.ICONS) then
 			renderer:Clear()
 			renderer:Hide()
+		elseif(rendererType == C.IndicatorType.BARS) then
+			renderer:Clear()
+			renderer:Hide()
 		elseif(rendererType == C.IndicatorType.ICON) then
 			renderer:Clear()
 		elseif(rendererType == C.IndicatorType.BAR) then
@@ -271,7 +310,7 @@ local function Disable(self)
 		elseif(rendererType == C.IndicatorType.COLOR) then
 			renderer:Clear()
 		elseif(rendererType == C.IndicatorType.OVERLAY) then
-			renderer:Hide()
+			renderer:Clear()
 		elseif(rendererType == C.IndicatorType.GLOW) then
 			renderer:Stop()
 		end
@@ -299,58 +338,178 @@ local function createRenderer(parent, indConfig)
 	local factory = RENDERERS[indType]
 	if(not factory) then return nil end
 
-	if(indType == C.IndicatorType.ICON) then
-		return factory.Create(parent, indConfig.iconSize or 14, {
+	if(indType == C.IndicatorType.ICON or indType == C.IndicatorType.ICONS) then
+		local iconConfig = {
+			iconWidth    = indConfig.iconWidth or indConfig.iconSize or 14,
+			iconHeight   = indConfig.iconHeight or indConfig.iconSize or 14,
 			displayType  = indConfig.displayType,
 			showCooldown = indConfig.showCooldown,
 			showStacks   = indConfig.showStacks,
-			showDuration = indConfig.showDuration,
-		})
-
-	elseif(indType == C.IndicatorType.ICONS) then
-		return factory.Create(parent, {
-			maxIcons      = indConfig.maxIcons or 4,
-			iconSize      = indConfig.iconSize or 14,
-			spacing       = indConfig.spacing,
-			spacingX      = indConfig.spacingX,
-			spacingY      = indConfig.spacingY,
-			numPerLine    = indConfig.numPerLine,
-			growDirection = indConfig.growDirection or 'RIGHT',
-			displayType   = indConfig.displayType,
-			showCooldown  = indConfig.showCooldown,
-			showStacks    = indConfig.showStacks,
-			showDuration  = indConfig.showDuration,
-		})
+			durationMode = indConfig.durationMode or 'Never',
+			durationFont = indConfig.durationFont,
+			stackFont    = indConfig.stackFont,
+			spellColors  = indConfig.spellColors,
+			glowType     = indConfig.glowType,
+			glowColor    = indConfig.glowColor,
+			glowConfig   = indConfig.glowConfig,
+		}
+		if(indType == C.IndicatorType.ICONS) then
+			iconConfig.maxIcons      = indConfig.maxDisplayed or 4
+			iconConfig.numPerLine    = indConfig.numPerLine or 0
+			iconConfig.spacingX      = indConfig.spacingX or 1
+			iconConfig.spacingY      = indConfig.spacingY or 1
+			iconConfig.growDirection = indConfig.orientation or 'RIGHT'
+			return factory.Create(parent, iconConfig)
+		else
+			return factory.Create(parent, nil, iconConfig)
+		end
 
 	elseif(indType == C.IndicatorType.BAR) then
-		return factory.Create(parent, indConfig.barWidth or 50, indConfig.barHeight or 4, {
-			color = indConfig.color,
+		return factory.Create(parent, {
+			barWidth       = indConfig.barWidth or 50,
+			barHeight      = indConfig.barHeight or 4,
+			barOrientation = indConfig.barOrientation or 'Horizontal',
+			color          = indConfig.color,
+			borderColor    = indConfig.borderColor,
+			bgColor        = indConfig.bgColor,
+			lowTimeColor   = indConfig.lowTimeColor,
+			lowSecsColor   = indConfig.lowSecsColor,
+			showStacks     = indConfig.showStacks,
+			durationMode   = indConfig.durationMode,
+			durationFont   = indConfig.durationFont,
+			stackFont      = indConfig.stackFont,
+		})
+
+	elseif(indType == C.IndicatorType.BARS) then
+		return F.Indicators.Bars.Create(parent, {
+			barWidth       = indConfig.barWidth or 50,
+			barHeight      = indConfig.barHeight or 4,
+			barOrientation = indConfig.barOrientation or 'Horizontal',
+			color          = indConfig.color,
+			borderColor    = indConfig.borderColor,
+			bgColor        = indConfig.bgColor,
+			lowTimeColor   = indConfig.lowTimeColor,
+			lowSecsColor   = indConfig.lowSecsColor,
+			showStacks     = indConfig.showStacks,
+			durationMode   = indConfig.durationMode,
+			durationFont   = indConfig.durationFont,
+			stackFont      = indConfig.stackFont,
+			maxDisplayed   = indConfig.maxDisplayed or 3,
+			numPerLine     = indConfig.numPerLine or 0,
+			spacingX       = indConfig.spacingX or 1,
+			spacingY       = indConfig.spacingY or 1,
+			orientation    = indConfig.orientation or 'DOWN',
 		})
 
 	elseif(indType == C.IndicatorType.FRAME_BAR) then
-		return factory.Create(parent, {
+		return F.Indicators.Overlay.Create(parent.Health or parent, {
+			overlayMode = 'FrameBar',
 			color = indConfig.color,
 		})
 
 	elseif(indType == C.IndicatorType.BORDER) then
-		return factory.Create(parent)
+		return factory.Create(parent, {
+			borderThickness = indConfig.borderThickness,
+			fadeOut          = indConfig.fadeOut,
+		})
 
 	elseif(indType == C.IndicatorType.COLOR) then
-		-- Color needs the health bar, fall back to parent if Health not available
-		local healthBar = parent.Health or parent
-		return factory.Create(healthBar)
+		return factory.Create(parent, {
+			color         = indConfig.color,
+			rectWidth     = indConfig.rectWidth or 10,
+			rectHeight    = indConfig.rectHeight or 10,
+			borderColor   = indConfig.borderColor,
+			lowTimeColor  = indConfig.lowTimeColor,
+			lowSecsColor  = indConfig.lowSecsColor,
+			showStacks    = indConfig.showStacks,
+			durationMode  = indConfig.durationMode,
+			stackFont     = indConfig.stackFont,
+		})
 
 	elseif(indType == C.IndicatorType.OVERLAY) then
-		return factory.Create(parent)
+		return F.Indicators.Overlay.Create(parent.Health or parent, {
+			overlayMode    = indConfig.overlayMode or 'Overlay',
+			color          = indConfig.color,
+			barOrientation = indConfig.barOrientation or 'Horizontal',
+			smooth         = indConfig.smooth,
+			lowTimeColor   = indConfig.lowTimeColor,
+			lowSecsColor   = indConfig.lowSecsColor,
+		})
 
 	elseif(indType == C.IndicatorType.GLOW) then
 		return factory.Create(parent, {
 			glowType = indConfig.glowType,
 			color    = indConfig.color,
+			fadeOut  = indConfig.fadeOut,
 		})
 	end
 
 	return nil
+end
+
+-- ============================================================
+-- Rebuild
+-- ============================================================
+
+--- Structural rebuild: destroy all renderers and recreate from fresh config.
+local function Rebuild(element, config)
+	if(element._indicators) then
+		for _, ind in next, element._indicators do
+			if(ind._renderer) then
+				ind._renderer:Clear()
+				if(ind._renderer.Destroy) then
+					ind._renderer:Destroy()
+				end
+			end
+		end
+	end
+
+	element._indicators           = {}
+	element._spellLookup          = {}
+	element._hasTrackAll          = {}
+	element._hideUnimportantBuffs = config.hideUnimportantBuffs or false
+
+	local indicators = config.indicators or {}
+	for name, indConfig in next, indicators do
+		if(indConfig.enabled ~= false) then
+			local renderer = createRenderer(element.__owner, indConfig)
+			if(renderer) then
+				local anchor = indConfig.anchor
+				if(anchor and renderer.ClearAllPoints and renderer.SetPoint) then
+					renderer:ClearAllPoints()
+					renderer:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+				end
+				if(indConfig.frameLevel and renderer.GetFrame) then
+					renderer:GetFrame():SetFrameLevel(element.__owner:GetFrameLevel() + (indConfig.frameLevel or 5))
+				end
+
+				local idx = #element._indicators + 1
+				element._indicators[idx] = {
+					_renderer   = renderer,
+					_type       = indConfig.type,
+					_castBy     = indConfig.castBy or 'anyone',
+					_color      = indConfig.color,
+					_glowType   = indConfig.glowType,
+					_glowConfig = indConfig.glowConfig,
+					_name       = name,
+				}
+
+				local spells = indConfig.spells
+				if(spells and #spells > 0) then
+					for _, spellId in next, spells do
+						if(not element._spellLookup[spellId]) then
+							element._spellLookup[spellId] = {}
+						end
+						element._spellLookup[spellId][#element._spellLookup[spellId] + 1] = idx
+					end
+				else
+					element._hasTrackAll[#element._hasTrackAll + 1] = idx
+				end
+			end
+		end
+	end
+
+	element:ForceUpdate()
 end
 
 -- ============================================================
@@ -417,6 +576,7 @@ function F.Elements.Buffs.Setup(self, config)
 					_color      = indConfig.color,
 					_glowType   = indConfig.glowType,
 					_glowConfig = indConfig.glowConfig,
+					_name       = indConfig.name,
 				}
 
 				-- Build spell→indicator lookup
@@ -438,10 +598,13 @@ function F.Elements.Buffs.Setup(self, config)
 	end
 
 	local container = {
-		_indicators  = indicators,
-		_spellLookup = spellLookup,
-		_hasTrackAll = hasTrackAll,
+		_indicators           = indicators,
+		_spellLookup          = spellLookup,
+		_hasTrackAll          = hasTrackAll,
+		_hideUnimportantBuffs = config.hideUnimportantBuffs or false,
 	}
+
+	container.Rebuild = Rebuild
 
 	self.FramedBuffs = container
 end
