@@ -26,13 +26,23 @@ local function DurationOnUpdate(frame, elapsed)
 
 	local remaining = icon._expirationTime - GetTime()
 	if(remaining <= 0) then
-		icon.duration:SetText('')
+		if(icon.duration) then
+			icon.duration:SetText('')
+		end
 		icon._durationActive = false
 		frame:SetScript('OnUpdate', nil)
 		return
 	end
 
-	icon.duration:SetText(F.FormatDuration(remaining))
+	if(icon.duration) then
+		local show = icon:ShouldShowDuration(remaining, icon._totalDuration or 0)
+		if(show) then
+			icon.duration:SetText(F.FormatDuration(remaining))
+			icon.duration:Show()
+		else
+			icon.duration:Hide()
+		end
+	end
 end
 
 -- ============================================================
@@ -40,6 +50,28 @@ end
 -- ============================================================
 
 local IconMethods = {}
+
+--- Determine whether duration text should be shown based on durationMode.
+--- @param remaining number Remaining seconds
+--- @param duration number Total duration in seconds
+--- @return boolean
+function IconMethods:ShouldShowDuration(remaining, duration)
+	local mode = self._durationMode
+	if(mode == 'Always') then return true end
+	if(mode == 'Never' or not mode) then return false end
+
+	if(duration > 0) then
+		local pct = (remaining / duration) * 100
+		if(mode == '<75' and pct < 75) then return true end
+		if(mode == '<50' and pct < 50) then return true end
+		if(mode == '<25' and pct < 25) then return true end
+	end
+
+	if(mode == '<15s' and remaining < 15) then return true end
+	if(mode == '<5s' and remaining < 5) then return true end
+
+	return false
+end
 
 --- Set the displayed spell/aura data on this icon.
 --- @param spellID number
@@ -71,6 +103,9 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 		end
 	end
 
+	-- Store total duration for ShouldShowDuration
+	self._totalDuration = duration
+
 	-- Cooldown swipe OR vertical depletion
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE and self._depletionBar) then
 		self:SetDepletion(duration, expirationTime)
@@ -83,8 +118,16 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 		self:SetStacks(stacks)
 	end
 
+	-- Per-spell color (ColoredSquare mode)
+	if(self._displayType == C.IconDisplay.COLORED_SQUARE and self._spellColors) then
+		local sc = self._spellColors[spellID]
+		if(sc) then
+			self.texture:SetColorTexture(sc[1], sc[2], sc[3], 1)
+		end
+	end
+
 	-- Duration text
-	if(self._config.showDuration and self.duration) then
+	if(self.duration) then
 		local durationSafe = F.IsValueNonSecret(duration)
 		local expirationSafe = F.IsValueNonSecret(expirationTime)
 		if(not durationSafe or not expirationSafe or duration == 0) then
@@ -97,7 +140,13 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 			self._durationElapsed = 0
 			local remaining = expirationTime - GetTime()
 			if(remaining > 0) then
-				self.duration:SetText(F.FormatDuration(remaining))
+				local show = self:ShouldShowDuration(remaining, duration)
+				if(show) then
+					self.duration:SetText(F.FormatDuration(remaining))
+					self.duration:Show()
+				else
+					self.duration:Hide()
+				end
 				self._frame:SetScript('OnUpdate', DurationOnUpdate)
 			else
 				self.duration:SetText('')
@@ -232,25 +281,55 @@ function IconMethods:GetFrame()
 	return self._frame
 end
 
+--- Resize the icon frame and re-anchor the texture.
+--- @param w number
+--- @param h number|nil defaults to w
+function IconMethods:SetSize(w, h)
+	Widgets.SetSize(self._frame, w, h or w)
+	self.texture:SetAllPoints(self._frame)
+end
+
+--- Start a glow effect on this icon.
+--- @param color table|nil
+--- @param glowType string|nil
+--- @param glowConfig table|nil
+function IconMethods:StartGlow(color, glowType, glowConfig)
+	if(not self._glow) then
+		self._glow = F.Indicators.Glow.Create(self._frame)
+	end
+	self._glow:Start(color, glowType, glowConfig)
+end
+
+--- Stop any active glow effect on this icon.
+function IconMethods:StopGlow()
+	if(self._glow) then
+		self._glow:Stop()
+	end
+end
+
 -- ============================================================
 -- Factory
 -- ============================================================
 
 --- Create a single Icon indicator primitive.
 --- @param parent Frame
---- @param size number Pixel size (width = height)
---- @param config table { displayType, showCooldown, showStacks, showDuration }
+--- @param size number|nil Pixel size (width = height); overridden by iconWidth/iconHeight in config
+--- @param config table { displayType, showCooldown, showStacks, durationMode, durationFont, stackFont, spellColors, iconWidth, iconHeight }
 --- @return table icon
 function F.Indicators.Icon.Create(parent, size, config)
 	config = config or {}
 	local displayType  = config.displayType  or C.IconDisplay.SPELL_ICON
 	local showCooldown = config.showCooldown ~= false  -- default true
 	local showStacks   = config.showStacks   ~= false  -- default true
-	local showDuration = config.showDuration ~= false  -- default true
+	local durationMode = config.durationMode or 'Always'
+	local showDuration = durationMode ~= 'Never'
+
+	local iconWidth  = config.iconWidth  or size or 14
+	local iconHeight = config.iconHeight or size or 14
 
 	-- Container frame
 	local frame = CreateFrame('Frame', nil, parent)
-	Widgets.SetSize(frame, size, size)
+	Widgets.SetSize(frame, iconWidth, iconHeight)
 	frame:Hide()
 
 	-- Back-reference so OnUpdate can reach the icon table
@@ -290,15 +369,17 @@ function F.Indicators.Icon.Create(parent, size, config)
 	-- 3. Stack count text (bottom-right)
 	local stacksText
 	if(showStacks) then
-		stacksText = Widgets.CreateFontString(frame, C.Font.sizeSmall, C.Colors.textActive)
+		local sf = config.stackFont or {}
+		stacksText = Widgets.CreateFontString(frame, sf.size or C.Font.sizeSmall, C.Colors.textActive)
 		stacksText:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 1, 0)
 		stacksText:Hide()
 	end
 
-	-- 4. Duration text (bottom-left)
+	-- 4. Duration text (bottom)
 	local durationText
 	if(showDuration) then
-		durationText = Widgets.CreateFontString(frame, C.Font.sizeSmall, C.Colors.textActive)
+		local df = config.durationFont or {}
+		durationText = Widgets.CreateFontString(frame, df.size or C.Font.sizeSmall, C.Colors.textActive)
 		durationText:SetPoint('BOTTOM', frame, 'BOTTOM', 0, 0)
 	end
 
@@ -308,9 +389,11 @@ function F.Indicators.Icon.Create(parent, size, config)
 		_config       = {
 			showCooldown = showCooldown,
 			showStacks   = showStacks,
-			showDuration = showDuration,
 		},
 		_displayType  = displayType,
+		_durationMode    = durationMode,
+		_spellColors     = config.spellColors,
+		_totalDuration   = 0,
 		_durationActive  = false,
 		_durationElapsed = 0,
 		_expirationTime  = 0,

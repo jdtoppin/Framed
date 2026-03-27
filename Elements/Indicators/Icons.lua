@@ -24,11 +24,16 @@ function IconsMethods:SetIcons(auraList)
 
 		-- Lazily create icons up to maxIcons
 		if(not self._pool[i]) then
-			self._pool[i] = F.Indicators.Icon.Create(container, cfg.iconSize, {
+			self._pool[i] = F.Indicators.Icon.Create(container, nil, {
+				iconWidth    = cfg.iconWidth,
+				iconHeight   = cfg.iconHeight,
 				displayType  = cfg.displayType,
 				showCooldown = cfg.showCooldown,
 				showStacks   = cfg.showStacks,
-				showDuration = cfg.showDuration,
+				durationMode = cfg.durationMode,
+				durationFont = cfg.durationFont,
+				stackFont    = cfg.stackFont,
+				spellColors  = cfg.spellColors,
 			})
 		end
 
@@ -47,8 +52,8 @@ function IconsMethods:SetIcons(auraList)
 			row = 0
 		end
 
-		local offsetX = col * (cfg.iconSize + cfg.spacingX)
-		local offsetY = row * (cfg.iconSize + cfg.spacingY)
+		local offsetX = col * (cfg.iconWidth + cfg.spacingX)
+		local offsetY = row * (cfg.iconHeight + cfg.spacingY)
 		local growDirection = cfg.growDirection or 'RIGHT'
 
 		if(growDirection == 'RIGHT') then
@@ -143,7 +148,9 @@ end
 --- @param parent Frame
 --- @param config table {
 ---     maxIcons      number   (default 4),
----     iconSize      number   (default 14),
+---     iconWidth     number   (default iconSize or 14),
+---     iconHeight    number   (default iconSize or 14),
+---     iconSize      number   legacy alias for iconWidth/iconHeight (default 14),
 ---     spacing       number   (default 1),
 ---     spacingX      number   per-axis override (default spacing),
 ---     spacingY      number   per-axis override (default spacing),
@@ -152,7 +159,10 @@ end
 ---     displayType   string   C.IconDisplay value (default SpellIcon),
 ---     showCooldown  boolean  (default true),
 ---     showStacks    boolean  (default true),
----     showDuration  boolean  (default true),
+---     durationMode  string   'Always'|'Never'|'<75'|'<50'|'<25'|'<15s'|'<5s' (default 'Always'),
+---     durationFont  table|nil,
+---     stackFont     table|nil,
+---     spellColors   table|nil  map of spellID -> {r,g,b},
 --- }
 --- @return table icons
 function F.Indicators.Icons.Create(parent, config)
@@ -160,7 +170,9 @@ function F.Indicators.Icons.Create(parent, config)
 
 	local cfg = {
 		maxIcons      = config.maxIcons      or 4,
-		iconSize      = config.iconSize      or 14,
+		iconWidth     = config.iconWidth     or config.iconSize or 14,
+		iconHeight    = config.iconHeight    or config.iconSize or 14,
+		iconSize      = config.iconWidth     or config.iconSize or 14,  -- keep for backward compat
 		spacing       = config.spacing       or 1,
 		spacingX      = config.spacingX      or config.spacing or 1,
 		spacingY      = config.spacingY      or config.spacing or 1,
@@ -169,7 +181,10 @@ function F.Indicators.Icons.Create(parent, config)
 		displayType   = config.displayType   or C.IconDisplay.SPELL_ICON,
 		showCooldown  = config.showCooldown  ~= false,
 		showStacks    = config.showStacks    ~= false,
-		showDuration  = config.showDuration  ~= false,
+		durationMode  = config.durationMode  or 'Always',
+		durationFont  = config.durationFont,
+		stackFont     = config.stackFont,
+		spellColors   = config.spellColors,
 	}
 
 	-- Container frame — sized to fit max icons in the grow direction
@@ -181,19 +196,19 @@ function F.Indicators.Icons.Create(parent, config)
 	if(numPerLine > 0 and maxIcons > numPerLine) then
 		local numLines = math.ceil(maxIcons / numPerLine)
 		if(growDirection == 'RIGHT' or growDirection == 'LEFT') then
-			totalWidth  = numPerLine * cfg.iconSize + math.max(0, numPerLine - 1) * cfg.spacingX
-			totalHeight = numLines * cfg.iconSize + math.max(0, numLines - 1) * cfg.spacingY
+			totalWidth  = numPerLine * cfg.iconWidth + math.max(0, numPerLine - 1) * cfg.spacingX
+			totalHeight = numLines * cfg.iconHeight + math.max(0, numLines - 1) * cfg.spacingY
 		else -- UP / DOWN
-			totalWidth  = numLines * cfg.iconSize + math.max(0, numLines - 1) * cfg.spacingX
-			totalHeight = numPerLine * cfg.iconSize + math.max(0, numPerLine - 1) * cfg.spacingY
+			totalWidth  = numLines * cfg.iconWidth + math.max(0, numLines - 1) * cfg.spacingX
+			totalHeight = numPerLine * cfg.iconHeight + math.max(0, numPerLine - 1) * cfg.spacingY
 		end
 	else
 		if(growDirection == 'RIGHT' or growDirection == 'LEFT') then
-			totalWidth  = maxIcons * cfg.iconSize + math.max(0, maxIcons - 1) * cfg.spacingX
-			totalHeight = cfg.iconSize
+			totalWidth  = maxIcons * cfg.iconWidth + math.max(0, maxIcons - 1) * cfg.spacingX
+			totalHeight = cfg.iconHeight
 		else
-			totalWidth  = cfg.iconSize
-			totalHeight = maxIcons * cfg.iconSize + math.max(0, maxIcons - 1) * cfg.spacingY
+			totalWidth  = cfg.iconWidth
+			totalHeight = maxIcons * cfg.iconHeight + math.max(0, maxIcons - 1) * cfg.spacingY
 		end
 	end
 
