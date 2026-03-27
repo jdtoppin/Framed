@@ -7,59 +7,67 @@ local Widgets = F.Widgets
 -- SharedCards — Reusable settings card builders
 -- ============================================================
 
+local SLIDER_H   = 26
+local CHECK_H    = 22
+local DROPDOWN_H = 22
+local WIDGET_W   = 220
+
+local function placeWidget(widget, content, yOffset, height)
+	widget:ClearAllPoints()
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height - C.Spacing.normal
+end
+
+local function placeHeading(content, text, yOffset)
+	local heading, height = Widgets.CreateHeading(content, text, 3)
+	heading:ClearAllPoints()
+	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height
+end
+
 -- ============================================================
 -- BuildFontCard
 -- ============================================================
 
 function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, get, set)
-	local cardW = width
-	local innerW = cardW - C.Spacing.tight * 2
+	yOffset = placeHeading(parent, label, yOffset)
 
-	local card, cardH = Widgets.CreateCard(parent, cardW)
-	card:ClearAllPoints()
-	Widgets.SetPoint(card, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	local cy = -C.Spacing.tight
+	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
-	-- Heading
-	local heading = Widgets.CreateFontString(card, C.Font.sizeSmall, C.Colors.textActive)
-	heading:SetPoint('TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	heading:SetText(label)
-	cy = cy - heading:GetStringHeight() - C.Spacing.base
+	local fontCfg = get(configPrefix) or {}
 
 	-- Font size slider
-	local sizeSlider = Widgets.CreateSlider(card, innerW, 'Size', 6, 24, 1)
-	Widgets.SetPoint(sizeSlider, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	sizeSlider:SetValue(get(configPrefix .. '.size') or 10)
-	sizeSlider:SetOnValueChanged(function(val)
-		set(configPrefix .. '.size', val)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Size', WIDGET_W, 6, 24, 1)
+	sizeSlider:SetValue(fontCfg.size or 10)
+	sizeSlider:SetAfterValueChanged(function(val)
+		fontCfg.size = val
+		set(configPrefix, fontCfg)
 	end)
-	cy = cy - sizeSlider._explicitHeight - C.Spacing.base
+	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
 	-- Outline dropdown
-	local outlineItems = {
-		{ label = 'None',    value = '' },
-		{ label = 'Outline', value = 'OUTLINE' },
-		{ label = 'Mono',    value = 'MONOCHROME' },
-	}
-	local outlineDD = Widgets.CreateDropdown(card, innerW, 'Outline', outlineItems)
-	Widgets.SetPoint(outlineDD, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	outlineDD:SetSelectedValue(get(configPrefix .. '.outline') or '')
-	outlineDD:SetOnValueChanged(function(val)
-		set(configPrefix .. '.outline', val)
+	local outlineDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	outlineDD:SetItems({
+		{ text = 'None',    value = '' },
+		{ text = 'Outline', value = 'OUTLINE' },
+		{ text = 'Mono',    value = 'MONOCHROME' },
+	})
+	outlineDD:SetValue(fontCfg.outline or '')
+	outlineDD:SetOnSelect(function(value)
+		fontCfg.outline = value
+		set(configPrefix, fontCfg)
 	end)
-	cy = cy - outlineDD._explicitHeight - C.Spacing.base
+	cy = placeWidget(outlineDD, inner, cy, DROPDOWN_H)
 
 	-- Shadow toggle
-	local shadowSwitch = Widgets.CreateSwitch(card, 'Shadow')
-	Widgets.SetPoint(shadowSwitch, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	shadowSwitch:SetChecked(get(configPrefix .. '.shadow') or false)
-	shadowSwitch:SetOnValueChanged(function(val)
-		set(configPrefix .. '.shadow', val)
+	local shadowCB = Widgets.CreateCheckButton(inner, 'Shadow', function(checked)
+		fontCfg.shadow = checked
+		set(configPrefix, fontCfg)
 	end)
-	cy = cy - shadowSwitch._explicitHeight - C.Spacing.tight
+	shadowCB:SetChecked(fontCfg.shadow or false)
+	cy = placeWidget(shadowCB, inner, cy, CHECK_H)
 
-	Widgets.SetCardHeight(card, math.abs(cy))
-	return yOffset - math.abs(cy) - C.Spacing.normal
+	return Widgets.EndCard(card, parent, cy)
 end
 
 -- ============================================================
@@ -68,57 +76,46 @@ end
 
 function F.Settings.BuildGlowCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
-	local cardW = width
-	local innerW = cardW - C.Spacing.tight * 2
 
-	local card, cardH = Widgets.CreateCard(parent, cardW)
-	card:ClearAllPoints()
-	Widgets.SetPoint(card, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	local cy = -C.Spacing.tight
+	yOffset = placeHeading(parent, 'Glow', yOffset)
 
-	-- Heading
-	local heading = Widgets.CreateFontString(card, C.Font.sizeSmall, C.Colors.textActive)
-	heading:SetPoint('TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	heading:SetText('Glow')
-	cy = cy - heading:GetStringHeight() - C.Spacing.base
+	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
 	-- Glow type dropdown
 	local typeItems = {}
 	if(opts.allowNone) then
-		typeItems[#typeItems + 1] = { label = 'None', value = 'None' }
+		typeItems[#typeItems + 1] = { text = 'None', value = 'None' }
 	end
-	typeItems[#typeItems + 1] = { label = 'Proc',  value = C.GlowType.PROC }
-	typeItems[#typeItems + 1] = { label = 'Pixel', value = C.GlowType.PIXEL }
-	typeItems[#typeItems + 1] = { label = 'Soft',  value = C.GlowType.SOFT }
-	typeItems[#typeItems + 1] = { label = 'Shine', value = C.GlowType.SHINE }
+	typeItems[#typeItems + 1] = { text = 'Proc',  value = C.GlowType.PROC }
+	typeItems[#typeItems + 1] = { text = 'Pixel', value = C.GlowType.PIXEL }
+	typeItems[#typeItems + 1] = { text = 'Soft',  value = C.GlowType.SOFT }
+	typeItems[#typeItems + 1] = { text = 'Shine', value = C.GlowType.SHINE }
 
-	local typeDD = Widgets.CreateDropdown(card, innerW, 'Glow Type', typeItems)
-	Widgets.SetPoint(typeDD, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	typeDD:SetSelectedValue(get('glowType') or (opts.allowNone and 'None' or C.GlowType.PROC))
-	cy = cy - typeDD._explicitHeight - C.Spacing.base
+	local typeDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	typeDD:SetItems(typeItems)
+	typeDD:SetValue(get('glowType') or (opts.allowNone and 'None' or C.GlowType.PROC))
+	cy = placeWidget(typeDD, inner, cy, DROPDOWN_H)
 
 	-- Glow color picker
 	local glowColor = get('glowColor') or { 1, 1, 1, 1 }
-	local colorPicker = Widgets.CreateColorPicker(card, innerW, 'Color', glowColor)
-	Widgets.SetPoint(colorPicker, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	colorPicker:SetOnColorChanged(function(r, g, b, a)
+	local colorPicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
 		set('glowColor', { r, g, b, a })
 	end)
+	colorPicker:SetColor(glowColor[1], glowColor[2], glowColor[3], glowColor[4] or 1)
 	if(get('glowType') == 'None') then colorPicker:Hide() end
-	cy = cy - colorPicker._explicitHeight - C.Spacing.tight
+	cy = placeWidget(colorPicker, inner, cy, DROPDOWN_H)
 
 	-- Wire type dropdown to show/hide color
-	typeDD:SetOnValueChanged(function(val)
-		set('glowType', val)
-		if(val == 'None') then
+	typeDD:SetOnSelect(function(value)
+		set('glowType', value)
+		if(value == 'None') then
 			colorPicker:Hide()
 		else
 			colorPicker:Show()
 		end
 	end)
 
-	Widgets.SetCardHeight(card, math.abs(cy))
-	return yOffset - math.abs(cy) - C.Spacing.normal
+	return Widgets.EndCard(card, parent, cy)
 end
 
 -- ============================================================
@@ -127,70 +124,40 @@ end
 
 function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
-	local cardW = width
-	local innerW = cardW - C.Spacing.tight * 2
 
-	local card, cardH = Widgets.CreateCard(parent, cardW)
-	card:ClearAllPoints()
-	Widgets.SetPoint(card, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	local cy = -C.Spacing.tight
+	yOffset = placeHeading(parent, 'Position & Layer', yOffset)
 
-	-- Heading
-	local heading = Widgets.CreateFontString(card, C.Font.sizeSmall, C.Colors.textActive)
-	heading:SetPoint('TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	heading:SetText('Position & Layer')
-	cy = cy - heading:GetStringHeight() - C.Spacing.base
+	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
 	if(not opts.hidePosition) then
-		-- Anchor picker
+		-- Anchor picker (includes its own X/Y offset inputs)
 		if(Widgets.CreateAnchorPicker) then
 			local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			local picker = Widgets.CreateAnchorPicker(card, innerW)
-			Widgets.SetPoint(picker, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-			picker:SetAnchor(anchor)
-			picker:SetOnAnchorChanged(function(a)
+			local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+			picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
+			picker:SetOnChanged(function(point, x, y)
+				local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+				a[1] = point
+				a[3] = point
+				a[4] = x
+				a[5] = y
 				set('anchor', a)
 			end)
-			cy = cy - picker._explicitHeight - C.Spacing.base
+			cy = placeWidget(picker, inner, cy, picker._height or 91)
 		end
-
-		-- X offset slider
-		local xSlider = Widgets.CreateSlider(card, innerW, 'X Offset', -50, 50, 1)
-		Widgets.SetPoint(xSlider, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-		local anchor = get('anchor') or {}
-		xSlider:SetValue(anchor[4] or 0)
-		xSlider:SetOnValueChanged(function(val)
-			local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			a[4] = val
-			set('anchor', a)
-		end)
-		cy = cy - xSlider._explicitHeight - C.Spacing.base
-
-		-- Y offset slider
-		local ySlider = Widgets.CreateSlider(card, innerW, 'Y Offset', -50, 50, 1)
-		Widgets.SetPoint(ySlider, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-		ySlider:SetValue(anchor[5] or 0)
-		ySlider:SetOnValueChanged(function(val)
-			local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			a[5] = val
-			set('anchor', a)
-		end)
-		cy = cy - ySlider._explicitHeight - C.Spacing.base
 	end
 
 	-- Frame level slider
 	if(not opts.hideFrameLevel) then
-		local flSlider = Widgets.CreateSlider(card, innerW, 'Frame Level', 1, 50, 1)
-		Widgets.SetPoint(flSlider, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
+		local flSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 50, 1)
 		flSlider:SetValue(get('frameLevel') or 5)
-		flSlider:SetOnValueChanged(function(val)
+		flSlider:SetAfterValueChanged(function(val)
 			set('frameLevel', val)
 		end)
-		cy = cy - flSlider._explicitHeight - C.Spacing.tight
+		cy = placeWidget(flSlider, inner, cy, SLIDER_H)
 	end
 
-	Widgets.SetCardHeight(card, math.abs(cy))
-	return yOffset - math.abs(cy) - C.Spacing.normal
+	return Widgets.EndCard(card, parent, cy)
 end
 
 -- ============================================================
@@ -199,116 +166,101 @@ end
 
 function F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
-	local cardW = width
-	local innerW = cardW - C.Spacing.tight * 2
 
-	local card, cardH = Widgets.CreateCard(parent, cardW)
-	card:ClearAllPoints()
-	Widgets.SetPoint(card, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	local cy = -C.Spacing.tight
+	yOffset = placeHeading(parent, 'Colors', yOffset)
 
-	-- Heading
-	local heading = Widgets.CreateFontString(card, C.Font.sizeSmall, C.Colors.textActive)
-	heading:SetPoint('TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	heading:SetText('Colors')
-	cy = cy - heading:GetStringHeight() - C.Spacing.base
+	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
 	-- Base color
 	local baseColor = get('color') or { 1, 1, 1, 1 }
-	local basePicker = Widgets.CreateColorPicker(card, innerW, 'Color', baseColor)
-	Widgets.SetPoint(basePicker, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	basePicker:SetOnColorChanged(function(r, g, b, a)
+	local basePicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
 		set('color', { r, g, b, a })
 	end)
-	cy = cy - basePicker._explicitHeight - C.Spacing.base
+	basePicker:SetColor(baseColor[1], baseColor[2], baseColor[3], baseColor[4] or 1)
+	cy = placeWidget(basePicker, inner, cy, DROPDOWN_H)
 
 	-- Low Time % toggle + threshold + color
 	local ltc = get('lowTimeColor') or { enabled = false, threshold = 25, color = { 1, 0.5, 0, 1 } }
-	local ltSwitch = Widgets.CreateSwitch(card, 'Low Time %')
-	Widgets.SetPoint(ltSwitch, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	ltSwitch:SetChecked(ltc.enabled)
-	cy = cy - ltSwitch._explicitHeight - C.Spacing.base
 
-	local ltSlider = Widgets.CreateSlider(card, innerW, 'Threshold %', 5, 75, 5)
-	Widgets.SetPoint(ltSlider, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	ltSlider:SetValue(ltc.threshold or 25)
-	cy = cy - ltSlider._explicitHeight - C.Spacing.base
+	local ltSlider, ltColor
 
-	local ltColor = Widgets.CreateColorPicker(card, innerW, 'Low Time Color', ltc.color or { 1, 0.5, 0, 1 })
-	Widgets.SetPoint(ltColor, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	cy = cy - ltColor._explicitHeight - C.Spacing.base
-
-	local function updateLowTime()
-		set('lowTimeColor', {
-			enabled   = ltSwitch:IsChecked(),
-			threshold = ltSlider:GetValue(),
-			color     = { ltColor:GetColor() },
-		})
-	end
-	ltSwitch:SetOnValueChanged(function(val)
-		ltSlider:SetShown(val)
-		ltColor:SetShown(val)
-		updateLowTime()
+	local ltSwitch = Widgets.CreateCheckButton(inner, 'Low Time %', function(checked)
+		ltc.enabled = checked
+		if(ltSlider) then ltSlider:SetShown(checked) end
+		if(ltColor) then ltColor:SetShown(checked) end
+		set('lowTimeColor', ltc)
 	end)
-	ltSlider:SetOnValueChanged(function() updateLowTime() end)
-	ltColor:SetOnColorChanged(function() updateLowTime() end)
+	ltSwitch:SetChecked(ltc.enabled)
+	cy = placeWidget(ltSwitch, inner, cy, CHECK_H)
+
+	ltSlider = Widgets.CreateSlider(inner, 'Threshold %', WIDGET_W, 5, 75, 5)
+	ltSlider:SetValue(ltc.threshold or 25)
+	ltSlider:SetAfterValueChanged(function(val)
+		ltc.threshold = val
+		set('lowTimeColor', ltc)
+	end)
 	ltSlider:SetShown(ltc.enabled)
+	cy = placeWidget(ltSlider, inner, cy, SLIDER_H)
+
+	local ltColorVal = ltc.color or { 1, 0.5, 0, 1 }
+	ltColor = Widgets.CreateColorPicker(inner, 'Low Time Color', true, function(r, g, b, a)
+		ltc.color = { r, g, b, a }
+		set('lowTimeColor', ltc)
+	end)
+	ltColor:SetColor(ltColorVal[1], ltColorVal[2], ltColorVal[3], ltColorVal[4] or 1)
 	ltColor:SetShown(ltc.enabled)
+	cy = placeWidget(ltColor, inner, cy, DROPDOWN_H)
 
 	-- Low Seconds toggle + threshold + color
 	local lsc = get('lowSecsColor') or { enabled = false, threshold = 5, color = { 1, 0, 0, 1 } }
-	local lsSwitch = Widgets.CreateSwitch(card, 'Low Seconds')
-	Widgets.SetPoint(lsSwitch, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	lsSwitch:SetChecked(lsc.enabled)
-	cy = cy - lsSwitch._explicitHeight - C.Spacing.base
 
-	local lsSlider = Widgets.CreateSlider(card, innerW, 'Threshold (sec)', 1, 30, 1)
-	Widgets.SetPoint(lsSlider, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	lsSlider:SetValue(lsc.threshold or 5)
-	cy = cy - lsSlider._explicitHeight - C.Spacing.base
+	local lsSlider, lsColor
 
-	local lsColor = Widgets.CreateColorPicker(card, innerW, 'Low Secs Color', lsc.color or { 1, 0, 0, 1 })
-	Widgets.SetPoint(lsColor, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-	cy = cy - lsColor._explicitHeight - C.Spacing.base
-
-	local function updateLowSecs()
-		set('lowSecsColor', {
-			enabled   = lsSwitch:IsChecked(),
-			threshold = lsSlider:GetValue(),
-			color     = { lsColor:GetColor() },
-		})
-	end
-	lsSwitch:SetOnValueChanged(function(val)
-		lsSlider:SetShown(val)
-		lsColor:SetShown(val)
-		updateLowSecs()
+	local lsSwitch = Widgets.CreateCheckButton(inner, 'Low Seconds', function(checked)
+		lsc.enabled = checked
+		if(lsSlider) then lsSlider:SetShown(checked) end
+		if(lsColor) then lsColor:SetShown(checked) end
+		set('lowSecsColor', lsc)
 	end)
-	lsSlider:SetOnValueChanged(function() updateLowSecs() end)
-	lsColor:SetOnColorChanged(function() updateLowSecs() end)
+	lsSwitch:SetChecked(lsc.enabled)
+	cy = placeWidget(lsSwitch, inner, cy, CHECK_H)
+
+	lsSlider = Widgets.CreateSlider(inner, 'Threshold (sec)', WIDGET_W, 1, 30, 1)
+	lsSlider:SetValue(lsc.threshold or 5)
+	lsSlider:SetAfterValueChanged(function(val)
+		lsc.threshold = val
+		set('lowSecsColor', lsc)
+	end)
 	lsSlider:SetShown(lsc.enabled)
+	cy = placeWidget(lsSlider, inner, cy, SLIDER_H)
+
+	local lsColorVal = lsc.color or { 1, 0, 0, 1 }
+	lsColor = Widgets.CreateColorPicker(inner, 'Low Secs Color', true, function(r, g, b, a)
+		lsc.color = { r, g, b, a }
+		set('lowSecsColor', lsc)
+	end)
+	lsColor:SetColor(lsColorVal[1], lsColorVal[2], lsColorVal[3], lsColorVal[4] or 1)
 	lsColor:SetShown(lsc.enabled)
+	cy = placeWidget(lsColor, inner, cy, DROPDOWN_H)
 
 	-- Optional border/bg colors
 	if(opts.showBorderColor) then
 		local bc = get('borderColor') or { 0, 0, 0, 1 }
-		local bcPicker = Widgets.CreateColorPicker(card, innerW, 'Border Color', bc)
-		Widgets.SetPoint(bcPicker, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-		bcPicker:SetOnColorChanged(function(r, g, b, a)
+		local bcPicker = Widgets.CreateColorPicker(inner, 'Border Color', true, function(r, g, b, a)
 			set('borderColor', { r, g, b, a })
 		end)
-		cy = cy - bcPicker._explicitHeight - C.Spacing.base
+		bcPicker:SetColor(bc[1], bc[2], bc[3], bc[4] or 1)
+		cy = placeWidget(bcPicker, inner, cy, DROPDOWN_H)
 	end
 
 	if(opts.showBgColor) then
 		local bg = get('bgColor') or { 0, 0, 0, 0.5 }
-		local bgPicker = Widgets.CreateColorPicker(card, innerW, 'Background Color', bg)
-		Widgets.SetPoint(bgPicker, 'TOPLEFT', card, 'TOPLEFT', C.Spacing.tight, cy)
-		bgPicker:SetOnColorChanged(function(r, g, b, a)
+		local bgPicker = Widgets.CreateColorPicker(inner, 'Background Color', true, function(r, g, b, a)
 			set('bgColor', { r, g, b, a })
 		end)
-		cy = cy - bgPicker._explicitHeight - C.Spacing.tight
+		bgPicker:SetColor(bg[1], bg[2], bg[3], bg[4] or 1)
+		cy = placeWidget(bgPicker, inner, cy, DROPDOWN_H)
 	end
 
-	Widgets.SetCardHeight(card, math.abs(cy))
-	return yOffset - math.abs(cy) - C.Spacing.normal
+	return Widgets.EndCard(card, parent, cy)
 end

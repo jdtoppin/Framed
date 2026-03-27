@@ -54,10 +54,12 @@ end
 -- ============================================================
 
 --- Get the unit type whose aura panels are currently being configured.
---- Falls back to 'party' if nothing is explicitly selected.
+--- Falls back to a sensible default for the current preset.
 --- @return string
 function Settings.GetEditingUnitType()
-	return Settings._editingUnitType or 'party'
+	if(Settings._editingUnitType) then return Settings._editingUnitType end
+	local info = C.PresetInfo[Settings.GetEditingPreset()]
+	return (info and info.groupKey) or 'player'
 end
 
 --- Set the unit type being edited.
@@ -71,6 +73,7 @@ end
 -- ============================================================
 
 local editingPreset = nil
+local lastKnownContentType = nil
 
 --- Get the preset name currently being edited.
 --- Falls back to the currently active preset from AutoSwitch, then 'Solo'.
@@ -180,7 +183,11 @@ function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId, configK
 
 	-- ── Scoped preset banner ─────────────────────────────────
 	local banner = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.accent)
-	banner:SetText('Editing: ' .. Settings.GetEditingPreset() .. ' / ' .. (Settings.GetEditingUnitType() or getDefaultUnitType()))
+	local unitLabel = Settings.GetEditingUnitType() or getDefaultUnitType()
+	for _, item in next, Settings._getUnitTypeItems() do
+		if(item.value == unitLabel) then unitLabel = item.text; break end
+	end
+	banner:SetText('Editing: ' .. Settings.GetEditingPreset() .. ' / ' .. unitLabel)
 	banner:ClearAllPoints()
 	Widgets.SetPoint(banner, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	yOffset = yOffset - 16 - C.Spacing.tight
@@ -307,15 +314,42 @@ function Settings.RefreshActivePanel()
 	end
 end
 
+-- When the active preset changes (zone/content change), follow it
+F.EventBus:Register('PRESET_CHANGED', function(presetName)
+	editingPreset = nil
+	Settings._editingUnitType = nil
+	-- If settings is open, update to the new preset
+	if(Settings._mainFrame and Settings._mainFrame:IsShown()) then
+		Settings.SetEditingPreset(presetName)
+	end
+end, 'Settings.FollowAutoSwitch')
+
 -- ============================================================
 -- Show / Hide / Toggle
 -- ============================================================
+
+--- Sync editing preset only when the detected content type has
+--- changed since settings was last opened. Preserves manual
+--- preset selection within the same content type.
+function Settings._syncPresetIfContentChanged()
+	if(not F.AutoSwitch) then return end
+	F.AutoSwitch.Check()
+	local contentType = F.AutoSwitch.GetCurrentContentType()
+	if(contentType ~= lastKnownContentType) then
+		lastKnownContentType = contentType
+		local activePreset = F.AutoSwitch.GetCurrentPreset()
+		editingPreset = nil
+		Settings._editingUnitType = nil
+		Settings.SetEditingPreset(activePreset)
+	end
+end
 
 --- Show the settings window (fade in).
 function Settings.Show()
 	if(not Settings._mainFrame) then
 		Settings.CreateMainFrame()
 	end
+	Settings._syncPresetIfContentChanged()
 	Widgets.FadeIn(Settings._mainFrame)
 	if(not Settings._sidebarBuilt) then
 		Settings.BuildSidebar()
@@ -337,6 +371,7 @@ function Settings.Toggle()
 	if(Settings._mainFrame:IsShown()) then
 		Widgets.FadeOut(Settings._mainFrame)
 	else
+		Settings._syncPresetIfContentChanged()
 		Widgets.FadeIn(Settings._mainFrame)
 		if(not Settings._sidebarBuilt) then
 			Settings.BuildSidebar()

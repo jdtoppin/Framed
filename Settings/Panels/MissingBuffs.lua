@@ -42,7 +42,7 @@ F.Settings.RegisterPanel({
 	label   = 'Missing Buffs',
 	section    = 'PRESET_SCOPED',
 	subSection = 'auras',
-	order      = 16,
+	order      = 19,
 	create  = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
