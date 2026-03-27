@@ -213,6 +213,59 @@ local function Disable(self)
 end
 
 -- ============================================================
+-- Rebuild
+-- ============================================================
+
+local function Rebuild(element, config)
+	if(element._pool) then
+		for _, bi in next, element._pool do
+			bi:Clear()
+			if(bi.Destroy) then bi:Destroy() end
+		end
+	end
+	if(element._glow) then element._glow:Stop() end
+
+	local displayMode  = config.displayMode  or DisplayMode.BOTH
+	displayMode = legacyDisplayModeMap[displayMode] or displayMode
+	local iconSize     = config.iconSize     or 16
+	local maxDisplayed = config.maxDisplayed or 1
+	local borderColor  = config.borderColor  or { 1, 0, 0, 1 }
+
+	element._displayMode  = displayMode
+	element._maxDisplayed = maxDisplayed
+	element._borderColor  = borderColor
+
+	local anchor = config.anchor or { 'CENTER', nil, 'CENTER', 0, 0 }
+
+	element._pool = {}
+	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
+		for i = 1, maxDisplayed do
+			local bi = F.Indicators.BorderIcon.Create(element.__owner, iconSize, {
+				borderColor = borderColor,
+			})
+			local offset = (i - 1) * (iconSize + 2)
+			bi:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], (anchor[4] or 0) + offset, anchor[5] or 0)
+			element._pool[i] = bi
+		end
+	end
+
+	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
+		local glowConfig = config.glow or {}
+		if(element._glowFrame) then
+			element._glow = F.Indicators.Glow.Create(element._glowFrame, {
+				glowType = glowConfig.type,
+				color    = glowConfig.color,
+			})
+		end
+		element._glowType   = glowConfig.type
+		element._glowColor  = glowConfig.color
+		element._glowConfig = glowConfig
+	end
+
+	element:ForceUpdate()
+end
+
+-- ============================================================
 -- Register with oUF
 -- ============================================================
 
@@ -297,15 +350,16 @@ function F.Elements.TargetedSpells.Setup(self, config)
 	end
 
 	local container = {
-		_pool          = pool,
-		_glow          = glow,
-		_glowFrame     = glowFrame,
-		_displayMode   = displayMode,
-		_maxDisplayed  = maxDisplayed,
-		_borderColor   = borderColor,
-		_glowColor     = glowColor,
-		_glowType      = glowType,
-		_glowConfig    = glowConfig,
+		_pool         = pool,
+		_glow         = glow,
+		_glowFrame    = glowFrame,
+		_displayMode  = displayMode,
+		_maxDisplayed = maxDisplayed,
+		_borderColor  = borderColor,
+		_glowColor    = glowColor,
+		_glowType     = glowType,
+		_glowConfig   = glowConfig,
+		Rebuild       = Rebuild,
 	}
 
 	self.FramedTargetedSpells = container

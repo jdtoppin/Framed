@@ -144,6 +144,29 @@ local function Disable(self)
 end
 
 -- ============================================================
+-- Rebuild
+-- ============================================================
+
+local function Rebuild(element, config)
+	if(element._stopTimer) then element._stopTimer(element) end
+	if(element.icon) then element.icon:Hide() end
+
+	local iconSize = config.iconSize or 24
+	local point    = config.anchor or { 'CENTER', nil, 'CENTER', 0, 0 }
+	element._spells = config.spells
+
+	if(element.icon) then
+		Widgets.SetSize(element.icon, iconSize, iconSize)
+	end
+	if(element.__owner) then
+		element:ClearAllPoints()
+		element:SetPoint(point[1], element.__owner, point[3] or point[1], point[4] or 0, point[5] or 0)
+	end
+
+	element:ForceUpdate()
+end
+
+-- ============================================================
 -- Register with oUF
 -- ============================================================
 
@@ -200,5 +223,6 @@ function F.Elements.CrowdControl.Setup(self, config)
 	duration:SetJustifyH('CENTER')
 	container.duration = duration
 
+	container.Rebuild = Rebuild
 	self.FramedCrowdControl = container
 end

@@ -188,6 +188,50 @@ local function Disable(self)
 end
 
 -- ============================================================
+-- Rebuild
+-- ============================================================
+
+local function Rebuild(element, config)
+	if(element._slots) then
+		for _, slot in next, element._slots do
+			if(slot.bi) then
+				slot.bi:Clear()
+				if(slot.bi.Destroy) then slot.bi:Destroy() end
+			end
+			if(slot.glow) then slot.glow:Stop() end
+		end
+	end
+
+	local iconSize   = config.iconSize     or 12
+	local growDir    = config.growDirection or 'RIGHT'
+	local spacing    = config.spacing       or 1
+	local glowType   = config.glowType      or 'Pixel'
+	local glowColor  = config.glowColor     or { 1, 0.8, 0, 1 }
+	local frameLevel = config.frameLevel    or 5
+
+	element._slots = {}
+	for _, spellId in next, BUFF_ORDER do
+		local bi = F.Indicators.BorderIcon.Create(element._container, iconSize, {
+			showCooldown = false,
+			showStacks   = false,
+			showDuration = false,
+			frameLevel   = element.__owner:GetFrameLevel() + frameLevel,
+		})
+		local glow = F.Indicators.Glow.Create(bi._frame, {
+			glowType = glowType,
+			color    = glowColor,
+		})
+		element._slots[spellId] = { bi = bi, glow = glow }
+	end
+
+	local anchor = config.anchor or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+	element._container:ClearAllPoints()
+	element._container:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+
+	element:ForceUpdate()
+end
+
+-- ============================================================
 -- Register with oUF
 -- ============================================================
 
@@ -269,5 +313,6 @@ function F.Elements.MissingBuffs.Setup(self, config)
 		_container    = container,
 		_slots        = slots,
 		_groupClasses = {},
+		Rebuild       = Rebuild,
 	}
 end

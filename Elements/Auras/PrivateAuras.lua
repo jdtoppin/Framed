@@ -93,6 +93,44 @@ local function Disable(self)
 end
 
 -- ============================================================
+-- Rebuild
+-- ============================================================
+
+local function Rebuild(element, config)
+	if(element._anchorID and PRIVATE_AURAS_SUPPORTED) then
+		C_UnitAuras.RemovePrivateAuraAnchor(element._anchorID)
+		element._anchorID = nil
+	end
+
+	element._iconSize = config.iconSize or 20
+
+	local anchor = config.anchor or { 'TOP', nil, 'TOP', 0, -3 }
+	element._frame:ClearAllPoints()
+	element._frame:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+
+	if(element.__owner:IsVisible() and PRIVATE_AURAS_SUPPORTED) then
+		element._anchorID = C_UnitAuras.AddPrivateAuraAnchor({
+			unitToken            = element.__owner.unit,
+			auraIndex            = 1,
+			parent               = element._frame,
+			showCountdownFrame   = true,
+			showCountdownNumbers = true,
+			iconInfo             = {
+				iconWidth  = element._iconSize,
+				iconHeight = element._iconSize,
+				iconAnchor = {
+					point         = 'CENTER',
+					relativeTo    = element._frame,
+					relativePoint = 'CENTER',
+					offsetX       = 0,
+					offsetY       = 0,
+				},
+			},
+		})
+	end
+end
+
+-- ============================================================
 -- Register with oUF
 -- ============================================================
 
@@ -122,9 +160,10 @@ function F.Elements.PrivateAuras.Setup(self, config)
 	frame:SetPoint(a[1], nil, a[3], a[4] or 0, a[5] or 0)
 
 	local container = {
-		_frame     = frame,
-		_iconSize  = config.iconSize,
-		_anchorID  = nil,
+		_frame    = frame,
+		_iconSize = config.iconSize,
+		_anchorID = nil,
+		Rebuild   = Rebuild,
 	}
 
 	self.FramedPrivateAuras = container

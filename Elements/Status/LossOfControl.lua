@@ -242,6 +242,31 @@ local function Disable(self)
 end
 
 -- ============================================================
+-- Rebuild
+-- ============================================================
+
+local function Rebuild(element, config)
+	if(element._stopTimer) then element._stopTimer(element) end
+	if(element.overlay) then element.overlay:Hide() end
+	if(element.icon) then element.icon:Hide() end
+	if(element.duration) then element.duration:Hide() end
+
+	local iconSize = config.iconSize or 22
+	local point    = config.anchor or { 'CENTER', nil, 'CENTER', 0, 0 }
+	element._types = config.types or { 'stun', 'incapacitate', 'disorient', 'fear', 'silence', 'root' }
+
+	if(element.icon) then
+		Widgets.SetSize(element.icon, iconSize, iconSize)
+	end
+	if(element.__owner) then
+		element:ClearAllPoints()
+		element:SetPoint(point[1], element.__owner, point[3] or point[1], point[4] or 0, point[5] or 0)
+	end
+
+	element:ForceUpdate()
+end
+
+-- ============================================================
 -- Register with oUF
 -- ============================================================
 
@@ -289,5 +314,6 @@ function F.Elements.LossOfControl.Setup(self, config)
 	duration:SetJustifyH('CENTER')
 	container.duration = duration
 
+	container.Rebuild = Rebuild
 	self.FramedLossOfControl = container
 end
