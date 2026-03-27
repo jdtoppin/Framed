@@ -43,6 +43,23 @@ local function setCCSpells(spells)
 	end
 end
 
+local function getCC(key)
+	local presetName = F.Settings.GetEditingPreset()
+	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
+	return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.' .. key)
+end
+local function setCC(key, value)
+	local presetName = F.Settings.GetEditingPreset()
+	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
+	if(F.Config) then
+		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.' .. key, value)
+	end
+	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
+	if(F.EventBus) then
+		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.' .. key)
+	end
+end
+
 -- ============================================================
 -- Panel registration
 -- ============================================================
@@ -70,6 +87,15 @@ F.Settings.RegisterPanel({
 
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'crowdcontrol')
+
+		-- ── Enabled toggle ────────────────────────────────────
+		local enableCB = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
+			setCC('enabled', checked)
+		end)
+		enableCB:SetChecked(getCC('enabled') or false)
+		enableCB:ClearAllPoints()
+		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - 22 - C.Spacing.normal
 
 		-- ── Header description ─────────────────────────────────
 		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)

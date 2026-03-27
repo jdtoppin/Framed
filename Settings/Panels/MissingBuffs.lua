@@ -57,6 +57,15 @@ F.Settings.RegisterPanel({
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'missingbuffs', 'missingBuffs')
 
+		-- ── Enabled toggle ────────────────────────────────────
+		local enableCB = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
+			set('enabled', checked)
+		end)
+		enableCB:SetChecked(get('enabled') or false)
+		enableCB:ClearAllPoints()
+		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - 22 - C.Spacing.normal
+
 		-- ── Description ────────────────────────────────────────
 		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
 		descFS:ClearAllPoints()

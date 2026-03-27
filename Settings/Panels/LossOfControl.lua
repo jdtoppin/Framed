@@ -89,6 +89,15 @@ F.Settings.RegisterPanel({
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'lossofcontrol')
 
+		-- ── Enabled toggle ────────────────────────────────────
+		local enableCB = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
+			setLoC('enabled', checked)
+		end)
+		enableCB:SetChecked(getLoC('enabled') or false)
+		enableCB:ClearAllPoints()
+		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - 22 - C.Spacing.normal
+
 		-- ── CC Type Toggles ────────────────────────────────────
 		yOffset = placeHeading(content, 'CC Type Toggles', 2, yOffset)
 
