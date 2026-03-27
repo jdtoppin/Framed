@@ -96,6 +96,13 @@ end
 --- Stop the active glow effect.
 function GlowMethods:Stop()
 	if(not self._active) then return end
+
+	if(self._fadeOut and self._parent) then
+		-- For glow, we can't fade LCG effects directly.
+		-- Instead, stop immediately — fadeOut is a flag for the aura system
+		-- to call Stop() slightly before the aura expires for a visual grace period.
+	end
+
 	self:_StopCurrent()
 	self._active = false
 end
@@ -159,6 +166,7 @@ function F.Indicators.Glow.Create(parent, config)
 		_color          = color,
 		_active         = false,
 		_fallbackBorder = fallbackBorder,
+		_fadeOut        = config.fadeOut or false,
 	}
 
 	for k, v in next, GlowMethods do

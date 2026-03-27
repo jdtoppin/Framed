@@ -66,6 +66,21 @@ end
 
 --- Hide all edges and reset color state.
 function BorderMethods:Clear()
+	if(self._fadeOut) then
+		local alpha = self._top:GetAlpha()
+		if(alpha > 0) then
+			Widgets.FadeOut(self._top, C.Animation.durationNormal)
+			Widgets.FadeOut(self._bottom, C.Animation.durationNormal)
+			Widgets.FadeOut(self._left, C.Animation.durationNormal)
+			Widgets.FadeOut(self._right, C.Animation.durationNormal, function()
+				self._top:Hide()
+				self._bottom:Hide()
+				self._left:Hide()
+				self._right:Hide()
+			end)
+			return
+		end
+	end
 	self._top:Hide()
 	self._bottom:Hide()
 	self._left:Hide()
@@ -92,13 +107,17 @@ end
 --- Create a Border indicator: four OVERLAY edge textures on `parent`.
 --- All edges are hidden by default; call SetColor to show them.
 --- @param parent Frame The frame to border
+--- @param config? table { borderThickness = number, fadeOut = boolean }
 --- @return table border
-function F.Indicators.Border.Create(parent)
+function F.Indicators.Border.Create(parent, config)
+	config = config or {}
+	local thickness = config.borderThickness or 2
+	local fadeOut   = config.fadeOut or false
 	local level = parent:GetFrameLevel() + 3
 
 	local function MakeEdge()
 		local t = parent:CreateTexture(nil, 'OVERLAY')
-		t:SetColorTexture(1, 1, 1, 1)  -- default white; overridden by SetColor
+		t:SetColorTexture(1, 1, 1, 1)
 		t:Hide()
 		return t
 	end
@@ -114,15 +133,14 @@ function F.Indicators.Border.Create(parent)
 		_bottom    = bottom,
 		_left      = left,
 		_right     = right,
-		_thickness = 2,
+		_thickness = thickness,
+		_fadeOut   = fadeOut,
 	}
 
 	for k, v in next, BorderMethods do
 		border[k] = v
 	end
 
-	-- Apply default 2px thickness anchoring
-	border:SetThickness(2)
-
+	border:SetThickness(thickness)
 	return border
 end
