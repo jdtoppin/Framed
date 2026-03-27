@@ -96,7 +96,9 @@ SLASH_FRAMED1 = '/framed'
 SLASH_FRAMED2 = '/fr'
 
 SlashCmdList['FRAMED'] = function(msg)
-	local cmd = msg:lower():trim()
+	local trimmed = msg:lower():trim()
+	local cmd, arg1 = trimmed:match('^(%S+)%s*(.*)$')
+	if(not cmd) then cmd = '' end
 
 	if(cmd == 'version' or cmd == 'v') then
 		print('|cff00ccff Framed|r v' .. F.version)
@@ -110,15 +112,50 @@ SlashCmdList['FRAMED'] = function(msg)
 		else
 			F.EditMode.Enter()
 		end
+	elseif(cmd == 'reset' and arg1 == 'all') then
+		local d = F.Widgets.ShowConfirmDialog(
+			'Reset All Settings',
+			'This will delete ALL Framed settings, presets, and customizations.\nA backup will be saved — you can restore later with /framed restore.',
+			function()
+				FramedBackupDB = {
+					db        = FramedDB and F.DeepCopy(FramedDB) or nil,
+					char      = FramedCharDB and F.DeepCopy(FramedCharDB) or nil,
+					timestamp = time(),
+				}
+				FramedDB = nil
+				FramedCharDB = nil
+				ReloadUI()
+			end,
+			nil
+		)
+		d._message:SetTextColor(1, 0.2, 0.2)
+		d._btnYes._label:SetText('Yes, Reset Everything')
+		d._btnNo._label:SetText('Cancel')
 	elseif(cmd == 'restore') then
-		if(not FramedBackupDB) then
-			print('|cff00ccff Framed|r No backup found. A backup is created each time you log out.')
+		if(not FramedBackupDB or not FramedBackupDB.db) then
+			-- Fall back to legacy backup format (pre-timestamped plain table)
+			if(FramedBackupDB and not FramedBackupDB.db) then
+				F.Widgets.ShowConfirmDialog('Restore Settings', 'Restore settings from last session backup? This will reload the UI.', function()
+					FramedDB = F.DeepCopy(FramedBackupDB)
+					ReloadUI()
+				end)
+			else
+				print('|cff00ccff Framed|r No backup found. Nothing to restore.')
+			end
 			return
 		end
-		F.Widgets.ShowConfirmDialog('Restore Settings', 'Restore settings from your last session? This will reload the UI.', function()
-			FramedDB = F.DeepCopy(FramedBackupDB)
-			ReloadUI()
-		end)
+		local ts = FramedBackupDB.timestamp
+		local dateStr = ts and date('%Y-%m-%d %H:%M', ts) or 'unknown date'
+		F.Widgets.ShowConfirmDialog(
+			'Restore Settings',
+			'Restore settings from backup taken on ' .. dateStr .. '?\nThis will overwrite your current configuration.',
+			function()
+				FramedDB = F.DeepCopy(FramedBackupDB.db)
+				FramedCharDB = FramedBackupDB.char and F.DeepCopy(FramedBackupDB.char) or nil
+				ReloadUI()
+			end,
+			nil
+		)
 	elseif(cmd == 'debugicons') then
 		-- Force show all indicator elements on player frame
 		local pf = F.Units.Player and F.Units.Player.frame
@@ -153,6 +190,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed config — Print config debug info')
 		print('  /framed events — Print registered events')
 		print('  /framed edit — Toggle Edit Mode')
+		print('  /framed reset all — Reset all settings to defaults (with backup)')
 		print('  /framed restore — Restore settings from last session backup')
 		print('  /framed debugicons — Debug indicator element state')
 	else
