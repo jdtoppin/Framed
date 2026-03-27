@@ -23,7 +23,14 @@ function F.Units.Player.Spawn()
 	oUF:SetActiveStyle('FramedPlayer')
 
 	local frame = oUF:Spawn('player', 'FramedPlayerFrame')
-	frame:SetPoint('CENTER', UIParent, 'CENTER', -200, -200)
+
+	-- Read saved position from config, fall back to default
+	local config = F.StyleBuilder.GetConfig('player')
+	local pos = config.position
+	local x = (pos and pos.x) or -200
+	local y = (pos and pos.y) or -200
+	F.Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+
 	F.Widgets.RegisterForUIScale(frame)
 
 	F.Units.Player.frame = frame

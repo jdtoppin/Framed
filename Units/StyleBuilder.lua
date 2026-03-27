@@ -414,6 +414,22 @@ do
 end
 
 -- ============================================================
+-- Power Color Overrides
+-- Blizzard's PowerBarColor.MANA is pure blue (0,0,1) which has
+-- very low perceived luminance and is nearly invisible on thin
+-- bars. Override with a lighter, more visible blue.
+-- ============================================================
+
+do
+	local oUF = F.oUF
+	if(oUF and oUF.colors and oUF.colors.power) then
+		local manaColor = oUF:CreateColor(0.0, 0.44, 0.87)
+		oUF.colors.power.MANA = manaColor
+		oUF.colors.power[Enum.PowerType.Mana or 0] = manaColor
+	end
+end
+
+-- ============================================================
 -- GetConfig
 -- Returns the effective unit config for a unit type.
 -- Uses the runtime active preset (from AutoSwitch), with derived fallback.

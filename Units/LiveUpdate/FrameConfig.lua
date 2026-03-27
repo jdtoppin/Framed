@@ -80,38 +80,122 @@ local STATUS_ELEMENT_MAP = {
 -- ============================================================
 
 local function parseUnitConfigPath(path)
-	local unitType, rest = path:match('^unitConfigs%.([^%.]+)%.(.+)$')
+	-- Matches both 'presets.<name>.unitConfigs.<unitType>.<key>' and 'unitConfigs.<unitType>.<key>'
+	local unitType, rest = path:match('unitConfigs%.([^%.]+)%.(.+)$')
 	return unitType, rest
+end
+
+-- ============================================================
+-- Position helper
+-- Repositions a solo frame using its config anchor point + x/y.
+-- Group frames (party/raid) are managed by SecureGroupHeader and
+-- cannot be repositioned individually.
+-- ============================================================
+
+local GROUP_TYPES = {
+	party        = true,
+	raid         = true,
+	battleground = true,
+	worldraid    = true,
+}
+
+--- Reposition a solo frame using CENTER anchor + config offsets.
+--- position.x/y are always relative to UIParent CENTER.
+local function repositionFrame(frame, config)
+	local pos = config.position
+	local x = (pos and pos.x) or 0
+	local y = (pos and pos.y) or 0
+	frame:ClearAllPoints()
+	Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+end
+
+--- Compute center offset shift when the frame resizes, keeping the
+--- configured anchor corner/edge fixed in place.
+--- @param anchor string  Resize anchor preference (e.g. 'TOPLEFT')
+--- @param dw number  Width change (new - old)
+--- @param dh number  Height change (new - old)
+--- @return number dx, number dy  Shift to apply to center x/y
+local function resizeShift(anchor, dw, dh)
+	-- Each anchor determines which corner stays fixed.
+	-- We return the delta to the CENTER offset that compensates.
+	local dx, dy = 0, 0
+	if(anchor == 'TOPLEFT') then       dx, dy =  dw / 2, -dh / 2
+	elseif(anchor == 'TOP') then       dx, dy =  0,      -dh / 2
+	elseif(anchor == 'TOPRIGHT') then  dx, dy = -dw / 2, -dh / 2
+	elseif(anchor == 'LEFT') then      dx, dy =  dw / 2,  0
+	elseif(anchor == 'CENTER') then    dx, dy =  0,        0
+	elseif(anchor == 'RIGHT') then     dx, dy = -dw / 2,  0
+	elseif(anchor == 'BOTTOMLEFT') then  dx, dy =  dw / 2, dh / 2
+	elseif(anchor == 'BOTTOM') then      dx, dy =  0,      dh / 2
+	elseif(anchor == 'BOTTOMRIGHT') then dx, dy = -dw / 2, dh / 2
+	end
+	return dx, dy
 end
 
 -- ============================================================
 -- Main CONFIG_CHANGED handler
 -- ============================================================
 
+local suppressPositionUpdate = false
+
 F.EventBus:Register('CONFIG_CHANGED', function(path)
 	local unitType, key = parseUnitConfigPath(path)
 	if(not unitType) then return end
 
-	-- Dimensions
-	if(key == 'width') then
+	-- Frame anchor change — resize preference only, no frame movement
+	if(key == 'position.anchor') then
+		return
+	end
+
+	-- Frame position (x, y)
+	if(key == 'position.x' or key == 'position.y') then
+		if(suppressPositionUpdate) then return end
+		if(GROUP_TYPES[unitType]) then return end
 		local config = F.StyleBuilder.GetConfig(unitType)
-		debouncedApply('width.' .. unitType, function()
-			ForEachFrame(unitType, function(frame)
-				Widgets.SetSize(frame, config.width, nil)
-				frame.Health:SetWidth(config.width)
-				if(frame.Power and frame.Power:IsShown()) then
-					frame.Power:SetWidth(config.width)
-				end
-			end)
+		ForEachFrame(unitType, function(frame)
+			repositionFrame(frame, config)
 		end)
 		return
 	end
 
-	if(key == 'height') then
+	-- Dimensions — resize frame, health wrapper, power wrapper
+	if(key == 'width' or key == 'height') then
+		if(GROUP_TYPES[unitType]) then return end
 		local config = F.StyleBuilder.GetConfig(unitType)
-		debouncedApply('height.' .. unitType, function()
+		debouncedApply('dimensions.' .. unitType, function()
+			local powerHeight = config.power and config.power.height or 0
+			local healthHeight = config.height - powerHeight
+			local anchor = config.position and config.position.anchor or 'CENTER'
 			ForEachFrame(unitType, function(frame)
-				Widgets.SetSize(frame, nil, config.height)
+				-- Compute how much the center needs to shift to keep
+				-- the configured anchor corner/edge fixed during resize
+				local oldW = frame._width or frame:GetWidth() or config.width
+				local oldH = frame._height or frame:GetHeight() or config.height
+				local dw = config.width - oldW
+				local dh = config.height - oldH
+				if(dw ~= 0 or dh ~= 0) then
+					local dx, dy = resizeShift(anchor, dw, dh)
+					local pos = config.position
+					local curX = (pos and pos.x) or 0
+					local curY = (pos and pos.y) or 0
+					suppressPositionUpdate = true
+					local presetName = F.AutoSwitch.GetCurrentPreset()
+					local basePath = 'presets.' .. presetName .. '.unitConfigs.' .. unitType .. '.position.'
+					F.Config:Set(basePath .. 'x', Widgets.Round(curX + dx))
+					F.Config:Set(basePath .. 'y', Widgets.Round(curY + dy))
+					suppressPositionUpdate = false
+				end
+				-- Reposition with (possibly shifted) center offsets
+				repositionFrame(frame, F.StyleBuilder.GetConfig(unitType))
+				Widgets.SetSize(frame, config.width, config.height)
+				if(frame.Health and frame.Health._wrapper) then
+					Widgets.SetSize(frame.Health._wrapper, config.width, healthHeight)
+				end
+				if(frame.Power and frame.Power._wrapper) then
+					Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
+					frame.Power._wrapper:ClearAllPoints()
+					frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -healthHeight)
+				end
 			end)
 		end)
 		return

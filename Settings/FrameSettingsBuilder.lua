@@ -153,14 +153,14 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(heightSlider, inner, cardY, SLIDER_H)
 
-	-- Frame Anchor Point picker
-	cardY = placeHeading(inner, 'Frame Anchor', 3, cardY)
+	-- Resize Anchor picker — controls which corner stays fixed during resize
+	cardY = placeHeading(inner, 'Resize Anchor', 3, cardY)
 
 	local anchorInfo = Widgets.CreateInfoIcon(inner,
-		'Frame Anchor',
-		'The anchor point determines which corner or edge of the frame is pinned '
-		.. 'to its X/Y position on screen. For example, if set to TOPLEFT, the '
-		.. 'top-left corner of the frame sits at the X/Y coordinates.')
+		'Resize Anchor',
+		'Controls which corner or edge of the frame stays fixed when you change '
+		.. 'the width or height. For example, TOPLEFT means the top-left corner '
+		.. 'stays pinned and the frame grows right and downward.')
 	anchorInfo:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', -4, cardY + 14)
 
 	local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
@@ -173,27 +173,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(anchorPicker, inner, cardY, 56)
 
-	-- Frame Position sliders (X / Y)
-	cardY = placeHeading(inner, 'Frame Position', 3, cardY)
-
-	-- Read the actual frame position from oUF objects if available
+	-- Read the actual frame position from config
 	local actualX = getConfig('position.x') or 0
 	local actualY = getConfig('position.y') or 0
-	do
-		local oUF = F.oUF
-		if(oUF and oUF.objects) then
-			for _, frame in next, oUF.objects do
-				if(frame._framedUnitType == unitType) then
-					local _, _, _, fx, fy = frame:GetPoint()
-					if(fx) then
-						actualX = Widgets.Round(fx)
-						actualY = Widgets.Round(fy)
-					end
-					break
-				end
-			end
-		end
-	end
+
+	-- Frame Position sliders (X / Y)
+	cardY = placeHeading(inner, 'Frame Position', 3, cardY)
 
 	local posXSlider = Widgets.CreateSlider(inner, 'X', WIDGET_W, -1000, 1000, 1)
 	posXSlider:SetValue(actualX)

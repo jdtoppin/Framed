@@ -23,7 +23,13 @@ function F.Units.Focus.Spawn()
 	oUF:SetActiveStyle('FramedFocus')
 
 	local frame = oUF:Spawn('focus', 'FramedFocusFrame')
-	frame:SetPoint('CENTER', UIParent, 'CENTER', -300, -100)
+
+	local config = F.StyleBuilder.GetConfig('focus')
+	local pos = config.position
+	local x = (pos and pos.x) or -300
+	local y = (pos and pos.y) or -100
+	F.Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+
 	F.Widgets.RegisterForUIScale(frame)
 
 	F.Units.Focus.frame = frame

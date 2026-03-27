@@ -23,7 +23,13 @@ function F.Units.Target.Spawn()
 	oUF:SetActiveStyle('FramedTarget')
 
 	local frame = oUF:Spawn('target', 'FramedTargetFrame')
-	frame:SetPoint('CENTER', UIParent, 'CENTER', 200, -200)
+
+	local config = F.StyleBuilder.GetConfig('target')
+	local pos = config.position
+	local x = (pos and pos.x) or 200
+	local y = (pos and pos.y) or -200
+	F.Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+
 	F.Widgets.RegisterForUIScale(frame)
 
 	F.Units.Target.frame = frame
