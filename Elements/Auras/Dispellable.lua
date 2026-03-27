@@ -33,8 +33,50 @@ local function hideAllOverlays(element)
 	if(element._overlaySolidEntire) then element._overlaySolidEntire:Hide() end
 end
 
+--- Ensure overlay textures are positioned on first use.
+--- SetPoint is deferred from creation because it runs inside
+--- CallMethod from SecureGroupHeaderTemplate where SetPoint fails.
+local function ensureOverlayPositioned(element)
+	if(element._overlaysPositioned) then return end
+	element._overlaysPositioned = true
+
+	local gradFull = element._overlayGradientFull
+	if(gradFull) then
+		-- Position the overlay frame to match the health wrapper
+		local overlayFrame = gradFull._overlayFrame
+		if(overlayFrame) then
+			overlayFrame:SetAllPoints()
+		end
+		gradFull:SetPoint('TOPLEFT', 1, -1)
+		gradFull:SetPoint('BOTTOMRIGHT', -1, 1)
+	end
+
+	local gradHalf = element._overlayGradientHalf
+	if(gradHalf) then
+		gradHalf:SetPoint('TOPLEFT', 1, -1)
+		gradHalf:SetPoint('TOPRIGHT', -1, -1)
+		-- Use parent height since health bar height is known at this point
+		local parent = gradHalf:GetParent()
+		if(parent) then
+			gradHalf:SetHeight((parent:GetHeight() or 20) * 0.5)
+		end
+	end
+
+	local solidCur = element._overlaySolidCurrent
+	if(solidCur) then
+		solidCur:SetPoint('TOPLEFT', 1, -1)
+		solidCur:SetPoint('BOTTOMLEFT', 1, 1)
+	end
+
+	local solidEnt = element._overlaySolidEntire
+	if(solidEnt) then
+		solidEnt:SetAllPoints()
+	end
+end
+
 local function showOverlay(element, highlightType, r, g, b)
 	hideAllOverlays(element)
+	ensureOverlayPositioned(element)
 
 	local ht = C.HighlightType
 	if(highlightType == ht.GRADIENT_FULL and element._overlayGradientFull) then
@@ -239,44 +281,50 @@ function F.Elements.Dispellable.Setup(self, config)
 	-- All overlays use a simple white texture colored at runtime
 	local healthBar = self.Health
 
-	-- gradient_full: Full-height gradient over the health bar
+	-- In the restricted secure header, SetPoint cannot reference a
+	-- StatusBar. Use the wrapper Frame (health._wrapper) instead.
+	local healthWrapper = healthBar and healthBar._wrapper
+
+	-- Overlay textures for dispellable debuff highlights.
+	-- IMPORTANT: NO SetPoint/SetAllPoints calls here — this code runs
+	-- inside CallMethod from SecureGroupHeaderTemplate, where ALL
+	-- SetPoint calls fail. Positioning is deferred to showOverlay().
 	local gradientFull
-	if(healthBar) then
-		gradientFull = healthBar:CreateTexture(nil, 'OVERLAY')
+	if(healthWrapper) then
+		local overlayFrame = CreateFrame('Frame', nil, healthWrapper)
+		overlayFrame:SetFrameLevel(healthBar:GetFrameLevel() + 2)
+
+		gradientFull = overlayFrame:CreateTexture(nil, 'OVERLAY')
 		gradientFull:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-		gradientFull:SetAllPoints(healthBar)
 		gradientFull:SetBlendMode('ADD')
 		gradientFull:Hide()
+
+		-- Store frame ref for deferred positioning
+		gradientFull._overlayFrame = overlayFrame
 	end
 
-	-- gradient_half: Same gradient but only covers top half of health bar
 	local gradientHalf
-	if(healthBar) then
-		gradientHalf = healthBar:CreateTexture(nil, 'OVERLAY')
+	if(healthWrapper) then
+		gradientHalf = gradientFull:GetParent():CreateTexture(nil, 'OVERLAY')
 		gradientHalf:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-		gradientHalf:SetPoint('TOPLEFT', healthBar, 'TOPLEFT', 0, 0)
-		gradientHalf:SetPoint('TOPRIGHT', healthBar, 'TOPRIGHT', 0, 0)
-		gradientHalf:SetHeight(healthBar:GetHeight() * 0.5)
 		gradientHalf:SetBlendMode('ADD')
 		gradientHalf:Hide()
 	end
 
-	-- solid_current: Solid color that follows health bar fill width
 	local solidCurrent
-	if(healthBar) then
-		local statusBarTexture = healthBar:GetStatusBarTexture()
-		solidCurrent = healthBar:CreateTexture(nil, 'OVERLAY')
+	if(healthWrapper) then
+		solidCurrent = gradientFull:GetParent():CreateTexture(nil, 'OVERLAY')
 		solidCurrent:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-		solidCurrent:SetAllPoints(statusBarTexture)
+		solidCurrent:SetWidth(1)
 		solidCurrent:SetBlendMode('ADD')
 		solidCurrent:Hide()
+		healthBar._dispelOverlay = solidCurrent
 	end
 
 	-- solid_entire: Solid color covering entire unit frame
 	local solidEntire
 	solidEntire = self:CreateTexture(nil, 'OVERLAY')
 	solidEntire:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-	solidEntire:SetAllPoints(self)
 	solidEntire:SetBlendMode('ADD')
 	solidEntire:Hide()
 

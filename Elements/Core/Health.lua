@@ -38,6 +38,42 @@ local function buildCurveTable(c1, t1, c2, t2, c3, t3)
 end
 
 -- ============================================================
+-- UpdateColor override for NPC frames
+-- Replicates oUF's UpdateColor chain but handles
+-- UnitThreatSituation returning a secret value in TWW.
+-- ============================================================
+
+local function NpcUpdateColor(self, event, unit)
+	if(not unit or self.unit ~= unit) then return end
+	local element = self.Health
+
+	local color
+	if(element.colorDisconnected and not UnitIsConnected(unit)) then
+		color = self.colors.disconnected
+	elseif(element.colorTapping and not UnitPlayerControlled(unit) and UnitIsTapDenied(unit)) then
+		color = self.colors.tapped
+	elseif(element.colorThreat and not UnitPlayerControlled(unit)) then
+		local status = UnitThreatSituation('player', unit)
+		if(status and F.IsValueNonSecret(status)) then
+			color = self.colors.threat[status]
+		end
+	elseif(element.colorClass and (UnitIsPlayer(unit) or UnitInPartyIsAI(unit))) then
+		local _, class = UnitClass(unit)
+		color = self.colors.class[class]
+	elseif(element.colorReaction and UnitReaction(unit, 'player')) then
+		color = self.colors.reaction[UnitReaction(unit, 'player')]
+	end
+
+	if(color) then
+		element:SetStatusBarColor(color:GetRGB())
+	end
+
+	if(element.PostUpdateColor) then
+		element:PostUpdateColor(unit, color)
+	end
+end
+
+-- ============================================================
 -- Health Element Setup
 -- ============================================================
 
@@ -107,7 +143,7 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	local bg = health:CreateTexture(nil, 'BACKGROUND')
-	bg:SetAllPoints(health)
+	bg:SetAllPoints()
 	bg:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 	local bgC = C.Colors.background
 	bg:SetVertexColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
@@ -125,10 +161,12 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 	if(isNpcFrame) then
 		-- Full oUF chain: disconnected → tapped → threat → class → reaction
+		-- Override UpdateColor to handle UnitThreatSituation secret values
 		health.colorTapping  = true
 		health.colorThreat   = true
 		health.colorClass    = true
 		health.colorReaction = true
+		health.UpdateColor   = NpcUpdateColor
 	else
 		-- Player/group: selective flags
 		health.colorThreat   = config.colorThreat
@@ -192,7 +230,7 @@ function F.Elements.Health.Setup(self, width, height, config)
 			health._attachedToName = true
 		else
 			local ap = config.textAnchor
-			text:SetPoint(ap, health, ap, config.textAnchorX, config.textAnchorY)
+			text:SetPoint(ap, health._wrapper, ap, config.textAnchorX + 1, config.textAnchorY)
 			-- Store for live config updates
 			text._anchorPoint = ap
 			text._anchorX     = config.textAnchorX
@@ -241,6 +279,82 @@ function F.Elements.Health.Setup(self, width, height, config)
 		-- ── Dead state: dark grey ─────────────────────────
 		if(UnitIsDeadOrGhost(unit)) then
 			h:SetStatusBarColor(0.2, 0.2, 0.2)
+		end
+
+		-- ── Prediction bar positioning ───────────────────
+		-- PostUpdate runs outside the restricted CallMethod context,
+		-- so SetPoint calls work here. On first run, we also set up
+		-- the container positioning that was deferred from creation.
+		local container = h._predictionContainer
+		if(container) then
+			-- Deferred container setup: anchor it inside the wrapper
+			-- on the first PostUpdate call (outside restricted context).
+			if(not container._positioned) then
+				container:SetPoint('TOPLEFT', 1, -1)
+				container:SetPoint('BOTTOMRIGHT', -1, 1)
+				container._positioned = true
+			end
+
+			-- Use wrapper width minus 2px inset instead of container:GetWidth()
+			-- because container may not have been laid out yet on the first call.
+			local barWidth = (h._wrapper:GetWidth() or 0) - 2
+			if(barWidth <= 0) then return end
+			local fillWidth = barWidth * pct
+
+			if(h.HealingAll) then
+				h.HealingAll:SetWidth(barWidth)
+				h.HealingAll:ClearAllPoints()
+				h.HealingAll:SetPoint('TOP')
+				h.HealingAll:SetPoint('BOTTOM')
+				h.HealingAll:SetPoint('LEFT', fillWidth, 0)
+			end
+
+			if(h.DamageAbsorb) then
+				local absorbOffset = fillWidth
+				if(h.HealingAll and h.values) then
+					local allHeal = h.values:GetIncomingHeals()
+					if(F.IsValueNonSecret(allHeal) and max > 0) then
+						absorbOffset = absorbOffset + barWidth * (allHeal / max)
+					end
+				end
+				absorbOffset = math.min(absorbOffset, barWidth)
+				h.DamageAbsorb:SetWidth(barWidth)
+				h.DamageAbsorb:ClearAllPoints()
+				h.DamageAbsorb:SetPoint('TOP')
+				h.DamageAbsorb:SetPoint('BOTTOM')
+				h.DamageAbsorb:SetPoint('LEFT', absorbOffset, 0)
+			end
+
+			if(h.HealAbsorb) then
+				h.HealAbsorb:SetWidth(barWidth)
+				h.HealAbsorb:ClearAllPoints()
+				h.HealAbsorb:SetPoint('TOP')
+				h.HealAbsorb:SetPoint('BOTTOM')
+				-- Anchor RIGHT to parent RIGHT with offset so RIGHT edge
+				-- lands at fillWidth from parent LEFT:
+				-- parent_RIGHT is at barWidth, so offset = fillWidth - barWidth
+				h.HealAbsorb:SetPoint('RIGHT', fillWidth - barWidth, 0)
+			end
+
+			-- Position over-absorb indicators (also deferred from creation)
+			if(h.OverDamageAbsorbIndicator and not h.OverDamageAbsorbIndicator._positioned) then
+				h.OverDamageAbsorbIndicator:SetPoint('TOP')
+				h.OverDamageAbsorbIndicator:SetPoint('BOTTOM')
+				h.OverDamageAbsorbIndicator:SetPoint('RIGHT', 4, 0)
+				h.OverDamageAbsorbIndicator._positioned = true
+			end
+
+			if(h.OverHealAbsorbIndicator and not h.OverHealAbsorbIndicator._positioned) then
+				h.OverHealAbsorbIndicator:SetPoint('TOP')
+				h.OverHealAbsorbIndicator:SetPoint('BOTTOM')
+				h.OverHealAbsorbIndicator:SetPoint('LEFT', -4, 0)
+				h.OverHealAbsorbIndicator._positioned = true
+			end
+		end
+
+		-- Dispellable overlay tracks health fill width
+		if(h._dispelOverlay) then
+			h._dispelOverlay:SetWidth(math.max(barWidth * pct, 0.001))
 		end
 
 		-- ── Loss color (background) ───────────────────────
@@ -313,121 +427,72 @@ function F.Elements.Health.Setup(self, width, height, config)
 	end
 
 	-- --------------------------------------------------------
-	-- Health Prediction — oUF's HealthPrediction element
-	-- Uses UnitHealPredictionCalculator (created by oUF's Enable).
-	-- Sub-widgets: healingAll, damageAbsorb, healAbsorb,
-	--   overHealIndicator, overDamageAbsorbIndicator, overHealAbsorbIndicator
+	-- Prediction sub-widgets — placed directly on the Health
+	-- element using PascalCase names (oUF's non-deprecated API).
+	-- oUF's Health Update() drives SetValue/SetAlphaFromBoolean.
+	--
+	-- IMPORTANT: Party/raid frames spawn via CallMethod from
+	-- SecureGroupHeaderTemplate. ALL SetPoint calls inside that
+	-- context fail with "Wrong object type" (RestrictedFrames.lua
+	-- intercepts them). We create the bars here (so oUF's Enable
+	-- can see them and register events) but do ZERO SetPoint calls.
+	-- All positioning is deferred to PostUpdate, which runs outside
+	-- the restricted context when health events fire.
 	-- --------------------------------------------------------
 
 	local needsPrediction = config.healPrediction or config.damageAbsorb
 		or config.healAbsorb or config.overAbsorb
 
 	if(needsPrediction) then
-		local prediction = {}
+		-- Container Frame inside the wrapper — NO SetPoint here.
+		-- PostUpdate will position it on first run.
+		local wrapper = health._wrapper
+		local container = CreateFrame('Frame', nil, wrapper)
+		container:SetFrameLevel(health:GetFrameLevel() + 1)
+		health._predictionContainer = container
 
-		-- All prediction sub-widgets anchor to the health bar's fill texture.
-		-- GetStatusBarTexture() may not be available during restricted header
-		-- frame creation (party/raid), so we defer anchoring to a one-shot
-		-- OnShow callback that fires once the frame is fully realized.
-		local pendingAnchors = {}
-
-		-- ── Incoming heals (gradient fade bar after health fill) ──
 		if(config.healPrediction) then
 			local hc = config.healPredictionColor
-			local healBar = CreateFrame('StatusBar', nil, health)
+			local healBar = CreateFrame('StatusBar', nil, container)
 			healBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Gradient_Linear_Right]])
 			healBar:SetStatusBarColor(hc[1], hc[2], hc[3], hc[4] or 0.4)
-			healBar:SetPoint('TOP')
-			healBar:SetPoint('BOTTOM')
-			healBar:SetWidth(width)
-			prediction.healingAll = healBar
-			pendingAnchors[#pendingAnchors + 1] = function(fill)
-				healBar:SetPoint('LEFT', fill, 'RIGHT')
-			end
+			health.HealingAll = healBar
 		end
 
-		-- ── Damage absorbs / shields (stripe pattern) ──
 		if(config.damageAbsorb) then
 			local dc = config.damageAbsorbColor
-			local absorbBar = CreateFrame('StatusBar', nil, health)
+			local absorbBar = CreateFrame('StatusBar', nil, container)
 			absorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
 			absorbBar:SetStatusBarColor(dc[1], dc[2], dc[3], dc[4] or 0.6)
-			absorbBar:SetPoint('TOP')
-			absorbBar:SetPoint('BOTTOM')
-			absorbBar:SetWidth(width)
-			prediction.damageAbsorb = absorbBar
-			pendingAnchors[#pendingAnchors + 1] = function(fill)
-				local anchor = prediction.healingAll
-					and prediction.healingAll:GetStatusBarTexture() or fill
-				absorbBar:SetPoint('LEFT', anchor, 'RIGHT')
-			end
+			health.DamageAbsorb = absorbBar
 		end
 
-		-- ── Overshield indicator (static glow on right edge) ──
 		if(config.overAbsorb) then
-			local overAbsorb = health:CreateTexture(nil, 'OVERLAY')
+			local overAbsorb = container:CreateTexture(nil, 'OVERLAY')
 			overAbsorb:SetTexture([[Interface\AddOns\Framed\Media\Textures\StaticGlow]])
 			overAbsorb:SetBlendMode('ADD')
-			overAbsorb:SetPoint('TOP')
-			overAbsorb:SetPoint('BOTTOM')
-			overAbsorb:SetPoint('LEFT', health, 'RIGHT', -4, 0)
 			overAbsorb:SetWidth(8)
-			overAbsorb:SetAlpha(0)  -- oUF manages via SetAlphaFromBoolean
-			prediction.overDamageAbsorbIndicator = overAbsorb
+			overAbsorb:SetAlpha(0)
+			health.OverDamageAbsorbIndicator = overAbsorb
 		end
 
-		-- ── Heal absorb / anti-heal (red stripe pattern, reverse fill) ──
 		if(config.healAbsorb) then
 			local hac = config.healAbsorbColor
-			local healAbsorbBar = CreateFrame('StatusBar', nil, health)
+			local healAbsorbBar = CreateFrame('StatusBar', nil, container)
 			healAbsorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
 			healAbsorbBar:SetStatusBarColor(hac[1], hac[2], hac[3], hac[4] or 0.5)
 			healAbsorbBar:SetReverseFill(true)
-			healAbsorbBar:SetPoint('TOP')
-			healAbsorbBar:SetPoint('BOTTOM')
-			healAbsorbBar:SetWidth(width)
-			prediction.healAbsorb = healAbsorbBar
-			pendingAnchors[#pendingAnchors + 1] = function(fill)
-				healAbsorbBar:SetPoint('RIGHT', fill)
-			end
+			health.HealAbsorb = healAbsorbBar
 
-			local overHealAbsorb = health:CreateTexture(nil, 'OVERLAY')
+			local overHealAbsorb = container:CreateTexture(nil, 'OVERLAY')
 			overHealAbsorb:SetTexture([[Interface\RaidFrame\Absorb-Overabsorb]])
 			overHealAbsorb:SetBlendMode('ADD')
-			overHealAbsorb:SetPoint('TOP')
-			overHealAbsorb:SetPoint('BOTTOM')
-			overHealAbsorb:SetPoint('RIGHT', health, 'LEFT', 4, 0)
 			overHealAbsorb:SetWidth(8)
-			overHealAbsorb:SetAlpha(0)  -- oUF manages via SetAlphaFromBoolean
-			prediction.overHealAbsorbIndicator = overHealAbsorb
+			overHealAbsorb:SetAlpha(0)
+			health.OverHealAbsorbIndicator = overHealAbsorb
 		end
 
-		-- Deferred anchoring: resolve fill texture once the health bar is shown
-		if(#pendingAnchors > 0) then
-			local anchored = false
-			health:HookScript('OnShow', function()
-				if(anchored) then return end
-				local fill = health:GetStatusBarTexture()
-				if(fill) then
-					anchored = true
-					for _, fn in next, pendingAnchors do
-						fn(fill)
-					end
-				end
-			end)
-			-- Also try immediately in case the bar is already shown
-			local fill = health:GetStatusBarTexture()
-			if(fill) then
-				anchored = true
-				for _, fn in next, pendingAnchors do
-					fn(fill)
-				end
-			end
-		end
-
-		prediction.incomingHealOverflow = 1.05
-
-		self.HealthPrediction = prediction
+		health.incomingHealOverflow = 1.05
 	end
 
 	-- --------------------------------------------------------

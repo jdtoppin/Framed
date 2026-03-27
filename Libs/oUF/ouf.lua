@@ -315,7 +315,15 @@ local function initObject(unit, style, styleFunc, header, ...)
 
 		Private.UpdateUnits(object, objectUnit)
 
-		styleFunc(object, objectUnit, not header)
+		-- Wrap in pcall for header frames: CallMethod's pcall would
+		-- abort the entire initObject if styleFunc errors (e.g. SetPoint
+		-- during restricted context). Our pcall catches it locally so
+		-- hooks and EnableElement still run.
+		if(header) then
+			Private.xpcall(styleFunc, object, objectUnit, false)
+		else
+			styleFunc(object, objectUnit, true)
+		end
 
 		object:HookScript('OnAttributeChanged', onAttributeChanged)
 

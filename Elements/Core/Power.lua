@@ -57,7 +57,7 @@ function F.Elements.Power.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	local bg = power:CreateTexture(nil, 'BACKGROUND')
-	bg:SetAllPoints(power)
+	bg:SetAllPoints()
 	bg:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 	local bgC = C.Colors.background
 	bg:SetVertexColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
@@ -69,7 +69,7 @@ function F.Elements.Power.Setup(self, width, height, config)
 	if(config.showText) then
 		local text = Widgets.CreateFontString(power, config.fontSize, C.Colors.textActive, config.outline, config.shadow)
 		local ap = config.textAnchor
-		text:SetPoint(ap, power, ap, config.textAnchorX, config.textAnchorY)
+		text:SetPoint(ap, power._wrapper, ap, config.textAnchorX + 1, config.textAnchorY)
 		-- Store for live config updates
 		text._anchorPoint = ap
 		text._anchorX     = config.textAnchorX

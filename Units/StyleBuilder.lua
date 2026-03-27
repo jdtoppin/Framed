@@ -526,7 +526,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	local nameAnchorPt = nameCfg.anchor or 'CENTER'
 	local nameAnchorX  = nameCfg.anchorX or 0
 	local nameAnchorY  = nameCfg.anchorY or 0
-	nameCfg.anchor = { nameAnchorPt, self.Health, nameAnchorPt, nameAnchorX, nameAnchorY }
+	nameCfg.anchor = { nameAnchorPt, self.Health._wrapper, nameAnchorPt, nameAnchorX, nameAnchorY }
 	F.Elements.Name.Setup(self, nameCfg)
 
 	-- Health text attached to name — anchor health text to right of name
