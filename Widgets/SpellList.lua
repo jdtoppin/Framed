@@ -222,12 +222,16 @@ function Widgets.CreateSpellList(parent, width, height)
 				row._icon:Show()
 			end
 
+			-- Capture loop vars for closures
+			local capturedID   = spellID
+			local capturedName = name or ('Spell ' .. spellID)
+
 			-- Color swatch (shown when _showColorPicker is true)
 			local showSwatch = spellList._showColorPicker
 			if(showSwatch) then
-				-- Create swatch texture on row if not already present
+				-- Create swatch button on row if not already present
 				if(not row._colorSwatch) then
-					local swatch = row:CreateTexture(nil, 'ARTWORK')
+					local swatch = Widgets.CreateColorPicker(row, nil, false)
 					Widgets.SetSize(swatch, SWATCH_SIZE, SWATCH_SIZE)
 					row._colorSwatch = swatch
 				end
@@ -237,12 +241,22 @@ function Widgets.CreateSpellList(parent, width, height)
 				row._colorSwatch:SetPoint('RIGHT', row._upBtn, 'LEFT', -PAD_H, 0)
 				-- Apply spell color or white default
 				local colors = spellList._spellColors or {}
-				local c = colors[spellID]
-				if(c) then
-					row._colorSwatch:SetColorTexture(c[1] or 1, c[2] or 1, c[3] or 1, 1)
-				else
-					row._colorSwatch:SetColorTexture(1, 1, 1, 1)
-				end
+				local c = colors[capturedID] or { 1, 1, 1 }
+				row._colorSwatch:SetColor(c[1] or 1, c[2] or 1, c[3] or 1, 1)
+				-- Wire up live change and confirm callbacks
+				row._colorSwatch:SetOnChange(function(r, g, b)
+					if(not spellList._spellColors) then spellList._spellColors = {} end
+					spellList._spellColors[capturedID] = { r, g, b }
+				end)
+				row._colorSwatch:SetOnConfirm(function(r, g, b)
+					if(not spellList._spellColors) then spellList._spellColors = {} end
+					spellList._spellColors[capturedID] = { r, g, b }
+					if(spellList._onChanged) then
+						local copy = {}
+						for i, v in next, spellList._spells do copy[i] = v end
+						spellList._onChanged(copy)
+					end
+				end)
 			elseif(row._colorSwatch) then
 				row._colorSwatch:Hide()
 			end
@@ -255,8 +269,6 @@ function Widgets.CreateSpellList(parent, width, height)
 			row._nameFS:SetWidth(math.max(1, (contentWidth - usedLeft - usedRight)))
 
 			-- Wire remove button with confirmation
-			local capturedID = spellID
-			local capturedName = name or ('Spell ' .. spellID)
 			row._removeBtn:SetScript('OnClick', function()
 				Widgets.ShowConfirmDialog('Remove Spell', 'Remove ' .. capturedName .. ' (ID: ' .. capturedID .. ')?', function()
 					spellList:RemoveSpell(capturedID)

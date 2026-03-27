@@ -62,23 +62,9 @@ function ColorMethods:SetPoint(...) self._frame:SetPoint(...) end
 function ColorMethods:ClearAllPoints() self._frame:ClearAllPoints() end
 
 function ColorMethods:UpdateThresholdColor(remaining, duration)
-	local ltc = self._lowSecsColor
-	if(ltc and ltc.enabled and remaining <= ltc.threshold) then
-		local c = ltc.color
-		self._texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
-		return
-	end
-	local lpc = self._lowTimeColor
-	if(lpc and lpc.enabled and duration > 0) then
-		local pct = (remaining / duration) * 100
-		if(pct <= lpc.threshold) then
-			local c = lpc.color
-			self._texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
-			return
-		end
-	end
-	local c = self._color
-	self._texture:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
+	F.Indicators.UpdateThresholdColor(self, remaining, duration, function(r, g, b, a)
+		self._texture:SetColorTexture(r, g, b, a)
+	end)
 end
 
 -- Module-level OnUpdate

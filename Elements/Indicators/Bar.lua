@@ -36,11 +36,13 @@ local function DepletingOnUpdate(statusBar, elapsed)
 	statusBar:SetValue_Raw(fraction)
 
 	-- Update threshold colors
-	bar:UpdateThresholdColor(remaining, bar._duration or 0)
+	F.Indicators.UpdateThresholdColor(bar, remaining, bar._duration or 0, function(r, g, b, a)
+		bar._statusBar:SetStatusBarColor(r, g, b, a)
+	end)
 
 	-- Update duration text
 	if(bar._durationText and bar._durationMode ~= 'Never') then
-		local show = bar:ShouldShowDuration(remaining, bar._duration or 0)
+		local show = F.Indicators.ShouldShowDuration(bar._durationMode, remaining, bar._duration or 0)
 		if(show) then
 			bar._durationText:SetText(bar:FormatDuration(remaining))
 			bar._durationText:Show()
@@ -175,31 +177,6 @@ function BarMethods:GetStatusBar()
 	return self._statusBar
 end
 
---- Update bar color based on remaining time thresholds.
---- Called from OnUpdate or SetDuration.
-function BarMethods:UpdateThresholdColor(remaining, duration)
-	local ltc = self._lowSecsColor
-	if(ltc and ltc.enabled and remaining <= ltc.threshold) then
-		local c = ltc.color
-		self._statusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-		return
-	end
-
-	local lpc = self._lowTimeColor
-	if(lpc and lpc.enabled and duration > 0) then
-		local pct = (remaining / duration) * 100
-		if(pct <= lpc.threshold) then
-			local c = lpc.color
-			self._statusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-			return
-		end
-	end
-
-	-- Reset to base color
-	local c = self._color
-	self._statusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-end
-
 function BarMethods:SetStacks(count)
 	if(not self._stackText) then return end
 	if(count and count > 1) then
@@ -208,25 +185,6 @@ function BarMethods:SetStacks(count)
 	else
 		self._stackText:Hide()
 	end
-end
-
---- Check if duration text should be shown based on durationMode.
-function BarMethods:ShouldShowDuration(remaining, duration)
-	local mode = self._durationMode
-	if(mode == 'Always') then return true end
-	if(mode == 'Never') then return false end
-
-	if(duration > 0) then
-		local pct = (remaining / duration) * 100
-		if(mode == '<75' and pct < 75) then return true end
-		if(mode == '<50' and pct < 50) then return true end
-		if(mode == '<25' and pct < 25) then return true end
-	end
-
-	if(mode == '<15s' and remaining < 15) then return true end
-	if(mode == '<5s' and remaining < 5) then return true end
-
-	return false
 end
 
 --- Format duration as seconds (with tenths below 10s).

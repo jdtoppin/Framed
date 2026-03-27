@@ -35,7 +35,7 @@ local function DurationOnUpdate(frame, elapsed)
 	end
 
 	if(icon.duration) then
-		local show = icon:ShouldShowDuration(remaining, icon._totalDuration or 0)
+		local show = F.Indicators.ShouldShowDuration(icon._durationMode, remaining, icon._totalDuration or 0)
 		if(show) then
 			icon.duration:SetText(F.FormatDuration(remaining))
 			icon.duration:Show()
@@ -50,28 +50,6 @@ end
 -- ============================================================
 
 local IconMethods = {}
-
---- Determine whether duration text should be shown based on durationMode.
---- @param remaining number Remaining seconds
---- @param duration number Total duration in seconds
---- @return boolean
-function IconMethods:ShouldShowDuration(remaining, duration)
-	local mode = self._durationMode
-	if(mode == 'Always') then return true end
-	if(mode == 'Never' or not mode) then return false end
-
-	if(duration > 0) then
-		local pct = (remaining / duration) * 100
-		if(mode == '<75' and pct < 75) then return true end
-		if(mode == '<50' and pct < 50) then return true end
-		if(mode == '<25' and pct < 25) then return true end
-	end
-
-	if(mode == '<15s' and remaining < 15) then return true end
-	if(mode == '<5s' and remaining < 5) then return true end
-
-	return false
-end
 
 --- Set the displayed spell/aura data on this icon.
 --- @param spellID number
@@ -140,7 +118,7 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 			self._durationElapsed = 0
 			local remaining = expirationTime - GetTime()
 			if(remaining > 0) then
-				local show = self:ShouldShowDuration(remaining, duration)
+				local show = F.Indicators.ShouldShowDuration(self._durationMode, remaining, duration)
 				if(show) then
 					self.duration:SetText(F.FormatDuration(remaining))
 					self.duration:Show()
