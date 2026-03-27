@@ -11,26 +11,43 @@ F.Indicators.Bar = {}
 -- Stored as a module-level function; assigned/cleared per bar.
 -- ============================================================
 
+local DURATION_UPDATE_INTERVAL = 0.1
+
 local function DepletingOnUpdate(statusBar, elapsed)
 	local bar = statusBar._barRef
-	if(not bar or not bar._depleting) then return end
+	if(not bar or not bar._depleting) then
+		statusBar:SetScript('OnUpdate', nil)
+		return
+	end
+
+	bar._elapsed = (bar._elapsed or 0) + elapsed
+	if(bar._elapsed < DURATION_UPDATE_INTERVAL) then return end
+	bar._elapsed = 0
 
 	local remaining = bar._expirationTime - GetTime()
-
 	if(remaining <= 0) then
-		-- Fully depleted
-		statusBar:SetMinMaxValues(0, 1)
-		statusBar:SetValue(0)
-		bar._depleting = false
-		statusBar:SetScript('OnUpdate', nil)
+		bar:Clear()
 		return
 	end
 
 	local fraction = remaining / bar._duration
 	fraction = math.max(0, math.min(1, fraction))
-
 	statusBar:SetMinMaxValues(0, 1)
-	statusBar:SetValue_Raw(fraction)    -- bypass smooth interpolation; we control it here
+	statusBar:SetValue_Raw(fraction)
+
+	-- Update threshold colors
+	bar:UpdateThresholdColor(remaining, bar._duration or 0)
+
+	-- Update duration text
+	if(bar._durationText and bar._durationMode ~= 'Never') then
+		local show = bar:ShouldShowDuration(remaining, bar._duration or 0)
+		if(show) then
+			bar._durationText:SetText(bar:FormatDuration(remaining))
+			bar._durationText:Show()
+		else
+			bar._durationText:Hide()
+		end
+	end
 end
 
 -- ============================================================
@@ -50,6 +67,10 @@ function BarMethods:SetDuration(duration, expirationTime)
 		self:Clear()
 		return
 	end
+
+	self._duration      = duration
+	self._expirationTime = expirationTime
+	self._elapsed       = 0
 
 	-- Primary: use C-level SetTimerDuration (12.0.1, secret-safe)
 	-- Safe feature detection: check Enum exists before accessing nested fields.
@@ -77,9 +98,7 @@ function BarMethods:SetDuration(duration, expirationTime)
 	end
 
 	-- Fallback: OnUpdate-based depletion
-	self._duration       = duration
-	self._expirationTime = expirationTime
-	self._depleting      = true
+	self._depleting = true
 
 	self._statusBar:SetSmooth(false)
 	self._statusBar:SetMinMaxValues(0, 1)
@@ -130,6 +149,8 @@ function BarMethods:Clear()
 	self._statusBar._wrapper:Hide()
 	self._statusBar:Hide()
 	self._frame:Hide()
+	if(self._stackText) then self._stackText:Hide() end
+	if(self._durationText) then self._durationText:Hide() end
 end
 
 --- Show the bar frame.
@@ -154,50 +175,152 @@ function BarMethods:GetStatusBar()
 	return self._statusBar
 end
 
+--- Update bar color based on remaining time thresholds.
+--- Called from OnUpdate or SetDuration.
+function BarMethods:UpdateThresholdColor(remaining, duration)
+	local ltc = self._lowSecsColor
+	if(ltc and ltc.enabled and remaining <= ltc.threshold) then
+		local c = ltc.color
+		self._statusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
+		return
+	end
+
+	local lpc = self._lowTimeColor
+	if(lpc and lpc.enabled and duration > 0) then
+		local pct = (remaining / duration) * 100
+		if(pct <= lpc.threshold) then
+			local c = lpc.color
+			self._statusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
+			return
+		end
+	end
+
+	-- Reset to base color
+	local c = self._color
+	self._statusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
+end
+
+function BarMethods:SetStacks(count)
+	if(not self._stackText) then return end
+	if(count and count > 1) then
+		self._stackText:SetText(count)
+		self._stackText:Show()
+	else
+		self._stackText:Hide()
+	end
+end
+
+--- Check if duration text should be shown based on durationMode.
+function BarMethods:ShouldShowDuration(remaining, duration)
+	local mode = self._durationMode
+	if(mode == 'Always') then return true end
+	if(mode == 'Never') then return false end
+
+	if(duration > 0) then
+		local pct = (remaining / duration) * 100
+		if(mode == '<75' and pct < 75) then return true end
+		if(mode == '<50' and pct < 50) then return true end
+		if(mode == '<25' and pct < 25) then return true end
+	end
+
+	if(mode == '<15s' and remaining < 15) then return true end
+	if(mode == '<5s' and remaining < 5) then return true end
+
+	return false
+end
+
+--- Format duration as seconds (with tenths below 10s).
+function BarMethods:FormatDuration(remaining)
+	if(remaining >= 60) then
+		return math.floor(remaining / 60) .. 'm'
+	elseif(remaining >= 10) then
+		return math.floor(remaining) .. ''
+	else
+		return ('%.1f'):format(remaining)
+	end
+end
+
 -- ============================================================
 -- Factory
 -- ============================================================
 
 --- Create a small standalone Bar indicator with depleting animation.
 --- @param parent Frame
---- @param width number Bar width in pixels
---- @param height number Bar height in pixels
---- @param config table { color = {r,g,b,a} }
+--- @param config table { barWidth, barHeight, barOrientation, color, borderColor, bgColor,
+---                        lowTimeColor, lowSecsColor, showStacks, stackFont,
+---                        durationMode, durationFont }
 --- @return table bar
-function F.Indicators.Bar.Create(parent, width, height, config)
+function F.Indicators.Bar.Create(parent, config)
 	config = config or {}
-	local color = config.color or C.Colors.accent
+	local color       = config.color or { C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1 }
+	local barWidth    = config.barWidth or 50
+	local barHeight   = config.barHeight or 4
+	local orientation = config.barOrientation or 'Horizontal'
+	local borderColor = config.borderColor or { 0, 0, 0, 1 }
+	local bgColor     = config.bgColor or { 0, 0, 0, 0.5 }
 
 	-- Container frame
-	local frame = CreateFrame('Frame', nil, parent)
-	Widgets.SetSize(frame, width, height)
+	local frame = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
+	Widgets.SetSize(frame, barWidth, barHeight)
+	frame:SetFrameLevel(parent:GetFrameLevel() + 5)
+	frame:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 1,
+	})
+	frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 0.5)
+	frame:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1)
 	frame:Hide()
 
-	-- StatusBar via the Widgets factory (includes backdrop wrapper)
-	local statusBar = Widgets.CreateStatusBar(frame, width, height)
-	statusBar._wrapper:SetAllPoints(frame)
-	statusBar:SetBarColor(color[1], color[2], color[3], color[4] or 1)
-	statusBar:SetSmooth(false)
-	statusBar:SetMinMaxValues(0, 1)
-	statusBar:SetValue(0)
-	statusBar:Hide()
-	statusBar._wrapper:Hide()
+	-- Status bar
+	local statusBar = Widgets.CreateStatusBar(frame, barWidth - 2, barHeight - 2)
+	statusBar:SetPoint('CENTER', frame, 'CENTER', 0, 0)
+	statusBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 1)
+
+	if(orientation == 'Vertical') then
+		statusBar:SetOrientation('VERTICAL')
+	end
+
+	-- Stack text (optional)
+	local stackText
+	if(config.showStacks ~= false) then
+		local sf = config.stackFont or {}
+		stackText = Widgets.CreateFontString(frame, sf.size or 10, { 1, 1, 1, 1 })
+		stackText:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -1, 1)
+		stackText:SetJustifyH('RIGHT')
+		stackText:Hide()
+	end
+
+	-- Duration text (optional)
+	local durationText
+	if(config.durationMode and config.durationMode ~= 'Never') then
+		local df = config.durationFont or {}
+		durationText = Widgets.CreateFontString(frame, df.size or 10, { 1, 1, 1, 1 })
+		durationText:SetPoint('LEFT', frame, 'LEFT', 2, 0)
+		durationText:SetJustifyH('LEFT')
+		durationText:Hide()
+	end
 
 	local bar = {
-		_frame       = frame,
-		_statusBar   = statusBar,
-		_depleting   = false,
-		_duration    = 1,
+		_frame        = frame,
+		_statusBar    = statusBar,
+		_stackText    = stackText,
+		_durationText = durationText,
+		_color        = color,
+		_lowTimeColor = config.lowTimeColor,   -- { enabled, threshold, color }
+		_lowSecsColor = config.lowSecsColor,   -- { enabled, threshold, color }
+		_durationMode = config.durationMode or 'Never',
+		_depleting    = false,
+		_duration     = 1,
 		_expirationTime = 0,
-		_durObj      = nil,
+		_durObj       = nil,
 	}
 
 	for k, v in next, BarMethods do
 		bar[k] = v
 	end
 
-	-- Allow DepletingOnUpdate to reach bar via statusBar._barRef
 	statusBar._barRef = bar
-
+	frame._barRef = bar
 	return bar
 end
