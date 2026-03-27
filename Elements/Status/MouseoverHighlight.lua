@@ -8,52 +8,17 @@ F.Elements = F.Elements or {}
 F.Elements.MouseoverHighlight = {}
 
 -- ============================================================
--- Update
--- OnEnter / OnLeave are authoritative. UPDATE_MOUSEOVER_UNIT
--- is only used to catch edge cases where OnLeave doesn't fire
--- (e.g. frame hidden while hovered). It never re-shows — only hides.
--- ============================================================
-
-local function Update(self, event, unit)
-	local element = self.FramedMouseoverHighlight
-	if(not element) then return end
-
-	local frameUnit = self.unit
-	if(not frameUnit) then
-		element:Hide()
-		return
-	end
-
-	-- Safety hide: if the mouseover unit changed away from us, hide.
-	-- Never re-show from this event — OnEnter is authoritative for showing.
-	if(not UnitIsUnit(frameUnit, 'mouseover')) then
-		element:Hide()
-	end
-end
-
--- ============================================================
--- ForceUpdate
--- ============================================================
-
-local function ForceUpdate(element)
-	return Update(element.__owner, 'ForceUpdate', element.__owner.unit)
-end
-
--- ============================================================
 -- Enable / Disable
+-- OnEnter / OnLeave are the sole mechanism — no event polling.
+-- Cell uses the same approach: direct Show/Hide, no events.
 -- ============================================================
 
 local function Enable(self, unit)
 	local element = self.FramedMouseoverHighlight
 	if(not element) then return end
 
-	element.__owner     = self
-	element.ForceUpdate = ForceUpdate
+	element.__owner = self
 
-	-- UPDATE_MOUSEOVER_UNIT is unitless (true) — safety hide only
-	self:RegisterEvent('UPDATE_MOUSEOVER_UNIT', Update, true)
-
-	-- OnEnter / OnLeave hooks provide immediate response
 	self:HookScript('OnEnter', function(frame)
 		local el = frame.FramedMouseoverHighlight
 		if(el) then el:Show() end
@@ -72,14 +37,13 @@ local function Disable(self)
 	if(not element) then return end
 
 	element:Hide()
-	self:UnregisterEvent('UPDATE_MOUSEOVER_UNIT', Update)
 end
 
 -- ============================================================
 -- Register with oUF
 -- ============================================================
 
-oUF:AddElement('FramedMouseoverHighlight', Update, Enable, Disable)
+oUF:AddElement('FramedMouseoverHighlight', nil, Enable, Disable)
 
 -- ============================================================
 -- Setup
