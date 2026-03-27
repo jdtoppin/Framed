@@ -89,35 +89,10 @@ function OverlayMethods:Hide() self._frame:Hide() end
 function OverlayMethods:GetFrame() return self._frame end
 
 function OverlayMethods:UpdateThresholdColor(remaining, duration)
-	local ltc = self._lowSecsColor
-	if(ltc and ltc.enabled and remaining <= ltc.threshold) then
-		local c = ltc.color
-		if(self._overlayMode == 'Both') then
-			self._olStatusBar:SetStatusBarColor(c[1], c[2], c[3], 1)
-		else
-			self._olStatusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-		end
-		return
-	end
-	local lpc = self._lowTimeColor
-	if(lpc and lpc.enabled and duration > 0) then
-		local pct = (remaining / duration) * 100
-		if(pct <= lpc.threshold) then
-			local c = lpc.color
-			if(self._overlayMode == 'Both') then
-				self._olStatusBar:SetStatusBarColor(c[1], c[2], c[3], 1)
-			else
-				self._olStatusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-			end
-			return
-		end
-	end
-	local c = self._color
-	if(self._overlayMode == 'Both') then
-		self._olStatusBar:SetStatusBarColor(c[1], c[2], c[3], 1)
-	else
-		self._olStatusBar:SetStatusBarColor(c[1], c[2], c[3], c[4] or 1)
-	end
+	local isBoth = self._overlayMode == 'Both'
+	F.Indicators.UpdateThresholdColor(self, remaining, duration, function(r, g, b, a)
+		self._olStatusBar:SetStatusBarColor(r, g, b, isBoth and 1 or a)
+	end)
 end
 
 -- ============================================================

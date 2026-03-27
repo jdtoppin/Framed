@@ -9,13 +9,10 @@ F.Settings.Builders = F.Settings.Builders or {}
 -- ============================================================
 -- Layout constants
 -- ============================================================
-local SLIDER_H     = 26
 local CHECK_H      = 22
-local DROPDOWN_H   = 22
 local BUTTON_H     = 24
 local ROW_HEIGHT   = 28
 local LIST_HEIGHT  = 160
-local WIDGET_W     = 220
 local PAD          = 16
 local PAD_H        = 6
 
@@ -356,33 +353,9 @@ local function createListRow(scrollContent)
 end
 
 -- ============================================================
--- Shared dropdown item tables
+-- (per-type indicator panels are in IndicatorPanels.lua)
 -- ============================================================
-local DURATION_MODE_ITEMS = {
-	{ text = 'Never',  value = 'Never' },
-	{ text = 'Always', value = 'Always' },
-	{ text = '< 75%',  value = '<75' },
-	{ text = '< 50%',  value = '<50' },
-	{ text = '< 25%',  value = '<25' },
-	{ text = '< 15s',  value = '<15s' },
-	{ text = '< 5s',   value = '<5s' },
-}
-
-local ORIENTATION_ITEMS = {
-	{ text = 'Right', value = 'RIGHT' },
-	{ text = 'Left',  value = 'LEFT' },
-	{ text = 'Up',    value = 'UP' },
-	{ text = 'Down',  value = 'DOWN' },
-}
-
-local BAR_ORIENTATION_ITEMS = {
-	{ text = 'Horizontal', value = 'Horizontal' },
-	{ text = 'Vertical',   value = 'Vertical' },
-}
-
--- ============================================================
--- Build type-specific indicator settings
--- ============================================================
+-- sentinel to confirm the extraction boundary
 local function buildIndicatorSettings(parent, width, yOffset, name, data, setIndicator)
 	local function update(key, value)
 		data[key] = value
