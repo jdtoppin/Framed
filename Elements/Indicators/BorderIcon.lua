@@ -177,6 +177,15 @@ function BorderIconMethods:SetSize(size)
 	self.icon:SetPoint('BOTTOMRIGHT', self._frame, 'BOTTOMRIGHT', -borderThickness, borderThickness)
 end
 
+--- Tear down the BorderIcon for pool cleanup.
+--- Removes OnUpdate, clears back-reference, hides, and orphans the frame.
+function BorderIconMethods:Destroy()
+	self._frame:SetScript('OnUpdate', nil)
+	self._frame._biRef = nil
+	self._frame:Hide()
+	self._frame:SetParent(nil)
+end
+
 -- ============================================================
 -- Factory
 -- ============================================================
