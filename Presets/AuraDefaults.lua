@@ -33,10 +33,23 @@ local function defaultBuffIndicator()
 		enabled      = true,
 		spells       = {},
 		castBy       = 'me',
-		iconSize     = 14,
+		iconWidth    = 14,
+		iconHeight   = 14,
 		maxDisplayed = 3,
 		orientation  = 'RIGHT',
+		showCooldown  = true,
+		showStacks    = true,
+		durationMode  = 'Never',
+		durationFont  = durationFont(),
+		stackFont     = stackFont(),
+		glowType      = 'None',
+		glowColor     = { 1, 1, 1, 1 },
+		glowConfig    = {},
+		numPerLine    = 0,
+		spacingX      = 1,
+		spacingY      = 1,
 		anchor       = { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 },
+		frameLevel   = 5,
 	}
 end
 
@@ -68,20 +81,44 @@ end
 -- Solo/boss units: buffs + debuffs only
 function F.AuraDefaults.Solo(debuffSize, debuffMax)
 	return {
-		buffs         = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
-		debuffs       = debuffConfig(debuffSize, debuffMax),
-		lossOfControl = {},
-		crowdControl  = {},
+		buffs = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		debuffs = debuffConfig(debuffSize or 14, debuffMax or 6),
+		lossOfControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 30,
+			types      = { 'stun', 'incapacitate', 'disorient', 'fear', 'silence', 'root' },
+		},
+		crowdControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 20,
+			spells     = {},
+		},
 	}
 end
 
 -- Minimal auras for simple units (targettarget, pet)
 function F.AuraDefaults.Minimal()
 	return {
-		buffs         = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
-		debuffs       = debuffConfig(14, 3),
-		lossOfControl = {},
-		crowdControl  = {},
+		buffs = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		debuffs = debuffConfig(14, 3),
+		lossOfControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 30,
+			types      = { 'stun', 'incapacitate', 'disorient', 'fear', 'silence', 'root' },
+		},
+		crowdControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 20,
+			spells     = {},
+		},
 	}
 end
 
@@ -90,28 +127,31 @@ function F.AuraDefaults.Group(sizes)
 	local s = sizes or {}
 	local icon     = s.iconSize or 14
 	local big      = s.bigIconSize or 18
-	local rd       = s.raidDebuffIcon or icon
+	local rd       = s.raidDebuffIcon or 22
 	local rdBig    = s.raidDebuffBigIcon or big
-	local ext      = s.externalsIcon or icon
-	local def      = s.defensivesIcon or icon
+	local ext      = s.externalsIcon or 12
+	local def      = s.defensivesIcon or 12
 	local extMax   = s.externalsMax or 2
 	local defMax   = s.defensivesMax or 2
 	local debMax   = s.debuffMax or 3
 	local rdMax    = s.raidDebuffMax or 1
-	local tsIcon   = s.targetedSpellsIcon or icon
-	local dispIcon = s.dispellableIcon or icon
+	local tsIcon   = s.targetedSpellsIcon or 20
+	local dispIcon = s.dispellableIcon or 12
 
 	return {
-		buffs = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = {
+			hideUnimportantBuffs = true,
+			indicators = { ['My Buffs'] = defaultBuffIndicator() },
+		},
 		debuffs = {
 			enabled              = true,
-			iconSize             = icon,
+			iconSize             = 13,
 			bigIconSize          = big,
 			maxDisplayed         = debMax,
 			showDuration         = true,
 			showAnimation        = true,
 			orientation          = 'RIGHT',
-			anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+			anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 1, 4 },
 			frameLevel           = 5,
 			onlyDispellableByMe  = false,
 			stackFont            = stackFont(),
@@ -125,8 +165,8 @@ function F.AuraDefaults.Group(sizes)
 			showDuration   = true,
 			showAnimation  = true,
 			orientation    = 'RIGHT',
-			anchor         = { 'CENTER', nil, 'CENTER', 0, 0 },
-			frameLevel     = 6,
+			anchor         = { 'CENTER', nil, 'CENTER', 0, 3 },
+			frameLevel     = 20,
 			stackFont      = stackFont(),
 			durationFont   = durationFont(),
 		},
@@ -136,8 +176,8 @@ function F.AuraDefaults.Group(sizes)
 			iconSize      = tsIcon,
 			borderColor   = { 1, 0, 0, 1 },
 			maxDisplayed  = 1,
-			anchor        = { 'CENTER', nil, 'CENTER', 0, 0 },
-			frameLevel    = 8,
+			anchor        = { 'CENTER', nil, 'CENTER', 0, 6 },
+			frameLevel    = 50,
 			glow          = {
 				type      = 'Pixel',
 				color     = { 1, 0, 0, 1 },
@@ -152,8 +192,8 @@ function F.AuraDefaults.Group(sizes)
 			onlyDispellableByMe  = false,
 			highlightType        = 'gradient_half',
 			iconSize             = dispIcon,
-			anchor               = { 'CENTER', nil, 'CENTER', 0, 0 },
-			frameLevel           = 7,
+			anchor               = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', 0, 4 },
+			frameLevel           = 15,
 		},
 		externals = {
 			enabled        = true,
@@ -161,9 +201,9 @@ function F.AuraDefaults.Group(sizes)
 			maxDisplayed   = extMax,
 			showDuration   = true,
 			showAnimation  = true,
-			orientation    = 'RIGHT',
-			anchor         = { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 },
-			frameLevel     = 5,
+			orientation    = 'DOWN',
+			anchor         = { 'RIGHT', nil, 'RIGHT', 2, 5 },
+			frameLevel     = 10,
 			stackFont      = stackFont(),
 			durationFont   = durationFont(),
 		},
@@ -173,24 +213,42 @@ function F.AuraDefaults.Group(sizes)
 			maxDisplayed   = defMax,
 			showDuration   = true,
 			showAnimation  = true,
-			orientation    = 'RIGHT',
-			anchor         = { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 },
-			frameLevel     = 5,
+			orientation    = 'DOWN',
+			anchor         = { 'LEFT', nil, 'LEFT', -2, 5 },
+			frameLevel     = 10,
 			stackFont      = stackFont(),
 			durationFont   = durationFont(),
 		},
-		missingBuffs  = {
+		missingBuffs = {
+			enabled       = false,
 			iconSize      = s.missingBuffsIcon or 12,
-			frameLevel    = 5,
-			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 },
+			frameLevel    = 10,
+			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 16 },
 			growDirection  = 'RIGHT',
 			spacing       = 1,
 			glowType      = 'Pixel',
 			glowColor     = { 1, 0.8, 0, 1 },
 		},
-		privateAuras  = { iconSize = s.privateAurasIcon or 14 },
-		lossOfControl = {},
-		crowdControl  = {},
+		privateAuras = {
+			enabled  = true,
+			iconSize = s.privateAurasIcon or 16,
+			anchor   = { 'TOP', nil, 'TOP', 0, -3 },
+			frameLevel = 25,
+		},
+		lossOfControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 30,
+			types      = { 'stun', 'incapacitate', 'disorient', 'fear', 'silence', 'root' },
+		},
+		crowdControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 20,
+			spells     = {},
+		},
 	}
 end
 
@@ -220,8 +278,20 @@ function F.AuraDefaults.Arena()
 			anchor               = { 'CENTER', nil, 'CENTER', 0, 0 },
 			frameLevel           = 7,
 		},
-		lossOfControl = {},
-		crowdControl  = {},
+		lossOfControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 30,
+			types      = { 'stun', 'incapacitate', 'disorient', 'fear', 'silence', 'root' },
+		},
+		crowdControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 20,
+			spells     = {},
+		},
 	}
 end
 
@@ -243,7 +313,19 @@ function F.AuraDefaults.Boss()
 			stackFont      = stackFont(),
 			durationFont   = durationFont(),
 		},
-		lossOfControl = {},
-		crowdControl  = {},
+		lossOfControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 30,
+			types      = { 'stun', 'incapacitate', 'disorient', 'fear', 'silence', 'root' },
+		},
+		crowdControl = {
+			enabled    = false,
+			iconSize   = 22,
+			anchor     = { 'CENTER', nil, 'CENTER', 0, 0 },
+			frameLevel = 20,
+			spells     = {},
+		},
 	}
 end
