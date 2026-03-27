@@ -136,6 +136,7 @@ Constants.IndicatorType = {
 	ICONS     = 'Icons',
 	FRAME_BAR = 'FrameBar',
 	BAR       = 'Bar',
+	BARS      = 'Bars',
 	BORDER    = 'Border',
 	COLOR     = 'Color',
 	OVERLAY   = 'Overlay',
