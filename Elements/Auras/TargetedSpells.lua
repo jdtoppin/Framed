@@ -118,8 +118,13 @@ local function showCastsSecret(element, castList, unit)
 					bi:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
 				end
 				bi:Show()
-				-- C-level: set alpha 1 if targeting this unit, 0 otherwise
-				bi:SetAlphaFromBoolean(UnitIsUnit(cast.sourceUnit .. 'target', unit), 1, 0)
+				-- Show if the caster is targeting this unit
+				local targeting = UnitIsUnit(cast.sourceUnit .. 'target', unit)
+				if(F.IsValueNonSecret(targeting)) then
+					bi._frame:SetAlpha(targeting and 1 or 0)
+				else
+					bi._frame:SetAlpha(1)
+				end
 			end
 		end
 		-- Hide unused pool entries

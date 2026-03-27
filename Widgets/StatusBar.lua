@@ -13,12 +13,6 @@ local C = F.Constants
 local hasNativeInterpolation = Enum and Enum.StatusBarInterpolation ~= nil
 
 -- ============================================================
--- Smooth Interpolation Config
--- ============================================================
-
-local LERP_SPEED = 5.0   -- units per second multiplier for OnUpdate fallback
-
--- ============================================================
 -- StatusBar Widget
 -- ============================================================
 
@@ -77,15 +71,6 @@ function Widgets.CreateStatusBar(parent, width, height)
 	--- @param enabled boolean
 	function bar:SetSmooth(enabled)
 		self._smoothEnabled = enabled
-		-- If disabling, snap to target immediately
-		if(not enabled) then
-			self._currentValue = self._targetValue
-			if(hasNativeInterpolation) then
-				self:SetValue_Raw(self._targetValue, Enum.StatusBarInterpolation.Immediate)
-			else
-				self:SetValue_Raw(self._targetValue)
-			end
-		end
 	end
 
 	-- --------------------------------------------------------
@@ -100,13 +85,14 @@ function Widgets.CreateStatusBar(parent, width, height)
 		rawSetValue(self, val, interpolation)
 	end
 
-	--- Set bar value. Animates smoothly if smooth is enabled.
+	--- Set bar value. Forwards the interpolation argument to the native SetValue.
 	--- @param val number
-	function bar:SetValue(val)
-		-- val may be a secret value — pass through to C-level API
+	--- @param interpolation? number  Enum.StatusBarInterpolation value (passed by oUF)
+	function bar:SetValue(val, interpolation)
+		-- Always pass interpolation to C-level API, even for secret values.
+		-- The native StatusBar:SetValue accepts secret values natively.
 		if(not F.IsValueNonSecret(val)) then
-			-- Secret: pass directly to raw SetValue (C-level handles it)
-			self:SetValue_Raw(val)
+			self:SetValue_Raw(val, interpolation)
 			return
 		end
 
@@ -114,25 +100,10 @@ function Widgets.CreateStatusBar(parent, width, height)
 		if(F.IsValueNonSecret(min) and F.IsValueNonSecret(max)) then
 			val = math.max(min, math.min(max, val))
 		end
-		self._targetValue = val
+		self._targetValue  = val
+		self._currentValue = val
 
-		if(not self._smoothEnabled) then
-			self._currentValue = val
-			if(hasNativeInterpolation) then
-				self:SetValue_Raw(val, Enum.StatusBarInterpolation.Immediate)
-			else
-				self:SetValue_Raw(val)
-			end
-			return
-		end
-
-		if(hasNativeInterpolation) then
-			-- Native API: pass interpolation enum as second arg
-			self:SetValue_Raw(val, Enum.StatusBarInterpolation.ExponentialEaseOut)
-		else
-			-- OnUpdate-based fallback: _currentValue approaches _targetValue
-			-- The OnUpdate script is registered once below
-		end
+		self:SetValue_Raw(val, interpolation)
 	end
 
 	--- Get the current logical target value (not the animated display value).
@@ -167,30 +138,6 @@ function Widgets.CreateStatusBar(parent, width, height)
 			self._targetValue  = math.max(min, math.min(max, self._targetValue  or min))
 			self._currentValue = math.max(min, math.min(max, self._currentValue or min))
 		end
-	end
-
-	-- --------------------------------------------------------
-	-- OnUpdate fallback interpolation
-	-- Only active when native interpolation is unavailable
-	-- --------------------------------------------------------
-
-	if(not hasNativeInterpolation) then
-		bar:HookScript('OnUpdate', function(self, elapsed)
-			if(not self._smoothEnabled) then return end
-			if(self._currentValue == self._targetValue) then return end
-
-			local delta = self._targetValue - self._currentValue
-			local step  = delta * math.min(elapsed * LERP_SPEED, 1)
-
-			-- Snap when close enough to avoid endless micro-lerp
-			if(math.abs(delta) < 0.01) then
-				self._currentValue = self._targetValue
-			else
-				self._currentValue = self._currentValue + step
-			end
-
-			rawSetValue(self, self._currentValue)
-		end)
 	end
 
 	-- --------------------------------------------------------

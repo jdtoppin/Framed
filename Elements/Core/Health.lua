@@ -134,6 +134,10 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 	local health = Widgets.CreateStatusBar(self, width, height)
 
+	-- Push the health fill texture to a lower sub-layer so prediction
+	-- overlays (absorbs, incoming heals) render on top.
+	health:GetStatusBarTexture():SetDrawLayer('ARTWORK', -7)
+
 	-- Position the wrapper (backdrop frame) on the unit frame
 	health._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, 0)
 
@@ -206,10 +210,12 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- 'class' and 'gradient' loss colors are handled in PostUpdate
 
 	-- --------------------------------------------------------
-	-- Smooth interpolation
+	-- Smooth interpolation (oUF passes health.smoothing to SetValue)
 	-- --------------------------------------------------------
 
-	health:SetSmooth(config.smooth)
+	if(config.smooth) then
+		health.smoothing = Enum.StatusBarInterpolation.ExponentialEaseOut
+	end
 
 	-- --------------------------------------------------------
 	-- Health text (optional)
@@ -281,77 +287,7 @@ function F.Elements.Health.Setup(self, width, height, config)
 			h:SetStatusBarColor(0.2, 0.2, 0.2)
 		end
 
-		-- ── Prediction bar positioning ───────────────────
-		-- PostUpdate runs outside the restricted CallMethod context,
-		-- so SetPoint calls work here. On first run, we also set up
-		-- the container positioning that was deferred from creation.
-		local container = h._predictionContainer
-		if(container) then
-			-- Deferred container setup: anchor it inside the wrapper
-			-- on the first PostUpdate call (outside restricted context).
-			if(not container._positioned) then
-				container:SetPoint('TOPLEFT', 1, -1)
-				container:SetPoint('BOTTOMRIGHT', -1, 1)
-				container._positioned = true
-			end
-
-			-- Use wrapper width minus 2px inset instead of container:GetWidth()
-			-- because container may not have been laid out yet on the first call.
-			local barWidth = (h._wrapper:GetWidth() or 0) - 2
-			if(barWidth <= 0) then return end
-			local fillWidth = barWidth * pct
-
-			if(h.HealingAll) then
-				h.HealingAll:SetWidth(barWidth)
-				h.HealingAll:ClearAllPoints()
-				h.HealingAll:SetPoint('TOP')
-				h.HealingAll:SetPoint('BOTTOM')
-				h.HealingAll:SetPoint('LEFT', fillWidth, 0)
-			end
-
-			if(h.DamageAbsorb) then
-				local absorbOffset = fillWidth
-				if(h.HealingAll and h.values) then
-					local allHeal = h.values:GetIncomingHeals()
-					if(F.IsValueNonSecret(allHeal) and max > 0) then
-						absorbOffset = absorbOffset + barWidth * (allHeal / max)
-					end
-				end
-				absorbOffset = math.min(absorbOffset, barWidth)
-				h.DamageAbsorb:SetWidth(barWidth)
-				h.DamageAbsorb:ClearAllPoints()
-				h.DamageAbsorb:SetPoint('TOP')
-				h.DamageAbsorb:SetPoint('BOTTOM')
-				h.DamageAbsorb:SetPoint('LEFT', absorbOffset, 0)
-			end
-
-			if(h.HealAbsorb) then
-				h.HealAbsorb:SetWidth(barWidth)
-				h.HealAbsorb:ClearAllPoints()
-				h.HealAbsorb:SetPoint('TOP')
-				h.HealAbsorb:SetPoint('BOTTOM')
-				-- Anchor RIGHT to parent RIGHT with offset so RIGHT edge
-				-- lands at fillWidth from parent LEFT:
-				-- parent_RIGHT is at barWidth, so offset = fillWidth - barWidth
-				h.HealAbsorb:SetPoint('RIGHT', fillWidth - barWidth, 0)
-			end
-
-			-- Position over-absorb indicators (also deferred from creation)
-			if(h.OverDamageAbsorbIndicator and not h.OverDamageAbsorbIndicator._positioned) then
-				h.OverDamageAbsorbIndicator:SetPoint('TOP')
-				h.OverDamageAbsorbIndicator:SetPoint('BOTTOM')
-				h.OverDamageAbsorbIndicator:SetPoint('RIGHT', 4, 0)
-				h.OverDamageAbsorbIndicator._positioned = true
-			end
-
-			if(h.OverHealAbsorbIndicator and not h.OverHealAbsorbIndicator._positioned) then
-				h.OverHealAbsorbIndicator:SetPoint('TOP')
-				h.OverHealAbsorbIndicator:SetPoint('BOTTOM')
-				h.OverHealAbsorbIndicator:SetPoint('LEFT', -4, 0)
-				h.OverHealAbsorbIndicator._positioned = true
-			end
-		end
-
+		-- ── Prediction bar positioning (deferred from creation) ──
 		-- Dispellable overlay tracks health fill width
 		if(h._dispelOverlay) then
 			local bw = (h._wrapper:GetWidth() or 0) - 2
@@ -431,71 +367,95 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 	-- --------------------------------------------------------
 	-- Prediction sub-widgets — placed directly on the Health
-	-- element using PascalCase names (oUF's non-deprecated API).
+	-- element using PascalCase names (oUF's Health element API).
 	-- oUF's Health Update() drives SetValue/SetAlphaFromBoolean.
 	--
-	-- IMPORTANT: Party/raid frames spawn via CallMethod from
-	-- SecureGroupHeaderTemplate. ALL SetPoint calls inside that
-	-- context fail with "Wrong object type" (RestrictedFrames.lua
-	-- intercepts them). We create the bars here (so oUF's Enable
-	-- can see them and register events) but do ZERO SetPoint calls.
-	-- All positioning is deferred to PostUpdate, which runs outside
-	-- the restricted context when health events fire.
+	-- Absorb bars use SetAllPoints + SetReverseFill to overlay
+	-- the health fill from the right edge inward.
+	-- Incoming heal bars use a ClipFrame to clip overflow at the
+	-- health bar boundary.
 	-- --------------------------------------------------------
 
 	local needsPrediction = config.healPrediction or config.damageAbsorb
 		or config.healAbsorb or config.overAbsorb
 
 	if(needsPrediction) then
-		-- Container Frame inside the wrapper — NO SetPoint here.
-		-- PostUpdate will position it on first run.
-		local wrapper = health._wrapper
-		local container = CreateFrame('Frame', nil, wrapper)
-		container:SetFrameLevel(health:GetFrameLevel() + 1)
-		health._predictionContainer = container
+		local healthBarTexture = health:GetStatusBarTexture()
+		local predWidth = width - 2
+
+		-- Clip frame for forward-fill bars (incoming heals) that extend
+		-- right from the fill edge and need clipping at the bar boundary.
+		local clipFrame = CreateFrame('Frame', nil, health)
+		clipFrame:SetAllPoints(health)
+		clipFrame:SetClipsChildren(true)
+		clipFrame:SetFrameLevel(health:GetFrameLevel() + 1)
 
 		if(config.healPrediction) then
 			local hc = config.healPredictionColor
-			local healBar = CreateFrame('StatusBar', nil, container)
+			local healBar = CreateFrame('StatusBar', nil, clipFrame)
+			healBar:SetFrameLevel(clipFrame:GetFrameLevel())
 			healBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Gradient_Linear_Right]])
 			healBar:SetStatusBarColor(hc[1], hc[2], hc[3], hc[4] or 0.4)
+			healBar:SetWidth(predWidth)
+			healBar:SetPoint('TOP', health, 'TOP')
+			healBar:SetPoint('BOTTOM', health, 'BOTTOM')
+			healBar:SetPoint('LEFT', healthBarTexture, 'RIGHT')
 			health.HealingAll = healBar
 		end
 
 		if(config.damageAbsorb) then
 			local dc = config.damageAbsorbColor
-			local absorbBar = CreateFrame('StatusBar', nil, container)
+			local absorbBar = CreateFrame('StatusBar', nil, health)
+			absorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
 			absorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
 			absorbBar:SetStatusBarColor(dc[1], dc[2], dc[3], dc[4] or 0.6)
+			absorbBar:SetAllPoints(health)
+			absorbBar:SetReverseFill(true)
 			health.DamageAbsorb = absorbBar
 		end
 
 		if(config.overAbsorb) then
-			local overAbsorb = container:CreateTexture(nil, 'OVERLAY')
+			local overAbsorb = health:CreateTexture(nil, 'OVERLAY')
 			overAbsorb:SetTexture([[Interface\AddOns\Framed\Media\Textures\StaticGlow]])
 			overAbsorb:SetBlendMode('ADD')
 			overAbsorb:SetWidth(8)
 			overAbsorb:SetAlpha(0)
+			-- Absorb fills right-to-left, so overflow glow sits at the left edge
+			overAbsorb:SetPoint('TOP')
+			overAbsorb:SetPoint('BOTTOM')
+			overAbsorb:SetPoint('RIGHT', health, 'LEFT')
 			health.OverDamageAbsorbIndicator = overAbsorb
 		end
 
 		if(config.healAbsorb) then
 			local hac = config.healAbsorbColor
-			local healAbsorbBar = CreateFrame('StatusBar', nil, container)
+			local healAbsorbBar = CreateFrame('StatusBar', nil, health)
+			healAbsorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
 			healAbsorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
 			healAbsorbBar:SetStatusBarColor(hac[1], hac[2], hac[3], hac[4] or 0.5)
 			healAbsorbBar:SetReverseFill(true)
+			healAbsorbBar:SetAllPoints(health)
 			health.HealAbsorb = healAbsorbBar
 
-			local overHealAbsorb = container:CreateTexture(nil, 'OVERLAY')
+			local overHealAbsorb = health:CreateTexture(nil, 'OVERLAY')
 			overHealAbsorb:SetTexture([[Interface\RaidFrame\Absorb-Overabsorb]])
 			overHealAbsorb:SetBlendMode('ADD')
 			overHealAbsorb:SetWidth(8)
 			overHealAbsorb:SetAlpha(0)
+			overHealAbsorb:SetPoint('TOP')
+			overHealAbsorb:SetPoint('BOTTOM')
+			overHealAbsorb:SetPoint('RIGHT', health, 'LEFT')
 			health.OverHealAbsorbIndicator = overHealAbsorb
 		end
 
 		health.incomingHealOverflow = 1.05
+
+		-- Clamp modes: default clamps absorbs to missing health,
+		-- which means absorbs are 0 at full HP.  Use MaximumHealth
+		-- so shields are visible regardless of current health.
+		health.damageAbsorbClampMode = Enum.UnitDamageAbsorbClampMode.MaximumHealth
+		health.healAbsorbClampMode   = Enum.UnitHealAbsorbClampMode.MaximumHealth
+		health.incomingHealClampMode  = Enum.UnitIncomingHealClampMode.MaximumHealth
 	end
 
 	-- --------------------------------------------------------

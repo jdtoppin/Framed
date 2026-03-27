@@ -89,7 +89,11 @@ function F.Elements.Castbar.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	castbar.PostCastStart = function(cb, unit, name)
-		if(cb.notInterruptible) then
+		-- notInterruptible may be a secret boolean in Midnight — can't branch on it.
+		-- Use IsValueNonSecret to safely test; default to interruptible color.
+		local ni = cb.notInterruptible
+		local isShielded = F.IsValueNonSecret(ni) and ni
+		if(isShielded) then
 			local nic = config.nonInterruptibleColor
 			cb:SetStatusBarColor(nic[1], nic[2], nic[3], 1)
 		else
