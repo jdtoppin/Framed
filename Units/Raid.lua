@@ -40,6 +40,9 @@ function F.Units.Raid.Spawn()
 		'groupingOrder', '1,2,3,4,5,6,7,8'
 	)
 
+	-- Defer child frame init to outside CallMethod's restricted context
+	F.StyleBuilder.DeferHeaderInit(header)
+
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('raid')
 	header:SetPoint('CENTER', UIParent, 'CENTER', 0, -100)

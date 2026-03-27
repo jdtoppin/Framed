@@ -269,7 +269,7 @@ function F.Elements.TargetedSpells.Setup(self, config)
 			local bi = F.Indicators.BorderIcon.Create(self, iconSize, biConfig)
 			local a = anchor
 			local offset = (i - 1) * (iconSize + 2)
-			bi:SetPoint(a[1], a[2], a[3], (a[4] or 0) + offset, a[5] or 0)
+			bi:SetPoint(a[1], nil, a[3], (a[4] or 0) + offset, a[5] or 0)
 			pool[i] = bi
 		end
 	end

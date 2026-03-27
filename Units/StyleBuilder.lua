@@ -6,6 +6,36 @@ local Widgets = F.Widgets
 F.StyleBuilder = {}
 
 -- ============================================================
+-- DeferHeaderInit
+-- Patches a SecureGroupHeader so that oUF's initObject chain
+-- (style function, hooks, element enabling) runs outside the
+-- restricted CallMethod context where SetPoint errors.
+--
+-- SecureGroupHeaderTemplate's CallMethod wraps everything in
+-- securecall(pcall, ...). SetPoint calls on restricted child
+-- frames error with "Wrong object type" and abort initObject.
+-- By deferring, the full init runs on the next frame where
+-- SetPoint works normally. Keeps Libs/oUF/ouf.lua unmodified.
+-- ============================================================
+
+function F.StyleBuilder.DeferHeaderInit(header)
+	local originalStyleFunc = header.styleFunction
+	header.styleFunction = function(self, frameName)
+		C_Timer.After(0, function()
+			originalStyleFunc(self, frameName)
+
+			-- The frame missed onAttributeChanged / onShow events
+			-- that fired during configureChildren (before hooks
+			-- existed). Force a full element update now.
+			local frame = _G[frameName]
+			if(frame and frame.UpdateAllElements and frame.unit) then
+				frame:UpdateAllElements('FRAMED_DEFERRED_INIT')
+			end
+		end)
+	end
+end
+
+-- ============================================================
 -- Default Config Template
 -- ============================================================
 
@@ -259,7 +289,15 @@ do
 		anchor               = { 'CENTER', nil, 'CENTER', 0, 0 },
 		frameLevel           = 7,
 	}
-	p.missingBuffs = { iconSize = 12 }
+	p.missingBuffs = {
+		iconSize      = 12,
+		frameLevel    = 5,
+		anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 },
+		growDirection  = 'RIGHT',
+		spacing       = 1,
+		glowType      = 'Pixel',
+		glowColor     = { 1, 0.8, 0, 1 },
+	}
 	p.privateAuras = { iconSize = 16 }
 	F.StyleBuilder.Presets['party'] = p
 end

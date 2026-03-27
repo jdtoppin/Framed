@@ -264,7 +264,7 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 	button:ClearAllPoints()
 	Widgets.SetPoint(button, 'BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
 
-	-- Grip texture: a small square tinted in the secondary text color
+	-- Grip texture: a small square, starts hidden
 	local grip = button:CreateTexture(nil, 'OVERLAY')
 	grip:SetAllPoints(button)
 	grip:SetColorTexture(
@@ -272,6 +272,50 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 		C.Colors.textSecondary[2],
 		C.Colors.textSecondary[3],
 		C.Colors.textSecondary[4] or 1)
+	button:SetAlpha(0)
+
+	-- Fade helpers
+	local fadeTimer
+	local function fadeIn()
+		if(fadeTimer) then fadeTimer:Cancel(); fadeTimer = nil end
+		local elapsed = 0
+		local startAlpha = button:GetAlpha()
+		button:SetScript('OnUpdate', function(self, dt)
+			if(self._resizing and onResize) then
+				onResize(frame, frame:GetWidth(), frame:GetHeight())
+			end
+			if(startAlpha < 1) then
+				elapsed = elapsed + dt
+				local t = math.min(elapsed / 0.15, 1)
+				self:SetAlpha(startAlpha + (1 - startAlpha) * t)
+				if(t >= 1) then startAlpha = 1 end
+			end
+		end)
+	end
+
+	local function fadeOut()
+		if(fadeTimer) then fadeTimer:Cancel() end
+		fadeTimer = C_Timer.NewTimer(0.6, function()
+			fadeTimer = nil
+			local elapsed = 0
+			local startAlpha = button:GetAlpha()
+			button:SetScript('OnUpdate', function(self, dt)
+				if(self._resizing and onResize) then
+					onResize(frame, frame:GetWidth(), frame:GetHeight())
+				end
+				elapsed = elapsed + dt
+				local t = math.min(elapsed / 0.3, 1)
+				self:SetAlpha(startAlpha * (1 - t))
+				if(t >= 1) then
+					self:SetScript('OnUpdate', function(s)
+						if(s._resizing and onResize) then
+							onResize(frame, frame:GetWidth(), frame:GetHeight())
+						end
+					end)
+				end
+			end)
+		end)
+	end
 
 	-- Resize state flag
 	button._resizing = false
@@ -301,8 +345,9 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 		end
 	end)
 
-	-- Highlight on hover to signal interactivity
+	-- Show on hover, fade out on leave
 	button:SetScript('OnEnter', function(self)
+		fadeIn()
 		grip:SetColorTexture(
 			C.Colors.accent[1],
 			C.Colors.accent[2],
@@ -311,6 +356,9 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 	end)
 
 	button:SetScript('OnLeave', function(self)
+		if(not self._resizing) then
+			fadeOut()
+		end
 		grip:SetColorTexture(
 			C.Colors.textSecondary[1],
 			C.Colors.textSecondary[2],

@@ -15,8 +15,10 @@ local WINDOW_MIN_W     = 700
 local WINDOW_MIN_H     = 450
 local WINDOW_MAX_W     = 1200
 local function GetWindowMaxH()
-	local screenH = UIParent:GetHeight()
-	return math.floor(screenH * 0.75)
+	-- Frame operates at pixel scale (ApplyUIScale sets effective scale to 1.0),
+	-- so max height must be in pixels, not UIParent coordinates.
+	local screenPx = UIParent:GetHeight() * UIParent:GetEffectiveScale()
+	return math.floor(screenPx * 0.85)
 end
 
 local SIDEBAR_W        = 170
@@ -95,9 +97,13 @@ function Settings.CreateMainFrame()
 	if(Settings._mainFrame) then return end
 
 	-- ── Outer window ──────────────────────────────────────────
-	local frame, header = Widgets.CreateHeaderedFrame(UIParent, 'Framed', WINDOW_W, WINDOW_H)
+	local maxH = GetWindowMaxH()
+	local initW = math.min(WINDOW_W, WINDOW_MAX_W)
+	local initH = math.min(WINDOW_H, maxH)
+	local frame, header = Widgets.CreateHeaderedFrame(UIParent, 'Framed', initW, initH)
 	frame:SetFrameStrata('HIGH')
 	frame:EnableMouse(true)
+	frame:SetClampedToScreen(true)
 	frame:Hide()
 	Settings._mainFrame = frame
 
@@ -228,11 +234,12 @@ function Settings.CreateMainFrame()
 	end)
 
 	-- ── Sidebar ───────────────────────────────────────────────
-	local sidebar = Widgets.CreateBorderedFrame(frame, SIDEBAR_W, WINDOW_H - HEADER_HEIGHT, C.Colors.background, C.Colors.border)
+	local sidebar = Widgets.CreateBorderedFrame(frame, SIDEBAR_W, initH - HEADER_HEIGHT, C.Colors.background, C.Colors.border)
 	sidebar:ClearAllPoints()
-	Widgets.SetPoint(sidebar, 'TOPLEFT',    frame, 'TOPLEFT',    0, -HEADER_HEIGHT)
-	Widgets.SetPoint(sidebar, 'BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
-	sidebar:SetWidth(SIDEBAR_W)
+	Widgets.SetPoint(sidebar, 'TOPLEFT',     frame, 'TOPLEFT',     0, -HEADER_HEIGHT)
+	Widgets.SetPoint(sidebar, 'BOTTOMRIGHT', frame, 'BOTTOMLEFT',  SIDEBAR_W, 0)
+	sidebar._height = nil  -- height driven by anchors; prevent ReSize from stomping it
+	sidebar:SetClipsChildren(true)
 
 	-- ── Content area (right of sidebar, below title bar) ──────
 	local contentArea = CreateFrame('Frame', nil, frame)
@@ -261,6 +268,12 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', titleCard, 'LEFT', C.Spacing.normal, 0)
 	Settings._headerPanelText:SetText('')
 
+	Settings._headerPresetText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, { 0.2, 0.8, 0.2, 1 })
+	Settings._headerPresetText:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerPresetText, 'RIGHT', titleCard, 'RIGHT', -C.Spacing.normal, 0)
+	Settings._headerPresetText:SetText('')
+	Settings._headerPresetText:Hide()
+
 	-- Panel container (below title card — each panel manages its own scrolling)
 	-- Uses full anchor-based sizing (TOPLEFT + BOTTOMRIGHT) so child
 	-- SetAllPoints resolves correctly in the layout engine.
@@ -271,8 +284,8 @@ function Settings.CreateMainFrame()
 
 	Settings._contentParent = panelContainer
 	-- Store explicit dimensions for panels to read during create()
-	Settings._contentParent._explicitWidth  = WINDOW_W - SIDEBAR_W - C.Spacing.normal
-	Settings._contentParent._explicitHeight = WINDOW_H - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
+	Settings._contentParent._explicitWidth  = initW - SIDEBAR_W - C.Spacing.normal
+	Settings._contentParent._explicitHeight = initH - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 
 	-- ── Pixel updater ─────────────────────────────────────────
 	Widgets.AddToPixelUpdater_OnShow(frame)
@@ -286,7 +299,8 @@ function Settings.CreateMainFrame()
 		end
 		local sz = F.Config:Get('general.settingsSize')
 		if(sz) then
-			frame:SetSize(sz[1], sz[2])
+			local maxH = GetWindowMaxH()
+			frame:SetSize(math.min(sz[1], WINDOW_MAX_W), math.min(sz[2], maxH))
 			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
 				Settings._contentParent._explicitWidth  = sz[1] - SIDEBAR_W - C.Spacing.normal
@@ -302,6 +316,17 @@ function Settings.CreateMainFrame()
 	Widgets.RegisterForUIScale(frame)
 	frame:HookScript('OnShow', function()
 		Widgets.ApplyUIScale(frame)
+		-- Clamp height to screen on every show (scale may have changed)
+		local maxH = GetWindowMaxH()
+		local w, h = frame:GetSize()
+		if(h > maxH) then
+			frame:SetHeight(maxH)
+			if(Settings._contentParent) then
+				local contentH = maxH - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
+				Settings._contentParent:SetHeight(contentH)
+				Settings._contentParent._explicitHeight = contentH
+			end
+		end
 	end)
 
 end

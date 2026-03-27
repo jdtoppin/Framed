@@ -285,7 +285,7 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 	-- ── Scroll hint (pulsing down arrow) ───────────────────────
 	local hint = CreateFrame('Frame', nil, scroll)
 	hint:SetSize(HINT_SIZE, HINT_SIZE)
-	hint:SetPoint('BOTTOM', scroll, 'BOTTOM', 0, 8)
+	hint:SetPoint('BOTTOMRIGHT', scroll, 'BOTTOMRIGHT', -4, 8)
 	hint:SetFrameLevel(scroll:GetFrameLevel() + 5)
 
 	local hintTex = hint:CreateTexture(nil, 'OVERLAY')

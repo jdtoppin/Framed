@@ -354,7 +354,10 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 		-- Dispellable overlay tracks health fill width
 		if(h._dispelOverlay) then
-			h._dispelOverlay:SetWidth(math.max(barWidth * pct, 0.001))
+			local bw = (h._wrapper:GetWidth() or 0) - 2
+			if(bw > 0) then
+				h._dispelOverlay:SetWidth(math.max(bw * pct, 0.001))
+			end
 		end
 
 		-- ── Loss color (background) ───────────────────────

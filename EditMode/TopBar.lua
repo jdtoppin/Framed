@@ -42,7 +42,7 @@ local function BuildTopBar()
 	topBar._presetDD = presetDD
 
 	-- ── "Editing: X" label ──────────────────────────────────
-	local editLabel = Widgets.CreateFontString(topBar, C.Font.sizeNormal, C.Colors.accent)
+	local editLabel = Widgets.CreateFontString(topBar, C.Font.sizeNormal, { 0.2, 0.8, 0.2, 1 })
 	editLabel:SetPoint('LEFT', presetDD, 'RIGHT', C.Spacing.normal, 0)
 	editLabel:SetText('Editing: ' .. EditMode.GetSessionPreset())
 	topBar._editLabel = editLabel

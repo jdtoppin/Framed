@@ -96,8 +96,8 @@ function Widgets.CreateStatusBar(parent, width, height)
 	local rawSetValue = bar.SetValue
 
 	--- Raw set, bypassing interpolation. Used internally.
-	function bar:SetValue_Raw(val)
-		rawSetValue(self, val)
+	function bar:SetValue_Raw(val, interpolation)
+		rawSetValue(self, val, interpolation)
 	end
 
 	--- Set bar value. Animates smoothly if smooth is enabled.

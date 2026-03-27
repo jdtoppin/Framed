@@ -8,7 +8,6 @@ local C = F.Constants
 -- ============================================================
 
 local SLIDER_H     = 26
-local CHECK_H      = 22
 local DROPDOWN_H   = 22
 local WIDGET_W     = 220
 
@@ -63,34 +62,104 @@ F.Settings.RegisterPanel({
 		descFS:ClearAllPoints()
 		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		descFS:SetWidth(width)
-		descFS:SetText('Tracks missing raid buffs: Mark of the Wild, Power Word: Fortitude, Arcane Intellect, and Battle Shout. Shows a colored frame highlight when a buff is missing.')
+		descFS:SetText('Shows glowing spell icons for missing raid buffs (Fortitude, Intellect, Battle Shout, Mark of the Wild, Skyfury, Blessing of the Bronze). Icons only appear when the providing class is in your group.')
 		descFS:SetWordWrap(true)
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
-		-- ── Highlight Type ─────────────────────────────────────
-		local highlightHeading, highlightHeadingH = Widgets.CreateHeading(content, 'Frame Highlight', 2)
-		highlightHeading:ClearAllPoints()
-		Widgets.SetPoint(highlightHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - highlightHeadingH
+		-- ── Icon Settings ─────────────────────────────────────
+		local iconHeading, iconHeadingH = Widgets.CreateHeading(content, 'Icon Settings', 2)
+		iconHeading:ClearAllPoints()
+		Widgets.SetPoint(iconHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - iconHeadingH
 
-		local hlCard, hlInner, hlCardY
-		hlCard, hlInner, hlCardY = Widgets.StartCard(content, width, yOffset)
+		local card, inner, cardY
+		card, inner, cardY = Widgets.StartCard(content, width, yOffset)
 
-		local ht = C.HighlightType
-		local highlightDD = Widgets.CreateDropdown(hlInner, WIDGET_W)
-		highlightDD:SetItems({
-			{ text = 'Gradient - Health Bar (Full)',    value = ht.GRADIENT_FULL },
-			{ text = 'Gradient - Health Bar (Half)',    value = ht.GRADIENT_HALF },
-			{ text = 'Solid - Health Bar (Current)',    value = ht.SOLID_CURRENT },
-			{ text = 'Solid - Entire Frame',            value = ht.SOLID_ENTIRE },
+		-- Icon Size
+		local sizeSlider = Widgets.CreateSlider(inner, WIDGET_W, {
+			label    = 'Icon Size',
+			min      = 8,
+			max      = 32,
+			step     = 1,
+			value    = get('iconSize') or 12,
+			onChange = function(v) set('iconSize', v) end,
 		})
-		highlightDD:SetValue(get('highlightType') or ht.GRADIENT_FULL)
-		highlightDD:SetOnSelect(function(v) set('highlightType', v) end)
-		highlightDD:ClearAllPoints()
-		Widgets.SetPoint(highlightDD, 'TOPLEFT', hlInner, 'TOPLEFT', 0, hlCardY)
-		hlCardY = hlCardY - DROPDOWN_H - C.Spacing.normal
+		sizeSlider:ClearAllPoints()
+		Widgets.SetPoint(sizeSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		cardY = cardY - SLIDER_H - C.Spacing.normal
 
-		yOffset = Widgets.EndCard(hlCard, content, hlCardY)
+		-- Frame Level
+		local levelSlider = Widgets.CreateSlider(inner, WIDGET_W, {
+			label    = 'Frame Level',
+			min      = 1,
+			max      = 10,
+			step     = 1,
+			value    = get('frameLevel') or 5,
+			onChange = function(v) set('frameLevel', v) end,
+		})
+		levelSlider:ClearAllPoints()
+		Widgets.SetPoint(levelSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		cardY = cardY - SLIDER_H - C.Spacing.normal
+
+		-- Anchor Point
+		local anchorPoints = {
+			{ text = 'Top Left',     value = 'TOPLEFT' },
+			{ text = 'Top Right',    value = 'TOPRIGHT' },
+			{ text = 'Bottom Left',  value = 'BOTTOMLEFT' },
+			{ text = 'Bottom Right', value = 'BOTTOMRIGHT' },
+			{ text = 'Center',       value = 'CENTER' },
+		}
+		local anchorDD = Widgets.CreateDropdown(inner, WIDGET_W)
+		anchorDD:SetItems(anchorPoints)
+		local currentAnchor = get('anchor')
+		anchorDD:SetValue(currentAnchor and currentAnchor[1] or 'BOTTOMRIGHT')
+		anchorDD:SetOnSelect(function(v)
+			local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+			set('anchor', { v, nil, v, a[4] or 0, a[5] or 0 })
+		end)
+		anchorDD:ClearAllPoints()
+		Widgets.SetPoint(anchorDD, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		cardY = cardY - DROPDOWN_H - C.Spacing.normal
+
+		-- Anchor X Offset
+		local xSlider = Widgets.CreateSlider(inner, WIDGET_W, {
+			label    = 'X Offset',
+			min      = -20,
+			max      = 20,
+			step     = 1,
+			value    = (function()
+				local a = get('anchor')
+				return a and a[4] or -2
+			end)(),
+			onChange = function(v)
+				local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+				set('anchor', { a[1], nil, a[3], v, a[5] })
+			end,
+		})
+		xSlider:ClearAllPoints()
+		Widgets.SetPoint(xSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		cardY = cardY - SLIDER_H - C.Spacing.normal
+
+		-- Anchor Y Offset
+		local ySlider = Widgets.CreateSlider(inner, WIDGET_W, {
+			label    = 'Y Offset',
+			min      = -20,
+			max      = 20,
+			step     = 1,
+			value    = (function()
+				local a = get('anchor')
+				return a and a[5] or 2
+			end)(),
+			onChange = function(v)
+				local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+				set('anchor', { a[1], nil, a[3], a[4], v })
+			end,
+		})
+		ySlider:ClearAllPoints()
+		Widgets.SetPoint(ySlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		cardY = cardY - SLIDER_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(card, content, cardY)
 
 		-- ── Final height ────────────────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

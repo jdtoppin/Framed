@@ -8,51 +8,88 @@ F.Elements = F.Elements or {}
 F.Elements.MissingBuffs = {}
 
 -- ============================================================
--- Default tracked buffs
+-- Tracked raid buffs: spellId → providing class
+-- Only shows the missing icon if the providing class is in the group.
 -- ============================================================
 
-local IMPORTANT_BUFFS = {
-	[21562]  = true,  -- Power Word: Fortitude
-	[1459]   = true,  -- Arcane Intellect
-	[6673]   = true,  -- Battle Shout
-	[381748] = true,  -- Blessing of the Bronze
+local RAID_BUFFS = {
+	[21562]  = 'PRIEST',   -- Power Word: Fortitude (Stamina)
+	[1459]   = 'MAGE',     -- Arcane Intellect (Intellect)
+	[6673]   = 'WARRIOR',  -- Battle Shout (Attack Power)
+	[1126]   = 'DRUID',    -- Mark of the Wild (Versatility)
+	[381748] = 'EVOKER',   -- Blessing of the Bronze (Movement Speed)
+	[462854] = 'SHAMAN',   -- Skyfury (Crit/Haste)
 }
+
+-- Stable display order (sorted by spellId)
+local BUFF_ORDER = {}
+for spellId in next, RAID_BUFFS do
+	BUFF_ORDER[#BUFF_ORDER + 1] = spellId
+end
+table.sort(BUFF_ORDER)
 
 -- ============================================================
 -- Helpers
 -- ============================================================
 
---- Check whether the unit currently has a buff with the given spellId.
---- Iterates helpful auras and compares spellId; stops when it finds a match.
+--- Cache spell icons at load time (not in combat).
+local iconCache = {}
+local function cacheSpellIcons()
+	for _, spellId in next, BUFF_ORDER do
+		if(C_Spell and C_Spell.GetSpellInfo) then
+			local info = C_Spell.GetSpellInfo(spellId)
+			if(info) then iconCache[spellId] = info.iconID end
+		elseif(GetSpellInfo) then
+			local _, _, icon = GetSpellInfo(spellId)
+			iconCache[spellId] = icon
+		end
+	end
+end
+
+--- Scan the current group for which classes are present.
+--- @return table classSet  { ['PRIEST'] = true, ['MAGE'] = true, ... }
+local function getGroupClasses()
+	local classes = {}
+
+	-- Include player
+	local _, playerClass = UnitClass('player')
+	if(playerClass) then
+		classes[playerClass] = true
+	end
+
+	local groupType = IsInRaid() and 'raid' or (IsInGroup() and 'party') or nil
+	if(not groupType) then return classes end
+
+	local n = GetNumGroupMembers()
+	for i = 1, n do
+		local unit = groupType .. i
+		if(UnitExists(unit)) then
+			local _, class = UnitClass(unit)
+			if(class) then
+				classes[class] = true
+			end
+		end
+	end
+
+	return classes
+end
+
+--- Check whether the unit currently has a buff matching the given spellId.
+--- Returns false if aura data is secret (safe fallback: assume missing).
 --- @param unit string
 --- @param targetSpellId number
 --- @return boolean
 local function unitHasBuff(unit, targetSpellId)
-	local i = 1
-	while(true) do
-		local auraData = C_UnitAuras.GetAuraDataByIndex(unit, i, 'HELPFUL')
-		if(not auraData) then break end
+	local auras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	if(not auras) then return false end
+
+	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId) and spellId == targetSpellId) then
 			return true
 		end
-		i = i + 1
 	end
 	return false
-end
-
---- Resolve the texture ID for a spell.
---- @param spellId number
---- @return number|nil
-local function getSpellIcon(spellId)
-	if(C_Spell and C_Spell.GetSpellInfo) then
-		local info = C_Spell.GetSpellInfo(spellId)
-		if(info) then return info.iconID end
-	elseif(GetSpellInfo) then
-		local _, _, icon = GetSpellInfo(spellId)
-		return icon
-	end
-	return nil
 end
 
 -- ============================================================
@@ -63,38 +100,42 @@ local function Update(self, event, unit)
 	local element = self.FramedMissingBuffs
 	if(not element) then return end
 
-	if(not unit or self.unit ~= unit) then return end
-
-	local trackedBuffs = element._trackedBuffs
-	local dimAlpha     = element._dimAlpha
-
-	-- Build a list of missing buffs in deterministic order (spellId ascending)
-	local missingList = {}
-	for spellId in next, trackedBuffs do
-		if(not unitHasBuff(unit, spellId)) then
-			missingList[#missingList + 1] = {
-				spellID        = spellId,
-				icon           = getSpellIcon(spellId),
-				duration       = 0,
-				expirationTime = 0,
-				stacks         = 0,
-				dispelType     = nil,
-			}
-		end
+	-- Refresh group class cache on roster changes
+	if(event == 'GROUP_ROSTER_UPDATE') then
+		element._groupClasses = getGroupClasses()
 	end
 
-	-- Sort by spellId for a stable display order
-	table.sort(missingList, function(a, b) return a.spellID < b.spellID end)
+	-- For unit-specific events, filter to our unit
+	if(event == 'UNIT_AURA') then
+		if(not unit or self.unit ~= unit) then return end
+	end
 
-	element._icons:SetIcons(missingList)
+	unit = self.unit
+	if(not unit) then return end
 
-	-- Apply dim alpha to every active pool icon
-	local pool = element._icons._pool
-	local activeCount = element._icons:GetActiveCount()
-	for i = 1, activeCount do
-		local icon = pool[i]
-		if(icon) then
-			icon._frame:SetAlpha(dimAlpha)
+	local groupClasses = element._groupClasses
+	local slots = element._slots
+	local slotIndex = 0
+
+	for _, spellId in next, BUFF_ORDER do
+		local providingClass = RAID_BUFFS[spellId]
+		local slot = slots[spellId]
+		if(not slot) then break end
+
+		if(providingClass and groupClasses[providingClass] and not unitHasBuff(unit, spellId)) then
+			-- Missing buff from a class in the group — show with glow
+			slotIndex = slotIndex + 1
+			slot.bi.icon:SetTexture(iconCache[spellId])
+			slot.bi:Show()
+			if(not slot.glow:IsActive()) then
+				slot.glow:Start()
+			end
+		else
+			-- Buff present or class not in group — hide
+			slot.bi:Hide()
+			if(slot.glow:IsActive()) then
+				slot.glow:Stop()
+			end
 		end
 	end
 end
@@ -117,8 +158,15 @@ local function Enable(self, unit)
 
 	element.__owner     = self
 	element.ForceUpdate = ForceUpdate
+	element._groupClasses = getGroupClasses()
+
+	-- Cache spell icons on first enable (safe — always outside combat)
+	if(not next(iconCache)) then
+		cacheSpellIcons()
+	end
 
 	self:RegisterEvent('UNIT_AURA', Update)
+	self:RegisterEvent('GROUP_ROSTER_UPDATE', Update, true)
 
 	return true
 end
@@ -127,9 +175,16 @@ local function Disable(self)
 	local element = self.FramedMissingBuffs
 	if(not element) then return end
 
-	element._icons:Hide()
+	-- Hide all slots and stop glows
+	for _, slot in next, element._slots do
+		slot.bi:Hide()
+		if(slot.glow:IsActive()) then
+			slot.glow:Stop()
+		end
+	end
 
 	self:UnregisterEvent('UNIT_AURA', Update)
+	self:UnregisterEvent('GROUP_ROSTER_UPDATE', Update)
 end
 
 -- ============================================================
@@ -143,42 +198,76 @@ oUF:AddElement('FramedMissingBuffs', Update, Enable, Disable)
 -- ============================================================
 
 --- Create a MissingBuffs element on a unit frame.
---- Shows dimmed icons for each important buff the unit is currently missing.
---- Assigns result to self.FramedMissingBuffs, activating the element.
+--- Shows glowing spell icons for important raid buffs that are missing,
+--- but only when the providing class is present in the group.
 --- @param self Frame  The oUF unit frame
---- @param config? table  Optional config: trackedBuffs, iconSize, dimAlpha, growDirection, anchor
+--- @param config? table  iconSize, anchor, frameLevel, glowType, glowColor, growDirection, spacing
 function F.Elements.MissingBuffs.Setup(self, config)
 	config = config or {}
-	config.trackedBuffs  = config.trackedBuffs  or IMPORTANT_BUFFS
-	config.iconSize      = config.iconSize      or 14
-	config.dimAlpha      = config.dimAlpha      or 0.4
+	config.iconSize      = config.iconSize      or 12
 	config.growDirection = config.growDirection or 'RIGHT'
-	config.anchor        = config.anchor        or { 'TOPLEFT', self, 'TOPLEFT', 2, -2 }
+	config.spacing       = config.spacing       or 1
+	config.frameLevel    = config.frameLevel    or 5
+	config.anchor        = config.anchor        or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+	config.glowType      = config.glowType      or C.GlowType.PIXEL
+	config.glowColor     = config.glowColor     or { 1, 0.8, 0, 1 }
 
-	-- Count tracked buffs for maxIcons
-	local maxIcons = 0
-	for _ in next, config.trackedBuffs do
-		maxIcons = maxIcons + 1
+	local iconSize = config.iconSize
+	local spacing  = config.spacing
+	local grow     = config.growDirection
+	local numBuffs = #BUFF_ORDER
+
+	-- Container frame for all icons
+	local container = CreateFrame('Frame', nil, self)
+	container:SetFrameLevel(self:GetFrameLevel() + config.frameLevel)
+
+	-- Size container to fit all icons
+	if(grow == 'RIGHT' or grow == 'LEFT') then
+		Widgets.SetSize(container, numBuffs * iconSize + math.max(0, numBuffs - 1) * spacing, iconSize)
+	else
+		Widgets.SetSize(container, iconSize, numBuffs * iconSize + math.max(0, numBuffs - 1) * spacing)
 	end
 
-	local icons = F.Indicators.Icons.Create(self, {
-		maxIcons      = maxIcons,
-		iconSize      = config.iconSize,
-		growDirection = config.growDirection,
-		displayType   = C.IconDisplay.SPELL_ICON,
-		showCooldown  = false,
-		showStacks    = false,
-		showDuration  = false,
-	})
-
+	-- Anchor the container (a[2] is always nil — container is parented to self)
 	local a = config.anchor
-	icons:SetPoint(a[1], a[2], a[3], a[4] or 0, a[5] or 0)
+	container:SetPoint(a[1], nil, a[3], a[4] or 0, a[5] or 0)
 
-	local container = {
-		_icons       = icons,
-		_trackedBuffs = config.trackedBuffs,
-		_dimAlpha    = config.dimAlpha,
+	-- Create one BorderIcon + Glow per tracked buff
+	local slots = {}
+	for i, spellId in next, BUFF_ORDER do
+		local bi = F.Indicators.BorderIcon.Create(container, iconSize, {
+			borderThickness = 1,
+			borderColor     = { 0.15, 0.15, 0.15, 1 },
+			showCooldown    = false,
+			showStacks      = false,
+			showDuration    = false,
+		})
+
+		-- Position within the container
+		local offset = (i - 1) * (iconSize + spacing)
+		if(grow == 'RIGHT') then
+			bi:SetPoint('TOPLEFT', container, 'TOPLEFT', offset, 0)
+		elseif(grow == 'LEFT') then
+			bi:SetPoint('TOPRIGHT', container, 'TOPRIGHT', -offset, 0)
+		elseif(grow == 'DOWN') then
+			bi:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -offset)
+		else -- UP
+			bi:SetPoint('BOTTOMLEFT', container, 'BOTTOMLEFT', 0, offset)
+		end
+
+		bi:Hide()
+
+		local glow = F.Indicators.Glow.Create(bi._frame, {
+			glowType = config.glowType,
+			color    = config.glowColor,
+		})
+
+		slots[spellId] = { bi = bi, glow = glow }
+	end
+
+	self.FramedMissingBuffs = {
+		_container    = container,
+		_slots        = slots,
+		_groupClasses = {},
 	}
-
-	self.FramedMissingBuffs = container
 end

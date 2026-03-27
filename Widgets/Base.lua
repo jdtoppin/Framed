@@ -90,11 +90,14 @@ end
 --- Re-snap stored size on a frame (call after scale change).
 --- @param frame Region
 function Widgets.ReSize(frame)
-	if(not frame._width or not frame._height) then return end
+	if(not frame._width and not frame._height) then return end
 	local scale = frame:GetEffectiveScale()
-	frame:SetSize(
-		Widgets.GetNearestPixelSize(frame._width, scale, 1),
-		Widgets.GetNearestPixelSize(frame._height, scale, 1))
+	if(frame._width) then
+		frame:SetWidth(Widgets.GetNearestPixelSize(frame._width, scale, 1))
+	end
+	if(frame._height) then
+		frame:SetHeight(Widgets.GetNearestPixelSize(frame._height, scale, 1))
+	end
 end
 
 --- Full pixel update for a frame (re-snap points + size).

@@ -111,7 +111,7 @@ oUF:AddElement('FramedPrivateAuras', Update, Enable, Disable)
 function F.Elements.PrivateAuras.Setup(self, config)
 	config = config or {}
 	config.iconSize = config.iconSize or 20
-	config.anchor   = config.anchor   or { 'CENTER', self, 'CENTER', 0, 0 }
+	config.anchor   = config.anchor   or { 'CENTER', nil, 'CENTER', 0, 0 }
 
 	-- Container frame — serves as the parent / anchor reference point
 	-- for Blizzard's private aura display widget.
@@ -119,7 +119,7 @@ function F.Elements.PrivateAuras.Setup(self, config)
 	Widgets.SetSize(frame, config.iconSize, config.iconSize)
 
 	local a = config.anchor
-	frame:SetPoint(a[1], a[2], a[3], a[4] or 0, a[5] or 0)
+	frame:SetPoint(a[1], nil, a[3], a[4] or 0, a[5] or 0)
 
 	local container = {
 		_frame     = frame,

@@ -85,6 +85,10 @@ function Settings.SetEditingPreset(presetName)
 	if(editingPreset == presetName) then return end
 	editingPreset = presetName
 	F.EventBus:Fire('EDITING_PRESET_CHANGED', presetName)
+	-- Update the sub-header preset indicator live
+	if(Settings._headerPresetText and Settings._headerPresetText:IsShown()) then
+		Settings._headerPresetText:SetText('Editing: ' .. presetName)
+	end
 end
 
 -- ============================================================
@@ -252,6 +256,8 @@ function Settings.SetActivePanel(panelId)
 	Settings._activePanelFrame = Settings._panelFrames[panelId]
 	if(Settings._activePanelFrame) then
 		Settings._activePanelFrame:Show()
+		-- Track active scroll so sidebar wheel forwarding can find it
+		Settings._activeScroll = Settings._activePanelFrame
 		-- Reset scroll to top so the hint arrow refreshes for the new panel
 		if(Settings._activePanelFrame.ScrollToTop) then
 			Settings._activePanelFrame:ScrollToTop()
@@ -268,6 +274,16 @@ function Settings.SetActivePanel(panelId)
 	-- Update sub-header text
 	if(Settings._headerPanelText) then
 		Settings._headerPanelText:SetText(info.label or '')
+	end
+
+	-- Update preset indicator (right side of title card)
+	if(Settings._headerPresetText) then
+		if(info.section == 'PRESET_SCOPED') then
+			Settings._headerPresetText:SetText('Editing: ' .. Settings.GetEditingPreset())
+			Settings._headerPresetText:Show()
+		else
+			Settings._headerPresetText:Hide()
+		end
 	end
 
 end

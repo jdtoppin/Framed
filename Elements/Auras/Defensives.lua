@@ -192,7 +192,7 @@ function F.Elements.Defensives.Setup(self, config)
 	local a = config.anchor
 	if(a) then
 		container:ClearAllPoints()
-		Widgets.SetPoint(container, a[1], a[2] or self, a[3], a[4] or 0, a[5] or 0)
+		Widgets.SetPoint(container, a[1], nil, a[3], a[4] or 0, a[5] or 0)
 	end
 
 	self.FramedDefensives = element

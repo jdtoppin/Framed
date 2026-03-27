@@ -15,14 +15,18 @@ local SIDEBAR_BTN_H      = 22
 local SIDEBAR_BTN_GAP    = 6
 local HEADER_HEIGHT       = 24
 local SUB_HEADER_H        = 32
-local WINDOW_MIN_H        = 450
-
-local function GetWindowMaxH()
-	local screenH = UIParent:GetHeight()
-	return math.floor(screenH * 0.75)
-end
-
 local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
+
+--- Forward mouse wheel from sidebar children to the sidebar scroll frame.
+local function EnableWheelForward(frame)
+	frame:EnableMouseWheel(true)
+	frame:SetScript('OnMouseWheel', function(self, delta)
+		local sidebar = Settings._mainFrame and Settings._mainFrame._sidebar
+		if(sidebar and sidebar._sidebarScroll) then
+			sidebar._sidebarScroll(self, delta)
+		end
+	end)
+end
 
 -- Dim / hover / active colors (matching KeySorter exactly)
 local DIM_ICON_R,   DIM_ICON_G,   DIM_ICON_B   = 0.5, 0.5, 0.5
@@ -204,6 +208,8 @@ local function createNavButton(parent, panelInfo, yOffset)
 		Settings.SetActivePanel(panelId)
 	end)
 
+	EnableWheelForward(btn)
+
 	return btn
 end
 
@@ -281,19 +287,23 @@ local function buildSidebarContent(sidebar, contentParent)
 
 		-- Separator line before BOTTOM section (and between sections)
 		if(isBottomSection or yOffset < -8) then
+			-- Remove trailing button gap so spacing is symmetric around separators
+			yOffset = yOffset + SIDEBAR_BTN_GAP
+
+			local sepGap = 4
 			local sep = contentParent:CreateTexture(nil, 'ARTWORK')
 			sep:SetHeight(1)
 			sep:SetColorTexture(0.25, 0.25, 0.25, 1)
 			sep:ClearAllPoints()
 			if(isBottomSection and sidebar._lastPresetContainer) then
-				sep:SetPoint('TOPLEFT', sidebar._lastPresetContainer, 'BOTTOMLEFT', 6, -4)
+				sep:SetPoint('TOPLEFT', sidebar._lastPresetContainer, 'BOTTOMLEFT', 6, -sepGap)
 				sep:SetPoint('RIGHT', contentParent, 'RIGHT', -6, 0)
 				sidebar._bottomSep = sep
 			else
-				sep:SetPoint('TOPLEFT',  contentParent, 'TOPLEFT',  6, yOffset - 4)
-				sep:SetPoint('TOPRIGHT', contentParent, 'TOPRIGHT', -6, yOffset - 4)
+				sep:SetPoint('TOPLEFT',  contentParent, 'TOPLEFT',  6, yOffset - sepGap)
+				sep:SetPoint('TOPRIGHT', contentParent, 'TOPRIGHT', -6, yOffset - sepGap)
 			end
-			yOffset = yOffset - 10
+			yOffset = yOffset - sepGap - 1 - sepGap  -- gap + line + gap
 		end
 
 		if(isPresetScoped) then
@@ -358,6 +368,8 @@ local function buildSidebarContent(sidebar, contentParent)
 					headerLabel:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3])
 				end)
 
+				EnableWheelForward(headerBtn)
+
 				-- Child container with clipping (aligned to sidebar edge so child buttons match top-level)
 				local container = CreateFrame('Frame', nil, contentParent)
 				container:SetClipsChildren(true)
@@ -409,8 +421,6 @@ local function buildSidebarContent(sidebar, contentParent)
 
 					local targetContainerH = isCollapsed and 0.001 or recalcContainerHeight(children)
 					local delta = targetContainerH - container:GetHeight()
-					local currentWindowH = Settings._mainFrame:GetHeight()
-					local targetWindowH = math.max(WINDOW_MIN_H, math.min(currentWindowH + delta, GetWindowMaxH()))
 
 					if(isCollapsed) then
 						arrow:SetTexCoord(0.15, 0.85, 0.15, 0.85)
@@ -422,26 +432,11 @@ local function buildSidebarContent(sidebar, contentParent)
 						arrow:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3])
 					end
 
-					-- Update sidebar scroll content height by the delta
-					if(sidebar._scrollContentHeight) then
-						sidebar._scrollContentHeight = sidebar._scrollContentHeight + delta
-						local scrollContent = sidebar._scroll and sidebar._scroll:GetContentFrame()
-						if(scrollContent) then
-							scrollContent:SetHeight(math.max(sidebar._scrollContentHeight, 1))
-						end
-					end
+					sidebar._scrollContentHeight = (sidebar._scrollContentHeight or 0) + delta
 
 					local dur = C.Animation.durationNormal
-					Widgets.AnimateHeight(container, targetContainerH, dur)
-					Widgets.AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
-						if(Settings._contentParent) then
-							local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
-							Settings._contentParent:SetHeight(contentH)
-							Settings._contentParent._explicitHeight = contentH
-						end
-						if(sidebar._scroll) then
-							sidebar._scroll:UpdateScrollRange()
-						end
+					Widgets.AnimateHeight(container, targetContainerH, dur, function()
+						Settings._updateSidebarScroll()
 					end)
 				end)
 
@@ -456,40 +451,17 @@ local function buildSidebarContent(sidebar, contentParent)
 					local delta = newH - oldH
 					if(math.abs(delta) < 0.5) then return end
 
-					-- Update sidebar scroll content height
-					if(sidebar._scrollContentHeight) then
-						sidebar._scrollContentHeight = sidebar._scrollContentHeight + delta
-						local scrollContent = sidebar._scroll and sidebar._scroll:GetContentFrame()
-						if(scrollContent) then
-							scrollContent:SetHeight(math.max(sidebar._scrollContentHeight, 1))
-						end
-					end
+					sidebar._scrollContentHeight = (sidebar._scrollContentHeight or 0) + delta
 
-					local currentWindowH = Settings._mainFrame:GetHeight()
-					local targetWindowH = math.max(WINDOW_MIN_H, math.min(currentWindowH + delta, GetWindowMaxH()))
 					if(animate) then
 						local dur = C.Animation.durationNormal
-						Widgets.AnimateHeight(container, newH, dur)
-						Widgets.AnimateHeight(Settings._mainFrame, targetWindowH, dur, function()
-							if(Settings._contentParent) then
-								local contentH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
-								Settings._contentParent:SetHeight(contentH)
-								Settings._contentParent._explicitHeight = contentH
-							end
-							if(sidebar._scroll) then
-								sidebar._scroll:UpdateScrollRange()
-							end
+						Widgets.AnimateHeight(container, newH, dur, function()
+							Settings._updateSidebarScroll()
 						end)
 					else
 						container:SetHeight(newH)
-						Settings._mainFrame:SetHeight(targetWindowH)
-						if(Settings._contentParent) then
-							local contentH = targetWindowH - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
-							Settings._contentParent:SetHeight(contentH)
-							Settings._contentParent._explicitHeight = contentH
-						end
-						if(sidebar._scroll) then
-							sidebar._scroll:UpdateScrollRange()
+						if(Settings._updateSidebarScroll) then
+							Settings._updateSidebarScroll()
 						end
 					end
 				end
@@ -516,10 +488,21 @@ local function buildSidebarContent(sidebar, contentParent)
 					'AURAS', auraPanels,
 					'sidebar.aurasCollapsed'
 				)
-				-- Re-anchor auras header to sidebar (same level as frames, with gap)
+
+				-- Separator between FRAMES and AURAS
+				local sepGap = 4
+				local frameAuraSep = contentParent:CreateTexture(nil, 'ARTWORK')
+				frameAuraSep:SetHeight(1)
+				frameAuraSep:SetColorTexture(0.25, 0.25, 0.25, 1)
+				frameAuraSep:ClearAllPoints()
+				frameAuraSep:SetPoint('TOPLEFT',  framesContainer, 'BOTTOMLEFT',  6, -sepGap)
+				frameAuraSep:SetPoint('TOPRIGHT', contentParent,   'TOPRIGHT',    -6, -sepGap)
+
+				-- Anchor auras header below separator with matching gap
+				local totalSepH = sepGap + 1 + sepGap
 				aurasHeader:ClearAllPoints()
-				aurasHeader:SetPoint('TOPLEFT', framesContainer, 'BOTTOMLEFT', 8, -SIDEBAR_BTN_GAP)
-				aurasHeader:SetPoint('TOPRIGHT', contentParent, 'TOPRIGHT', -3, -SIDEBAR_BTN_GAP)
+				aurasHeader:SetPoint('TOPLEFT', framesContainer, 'BOTTOMLEFT', 8, -totalSepH)
+				aurasHeader:SetPoint('TOPRIGHT', contentParent, 'TOPRIGHT', -3, -totalSepH)
 			end
 
 			-- Store container references for EDITING_PRESET_CHANGED
@@ -613,42 +596,40 @@ function Settings.BuildSidebar()
 
 	local sidebar = Settings._mainFrame._sidebar
 
-	-- Create a scroll frame inside the sidebar
-	local scroll = Widgets.CreateScrollFrame(sidebar, nil, SIDEBAR_W, 400)
+	-- ── Sidebar ScrollFrame (with styled scrollbar) ─────────
+	-- Explicit pixel sizing (frame operates at pixel scale via ApplyUIScale).
+	local sidebarH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT
+
+	local scroll = Widgets.CreateScrollFrame(sidebar, nil, SIDEBAR_W, sidebarH)
 	scroll:ClearAllPoints()
 	scroll:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 0, 0)
-	scroll:SetPoint('BOTTOMRIGHT', sidebar, 'BOTTOMRIGHT', 0, 0)
-	sidebar._scroll = scroll
+	sidebar._sidebarScroll = function(_, delta)
+		local sf = scroll._scrollFrame
+		local current = sf:GetVerticalScroll()
+		local contentH = scroll._content:GetHeight()
+		local viewH    = sf:GetHeight()
+		local maxScroll = math.max(0, contentH - viewH)
+		local offset = math.max(0, math.min(maxScroll, current - delta * 20))
+		sf:SetVerticalScroll(offset)
+		scroll:_UpdateThumb()
+	end
 
 	local scrollContent = scroll:GetContentFrame()
 	scrollContent:SetWidth(SIDEBAR_W - 7)
 
 	local sidebarHeight = buildSidebarContent(sidebar, scrollContent)
-
-	-- Track scroll content height for dynamic updates
-	sidebar._scrollContentHeight = sidebarHeight
 	scrollContent:SetHeight(sidebarHeight)
 
-	-- Resize window to fit sidebar content + header + padding
-	local neededH = sidebarHeight + HEADER_HEIGHT + C.Spacing.tight
-	neededH = math.max(neededH, WINDOW_MIN_H)
-	neededH = math.min(neededH, GetWindowMaxH())
+	-- Track the current scroll content height and update on collapse/expand.
+	sidebar._scrollContentHeight = sidebarHeight
 
-	local WINDOW_H = 600
-	if(neededH ~= WINDOW_H) then
-		Settings._mainFrame:SetHeight(neededH)
-		if(Settings._contentParent) then
-			local contentH = neededH - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
-			Settings._contentParent:SetHeight(contentH)
-			Settings._contentParent._explicitHeight = contentH
-		end
+	Settings._updateSidebarScroll = function()
+		scrollContent:SetHeight(sidebar._scrollContentHeight)
+		scroll:UpdateScrollRange()
 	end
 
-	-- Defer scroll range update to after layout resolves
 	C_Timer.After(0, function()
-		if(sidebar._scroll) then
-			sidebar._scroll:UpdateScrollRange()
-		end
+		scroll:UpdateScrollRange()
 	end)
 
 	-- Auto-select first registered panel
