@@ -200,7 +200,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	local createCard, createInner, createY = Widgets.StartCard(parent, width, yOffset)
 
 	local selectedType = C.IndicatorType.ICONS
-	local selectedDisplayType = 'spell'  -- 'spell' or 'square'
+	local selectedDisplayType = C.IconDisplay.SPELL_ICON
 
 	local typeDD = Widgets.CreateDropdown(createInner, 120)
 	typeDD:SetItems(getTypeItems())
@@ -233,16 +233,16 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 	local spellIconsBtn = Widgets.CreateButton(displayTypeRow, 'Spell Icons', 'accent', 100, BUTTON_H)
 	spellIconsBtn:SetPoint('TOPLEFT', displayTypeRow, 'TOPLEFT', 0, 0)
-	spellIconsBtn.value = 'spell'
+	spellIconsBtn.value = C.IconDisplay.SPELL_ICON
 
 	local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Square Colors', 'widget', 110, BUTTON_H)
 	squareColorsBtn:SetPoint('LEFT', spellIconsBtn, 'RIGHT', C.Spacing.tight, 0)
-	squareColorsBtn.value = 'square'
+	squareColorsBtn.value = C.IconDisplay.COLORED_SQUARE
 
 	local displayTypeGroup = Widgets.CreateButtonGroup({ spellIconsBtn, squareColorsBtn }, function(value)
 		selectedDisplayType = value
 	end)
-	displayTypeGroup:SetValue('spell')
+	displayTypeGroup:SetValue(C.IconDisplay.SPELL_ICON)
 
 	local displayTypeRowH = BUTTON_H + C.Spacing.normal
 

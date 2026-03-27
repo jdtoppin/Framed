@@ -480,7 +480,10 @@ local function Rebuild(element, config)
 					renderer:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
 				end
 				if(indConfig.frameLevel and renderer.GetFrame) then
-					renderer:GetFrame():SetFrameLevel(element.__owner:GetFrameLevel() + (indConfig.frameLevel or 5))
+					local frame = renderer:GetFrame()
+				if(frame and frame.SetFrameLevel) then
+					frame:SetFrameLevel(indConfig.frameLevel)
+				end
 				end
 
 				local idx = #element._indicators + 1
