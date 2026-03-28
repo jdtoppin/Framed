@@ -618,6 +618,15 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- 5. Status icons
 	-- --------------------------------------------------------
 
+	-- Icon overlay frame: sits above health/power wrappers so icon
+	-- textures aren't hidden behind child frames of the unit frame.
+	if(not self._iconOverlay) then
+		local overlay = CreateFrame('Frame', nil, self)
+		overlay:SetAllPoints(self)
+		overlay:SetFrameLevel(self:GetFrameLevel() + 4)
+		self._iconOverlay = overlay
+	end
+
 	local icons = config.statusIcons
 	if(icons) then
 		if(icons.role) then

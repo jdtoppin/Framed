@@ -30,7 +30,7 @@ function F.Elements.ReadyCheck.Setup(self, config)
 	-- Icon texture
 	-- --------------------------------------------------------
 
-	local icon = self:CreateTexture(nil, 'OVERLAY')
+	local icon = (self._iconOverlay or self):CreateTexture(nil, 'OVERLAY')
 	Widgets.SetSize(icon, config.size, config.size)
 
 	local p = config.point

@@ -29,7 +29,7 @@ function F.Elements.LeaderIcon.Setup(self, config)
 	-- Leader icon texture (crown)
 	-- --------------------------------------------------------
 
-	local leaderIcon = self:CreateTexture(nil, 'OVERLAY')
+	local leaderIcon = (self._iconOverlay or self):CreateTexture(nil, 'OVERLAY')
 	Widgets.SetSize(leaderIcon, config.size, config.size)
 
 	local p = config.point
@@ -40,7 +40,7 @@ function F.Elements.LeaderIcon.Setup(self, config)
 	-- Same position — oUF ensures only one is shown at a time.
 	-- --------------------------------------------------------
 
-	local assistIcon = self:CreateTexture(nil, 'OVERLAY')
+	local assistIcon = (self._iconOverlay or self):CreateTexture(nil, 'OVERLAY')
 	Widgets.SetSize(assistIcon, config.size, config.size)
 	Widgets.SetPoint(assistIcon, p[1], p[2], p[3], p[4], p[5])
 
