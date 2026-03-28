@@ -16,7 +16,7 @@ local placeHeading = B.PlaceHeading
 function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12
-	local widgetW = width - CARD_PADDING * 2
+	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
 
 	-- Spacing slider
 	local spacingSlider = Widgets.CreateSlider(inner, 'Spacing', widgetW, 0, 20, 1)

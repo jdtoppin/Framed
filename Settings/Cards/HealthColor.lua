@@ -16,7 +16,7 @@ local placeHeading = B.PlaceHeading
 function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12  -- must match Widgets.Frame CARD_PADDING
-	local widgetW = width - CARD_PADDING * 2
+	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
 
 	-- Health color mode switch
 	cardY = placeHeading(inner, 'Color Mode', 3, cardY)
@@ -118,6 +118,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	-- ── Reflow: position all widgets inside the card based on current modes ──
 	local curHealthMode = getConfig('health.colorMode') or 'class'
 	local curLossMode = getConfig('health.lossColorMode') or 'dark'
+	local initialized = false
 
 	local function reflowColorCard()
 		local y = colorSwitchEndY
@@ -183,9 +184,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		card:SetHeight(innerH + CARD_PADDING * 2)
 
 		Widgets.EndCard(card, parent, y)
-		card:ClearAllPoints()
-		card._startY = 0
-		if(onResize) then onResize() end
+		if(initialized and onResize) then onResize() end
 	end
 
 	healthColorSwitch:SetOnSelect(function(value)
@@ -200,8 +199,9 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		reflowColorCard()
 	end)
 
-	-- Initial reflow
+	-- Initial reflow (without triggering grid re-layout)
 	reflowColorCard()
+	initialized = true
 
 	return card
 end

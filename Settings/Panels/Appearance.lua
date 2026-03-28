@@ -57,6 +57,7 @@ F.Settings.RegisterPanel({
 			end
 		end
 
+		grid:SetTopOffset(C.Spacing.normal)
 		grid:Layout(0, parentH)
 		content:SetHeight(grid:GetTotalHeight())
 

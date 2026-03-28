@@ -16,7 +16,7 @@ local placeHeading = B.PlaceHeading
 function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12
-	local widgetW = width - CARD_PADDING * 2
+	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
 
 	-- Attach to Name toggle
 	local healthPositionWidgets = {}
@@ -72,6 +72,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	cardY = placeWidget(healthFontSize, inner, cardY, SLIDER_H)
 
 	-- Health text outline
+	cardY = placeHeading(inner, 'Outline', 3, cardY)
 	local healthOutline = Widgets.CreateDropdown(inner, widgetW)
 	healthOutline:SetItems({
 		{ text = 'None',       value = '' },

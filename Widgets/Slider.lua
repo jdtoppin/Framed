@@ -90,7 +90,7 @@ local function UpdateHorizVisuals(slider)
 	slider._thumb:ClearAllPoints()
 	slider._thumb:SetPoint('LEFT', slider._track, 'LEFT', thumbX, 0)
 
-	-- Value label
+	-- Value edit box
 	slider._valueText:SetText(FormatValue(slider._value, slider))
 end
 
@@ -119,7 +119,7 @@ local function UpdateVertVisuals(slider)
 	slider._thumb:ClearAllPoints()
 	slider._thumb:SetPoint('BOTTOM', slider._track, 'BOTTOM', 0, thumbY)
 
-	-- Value label
+	-- Value edit box
 	slider._valueText:SetText(FormatValue(slider._value, slider))
 end
 
@@ -311,11 +311,38 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 	labelFS:SetText(label or '')
 
 	-- --------------------------------------------------------
-	-- Value font string
+	-- Value edit box (uses the standard EditBox widget for
+	-- consistent border + accent highlight on focus)
 	-- --------------------------------------------------------
-	local valueFS = Widgets.CreateFontString(slider, C.Font.sizeSmall, C.Colors.textActive)
-	slider._valueText = valueFS
-	valueFS:SetText(FormatValue(minVal))
+	local VALUE_BOX_W = 36
+	local VALUE_BOX_H = 16
+	local valueBox = Widgets.CreateEditBox(slider, nil, VALUE_BOX_W, VALUE_BOX_H, 'text')
+	slider._valueText = valueBox
+	valueBox._editbox:SetJustifyH('CENTER')
+	valueBox:SetText(FormatValue(minVal))
+
+	-- Commit typed value on Enter or focus loss
+	local function commitTypedValue()
+		local raw = tonumber(valueBox:GetText())
+		if(raw) then
+			local snapped = SnapToStep(raw, slider._min, slider._max, slider._step)
+			slider._value = snapped
+			if(slider._orientation == 'HORIZONTAL') then
+				UpdateHorizVisuals(slider)
+			else
+				UpdateVertVisuals(slider)
+			end
+			if(slider._afterValueChanged) then
+				slider._afterValueChanged(snapped)
+			end
+		else
+			-- Invalid input: revert to current value
+			valueBox:SetText(FormatValue(slider._value, slider))
+		end
+	end
+
+	valueBox:SetOnEnterPressed(commitTypedValue)
+	valueBox:SetOnFocusLost(commitTypedValue)
 
 	-- --------------------------------------------------------
 	-- Track frame
@@ -364,8 +391,7 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 		Widgets.SetSize(thumb, THUMB_W_VERT, THUMB_H_VERT)
 
 		-- Value: below track, centered
-		valueFS:SetPoint('TOP', track, 'BOTTOM', 0, -4)
-		valueFS:SetJustifyH('CENTER')
+		valueBox:SetPoint('TOP', track, 'BOTTOM', 0, -4)
 
 	else
 		-- Horizontal: container width = size, height = label row + track
@@ -377,8 +403,7 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 		labelFS:SetJustifyH('LEFT')
 
 		-- Value: top-right
-		valueFS:SetPoint('TOPRIGHT', slider, 'TOPRIGHT', 0, 0)
-		valueFS:SetJustifyH('RIGHT')
+		valueBox:SetPoint('TOPRIGHT', slider, 'TOPRIGHT', 0, 2)
 
 		-- Track: below the label row
 		Widgets.SetSize(track, size, TRACK_THICKNESS)

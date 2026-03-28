@@ -46,7 +46,7 @@ local CLASS_POWER_TYPES = {
 function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12
-	local widgetW = width - CARD_PADDING * 2
+	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
 
 	local showPowerCheck = Widgets.CreateCheckButton(inner, 'Show Power Bar', function(checked)
 		setConfig('showPower', checked)

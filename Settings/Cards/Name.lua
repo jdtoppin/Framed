@@ -16,7 +16,7 @@ local placeHeading = B.PlaceHeading
 function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12
-	local widgetW = width - CARD_PADDING * 2
+	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
 
 	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
 		setConfig('showName', checked)
@@ -54,6 +54,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	end)
 
 	-- Name outline
+	local outlineHeading, outlineHeadingH = Widgets.CreateHeading(inner, 'Outline', 3)
 	local nameOutline = Widgets.CreateDropdown(inner, widgetW)
 	nameOutline:SetItems({
 		{ text = 'None',       value = '' },
@@ -71,7 +72,32 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	end)
 	nameShadow:SetChecked(getConfig('name.shadow') ~= false)
 
-	-- Reflow name card widgets based on color mode
+	-- Name text position anchor (created here, positioned by reflow)
+	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 3)
+	local nameAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
+	local savedNameAnchor = getConfig('name.anchor') or 'CENTER'
+	nameAnchor:SetAnchor(savedNameAnchor, 0, 0)
+	nameAnchor:SetOnChanged(function(point)
+		setConfig('name.anchor', point)
+	end)
+	nameAnchor._xInput:Hide()
+	nameAnchor._yInput:Hide()
+
+	-- Name text offsets (created here, positioned by reflow)
+	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 3)
+	local nameOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
+	nameOffsetX:SetValue(getConfig('name.anchorX') or 0)
+	nameOffsetX:SetAfterValueChanged(function(value)
+		setConfig('name.anchorX', value)
+	end)
+
+	local nameOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
+	nameOffsetY:SetValue(getConfig('name.anchorY') or 0)
+	nameOffsetY:SetAfterValueChanged(function(value)
+		setConfig('name.anchorY', value)
+	end)
+
+	-- Reflow ALL widgets based on color mode
 	local curNameColorMode = getConfig('name.colorMode') or 'class'
 
 	local function reflowNameCard()
@@ -90,6 +116,10 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 		Widgets.SetPoint(nameFontSize, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
 		y = y - SLIDER_H - C.Spacing.normal
 
+		outlineHeading:ClearAllPoints()
+		Widgets.SetPoint(outlineHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - outlineHeadingH
+
 		nameOutline:ClearAllPoints()
 		Widgets.SetPoint(nameOutline, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
 		y = y - DROPDOWN_H - C.Spacing.normal
@@ -98,48 +128,42 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 		Widgets.SetPoint(nameShadow, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
 		y = y - CHECK_H - C.Spacing.normal
 
-		return y
+		-- Text Position
+		posHeading:ClearAllPoints()
+		Widgets.SetPoint(posHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - posHeadingH
+
+		nameAnchor:ClearAllPoints()
+		Widgets.SetPoint(nameAnchor, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - 56 - C.Spacing.normal
+
+		-- Text Offsets
+		offsetsHeading:ClearAllPoints()
+		Widgets.SetPoint(offsetsHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - offsetsHeadingH
+
+		nameOffsetX:ClearAllPoints()
+		Widgets.SetPoint(nameOffsetX, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - SLIDER_H - C.Spacing.normal
+
+		nameOffsetY:ClearAllPoints()
+		Widgets.SetPoint(nameOffsetY, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - SLIDER_H - C.Spacing.normal
+
+		Widgets.EndCard(card, parent, y)
+		if(initialized and onResize) then onResize() end
 	end
+
+	local initialized = false
 
 	nameColorSwitch:SetOnSelect(function(value)
 		curNameColorMode = value
 		setConfig('name.colorMode', value)
 		reflowNameCard()
-		if(onResize) then onResize() end
 	end)
 
-	cardY = reflowNameCard()
+	reflowNameCard()
+	initialized = true
 
-	-- Name text position anchor
-	cardY = placeHeading(inner, 'Text Position', 3, cardY)
-	local nameAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
-	local savedNameAnchor = getConfig('name.anchor') or 'CENTER'
-	nameAnchor:SetAnchor(savedNameAnchor, 0, 0)
-	nameAnchor:SetOnChanged(function(point)
-		setConfig('name.anchor', point)
-	end)
-	nameAnchor._xInput:Hide()
-	nameAnchor._yInput:Hide()
-	cardY = placeWidget(nameAnchor, inner, cardY, 56)
-
-	-- Name text offsets
-	cardY = placeHeading(inner, 'Text Offsets', 3, cardY)
-	local nameOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	nameOffsetX:SetValue(getConfig('name.anchorX') or 0)
-	nameOffsetX:SetAfterValueChanged(function(value)
-		setConfig('name.anchorX', value)
-	end)
-	cardY = placeWidget(nameOffsetX, inner, cardY, SLIDER_H)
-
-	local nameOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	nameOffsetY:SetValue(getConfig('name.anchorY') or 0)
-	nameOffsetY:SetAfterValueChanged(function(value)
-		setConfig('name.anchorY', value)
-	end)
-	cardY = placeWidget(nameOffsetY, inner, cardY, SLIDER_H)
-
-	Widgets.EndCard(card, parent, cardY)
-	card:ClearAllPoints()
-	card._startY = 0
 	return card
 end

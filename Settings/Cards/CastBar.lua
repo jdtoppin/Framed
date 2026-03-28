@@ -16,7 +16,7 @@ local placeHeading = B.PlaceHeading
 function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12
-	local widgetW = width - CARD_PADDING * 2
+	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
 
 	local showCastCheck = Widgets.CreateCheckButton(inner, 'Show Cast Bar', function(checked)
 		setConfig('showCastBar', checked)
@@ -62,6 +62,7 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 
 	-- Reflow based on size mode
 	local curCastSizeMode = getConfig('castbar.sizeMode') or 'attached'
+	local initialized = false
 
 	local function reflowCastSize()
 		local y = castSizeSwitchEndY
@@ -85,12 +86,11 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 		cardY = y
 
 		Widgets.EndCard(card, parent, cardY)
-		card:ClearAllPoints()
-		card._startY = 0
-		if(onResize) then onResize() end
+		if(initialized and onResize) then onResize() end
 	end
 
 	reflowCastSize()
+	initialized = true
 
 	castSizeSwitch:SetOnSelect(function(value)
 		curCastSizeMode = value

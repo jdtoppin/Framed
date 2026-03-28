@@ -139,9 +139,11 @@ function Widgets.EndCard(card, parent, innerYOff)
 	local innerH = math.abs(innerYOff)
 	-- Size the inner content frame so children are visible
 	card.content:SetHeight(innerH)
-	card:SetHeight(innerH + CARD_PADDING * 2)
+	-- Account for CardGrid title height if present (title shifts inner down)
+	local titleH = card._cardGridTitleH or 0
+	card:SetHeight(innerH + CARD_PADDING * 2 + titleH)
 	-- Advance the parent yOffset past the card
-	return card._startY - innerH - CARD_PADDING * 2 - C.Spacing.normal
+	return card._startY - innerH - CARD_PADDING * 2 - titleH - C.Spacing.normal
 end
 
 -- ============================================================

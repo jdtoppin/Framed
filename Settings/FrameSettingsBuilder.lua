@@ -139,10 +139,11 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- ── CardGrid orchestrator ──────────────────────────────────
 	local grid = Widgets.CreateCardGrid(content, width)
 
-	-- Helper: re-layout grid and update content height
+	-- Helper: animated re-layout after a card changes height
 	local function relayout()
-		grid:Layout(0, parentH)
+		grid:AnimatedReflow()
 		content:SetHeight(grid:GetTotalHeight())
+		scroll:UpdateScrollRange()
 	end
 
 	-- Register cards in display order
@@ -179,6 +180,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ── Initial layout ─────────────────────────────────────────
+	grid:SetTopOffset(C.Spacing.normal)
 	grid:Layout(0, parentH)
 	content:SetHeight(grid:GetTotalHeight())
 

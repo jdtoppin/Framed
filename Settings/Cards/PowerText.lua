@@ -16,7 +16,7 @@ local placeHeading = B.PlaceHeading
 function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12
-	local widgetW = width - CARD_PADDING * 2
+	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
 
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text', function(checked)
 		setConfig('power.showText', checked)
@@ -34,6 +34,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	cardY = placeWidget(powerFontSize, inner, cardY, SLIDER_H)
 
 	-- Power text outline
+	cardY = placeHeading(inner, 'Outline', 3, cardY)
 	local powerOutline = Widgets.CreateDropdown(inner, widgetW)
 	powerOutline:SetItems({
 		{ text = 'None',       value = '' },
