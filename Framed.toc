@@ -162,6 +162,14 @@ Settings/Cards/Name.lua
 Settings/Cards/HealthText.lua
 Settings/Cards/PowerText.lua
 Settings/Cards/StatusIcons.lua
+Settings/Cards/Appearance/AccentColor.lua
+Settings/Cards/Appearance/UIScale.lua
+Settings/Cards/Appearance/GlobalFont.lua
+Settings/Cards/Appearance/BarTexture.lua
+Settings/Cards/Appearance/TargetHighlight.lua
+Settings/Cards/Appearance/MouseoverHighlight.lua
+Settings/Cards/Appearance/Tooltips.lua
+Settings/Cards/Appearance/SetupWizard.lua
 Settings/Builders/BorderIconSettings.lua
 Settings/Builders/IndicatorPanels.lua
 Settings/Builders/IndicatorCRUD.lua
