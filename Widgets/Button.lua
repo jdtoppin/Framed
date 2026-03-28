@@ -279,7 +279,7 @@ function Widgets.CreateCheckButton(parent, label, callback)
 	frame._thumbTex = thumbTex
 
 	-- Label FontString to the right of the track
-	local labelText = Widgets.CreateFontString(frame, C.Font.sizeNormal, C.Colors.textNormal)
+	local labelText = Widgets.CreateFontString(frame, C.Font.sizeSmall, C.Colors.textNormal)
 	labelText:ClearAllPoints()
 	Widgets.SetPoint(labelText, 'LEFT', track, 'RIGHT', TOGGLE_SPACING, 0)
 	labelText:SetText(label or '')

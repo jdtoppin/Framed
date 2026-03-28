@@ -598,7 +598,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- Castbar (optional)
 	if(config.castbar) then
 		local cbCfg   = config.castbar
-		local cbWidth  = config.width
+		local cbWidth  = (cbCfg.sizeMode == 'detached' and cbCfg.width) or config.width
 		local cbHeight = cbCfg.height or 16
 		F.Elements.Castbar.Setup(self, cbWidth, cbHeight, cbCfg)
 		-- Position the castbar below the unit frame by default

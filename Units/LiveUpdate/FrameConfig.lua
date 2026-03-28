@@ -194,8 +194,22 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				end
 				if(frame.Power and frame.Power._wrapper) then
 					Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
+					local pos = config.power and config.power.position or 'bottom'
 					frame.Power._wrapper:ClearAllPoints()
-					frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -healthHeight)
+					frame.Health._wrapper:ClearAllPoints()
+					if(pos == 'top') then
+						frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+						frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -powerHeight)
+					else
+						frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+						frame.Power._wrapper:SetPoint('TOPLEFT', frame.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+					end
+				end
+				-- Sync cast bar width in attached mode
+				local cbCfg = config.castbar or {}
+				if(frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
+					local cbHeight = cbCfg.height or 16
+					Widgets.SetSize(frame.Castbar._wrapper, config.width, cbHeight)
 				end
 			end)
 		end)
@@ -249,6 +263,40 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				frame:EnableElement('Castbar')
 			else
 				frame:DisableElement('Castbar')
+			end
+		end)
+		return
+	end
+
+	-- Cast bar size mode, width, height
+	if(key == 'castbar.sizeMode' or key == 'castbar.width' or key == 'castbar.height') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local cbCfg = config.castbar or {}
+		local cbWidth = (cbCfg.sizeMode == 'detached' and cbCfg.width) or config.width
+		local cbHeight = cbCfg.height or 16
+		ForEachFrame(unitType, function(frame)
+			local cb = frame.Castbar
+			if(not cb or not cb._wrapper) then return end
+			Widgets.SetSize(cb._wrapper, cbWidth, cbHeight)
+		end)
+		return
+	end
+
+	-- Cast bar background mode (always / oncast)
+	if(key == 'castbar.backgroundMode') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local mode = config.castbar and config.castbar.backgroundMode or 'always'
+		ForEachFrame(unitType, function(frame)
+			local cb = frame.Castbar
+			if(not cb) then return end
+			cb._backgroundMode = mode
+			if(mode == 'always') then
+				if(cb._bg) then cb._bg:Show() end
+				local bgC = C.Colors.background
+				cb._wrapper:SetBackdropColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+			else
+				if(cb._bg) then cb._bg:Hide() end
+				cb._wrapper:SetBackdropColor(0, 0, 0, 0)
 			end
 		end)
 		return

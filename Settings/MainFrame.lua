@@ -183,6 +183,7 @@ function Settings.CreateMainFrame()
 		if(Settings._contentParent) then
 			Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
 			Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
+			F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
 		end
 	end)
 	fullscreenBtn:SetWidgetTooltip('Maximize')
@@ -218,6 +219,7 @@ function Settings.CreateMainFrame()
 			if(Settings._contentParent) then
 				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
 				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
+				F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
 			end
 		end)
 
@@ -305,6 +307,7 @@ function Settings.CreateMainFrame()
 			if(Settings._contentParent) then
 				Settings._contentParent._explicitWidth  = sz[1] - SIDEBAR_W - C.Spacing.normal
 				Settings._contentParent._explicitHeight = sz[2] - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
+				F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
 			end
 		end
 	end
@@ -325,6 +328,7 @@ function Settings.CreateMainFrame()
 				local contentH = maxH - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 				Settings._contentParent:SetHeight(contentH)
 				Settings._contentParent._explicitHeight = contentH
+				F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
 			end
 		end
 	end)
