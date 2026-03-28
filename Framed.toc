@@ -152,6 +152,16 @@ Settings/CopyToDialog.lua
 Settings/MainFrame.lua
 Settings/Sidebar.lua
 Settings/FrameSettingsBuilder.lua
+Settings/Cards/PositionAndLayout.lua
+Settings/Cards/GroupLayout.lua
+Settings/Cards/HealthColor.lua
+Settings/Cards/ShieldsAndAbsorbs.lua
+Settings/Cards/PowerBar.lua
+Settings/Cards/CastBar.lua
+Settings/Cards/Name.lua
+Settings/Cards/HealthText.lua
+Settings/Cards/PowerText.lua
+Settings/Cards/StatusIcons.lua
 Settings/Builders/BorderIconSettings.lua
 Settings/Builders/IndicatorPanels.lua
 Settings/Builders/IndicatorCRUD.lua

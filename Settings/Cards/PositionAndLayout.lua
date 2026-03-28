@@ -1,0 +1,115 @@
+local addonName, Framed = ...
+local F = Framed
+local C = F.Constants
+local Widgets = F.Widgets
+local B = F.FrameSettingsBuilder
+
+F.SettingsCards = F.SettingsCards or {}
+
+local SLIDER_H     = B.SLIDER_H
+local SWITCH_H     = B.SWITCH_H
+local DROPDOWN_H   = B.DROPDOWN_H
+local CHECK_H      = B.CHECK_H
+local WIDGET_W     = B.WIDGET_W
+local placeWidget  = B.PlaceWidget
+local placeHeading = B.PlaceHeading
+
+function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize)
+	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+
+	-- Width slider
+	local widthSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 20, 300, 1)
+	widthSlider:SetValue(getConfig('width') or 200)
+	widthSlider:SetAfterValueChanged(function(value)
+		setConfig('width', value)
+	end)
+	cardY = placeWidget(widthSlider, inner, cardY, SLIDER_H)
+
+	-- Height slider
+	local heightSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 16, 100, 1)
+	heightSlider:SetValue(getConfig('height') or 36)
+	heightSlider:SetAfterValueChanged(function(value)
+		setConfig('height', value)
+	end)
+	cardY = placeWidget(heightSlider, inner, cardY, SLIDER_H)
+
+	-- Resize Anchor picker -- controls which corner stays fixed during resize
+	local raHeading, raHeadingH = Widgets.CreateHeading(inner, 'Resize Anchor', 3)
+	raHeading:ClearAllPoints()
+	Widgets.SetPoint(raHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+	cardY = cardY - raHeadingH
+
+	local anchorInfo = Widgets.CreateInfoIcon(inner,
+		'Resize Anchor',
+		'Controls which corner or edge of the frame stays fixed when you change '
+		.. 'the width or height. For example, TOPLEFT means the top-left corner '
+		.. 'stays pinned and the frame grows right and downward.')
+	anchorInfo:SetPoint('LEFT', raHeading, 'RIGHT', 4, 0)
+
+	local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local savedAnchor = getConfig('position.anchor') or 'CENTER'
+	anchorPicker._xInput:Hide()
+	anchorPicker._yInput:Hide()
+	anchorPicker:SetAnchor(savedAnchor, 0, 0)
+	anchorPicker:SetOnChanged(function(point)
+		setConfig('position.anchor', point)
+	end)
+	cardY = placeWidget(anchorPicker, inner, cardY, 56)
+
+	-- Read the actual frame position from config
+	local actualX = getConfig('position.x') or 0
+	local actualY = getConfig('position.y') or 0
+
+	-- Frame Position sliders (X / Y)
+	cardY = placeHeading(inner, 'Frame Position', 3, cardY)
+
+	local posXSlider = Widgets.CreateSlider(inner, 'X', WIDGET_W, -1000, 1000, 1)
+	posXSlider:SetValue(actualX)
+	posXSlider:SetAfterValueChanged(function(value)
+		setConfig('position.x', value)
+	end)
+	cardY = placeWidget(posXSlider, inner, cardY, SLIDER_H)
+
+	local posYSlider = Widgets.CreateSlider(inner, 'Y', WIDGET_W, -1000, 1000, 1)
+	posYSlider:SetValue(actualY)
+	posYSlider:SetAfterValueChanged(function(value)
+		setConfig('position.y', value)
+	end)
+	cardY = placeWidget(posYSlider, inner, cardY, SLIDER_H)
+
+	-- Pixel nudge arrows
+	cardY = placeHeading(inner, 'Pixel Nudge', 3, cardY)
+
+	local nudgeFrame = CreateFrame('Frame', nil, inner)
+	nudgeFrame:SetSize(100, 50)
+
+	local nudgeUp = Widgets.CreateButton(nudgeFrame, '^', 'widget', 24, 20)
+	nudgeUp:SetPoint('TOP', nudgeFrame, 'TOP', 0, 0)
+	local nudgeDown = Widgets.CreateButton(nudgeFrame, 'v', 'widget', 24, 20)
+	nudgeDown:SetPoint('BOTTOM', nudgeFrame, 'BOTTOM', 0, 0)
+	local nudgeLeft = Widgets.CreateButton(nudgeFrame, '<', 'widget', 24, 20)
+	nudgeLeft:SetPoint('LEFT', nudgeFrame, 'LEFT', 0, 0)
+	local nudgeRight = Widgets.CreateButton(nudgeFrame, '>', 'widget', 24, 20)
+	nudgeRight:SetPoint('RIGHT', nudgeFrame, 'RIGHT', 0, 0)
+
+	local function nudge(dx, dy)
+		local curX = posXSlider:GetValue()
+		local curY = posYSlider:GetValue()
+		posXSlider:SetValue(curX + dx)
+		posYSlider:SetValue(curY + dy)
+		setConfig('position.x', curX + dx)
+		setConfig('position.y', curY + dy)
+	end
+
+	nudgeUp:SetOnClick(function() nudge(0, 1) end)
+	nudgeDown:SetOnClick(function() nudge(0, -1) end)
+	nudgeLeft:SetOnClick(function() nudge(-1, 0) end)
+	nudgeRight:SetOnClick(function() nudge(1, 0) end)
+
+	cardY = placeWidget(nudgeFrame, inner, cardY, 50)
+
+	Widgets.EndCard(card, parent, cardY)
+	card:ClearAllPoints()
+	card._startY = 0
+	return card
+end
