@@ -68,6 +68,49 @@ local function GetSortedCards(grid)
 	return sorted
 end
 
+--- Add a pin toggle button to the top-right corner of a card.
+--- The button uses an accent color when pinned, textSecondary when not.
+--- @param entry table  Card entry table
+--- @param grid  table  The card grid
+local function addPinButton(entry, grid)
+	local card = entry.card
+	local pinBtn = Widgets.CreateIconButton(card, [[Interface\Buttons\UI-GuildButton-PublicNote-Up]], 14)
+	pinBtn:SetPoint('TOPRIGHT', card, 'TOPRIGHT', -6, -6)
+
+	local function updatePinVisual()
+		if(entry.pinned) then
+			local ac = C.Colors.accent
+			pinBtn._icon:SetVertexColor(ac[1], ac[2], ac[3], ac[4] or 1)
+		else
+			local dim = C.Colors.textSecondary
+			pinBtn._icon:SetVertexColor(dim[1], dim[2], dim[3], dim[4] or 1)
+		end
+	end
+
+	-- Override OnLeave to restore pin-state color instead of always going to textSecondary
+	pinBtn:SetScript('OnLeave', function(self)
+		updatePinVisual()
+		Widgets.SetBackdropHighlight(self, false)
+		if(Widgets.HideTooltip) then
+			Widgets.HideTooltip()
+		end
+	end)
+
+	pinBtn:SetWidgetTooltip('Pin Card', 'Pinned cards sort to the top of the grid.')
+
+	pinBtn:SetOnClick(function()
+		entry.pinned = not entry.pinned
+		updatePinVisual()
+		if(grid._onPinChanged) then
+			grid._onPinChanged(entry.id, entry.pinned)
+		end
+		grid:Layout()
+	end)
+
+	updatePinVisual()
+	entry._pinBtn = pinBtn
+end
+
 --- Build visible cards and position all entries in the grid.
 --- Cards within [scrollOffset - LAZY_BUFFER, scrollOffset + viewHeight + LAZY_BUFFER]
 --- are built on demand; cards outside that window that haven't been built
@@ -126,6 +169,7 @@ local function Layout(grid, scrollOffset, viewHeight)
 			if(cardBottomY >= windowTop and cardTopY <= windowBottom) then
 				entry.card  = entry.builder(grid._container, cardW, unpack(entry.builderArgs))
 				entry.built = true
+				addPinButton(entry, grid)
 			end
 		end
 	end

@@ -164,6 +164,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:AddCard('powerText', 'Power Text', F.SettingsCards.PowerText, { unitType, getConfig, setConfig })
 	grid:AddCard('statusIcons', 'Status Icons', F.SettingsCards.StatusIcons, { unitType, getConfig, setConfig })
 
+	-- ── Persist pin state ─────────────────────────────────────
+	grid._onPinChanged = function(cardId, pinned)
+		local path = 'general.pinnedCards.' .. unitType .. '.' .. cardId
+		F.Config:Set(path, pinned or nil)
+	end
+
 	-- ── Pin state ──────────────────────────────────────────────
 	local pinnedCards = F.Config:Get('general.pinnedCards.' .. unitType) or {}
 	for cardId, isPinned in next, pinnedCards do
