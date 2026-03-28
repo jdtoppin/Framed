@@ -10,15 +10,16 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local CARD_PADDING = 12
+	local widgetW = width - CARD_PADDING * 2
 
 	-- Width slider
-	local widthSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 20, 300, 1)
+	local widthSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 20, 300, 1)
 	widthSlider:SetValue(getConfig('width') or 200)
 	widthSlider:SetAfterValueChanged(function(value)
 		setConfig('width', value)
@@ -26,7 +27,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	cardY = placeWidget(widthSlider, inner, cardY, SLIDER_H)
 
 	-- Height slider
-	local heightSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 16, 100, 1)
+	local heightSlider = Widgets.CreateSlider(inner, 'Height', widgetW, 16, 100, 1)
 	heightSlider:SetValue(getConfig('height') or 36)
 	heightSlider:SetAfterValueChanged(function(value)
 		setConfig('height', value)
@@ -46,7 +47,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		.. 'stays pinned and the frame grows right and downward.')
 	anchorInfo:SetPoint('LEFT', raHeading, 'RIGHT', 4, 0)
 
-	local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local anchorPicker = Widgets.CreateAnchorPicker(inner, widgetW)
 	local savedAnchor = getConfig('position.anchor') or 'CENTER'
 	anchorPicker._xInput:Hide()
 	anchorPicker._yInput:Hide()
@@ -63,14 +64,14 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	-- Frame Position sliders (X / Y)
 	cardY = placeHeading(inner, 'Frame Position', 3, cardY)
 
-	local posXSlider = Widgets.CreateSlider(inner, 'X', WIDGET_W, -1000, 1000, 1)
+	local posXSlider = Widgets.CreateSlider(inner, 'X', widgetW, -1000, 1000, 1)
 	posXSlider:SetValue(actualX)
 	posXSlider:SetAfterValueChanged(function(value)
 		setConfig('position.x', value)
 	end)
 	cardY = placeWidget(posXSlider, inner, cardY, SLIDER_H)
 
-	local posYSlider = Widgets.CreateSlider(inner, 'Y', WIDGET_W, -1000, 1000, 1)
+	local posYSlider = Widgets.CreateSlider(inner, 'Y', widgetW, -1000, 1000, 1)
 	posYSlider:SetValue(actualY)
 	posYSlider:SetAfterValueChanged(function(value)
 		setConfig('position.y', value)

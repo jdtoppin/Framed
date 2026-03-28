@@ -10,12 +10,13 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local CARD_PADDING = 12
+	local widgetW = width - CARD_PADDING * 2
 
 	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
 		setConfig('showName', checked)
@@ -25,7 +26,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 	-- Name color mode switch
 	cardY = placeHeading(inner, 'Name Color', 3, cardY)
-	local nameColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+	local nameColorSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
 		{ text = 'Class',  value = 'class' },
 		{ text = 'White',  value = 'white' },
 		{ text = 'Custom', value = 'custom' },
@@ -45,7 +46,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	local nameCustomPickerH = 22
 
 	-- Name font size
-	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
 	nameFontSize:SetValue(getConfig('name.fontSize') or 0)
 	Widgets.SetTooltip(nameFontSize, 'Name Font Size', 'Override the global font size for name text')
 	nameFontSize:SetAfterValueChanged(function(value)
@@ -53,7 +54,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	end)
 
 	-- Name outline
-	local nameOutline = Widgets.CreateDropdown(inner, WIDGET_W)
+	local nameOutline = Widgets.CreateDropdown(inner, widgetW)
 	nameOutline:SetItems({
 		{ text = 'None',       value = '' },
 		{ text = 'Outline',    value = 'OUTLINE' },
@@ -111,7 +112,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 	-- Name text position anchor
 	cardY = placeHeading(inner, 'Text Position', 3, cardY)
-	local nameAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local nameAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
 	local savedNameAnchor = getConfig('name.anchor') or 'CENTER'
 	nameAnchor:SetAnchor(savedNameAnchor, 0, 0)
 	nameAnchor:SetOnChanged(function(point)
@@ -123,14 +124,14 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 	-- Name text offsets
 	cardY = placeHeading(inner, 'Text Offsets', 3, cardY)
-	local nameOffsetX = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -50, 50, 1)
+	local nameOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
 	nameOffsetX:SetValue(getConfig('name.anchorX') or 0)
 	nameOffsetX:SetAfterValueChanged(function(value)
 		setConfig('name.anchorX', value)
 	end)
 	cardY = placeWidget(nameOffsetX, inner, cardY, SLIDER_H)
 
-	local nameOffsetY = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -50, 50, 1)
+	local nameOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
 	nameOffsetY:SetValue(getConfig('name.anchorY') or 0)
 	nameOffsetY:SetAfterValueChanged(function(value)
 		setConfig('name.anchorY', value)

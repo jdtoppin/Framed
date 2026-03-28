@@ -10,12 +10,13 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local CARD_PADDING = 12
+	local widgetW = width - CARD_PADDING * 2
 
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text', function(checked)
 		setConfig('power.showText', checked)
@@ -24,7 +25,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	cardY = placeWidget(showPowerTextCheck, inner, cardY, CHECK_H)
 
 	-- Power text font size
-	local powerFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	local powerFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
 	powerFontSize:SetValue(getConfig('power.fontSize') or 0)
 	Widgets.SetTooltip(powerFontSize, 'Power Text Font Size', 'Override the global font size for power text')
 	powerFontSize:SetAfterValueChanged(function(value)
@@ -33,7 +34,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	cardY = placeWidget(powerFontSize, inner, cardY, SLIDER_H)
 
 	-- Power text outline
-	local powerOutline = Widgets.CreateDropdown(inner, WIDGET_W)
+	local powerOutline = Widgets.CreateDropdown(inner, widgetW)
 	powerOutline:SetItems({
 		{ text = 'None',       value = '' },
 		{ text = 'Outline',    value = 'OUTLINE' },
@@ -54,7 +55,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 
 	-- Power text position anchor
 	cardY = placeHeading(inner, 'Text Position', 3, cardY)
-	local powerTextAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local powerTextAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
 	local savedPowerAnchor = getConfig('power.textAnchor') or 'CENTER'
 	powerTextAnchor:SetAnchor(savedPowerAnchor, 0, 0)
 	powerTextAnchor:SetOnChanged(function(point)
@@ -66,14 +67,14 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 
 	-- Power text offsets
 	cardY = placeHeading(inner, 'Text Offsets', 3, cardY)
-	local powerOffsetX = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -50, 50, 1)
+	local powerOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
 	powerOffsetX:SetValue(getConfig('power.textAnchorX') or 0)
 	powerOffsetX:SetAfterValueChanged(function(value)
 		setConfig('power.textAnchorX', value)
 	end)
 	cardY = placeWidget(powerOffsetX, inner, cardY, SLIDER_H)
 
-	local powerOffsetY = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -50, 50, 1)
+	local powerOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
 	powerOffsetY:SetValue(getConfig('power.textAnchorY') or 0)
 	powerOffsetY:SetAfterValueChanged(function(value)
 		setConfig('power.textAnchorY', value)

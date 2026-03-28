@@ -10,7 +10,6 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 
@@ -46,6 +45,8 @@ local CLASS_POWER_TYPES = {
 
 function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local CARD_PADDING = 12
+	local widgetW = width - CARD_PADDING * 2
 
 	local showPowerCheck = Widgets.CreateCheckButton(inner, 'Show Power Bar', function(checked)
 		setConfig('showPower', checked)
@@ -55,7 +56,7 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 
 	-- Power bar position (top/bottom of health bar)
 	cardY = placeHeading(inner, 'Position', 3, cardY)
-	local powerPosSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+	local powerPosSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
 		{ text = 'Top',    value = 'top' },
 		{ text = 'Bottom', value = 'bottom' },
 	})
@@ -66,7 +67,7 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 	cardY = placeWidget(powerPosSwitch, inner, cardY, SWITCH_H)
 
 	-- Power bar height slider
-	local powerHeightSlider = Widgets.CreateSlider(inner, 'Power Bar Height', WIDGET_W, 1, 20, 1)
+	local powerHeightSlider = Widgets.CreateSlider(inner, 'Power Bar Height', widgetW, 1, 20, 1)
 	powerHeightSlider:SetValue(getConfig('power.height') or 2)
 	powerHeightSlider:SetAfterValueChanged(function(value)
 		setConfig('power.height', value)

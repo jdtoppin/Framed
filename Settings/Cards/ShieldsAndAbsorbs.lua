@@ -10,7 +10,6 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 

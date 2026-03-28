@@ -10,12 +10,13 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local CARD_PADDING = 12
+	local widgetW = width - CARD_PADDING * 2
 
 	-- Attach to Name toggle
 	local healthPositionWidgets = {}
@@ -47,7 +48,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 
 	-- Health text format dropdown
 	cardY = placeHeading(inner, 'Health Text Format', 3, cardY)
-	local healthFormatDropdown = Widgets.CreateDropdown(inner, WIDGET_W)
+	local healthFormatDropdown = Widgets.CreateDropdown(inner, widgetW)
 	healthFormatDropdown:SetItems({
 		{ text = 'Percentage',   value = 'percent' },
 		{ text = 'Current',      value = 'current' },
@@ -62,7 +63,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	cardY = placeWidget(healthFormatDropdown, inner, cardY, DROPDOWN_H)
 
 	-- Health text font size
-	local healthFontSize = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	local healthFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
 	healthFontSize:SetValue(getConfig('health.fontSize') or 0)
 	Widgets.SetTooltip(healthFontSize, 'Health Text Font Size', 'Override the global font size for health text')
 	healthFontSize:SetAfterValueChanged(function(value)
@@ -71,7 +72,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	cardY = placeWidget(healthFontSize, inner, cardY, SLIDER_H)
 
 	-- Health text outline
-	local healthOutline = Widgets.CreateDropdown(inner, WIDGET_W)
+	local healthOutline = Widgets.CreateDropdown(inner, widgetW)
 	healthOutline:SetItems({
 		{ text = 'None',       value = '' },
 		{ text = 'Outline',    value = 'OUTLINE' },
@@ -92,7 +93,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 
 	-- Health text position anchor
 	cardY = placeHeading(inner, 'Text Position', 3, cardY)
-	local healthTextAnchor = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+	local healthTextAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
 	local savedHealthAnchor = getConfig('health.textAnchor') or 'CENTER'
 	healthTextAnchor:SetAnchor(savedHealthAnchor, 0, 0)
 	healthTextAnchor:SetOnChanged(function(point)
@@ -104,14 +105,14 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 
 	-- Health text offsets
 	cardY = placeHeading(inner, 'Text Offsets', 3, cardY)
-	local healthOffsetX = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -50, 50, 1)
+	local healthOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
 	healthOffsetX:SetValue(getConfig('health.textAnchorX') or 0)
 	healthOffsetX:SetAfterValueChanged(function(value)
 		setConfig('health.textAnchorX', value)
 	end)
 	cardY = placeWidget(healthOffsetX, inner, cardY, SLIDER_H)
 
-	local healthOffsetY = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -50, 50, 1)
+	local healthOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
 	healthOffsetY:SetValue(getConfig('health.textAnchorY') or 0)
 	healthOffsetY:SetAfterValueChanged(function(value)
 		setConfig('health.textAnchorY', value)

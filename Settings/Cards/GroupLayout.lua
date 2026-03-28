@@ -10,15 +10,16 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local CARD_PADDING = 12
+	local widgetW = width - CARD_PADDING * 2
 
 	-- Spacing slider
-	local spacingSlider = Widgets.CreateSlider(inner, 'Spacing', WIDGET_W, 0, 20, 1)
+	local spacingSlider = Widgets.CreateSlider(inner, 'Spacing', widgetW, 0, 20, 1)
 	spacingSlider:SetValue(getConfig('spacing') or 2)
 	spacingSlider:SetAfterValueChanged(function(value)
 		setConfig('spacing', value)
@@ -27,7 +28,7 @@ function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConf
 
 	-- Orientation switch
 	cardY = placeHeading(inner, 'Orientation', 3, cardY)
-	local orientSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+	local orientSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
 		{ text = 'Vertical',   value = 'vertical' },
 		{ text = 'Horizontal', value = 'horizontal' },
 	})
@@ -39,7 +40,7 @@ function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConf
 
 	-- Growth direction dropdown
 	cardY = placeHeading(inner, 'Growth Direction', 3, cardY)
-	local growthDropdown = Widgets.CreateDropdown(inner, WIDGET_W)
+	local growthDropdown = Widgets.CreateDropdown(inner, widgetW)
 	growthDropdown:SetItems({
 		{ text = 'Top to Bottom',  value = 'topToBottom' },
 		{ text = 'Bottom to Top',  value = 'bottomToTop' },

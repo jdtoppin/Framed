@@ -10,17 +10,17 @@ local SLIDER_H     = B.SLIDER_H
 local SWITCH_H     = B.SWITCH_H
 local DROPDOWN_H   = B.DROPDOWN_H
 local CHECK_H      = B.CHECK_H
-local WIDGET_W     = B.WIDGET_W
 local placeWidget  = B.PlaceWidget
 local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local CARD_PADDING = 12  -- must match Widgets.Frame CARD_PADDING
+	local widgetW = width - CARD_PADDING * 2
 
 	-- Health color mode switch
 	cardY = placeHeading(inner, 'Color Mode', 3, cardY)
-	local healthColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+	local healthColorSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
 		{ text = 'Class',    value = 'class' },
 		{ text = 'Dark',     value = 'dark' },
 		{ text = 'Gradient', value = 'gradient' },
@@ -35,7 +35,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	-- ── Helper: build a gradient section (3 color pickers + threshold sliders) ──
 	local function buildGradientSection(gradParent, prefix, defaults)
 		local section = CreateFrame('Frame', nil, gradParent)
-		section:SetWidth(WIDGET_W)
+		section:SetWidth(widgetW)
 
 		local sY = 0
 
@@ -49,7 +49,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 			local saved = getConfig(colorKey) or row.color
 			picker:SetColor(saved[1], saved[2], saved[3], 1)
 
-			local pctSlider = Widgets.CreateSlider(section, '% Threshold', WIDGET_W - 30, 0, 100, 5)
+			local pctSlider = Widgets.CreateSlider(section, '% Threshold', widgetW - 30, 0, 100, 5)
 			pctSlider:SetValue(getConfig(thresholdKey) or row.pct)
 			pctSlider:SetAfterValueChanged(function(value)
 				setConfig(thresholdKey, value)
@@ -96,7 +96,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local lossHeading, lossHeadingH = Widgets.CreateHeading(inner, 'Health Loss Color', 3)
 
 	-- ── Loss color mode switch ──
-	local lossColorSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+	local lossColorSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
 		{ text = 'Class',    value = 'class' },
 		{ text = 'Dark',     value = 'dark' },
 		{ text = 'Gradient', value = 'gradient' },
