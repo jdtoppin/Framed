@@ -6,6 +6,27 @@ local Widgets = F.Widgets
 F.StyleBuilder = {}
 
 -- ============================================================
+-- Status Icon Default Positions / Sizes
+-- Shared between StyleBuilder (layout) and Settings UI (defaults).
+-- ============================================================
+
+local ICON_DEFAULTS = {
+	role       = { point = 'TOPLEFT',     x = 2,   y = -2, size = 12 },
+	leader     = { point = 'TOPLEFT',     x = 16,  y = -2, size = 12 },
+	readyCheck = { point = 'CENTER',      x = 0,   y = 0,  size = 16 },
+	raidIcon   = { point = 'TOP',         x = 0,   y = -2, size = 16 },
+	combat     = { point = 'TOPRIGHT',    x = -2,  y = -2, size = 12 },
+	resting    = { point = 'BOTTOMLEFT',  x = 2,   y = 2,  size = 12 },
+	phase      = { point = 'CENTER',      x = 0,   y = 0,  size = 16 },
+	resurrect  = { point = 'CENTER',      x = 0,   y = 0,  size = 16 },
+	summon     = { point = 'CENTER',      x = 0,   y = 0,  size = 16 },
+	raidRole   = { point = 'BOTTOMRIGHT', x = -2,  y = 2,  size = 12 },
+	pvp        = { point = 'BOTTOMLEFT',  x = 2,   y = 2,  size = 16 },
+}
+
+F.StyleBuilder.ICON_DEFAULTS = ICON_DEFAULTS
+
+-- ============================================================
 -- Default Config Template
 -- ============================================================
 
@@ -33,6 +54,7 @@ local DEFAULT_CONFIG = {
 		lossGradientThreshold3 = 5,
 		showText           = false,
 		textFormat         = 'percent',
+		textColorMode      = 'white',
 		fontSize           = C.Font.sizeSmall,
 		textAnchor         = 'CENTER',
 		textAnchorX        = 0,
@@ -41,19 +63,22 @@ local DEFAULT_CONFIG = {
 		shadow             = true,
 		attachedToName     = false,
 		healPrediction     = true,
+		healPredictionMode = 'all',
 		damageAbsorb       = true,
 		healAbsorb         = true,
 		overAbsorb         = true,
 	},
 	power = {
-		height      = 2,
-		showText    = false,
-		fontSize    = C.Font.sizeSmall,
-		textAnchor  = 'CENTER',
-		textAnchorX = 0,
-		textAnchorY = 0,
-		outline     = '',
-		shadow      = true,
+		height         = 2,
+		showText       = false,
+		textFormat     = 'current',
+		textColorMode  = 'white',
+		fontSize       = C.Font.sizeSmall,
+		textAnchor     = 'CENTER',
+		textAnchorX    = 0,
+		textAnchorY    = 0,
+		outline        = '',
+		shadow         = true,
 	},
 	name = {
 		colorMode = 'class',
@@ -629,89 +654,64 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	if(not self._iconOverlay) then
 		local overlay = CreateFrame('Frame', nil, self)
 		overlay:SetAllPoints(self)
-		overlay:SetFrameLevel(self:GetFrameLevel() + 4)
+		overlay:SetFrameLevel(self:GetFrameLevel() + 6)
 		self._iconOverlay = overlay
 	end
 
 	local icons = config.statusIcons
 	if(icons) then
+		-- Helper: build point/size from per-icon config with ICON_DEFAULTS fallback
+		local function iconCfg(key)
+			local d = ICON_DEFAULTS[key]
+			local pt = icons[key .. 'Point'] or d.point
+			local x  = icons[key .. 'X']     or d.x
+			local y  = icons[key .. 'Y']     or d.y
+			local sz = icons[key .. 'Size']  or d.size
+			return { size = sz, point = { pt, self, pt, x, y } }
+		end
+
 		if(icons.role) then
-			F.Elements.RoleIcon.Setup(self, {
-				size  = 12,
-				point = { 'TOPLEFT', self, 'TOPLEFT', 2, -2 },
-			})
+			F.Elements.RoleIcon.Setup(self, iconCfg('role'))
 		end
 
 		if(icons.leader) then
-			-- Offset leader icon right of role icon so they don't overlap
-			local leaderOffsetX = (icons.role) and 16 or 2
-			F.Elements.LeaderIcon.Setup(self, {
-				size  = 12,
-				point = { 'TOPLEFT', self, 'TOPLEFT', leaderOffsetX, -2 },
-			})
+			F.Elements.LeaderIcon.Setup(self, iconCfg('leader'))
 		end
 
 		if(icons.readyCheck) then
-			F.Elements.ReadyCheck.Setup(self, {
-				size  = 16,
-				point = { 'CENTER', self, 'CENTER', 0, 0 },
-			})
+			F.Elements.ReadyCheck.Setup(self, iconCfg('readyCheck'))
 		end
 
 		if(icons.raidIcon) then
-			F.Elements.RaidIcon.Setup(self, {
-				size  = 16,
-				point = { 'TOP', self, 'TOP', 0, -2 },
-			})
+			F.Elements.RaidIcon.Setup(self, iconCfg('raidIcon'))
 		end
 
 		if(icons.combat) then
-			F.Elements.CombatIcon.Setup(self, {
-				size  = 12,
-				point = { 'TOPRIGHT', self, 'TOPRIGHT', -2, -2 },
-			})
+			F.Elements.CombatIcon.Setup(self, iconCfg('combat'))
 		end
 
 		if(icons.resting) then
-			F.Elements.RestingIcon.Setup(self, {
-				size  = 12,
-				point = { 'BOTTOMLEFT', self, 'BOTTOMLEFT', 2, 2 },
-			})
+			F.Elements.RestingIcon.Setup(self, iconCfg('resting'))
 		end
 
 		if(icons.phase) then
-			F.Elements.PhaseIcon.Setup(self, {
-				size  = 16,
-				point = { 'CENTER', self, 'CENTER', 0, 0 },
-			})
+			F.Elements.PhaseIcon.Setup(self, iconCfg('phase'))
 		end
 
 		if(icons.resurrect) then
-			F.Elements.ResurrectIcon.Setup(self, {
-				size  = 16,
-				point = { 'CENTER', self, 'CENTER', 0, 0 },
-			})
+			F.Elements.ResurrectIcon.Setup(self, iconCfg('resurrect'))
 		end
 
 		if(icons.summon) then
-			F.Elements.SummonIcon.Setup(self, {
-				size  = 16,
-				point = { 'CENTER', self, 'CENTER', 0, 0 },
-			})
+			F.Elements.SummonIcon.Setup(self, iconCfg('summon'))
 		end
 
 		if(icons.raidRole) then
-			F.Elements.RaidRoleIcon.Setup(self, {
-				size  = 12,
-				point = { 'BOTTOMRIGHT', self, 'BOTTOMRIGHT', -2, 2 },
-			})
+			F.Elements.RaidRoleIcon.Setup(self, iconCfg('raidRole'))
 		end
 
 		if(icons.pvp) then
-			F.Elements.PvPIcon.Setup(self, {
-				size  = 16,
-				point = { 'BOTTOMLEFT', self, 'BOTTOMLEFT', 2, 2 },
-			})
+			F.Elements.PvPIcon.Setup(self, iconCfg('pvp'))
 		end
 	end
 
@@ -847,9 +847,15 @@ end, 'StyleBuilder.HighlightConfig')
 -- ============================================================
 
 F.EventBus:Register('CONFIG_CHANGED', function(path, value)
-	-- Match: presets.*.unitConfigs.<unitType>.<section>.<key>
-	local unitType, remainder = path:match('unitConfigs%.([^.]+)%.(.+)')
+	-- Match: presets.<preset>.unitConfigs.<unitType>.<section>.<key>
+	local editPreset, unitType, remainder = path:match('presets%.([^.]+)%.unitConfigs%.([^.]+)%.(.+)')
+	if(not unitType) then
+		unitType, remainder = path:match('unitConfigs%.([^.]+)%.(.+)')
+	end
 	if(not unitType) then return end
+
+	-- Only apply when editing the active preset
+	if(editPreset and editPreset ~= F.AutoSwitch.GetCurrentPreset()) then return end
 
 	local oUF = F.oUF
 	if(not oUF or not oUF.objects) then return end
@@ -865,10 +871,11 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				frame.Name:SetFont(fontPath, value, flags or '')
 				frame.Name._fontSize = value
 			elseif(remainder == 'name.anchor' and frame.Name and frame.Health) then
+				local anchor = frame.Health._wrapper or frame.Health
 				frame.Name:ClearAllPoints()
 				local x = frame.Name._anchorX or 0
 				local y = frame.Name._anchorY or 0
-				frame.Name:SetPoint(value, frame.Health, value, x, y)
+				frame.Name:SetPoint(value, anchor, value, x, y)
 				frame.Name._anchorPoint = value
 				-- Re-anchor health text if attached
 				if(frame.Health._attachedToName and frame.Health.text) then
@@ -876,17 +883,19 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 					frame.Health.text:SetPoint('LEFT', frame.Name, 'RIGHT', 2, 0)
 				end
 			elseif(remainder == 'name.anchorX' and frame.Name and frame.Health) then
+				local anchor = frame.Health._wrapper or frame.Health
 				frame.Name._anchorX = value
 				local pt = frame.Name._anchorPoint or 'CENTER'
 				local y  = frame.Name._anchorY or 0
 				frame.Name:ClearAllPoints()
-				frame.Name:SetPoint(pt, frame.Health, pt, value, y)
+				frame.Name:SetPoint(pt, anchor, pt, value, y)
 			elseif(remainder == 'name.anchorY' and frame.Name and frame.Health) then
+				local anchor = frame.Health._wrapper or frame.Health
 				frame.Name._anchorY = value
 				local pt = frame.Name._anchorPoint or 'CENTER'
 				local x  = frame.Name._anchorX or 0
 				frame.Name:ClearAllPoints()
-				frame.Name:SetPoint(pt, frame.Health, pt, x, value)
+				frame.Name:SetPoint(pt, anchor, pt, x, value)
 			elseif(remainder == 'name.colorMode' and frame.Name) then
 				-- Update name color mode and recolor immediately
 				frame.Name._config.colorMode = value
@@ -894,6 +903,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				if(value == 'white') then
 					local tc = C.Colors.textActive
 					frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+				elseif(value == 'dark') then
+					frame.Name:SetTextColor(0.25, 0.25, 0.25, 1)
 				elseif(value == 'custom') then
 					local cc = frame.Name._config.customColor or { 1, 1, 1 }
 					frame.Name:SetTextColor(cc[1], cc[2], cc[3], cc[4] or 1)
@@ -928,23 +939,26 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				frame.Health.text:SetFont(fontPath, value, flags or '')
 				frame.Health.text._fontSize = value
 			elseif(remainder == 'health.textAnchor' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
+				local anchor = frame.Health._wrapper or frame.Health
 				local x = frame.Health.text._anchorX or 0
 				local y = frame.Health.text._anchorY or 0
 				frame.Health.text:ClearAllPoints()
-				frame.Health.text:SetPoint(value, frame.Health, value, x, y)
+				frame.Health.text:SetPoint(value, anchor, value, x, y)
 				frame.Health.text._anchorPoint = value
 			elseif(remainder == 'health.textAnchorX' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
+				local anchor = frame.Health._wrapper or frame.Health
 				frame.Health.text._anchorX = value
 				local pt = frame.Health.text._anchorPoint or 'CENTER'
 				local y  = frame.Health.text._anchorY or 0
 				frame.Health.text:ClearAllPoints()
-				frame.Health.text:SetPoint(pt, frame.Health, pt, value, y)
+				frame.Health.text:SetPoint(pt, anchor, pt, value, y)
 			elseif(remainder == 'health.textAnchorY' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
+				local anchor = frame.Health._wrapper or frame.Health
 				frame.Health.text._anchorY = value
 				local pt = frame.Health.text._anchorPoint or 'CENTER'
 				local x  = frame.Health.text._anchorX or 0
 				frame.Health.text:ClearAllPoints()
-				frame.Health.text:SetPoint(pt, frame.Health, pt, x, value)
+				frame.Health.text:SetPoint(pt, anchor, pt, x, value)
 			elseif(remainder == 'health.outline' and frame.Health and frame.Health.text) then
 				local _, size = frame.Health.text:GetFont()
 				frame.Health.text:SetFont(fontPath, size or C.Font.sizeSmall, value or '')
@@ -955,6 +969,35 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				else
 					frame.Health.text:SetShadowOffset(0, 0)
 				end
+			elseif(remainder == 'health.textColorMode' and frame.Health) then
+				frame.Health._textColorMode = value
+				if(frame.Health.text) then
+					if(value == 'class') then
+						local unit = frame:GetAttribute('unit')
+						if(unit) then
+							local _, class = UnitClass(unit)
+							if(class) then
+								local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+								if(classColor) then
+									frame.Health.text:SetTextColor(classColor.r, classColor.g, classColor.b, 1)
+								end
+							end
+						end
+					elseif(value == 'dark') then
+						frame.Health.text:SetTextColor(0.25, 0.25, 0.25, 1)
+					elseif(value == 'custom') then
+						local cc = frame.Health._textCustomColor or { 1, 1, 1 }
+						frame.Health.text:SetTextColor(cc[1], cc[2], cc[3], 1)
+					else
+						local tc = C.Colors.textActive
+						frame.Health.text:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+					end
+				end
+			elseif(remainder == 'health.textCustomColor' and frame.Health) then
+				frame.Health._textCustomColor = value
+				if(frame.Health.text and frame.Health._textColorMode == 'custom') then
+					frame.Health.text:SetTextColor(value[1], value[2], value[3], 1)
+				end
 
 			-- ── Power text ───────────────────────────────
 			elseif(remainder == 'power.fontSize' and frame.Power and frame.Power.text) then
@@ -962,23 +1005,26 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				frame.Power.text:SetFont(fontPath, value, flags or '')
 				frame.Power.text._fontSize = value
 			elseif(remainder == 'power.textAnchor' and frame.Power and frame.Power.text) then
+				local anchor = frame.Power._wrapper or frame.Power
 				local x = frame.Power.text._anchorX or 0
 				local y = frame.Power.text._anchorY or 0
 				frame.Power.text:ClearAllPoints()
-				frame.Power.text:SetPoint(value, frame.Power, value, x, y)
+				frame.Power.text:SetPoint(value, anchor, value, x, y)
 				frame.Power.text._anchorPoint = value
 			elseif(remainder == 'power.textAnchorX' and frame.Power and frame.Power.text) then
+				local anchor = frame.Power._wrapper or frame.Power
 				frame.Power.text._anchorX = value
 				local pt = frame.Power.text._anchorPoint or 'CENTER'
 				local y  = frame.Power.text._anchorY or 0
 				frame.Power.text:ClearAllPoints()
-				frame.Power.text:SetPoint(pt, frame.Power, pt, value, y)
+				frame.Power.text:SetPoint(pt, anchor, pt, value, y)
 			elseif(remainder == 'power.textAnchorY' and frame.Power and frame.Power.text) then
+				local anchor = frame.Power._wrapper or frame.Power
 				frame.Power.text._anchorY = value
 				local pt = frame.Power.text._anchorPoint or 'CENTER'
 				local x  = frame.Power.text._anchorX or 0
 				frame.Power.text:ClearAllPoints()
-				frame.Power.text:SetPoint(pt, frame.Power, pt, x, value)
+				frame.Power.text:SetPoint(pt, anchor, pt, x, value)
 			elseif(remainder == 'power.outline' and frame.Power and frame.Power.text) then
 				local _, size = frame.Power.text:GetFont()
 				frame.Power.text:SetFont(fontPath, size or C.Font.sizeSmall, value or '')
@@ -988,6 +1034,35 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 					frame.Power.text:SetShadowOffset(1, -1)
 				else
 					frame.Power.text:SetShadowOffset(0, 0)
+				end
+			elseif(remainder == 'power.textColorMode' and frame.Power) then
+				frame.Power._textColorMode = value
+				if(frame.Power.text) then
+					if(value == 'class') then
+						local unit = frame:GetAttribute('unit')
+						if(unit) then
+							local _, class = UnitClass(unit)
+							if(class) then
+								local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+								if(classColor) then
+									frame.Power.text:SetTextColor(classColor.r, classColor.g, classColor.b, 1)
+								end
+							end
+						end
+					elseif(value == 'dark') then
+						frame.Power.text:SetTextColor(0.25, 0.25, 0.25, 1)
+					elseif(value == 'custom') then
+						local cc = frame.Power._textCustomColor or { 1, 1, 1 }
+						frame.Power.text:SetTextColor(cc[1], cc[2], cc[3], 1)
+					else
+						local tc = C.Colors.textActive
+						frame.Power.text:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+					end
+				end
+			elseif(remainder == 'power.textCustomColor' and frame.Power) then
+				frame.Power._textCustomColor = value
+				if(frame.Power.text and frame.Power._textColorMode == 'custom') then
+					frame.Power.text:SetTextColor(value[1], value[2], value[3], 1)
 				end
 			end
 		end
@@ -1034,8 +1109,14 @@ local function rebuildHealthCurve(frame, cfg)
 end
 
 F.EventBus:Register('CONFIG_CHANGED', function(path, value)
-	local unitType, remainder = path:match('unitConfigs%.([^.]+)%.(.+)')
+	local editPreset, unitType, remainder = path:match('presets%.([^.]+)%.unitConfigs%.([^.]+)%.(.+)')
+	if(not unitType) then
+		unitType, remainder = path:match('unitConfigs%.([^.]+)%.(.+)')
+	end
 	if(not unitType or not HEALTH_COLOR_KEYS[remainder]) then return end
+
+	-- Only apply when editing the active preset
+	if(editPreset and editPreset ~= F.AutoSwitch.GetCurrentPreset()) then return end
 
 	local oUF = F.oUF
 	if(not oUF or not oUF.objects) then return end
@@ -1134,8 +1215,10 @@ local function repositionContainer(element, anchor)
 end
 
 F.EventBus:Register('CONFIG_CHANGED', function(path)
-	-- Match: presets.*.auras.<unitType>.<auraType>[.<subKey>]
-	local unitType, remainder = path:match('^presets%.[^.]+%.auras%.([^.]+)%.(.+)$')
+	-- Match: presets.<preset>.auras.<unitType>.<auraType>[.<subKey>]
+	local editPreset, unitType, remainder = path:match('^presets%.([^.]+)%.auras%.([^.]+)%.(.+)$')
+	-- Only apply when editing the active preset
+	if(editPreset and editPreset ~= F.AutoSwitch.GetCurrentPreset()) then return end
 	if(not unitType or not remainder) then return end
 
 	-- Extract aura type (first segment) and optional sub-key

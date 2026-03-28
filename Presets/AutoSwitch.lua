@@ -72,7 +72,6 @@ function F.AutoSwitch.Check()
 	currentContentType = contentType
 
 	local presetName = ResolvePresetName(contentType)
-
 	if(InCombatLockdown and InCombatLockdown()) then
 		pendingPreset = presetName
 		return
