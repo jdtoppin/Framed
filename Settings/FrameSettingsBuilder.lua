@@ -194,13 +194,13 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		C_Timer.After(0, onScroll)
 	end)
 
-	-- ── Re-layout on parent resize ─────────────────────────────
-	parent:HookScript('OnSizeChanged', function(self, w, h)
-		local newW = w - C.Spacing.normal * 2
-		grid:SetWidth(newW)
-		content:SetWidth(w)
+	-- ── Re-layout on settings window resize ───────────────────
+	F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
+		local gridW = newW - C.Spacing.normal * 2
+		grid:SetWidth(gridW)
+		content:SetWidth(newW)
 		content:SetHeight(grid:GetTotalHeight())
-	end)
+	end, 'FrameSettingsBuilder.resize.' .. unitType)
 
 	-- ── Invalidate on preset change ────────────────────────────
 	-- When the editing preset changes, mark this scroll frame stale so
