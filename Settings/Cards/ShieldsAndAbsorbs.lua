@@ -18,6 +18,18 @@ function F.SettingsCards.ShieldsAndAbsorbs(parent, width, unitType, getConfig, s
 	healPredCheck:SetChecked(getConfig('health.healPrediction') ~= false)
 	cardY = B.PlaceWidget(healPredCheck, inner, cardY, B.CHECK_H)
 
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
+	local healPredMode = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
+		{ text = 'All',    value = 'all' },
+		{ text = 'Player', value = 'player' },
+		{ text = 'Others', value = 'other' },
+	})
+	healPredMode:SetValue(getConfig('health.healPredictionMode') or 'all')
+	healPredMode:SetOnSelect(function(value)
+		setConfig('health.healPredictionMode', value)
+	end)
+	cardY = B.PlaceWidget(healPredMode, inner, cardY, B.SWITCH_H)
+
 	local healPredPicker = Widgets.CreateColorPicker(inner, 'Color', true,
 		nil,
 		function(r, g, b, a) setConfig('health.healPredictionColor', { r, g, b, a }) end)
