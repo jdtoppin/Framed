@@ -297,12 +297,14 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
 		cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
 
-		-- Threat color toggle (player/group frames only)
-		local threatCheck = Widgets.CreateCheckButton(inner, 'Color by Threat', function(checked)
-			setConfig('health.colorThreat', checked)
-		end)
-		threatCheck:SetChecked(getConfig('health.colorThreat') or false)
-		cardY = placeWidget(threatCheck, inner, cardY, CHECK_H)
+		-- Threat color toggle (NPC target frames only — threat is per-unit)
+		if(isNpcFrame) then
+			local threatCheck = Widgets.CreateCheckButton(inner, 'Color by Threat', function(checked)
+				setConfig('health.colorThreat', checked)
+			end)
+			threatCheck:SetChecked(getConfig('health.colorThreat') or false)
+			cardY = placeWidget(threatCheck, inner, cardY, CHECK_H)
+		end
 
 		-- Y after the mode switch — reflow starts from here
 		local colorSwitchEndY = cardY

@@ -430,15 +430,120 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		return
 	end
 
-	-- Health prediction
-	if(key:match('^health%.healPrediction')) then
+	-- Health prediction toggle
+	if(key == 'health.healPrediction') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local hp = config.health
+		local enabled = config.health and config.health.healPrediction
 		ForEachFrame(unitType, function(frame)
-			if(hp.healPrediction) then
-				frame:EnableElement('HealthPrediction')
+			local h = frame.Health
+			if(not h) then return end
+			if(enabled) then
+				if(h.HealingAll) then h.HealingAll:Show() end
 			else
-				frame:DisableElement('HealthPrediction')
+				if(h.HealingAll) then h.HealingAll:Hide() end
+			end
+		end)
+		return
+	end
+
+	-- Damage absorb (shields) toggle
+	if(key == 'health.damageAbsorb') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local enabled = config.health and config.health.damageAbsorb
+		ForEachFrame(unitType, function(frame)
+			local h = frame.Health
+			if(not h) then return end
+			if(enabled) then
+				if(h._damageAbsorbBar) then
+					h.DamageAbsorb = h._damageAbsorbBar
+					h._damageAbsorbBar:Show()
+				end
+			else
+				h.DamageAbsorb = nil
+				if(h._damageAbsorbBar) then h._damageAbsorbBar:Hide() end
+			end
+			h:ForceUpdate()
+		end)
+		return
+	end
+
+	-- Overshield indicator toggle
+	if(key == 'health.overAbsorb') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local enabled = config.health and config.health.overAbsorb
+		ForEachFrame(unitType, function(frame)
+			local h = frame.Health
+			if(not h) then return end
+			if(enabled) then
+				if(h._overDamageAbsorbIndicator) then
+					h.OverDamageAbsorbIndicator = h._overDamageAbsorbIndicator
+				end
+			else
+				h.OverDamageAbsorbIndicator = nil
+				if(h._overDamageAbsorbIndicator) then h._overDamageAbsorbIndicator:Hide() end
+			end
+			h:ForceUpdate()
+		end)
+		return
+	end
+
+	-- Heal absorb toggle
+	if(key == 'health.healAbsorb') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local enabled = config.health and config.health.healAbsorb
+		ForEachFrame(unitType, function(frame)
+			local h = frame.Health
+			if(not h) then return end
+			if(enabled) then
+				if(h._healAbsorbBar) then
+					h.HealAbsorb = h._healAbsorbBar
+					h._healAbsorbBar:Show()
+				end
+				if(h._overHealAbsorbIndicator) then
+					h.OverHealAbsorbIndicator = h._overHealAbsorbIndicator
+				end
+			else
+				h.HealAbsorb = nil
+				if(h._healAbsorbBar) then h._healAbsorbBar:Hide() end
+				h.OverHealAbsorbIndicator = nil
+				if(h._overHealAbsorbIndicator) then h._overHealAbsorbIndicator:Hide() end
+			end
+			h:ForceUpdate()
+		end)
+		return
+	end
+
+	-- Heal prediction color
+	if(key == 'health.healPredictionColor') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local color = config.health and config.health.healPredictionColor or { 0.6, 0.6, 0.6, 0.4 }
+		ForEachFrame(unitType, function(frame)
+			if(frame.Health and frame.Health.HealingAll) then
+				frame.Health.HealingAll:SetStatusBarColor(color[1], color[2], color[3], color[4] or 0.4)
+			end
+		end)
+		return
+	end
+
+	-- Damage absorb color
+	if(key == 'health.damageAbsorbColor') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local color = config.health and config.health.damageAbsorbColor or { 1, 1, 1, 0.6 }
+		ForEachFrame(unitType, function(frame)
+			if(frame.Health and frame.Health._damageAbsorbBar) then
+				frame.Health._damageAbsorbBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 0.6)
+			end
+		end)
+		return
+	end
+
+	-- Heal absorb color
+	if(key == 'health.healAbsorbColor') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local color = config.health and config.health.healAbsorbColor or { 0.7, 0.1, 0.1, 0.5 }
+		ForEachFrame(unitType, function(frame)
+			if(frame.Health and frame.Health._healAbsorbBar) then
+				frame.Health._healAbsorbBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 0.5)
 			end
 		end)
 		return

@@ -326,6 +326,16 @@ function F.Elements.Health.Setup(self, width, height, config)
 			end
 		end
 
+		-- ── Overshield override ──────────────────────────
+		-- oUF's main calculator uses MaximumHealth clamp (for bar display),
+		-- so isClamped only fires when shield > maxHealth (extremely rare).
+		-- Re-check with default-clamp calculator: isClamped = shield > missing health.
+		if(h._overShieldCalc and h.OverDamageAbsorbIndicator) then
+			UnitGetDetailedHealPrediction(unit, nil, h._overShieldCalc)
+			local _, isClamped = h._overShieldCalc:GetDamageAbsorbs()
+			h.OverDamageAbsorbIndicator:SetAlphaFromBoolean(isClamped, 1, 0)
+		end
+
 		-- Guard against secret values before Lua arithmetic.
 		-- The bar itself handles secrets natively via SetValue().
 		if(not F.IsValueNonSecret(cur) or not F.IsValueNonSecret(max)) then
@@ -386,6 +396,7 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 	if(needsPrediction) then
 		local healthBarTexture = health:GetStatusBarTexture()
+		health._healBarTexRef = healthBarTexture
 		local predWidth = width - 2
 
 		-- Clip frame for forward-fill bars (incoming heals) that extend
@@ -398,59 +409,68 @@ function F.Elements.Health.Setup(self, width, height, config)
 		if(config.healPrediction) then
 			local hc = config.healPredictionColor
 			local healBar = CreateFrame('StatusBar', nil, clipFrame)
-			healBar:SetFrameLevel(clipFrame:GetFrameLevel())
-			healBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Gradient_Linear_Right]])
+			healBar:SetFrameLevel(health:GetFrameLevel() + 3)
+			healBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
 			healBar:SetStatusBarColor(hc[1], hc[2], hc[3], hc[4] or 0.4)
-			healBar:SetWidth(predWidth)
-			healBar:SetPoint('TOP', health, 'TOP')
-			healBar:SetPoint('BOTTOM', health, 'BOTTOM')
+			healBar:SetSize(predWidth, height)
+			healBar:SetPoint('BOTTOMLEFT', health)
 			healBar:SetPoint('LEFT', healthBarTexture, 'RIGHT')
 			health.HealingAll = healBar
 		end
 
+		-- Always create absorb bars so live toggles can show/hide them
+		local dc = config.damageAbsorbColor
+		local absorbBar = CreateFrame('StatusBar', nil, health)
+		absorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
+		absorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		absorbBar:SetStatusBarColor(dc[1], dc[2], dc[3], dc[4] or 0.6)
+		absorbBar:SetAllPoints(health)
+		absorbBar:SetReverseFill(true)
+		health._damageAbsorbBar = absorbBar
+
+		local overAbsorb = (self._iconOverlay or health._wrapper):CreateTexture(nil, 'OVERLAY')
+		overAbsorb:SetTexture([[Interface\AddOns\Framed\Media\Textures\Gradient_Linear_Left]])
+		overAbsorb:SetBlendMode('ADD')
+		overAbsorb:SetWidth(8)
+		overAbsorb:SetAlpha(0)
+		overAbsorb:SetPoint('TOP', health)
+		overAbsorb:SetPoint('BOTTOM', health)
+		overAbsorb:SetPoint('LEFT', health, 'RIGHT')
+		health._overDamageAbsorbIndicator = overAbsorb
+
 		if(config.damageAbsorb) then
-			local dc = config.damageAbsorbColor
-			local absorbBar = CreateFrame('StatusBar', nil, health)
-			absorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
-			absorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
-			absorbBar:SetStatusBarColor(dc[1], dc[2], dc[3], dc[4] or 0.6)
-			absorbBar:SetAllPoints(health)
-			absorbBar:SetReverseFill(true)
 			health.DamageAbsorb = absorbBar
+			health.OverDamageAbsorbIndicator = overAbsorb
+		else
+			absorbBar:Hide()
+			overAbsorb:Hide()
 		end
 
-		if(config.overAbsorb) then
-			local overAbsorb = health:CreateTexture(nil, 'OVERLAY')
-			overAbsorb:SetTexture([[Interface\AddOns\Framed\Media\Textures\StaticGlow]])
-			overAbsorb:SetBlendMode('ADD')
-			overAbsorb:SetWidth(8)
-			overAbsorb:SetAlpha(0)
-			-- Absorb fills right-to-left, so overflow glow sits at the left edge
-			overAbsorb:SetPoint('TOP')
-			overAbsorb:SetPoint('BOTTOM')
-			overAbsorb:SetPoint('RIGHT', health, 'LEFT')
-			health.OverDamageAbsorbIndicator = overAbsorb
-		end
+		local hac = config.healAbsorbColor
+		local healAbsorbBar = CreateFrame('StatusBar', nil, health)
+		healAbsorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
+		healAbsorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		healAbsorbBar:SetStatusBarColor(hac[1], hac[2], hac[3], hac[4] or 0.5)
+		healAbsorbBar:SetReverseFill(true)
+		healAbsorbBar:SetAllPoints(health)
+		health._healAbsorbBar = healAbsorbBar
+
+		local overHealAbsorb = (self._iconOverlay or health._wrapper):CreateTexture(nil, 'OVERLAY')
+		overHealAbsorb:SetTexture([[Interface\RaidFrame\Absorb-Overabsorb]])
+		overHealAbsorb:SetBlendMode('ADD')
+		overHealAbsorb:SetWidth(8)
+		overHealAbsorb:SetAlpha(0)
+		overHealAbsorb:SetPoint('TOP', health)
+		overHealAbsorb:SetPoint('BOTTOM', health)
+		overHealAbsorb:SetPoint('RIGHT', health, 'LEFT')
+		health._overHealAbsorbIndicator = overHealAbsorb
 
 		if(config.healAbsorb) then
-			local hac = config.healAbsorbColor
-			local healAbsorbBar = CreateFrame('StatusBar', nil, health)
-			healAbsorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
-			healAbsorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
-			healAbsorbBar:SetStatusBarColor(hac[1], hac[2], hac[3], hac[4] or 0.5)
-			healAbsorbBar:SetReverseFill(true)
-			healAbsorbBar:SetAllPoints(health)
 			health.HealAbsorb = healAbsorbBar
-
-			local overHealAbsorb = health:CreateTexture(nil, 'OVERLAY')
-			overHealAbsorb:SetTexture([[Interface\RaidFrame\Absorb-Overabsorb]])
-			overHealAbsorb:SetBlendMode('ADD')
-			overHealAbsorb:SetWidth(8)
-			overHealAbsorb:SetAlpha(0)
-			overHealAbsorb:SetPoint('TOP')
-			overHealAbsorb:SetPoint('BOTTOM')
-			overHealAbsorb:SetPoint('RIGHT', health, 'LEFT')
 			health.OverHealAbsorbIndicator = overHealAbsorb
+		else
+			healAbsorbBar:Hide()
+			overHealAbsorb:Hide()
 		end
 
 		health.incomingHealOverflow = 1.05
@@ -461,6 +481,14 @@ function F.Elements.Health.Setup(self, width, height, config)
 		health.damageAbsorbClampMode = Enum.UnitDamageAbsorbClampMode.MaximumHealth
 		health.healAbsorbClampMode   = Enum.UnitHealAbsorbClampMode.MaximumHealth
 		health.incomingHealClampMode  = Enum.UnitIncomingHealClampMode.MaximumHealth
+
+		-- Separate calculator for overshield detection only.
+		-- Uses default clamp (missing health) so isClamped triggers when
+		-- shield > missing health — the correct "overflow past bar edge" signal.
+		-- The main calculator's MaximumHealth clamp only flags shield > maxHealth.
+		if(config.overAbsorb and CreateUnitHealPredictionCalculator) then
+			health._overShieldCalc = CreateUnitHealPredictionCalculator()
+		end
 	end
 
 	-- --------------------------------------------------------
