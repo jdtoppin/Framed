@@ -45,6 +45,14 @@ local PANE_TITLE_H   = 20   -- approx title font + separator + gap
 -- Width for sliders and dropdowns inside the panel
 local WIDGET_W       = 220
 
+-- Shared layout constants for card builders
+F.FrameSettingsBuilder.SLIDER_H     = SLIDER_H
+F.FrameSettingsBuilder.SWITCH_H     = SWITCH_H
+F.FrameSettingsBuilder.DROPDOWN_H   = DROPDOWN_H
+F.FrameSettingsBuilder.CHECK_H      = CHECK_H
+F.FrameSettingsBuilder.PANE_TITLE_H = PANE_TITLE_H
+F.FrameSettingsBuilder.WIDGET_W     = WIDGET_W
+
 -- ============================================================
 -- Layout helpers
 -- ============================================================
@@ -56,7 +64,7 @@ local WIDGET_W       = 220
 --- @param yOffset number  Running yOffset (negative, relative to content)
 --- @param height  number  Widget height
 --- @return number nextYOffset
-local function placeWidget(widget, content, yOffset, height)
+function F.FrameSettingsBuilder.PlaceWidget(widget, content, yOffset, height)
 	widget:ClearAllPoints()
 	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	return yOffset - height - C.Spacing.normal
@@ -69,12 +77,15 @@ end
 --- @param yOffset number  Running yOffset
 --- @param width?  number  Available width (needed for level 1 separator)
 --- @return number nextYOffset
-local function placeHeading(content, text, level, yOffset, width)
+function F.FrameSettingsBuilder.PlaceHeading(content, text, level, yOffset, width)
 	local heading, height = Widgets.CreateHeading(content, text, level, width)
 	heading:ClearAllPoints()
 	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	return yOffset - height
 end
+
+local placeWidget  = F.FrameSettingsBuilder.PlaceWidget
+local placeHeading = F.FrameSettingsBuilder.PlaceHeading
 
 -- ============================================================
 -- FrameSettingsBuilder.Create
