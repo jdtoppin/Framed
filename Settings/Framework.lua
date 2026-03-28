@@ -219,8 +219,20 @@ Settings._setSidebarSelected = nil   -- function(btn, selected)
 --- Switch to the given panel, building its frame on first visit.
 --- @param panelId string
 function Settings.SetActivePanel(panelId)
-	-- Hide current
+	-- Skip if already on this panel
+	if(panelId == Settings._activePanelId and Settings._activePanelFrame and Settings._activePanelFrame:IsShown()) then
+		return
+	end
+
+	-- Hide current — cancel any in-flight panel transition animation
 	if(Settings._activePanelFrame) then
+		if(Settings._activePanelFrame._anim and Settings._activePanelFrame._anim['panelTransition']) then
+			local anim = Settings._activePanelFrame._anim['panelTransition']
+			if(anim.onComplete) then
+				anim.onComplete(Settings._activePanelFrame)
+			end
+			Settings._activePanelFrame._anim['panelTransition'] = nil
+		end
 		Settings._activePanelFrame:Hide()
 	end
 

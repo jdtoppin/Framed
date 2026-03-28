@@ -63,6 +63,8 @@ end
 -- ============================================================
 
 --- Fade the scrollbar track + thumb to a target alpha over duration.
+--- Uses StartAnimation on the track frame to avoid clobbering HookScript
+--- handlers on the scroll frame (which the animation system relies on).
 local function FadeScrollbar(scroll, targetAlpha, duration)
 	local track = scroll._scrollbar
 	local thumb = scroll._thumb
@@ -73,17 +75,10 @@ local function FadeScrollbar(scroll, targetAlpha, duration)
 		return
 	end
 
-	local elapsed = 0
 	scroll._fadeTarget = targetAlpha
-	scroll:SetScript('OnUpdate', function(self, dt)
-		elapsed = elapsed + dt
-		local t = math.min(elapsed / duration, 1)
-		local a = startAlpha + (targetAlpha - startAlpha) * t
+	Widgets.StartAnimation(track, 'scrollbarFade', startAlpha, targetAlpha, duration, function(_, a)
 		track:SetAlpha(a)
 		thumb:SetAlpha(a)
-		if(t >= 1) then
-			self:SetScript('OnUpdate', nil)
-		end
 	end)
 end
 
