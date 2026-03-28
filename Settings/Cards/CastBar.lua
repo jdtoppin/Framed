@@ -6,32 +6,25 @@ local B = F.FrameSettingsBuilder
 
 F.SettingsCards = F.SettingsCards or {}
 
-local SLIDER_H     = B.SLIDER_H
-local SWITCH_H     = B.SWITCH_H
-local DROPDOWN_H   = B.DROPDOWN_H
-local CHECK_H      = B.CHECK_H
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local CARD_PADDING = 12
-	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
 
 	local showCastCheck = Widgets.CreateCheckButton(inner, 'Show Cast Bar', function(checked)
 		setConfig('showCastBar', checked)
 	end)
 	showCastCheck:SetChecked(getConfig('showCastBar') ~= false)
-	cardY = placeWidget(showCastCheck, inner, cardY, CHECK_H)
+	cardY = B.PlaceWidget(showCastCheck, inner, cardY, B.CHECK_H)
 
 	-- Size mode: attached (syncs width with parent frame) or detached (own dimensions)
-	cardY = placeHeading(inner, 'Size', 3, cardY)
-	local castSizeSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
+	cardY = B.PlaceHeading(inner, 'Size', 3, cardY)
+	local castSizeSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Attached', value = 'attached' },
 		{ text = 'Detached', value = 'detached' },
 	})
 	castSizeSwitch:SetValue(getConfig('castbar.sizeMode') or 'attached')
-	cardY = placeWidget(castSizeSwitch, inner, cardY, SWITCH_H)
+	cardY = B.PlaceWidget(castSizeSwitch, inner, cardY, B.SWITCH_H)
 
 	local castSizeSwitchEndY = cardY
 
@@ -51,7 +44,7 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 
 	-- Background heading + switch (created here, positioned by reflow)
 	local castBgHeading, castBgHeadingH = Widgets.CreateHeading(inner, 'Background', 3)
-	local castBgSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
+	local castBgSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Always',  value = 'always' },
 		{ text = 'On Cast', value = 'oncast' },
 	})
@@ -69,20 +62,20 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 		if(curCastSizeMode == 'detached') then
 			castWidthSlider:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, y)
 			castWidthSlider:Show()
-			y = y - SLIDER_H - C.Spacing.normal
+			y = y - B.SLIDER_H - C.Spacing.normal
 		else
 			castWidthSlider:Hide()
 		end
 		castHeightSlider:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, y)
 		castHeightSlider:Show()
-		y = y - SLIDER_H - C.Spacing.normal
+		y = y - B.SLIDER_H - C.Spacing.normal
 		-- Background heading
 		castBgHeading:ClearAllPoints()
 		Widgets.SetPoint(castBgHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
 		y = y - castBgHeadingH
 		-- Background switch
 		castBgSwitch:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - SWITCH_H - C.Spacing.normal
+		y = y - B.SWITCH_H - C.Spacing.normal
 		cardY = y
 
 		Widgets.EndCard(card, parent, cardY)

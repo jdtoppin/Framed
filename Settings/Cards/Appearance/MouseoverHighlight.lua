@@ -6,17 +6,13 @@ local B = F.FrameSettingsBuilder
 
 F.AppearanceCards = F.AppearanceCards or {}
 
-local SLIDER_H     = 26
 local SWATCH_H     = 20
-local CARD_PADDING = 12
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 function F.AppearanceCards.MouseoverHighlight(parent, width, getConfig, setConfig, fireChange)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local widgetW = math.min(width - CARD_PADDING * 2, 220)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, 220)
 
-	cardY = placeHeading(inner, 'Color', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Color', 3, cardY)
 
 	local moColorPicker = Widgets.CreateColorPicker(inner)
 	moColorPicker:SetHasAlpha(true)
@@ -40,10 +36,8 @@ function F.AppearanceCards.MouseoverHighlight(parent, width, getConfig, setConfi
 	moWidthSlider:SetAfterValueChanged(function(value)
 		setConfig('mouseoverHighlightWidth', value)
 	end)
-	cardY = placeWidget(moWidthSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(moWidthSlider, inner, cardY, B.SLIDER_H)
 
 	Widgets.EndCard(card, parent, cardY)
-	card:ClearAllPoints()
-	card._startY = 0
 	return card
 end

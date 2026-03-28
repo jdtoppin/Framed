@@ -86,6 +86,7 @@ end
 -- ============================================================
 
 local CARD_PADDING = 12
+Widgets.CARD_PADDING = CARD_PADDING
 local CARD_BACKDROP = {
 	bgFile   = [[Interface\BUTTONS\WHITE8x8]],
 	edgeFile = [[Interface\BUTTONS\WHITE8x8]],

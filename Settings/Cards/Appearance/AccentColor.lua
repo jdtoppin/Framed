@@ -7,7 +7,6 @@ local B = F.FrameSettingsBuilder
 F.AppearanceCards = F.AppearanceCards or {}
 
 local SWATCH_H     = 20
-local CARD_PADDING = 12
 
 function F.AppearanceCards.AccentColor(parent, width, getConfig, setConfig, fireChange)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
@@ -34,7 +33,5 @@ function F.AppearanceCards.AccentColor(parent, width, getConfig, setConfig, fire
 	cardY = cardY - SWATCH_H - C.Spacing.normal
 
 	Widgets.EndCard(card, parent, cardY)
-	card:ClearAllPoints()
-	card._startY = 0
 	return card
 end

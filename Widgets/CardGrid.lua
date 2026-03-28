@@ -177,8 +177,8 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 		colY[c] = topOffset
 	end
 
-	-- Default estimated card height for unbuilt cards
-	local EST_CARD_H = 150
+	-- Estimated card height: use average of built cards, or fallback
+	local EST_CARD_H = grid._avgCardHeight or 150
 
 	for _, entry in next, sorted do
 		-- Find the shortest column
@@ -198,6 +198,7 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 			local estBottom = cardTopY + EST_CARD_H
 			if(estBottom >= windowTop and cardTopY <= windowBottom) then
 				entry.card  = entry.builder(grid._container, cardW, unpack(entry.builderArgs))
+				entry.card:ClearAllPoints()
 				entry.built = true
 				addCardTitle(entry)
 				addPinButton(entry, grid)
@@ -224,42 +225,16 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 					entry.card:SetPoint('TOPLEFT', grid._container, 'TOPLEFT', old.x, -old.y)
 					entry.card:SetWidth(cardW)
 
-					-- Animate X
-					if(math.abs(dx) > 1) then
-						Widgets.StartAnimation(entry.card, 'gridX', old.x, x, ANIM_DURATION, function(frame, val)
-							frame:ClearAllPoints()
-							local curY = frame._animCurY or old.y
-							frame:SetPoint('TOPLEFT', grid._container, 'TOPLEFT', val, -curY)
-						end)
-					end
-
-					-- Animate Y
-					if(math.abs(dy) > 1) then
-						entry.card._animCurY = old.y
-						Widgets.StartAnimation(entry.card, 'gridY', old.y, y, ANIM_DURATION, function(frame, val)
-							frame._animCurY = val
-							local curX = entry._layoutX
-							-- If X animation is also running, let it handle SetPoint
-							if(not frame._anim or not frame._anim['gridX']) then
-								frame:ClearAllPoints()
-								frame:SetPoint('TOPLEFT', grid._container, 'TOPLEFT', curX, -val)
-							end
-						end, function(frame)
-							-- Clean up after animation
-							frame._animCurY = nil
-							frame:ClearAllPoints()
-							Widgets.SetPoint(frame, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
-						end)
-					else
-						-- Only X changed, snap Y and set final on X complete
-						Widgets.StartAnimation(entry.card, 'gridX', old.x, x, ANIM_DURATION, function(frame, val)
-							frame:ClearAllPoints()
-							frame:SetPoint('TOPLEFT', grid._container, 'TOPLEFT', val, -y)
-						end, function(frame)
-							frame:ClearAllPoints()
-							Widgets.SetPoint(frame, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
-						end)
-					end
+					-- Single-channel animation interpolating both axes
+					Widgets.StartAnimation(entry.card, 'gridMove', 0, 1, ANIM_DURATION, function(frame, t)
+						local curX = Widgets.Lerp(old.x, x, t)
+						local curY = Widgets.Lerp(old.y, y, t)
+						frame:ClearAllPoints()
+						frame:SetPoint('TOPLEFT', grid._container, 'TOPLEFT', curX, -curY)
+					end, function(frame)
+						frame:ClearAllPoints()
+						Widgets.SetPoint(frame, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
+					end)
 				else
 					-- No meaningful movement, just snap
 					entry.card:ClearAllPoints()
@@ -291,6 +266,18 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 	end
 	-- Subtract the trailing gap from the last card
 	grid._totalHeight = math.max(0, maxY - CARD_V_GAP)
+
+	-- Update average card height for future lazy-load estimates
+	local builtCount, totalH = 0, 0
+	for _, entry in next, sorted do
+		if(entry.built and entry._lastHeight) then
+			builtCount = builtCount + 1
+			totalH = totalH + entry._lastHeight
+		end
+	end
+	if(builtCount > 0) then
+		grid._avgCardHeight = totalH / builtCount
+	end
 
 	grid._container:SetHeight(math.max(1, grid._totalHeight))
 end
@@ -347,7 +334,6 @@ local function AnimatedReflow(grid)
 				x = entry._layoutX or 0,
 				y = entry._layoutY or 0,
 			}
-			-- Track height delta for animation
 		end
 	end
 
@@ -365,15 +351,6 @@ local function AnimatedReflow(grid)
 			local dh = newH - old.h
 			local dx = newX - old.x
 			local dy = newY - old.y
-
-			-- Height animation (the expanding/collapsing card)
-			if(math.abs(dh) > 1) then
-				animCount = animCount + 1
-				entry.card:SetHeight(old.h)
-				Widgets.StartAnimation(entry.card, 'cardH', old.h, newH, REFLOW_DURATION, function(frame, val)
-					frame:SetHeight(val)
-				end)
-			end
 
 			-- Position animation (surrounding cards slide)
 			if(math.abs(dx) > 1 or math.abs(dy) > 1) then
