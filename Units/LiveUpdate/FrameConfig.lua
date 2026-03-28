@@ -374,9 +374,13 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health smooth
 	if(key == 'health.smooth') then
 		local config = F.StyleBuilder.GetConfig(unitType)
+		local smooth = config.health and config.health.smooth
+		local mode = smooth and Enum.StatusBarInterpolation.ExponentialEaseOut
+			or Enum.StatusBarInterpolation.Immediate
 		ForEachFrame(unitType, function(frame)
 			if(frame.Health) then
-				frame.Health.smoothing = config.health and config.health.smooth
+				frame.Health.smoothing = mode
+				frame.Health:ForceUpdate()
 			end
 		end)
 		return

@@ -221,6 +221,8 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 	if(config.smooth) then
 		health.smoothing = Enum.StatusBarInterpolation.ExponentialEaseOut
+	else
+		health.smoothing = Enum.StatusBarInterpolation.Immediate
 	end
 
 	-- --------------------------------------------------------

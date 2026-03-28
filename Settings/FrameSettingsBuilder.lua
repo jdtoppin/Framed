@@ -298,11 +298,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
 
 		-- Threat color toggle (player/group frames only)
-		local threatCheck = Widgets.CreateCheckButton(inner, 'Color by Threat')
-		threatCheck:SetChecked(getConfig('health.colorThreat') or false)
-		threatCheck._callback = function(checked)
+		local threatCheck = Widgets.CreateCheckButton(inner, 'Color by Threat', function(checked)
 			setConfig('health.colorThreat', checked)
-		end
+		end)
+		threatCheck:SetChecked(getConfig('health.colorThreat') or false)
 		cardY = placeWidget(threatCheck, inner, cardY, CHECK_H)
 
 		-- Y after the mode switch — reflow starts from here
@@ -363,11 +362,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		local customPickerH = 22
 
 		-- ── Smooth bars checkbox ──
-		local smoothCheck = Widgets.CreateCheckButton(inner, 'Smooth Bars')
-		smoothCheck:SetChecked(getConfig('health.smooth') ~= false)
-		smoothCheck._callback = function(checked)
+		local smoothCheck = Widgets.CreateCheckButton(inner, 'Smooth Bars', function(checked)
 			setConfig('health.smooth', checked)
-		end
+		end)
+		smoothCheck:SetChecked(getConfig('health.smooth') ~= false)
 
 		-- ── Health Loss Color heading ──
 		local lossHeading, lossHeadingH = Widgets.CreateHeading(inner, 'Health Loss Color', 3)
@@ -507,11 +505,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		local PICKER_ROW_H = 22
 
 		-- ── Heal Prediction ──
-		local healPredCheck = Widgets.CreateCheckButton(inner, 'Heal Prediction')
-		healPredCheck:SetChecked(getConfig('health.healPrediction') ~= false)
-		healPredCheck._callback = function(checked)
+		local healPredCheck = Widgets.CreateCheckButton(inner, 'Heal Prediction', function(checked)
 			setConfig('health.healPrediction', checked)
-		end
+		end)
+		healPredCheck:SetChecked(getConfig('health.healPrediction') ~= false)
 		cardY = placeWidget(healPredCheck, inner, cardY, CHECK_H)
 
 		local healPredPicker = Widgets.CreateColorPicker(inner, 'Color', true,
@@ -522,11 +519,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		cardY = placeWidget(healPredPicker, inner, cardY, PICKER_ROW_H)
 
 		-- ── Shields (damage absorbs) ──
-		local damageAbsorbCheck = Widgets.CreateCheckButton(inner, 'Shields')
-		damageAbsorbCheck:SetChecked(getConfig('health.damageAbsorb') ~= false)
-		damageAbsorbCheck._callback = function(checked)
+		local damageAbsorbCheck = Widgets.CreateCheckButton(inner, 'Shields', function(checked)
 			setConfig('health.damageAbsorb', checked)
-		end
+		end)
+		damageAbsorbCheck:SetChecked(getConfig('health.damageAbsorb') ~= false)
 		cardY = placeWidget(damageAbsorbCheck, inner, cardY, CHECK_H)
 
 		local damageAbsorbPicker = Widgets.CreateColorPicker(inner, 'Color', true,
@@ -537,11 +533,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		cardY = placeWidget(damageAbsorbPicker, inner, cardY, PICKER_ROW_H)
 
 		-- ── Heal Absorbs ──
-		local healAbsorbCheck = Widgets.CreateCheckButton(inner, 'Heal Absorbs')
-		healAbsorbCheck:SetChecked(getConfig('health.healAbsorb') ~= false)
-		healAbsorbCheck._callback = function(checked)
+		local healAbsorbCheck = Widgets.CreateCheckButton(inner, 'Heal Absorbs', function(checked)
 			setConfig('health.healAbsorb', checked)
-		end
+		end)
+		healAbsorbCheck:SetChecked(getConfig('health.healAbsorb') ~= false)
 		cardY = placeWidget(healAbsorbCheck, inner, cardY, CHECK_H)
 
 		local healAbsorbPicker = Widgets.CreateColorPicker(inner, 'Color', true,
@@ -552,11 +547,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		cardY = placeWidget(healAbsorbPicker, inner, cardY, PICKER_ROW_H)
 
 		-- ── Overshield ──
-		local overAbsorbCheck = Widgets.CreateCheckButton(inner, 'Overshield')
-		overAbsorbCheck:SetChecked(getConfig('health.overAbsorb') ~= false)
-		overAbsorbCheck._callback = function(checked)
+		local overAbsorbCheck = Widgets.CreateCheckButton(inner, 'Overshield', function(checked)
 			setConfig('health.overAbsorb', checked)
-		end
+		end)
+		overAbsorbCheck:SetChecked(getConfig('health.overAbsorb') ~= false)
 		cardY = placeWidget(overAbsorbCheck, inner, cardY, CHECK_H)
 
 		restY = Widgets.EndCard(saCard, afterColorContainer, cardY)
@@ -567,11 +561,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	local powerCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
-	local showPowerCheck = Widgets.CreateCheckButton(inner, 'Show Power Bar')
-	showPowerCheck:SetChecked(getConfig('showPower') ~= false)
-	showPowerCheck._callback = function(checked)
+	local showPowerCheck = Widgets.CreateCheckButton(inner, 'Show Power Bar', function(checked)
 		setConfig('showPower', checked)
-	end
+	end)
+	showPowerCheck:SetChecked(getConfig('showPower') ~= false)
 	cardY = placeWidget(showPowerCheck, inner, cardY, CHECK_H)
 
 	-- Power bar height slider
@@ -589,11 +582,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	local castCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
-	local showCastCheck = Widgets.CreateCheckButton(inner, 'Show Cast Bar')
-	showCastCheck:SetChecked(getConfig('showCastBar') ~= false)
-	showCastCheck._callback = function(checked)
+	local showCastCheck = Widgets.CreateCheckButton(inner, 'Show Cast Bar', function(checked)
 		setConfig('showCastBar', checked)
-	end
+	end)
+	showCastCheck:SetChecked(getConfig('showCastBar') ~= false)
 	cardY = placeWidget(showCastCheck, inner, cardY, CHECK_H)
 
 	restY = Widgets.EndCard(castCard, afterColorContainer, cardY)
@@ -603,11 +595,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	local nameCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
-	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name')
-	showNameCheck:SetChecked(getConfig('showName') ~= false)
-	showNameCheck._callback = function(checked)
+	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
 		setConfig('showName', checked)
-	end
+	end)
+	showNameCheck:SetChecked(getConfig('showName') ~= false)
 	cardY = placeWidget(showNameCheck, inner, cardY, CHECK_H)
 
 	-- Name color mode switch
@@ -652,11 +643,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 
 	-- Name shadow
-	local nameShadow = Widgets.CreateCheckButton(inner, 'Text Shadow')
-	nameShadow:SetChecked(getConfig('name.shadow') ~= false)
-	nameShadow._callback = function(checked)
+	local nameShadow = Widgets.CreateCheckButton(inner, 'Text Shadow', function(checked)
 		setConfig('name.shadow', checked)
-	end
+	end)
+	nameShadow:SetChecked(getConfig('name.shadow') ~= false)
 
 	-- Reflow name card widgets based on color mode
 	local curNameColorMode = getConfig('name.colorMode') or 'class'
@@ -732,16 +722,31 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	local healthTextCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	-- Attach to Name toggle
-	local attachToNameCheck = Widgets.CreateCheckButton(inner, 'Attach to Name')
+	local healthPositionWidgets = {}
+	local function updateHealthPositionDimming(attached)
+		local alpha = attached and 0.35 or 1
+		for _, w in next, healthPositionWidgets do
+			w:SetAlpha(alpha)
+			if(attached) then
+				w:EnableMouse(false)
+			else
+				w:EnableMouse(true)
+			end
+		end
+	end
+
 	local isAttached = getConfig('health.attachedToName') or false
+	local attachToNameCheck = Widgets.CreateCheckButton(inner, 'Attach to Name', function(checked)
+		setConfig('health.attachedToName', checked)
+		updateHealthPositionDimming(checked)
+	end)
 	attachToNameCheck:SetChecked(isAttached)
 	cardY = placeWidget(attachToNameCheck, inner, cardY, CHECK_H)
 
-	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text')
-	showHealthTextCheck:SetChecked(getConfig('health.showText') or false)
-	showHealthTextCheck._callback = function(checked)
+	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text', function(checked)
 		setConfig('health.showText', checked)
-	end
+	end)
+	showHealthTextCheck:SetChecked(getConfig('health.showText') or false)
 	cardY = placeWidget(showHealthTextCheck, inner, cardY, CHECK_H)
 
 	-- Health text format dropdown
@@ -783,11 +788,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	cardY = placeWidget(healthOutline, inner, cardY, DROPDOWN_H)
 
 	-- Health text shadow
-	local healthShadow = Widgets.CreateCheckButton(inner, 'Text Shadow')
-	healthShadow:SetChecked(getConfig('health.shadow') ~= false)
-	healthShadow._callback = function(checked)
+	local healthShadow = Widgets.CreateCheckButton(inner, 'Text Shadow', function(checked)
 		setConfig('health.shadow', checked)
-	end
+	end)
+	healthShadow:SetChecked(getConfig('health.shadow') ~= false)
 	cardY = placeWidget(healthShadow, inner, cardY, CHECK_H)
 
 	-- Health text position anchor
@@ -818,25 +822,11 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(healthOffsetY, inner, cardY, SLIDER_H)
 
-	-- Dim/enable health position controls based on "Attach to Name"
-	local healthPositionWidgets = { healthTextAnchor, healthOffsetX, healthOffsetY }
-	local function updateHealthPositionDimming(attached)
-		local alpha = attached and 0.35 or 1
-		for _, w in next, healthPositionWidgets do
-			w:SetAlpha(alpha)
-			if(attached) then
-				w:EnableMouse(false)
-			else
-				w:EnableMouse(true)
-			end
-		end
-	end
+	-- Populate health position widgets for dimming control
+	healthPositionWidgets[1] = healthTextAnchor
+	healthPositionWidgets[2] = healthOffsetX
+	healthPositionWidgets[3] = healthOffsetY
 	updateHealthPositionDimming(isAttached)
-
-	attachToNameCheck._callback = function(checked)
-		setConfig('health.attachedToName', checked)
-		updateHealthPositionDimming(checked)
-	end
 
 	restY = Widgets.EndCard(healthTextCard, afterColorContainer, cardY)
 
@@ -845,11 +835,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	local powerTextCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
-	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text')
-	showPowerTextCheck:SetChecked(getConfig('power.showText') or false)
-	showPowerTextCheck._callback = function(checked)
+	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text', function(checked)
 		setConfig('power.showText', checked)
-	end
+	end)
+	showPowerTextCheck:SetChecked(getConfig('power.showText') or false)
 	cardY = placeWidget(showPowerTextCheck, inner, cardY, CHECK_H)
 
 	-- Power text font size
@@ -875,11 +864,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	cardY = placeWidget(powerOutline, inner, cardY, DROPDOWN_H)
 
 	-- Power text shadow
-	local powerShadow = Widgets.CreateCheckButton(inner, 'Text Shadow')
-	powerShadow:SetChecked(getConfig('power.shadow') ~= false)
-	powerShadow._callback = function(checked)
+	local powerShadow = Widgets.CreateCheckButton(inner, 'Text Shadow', function(checked)
 		setConfig('power.shadow', checked)
-	end
+	end)
+	powerShadow:SetChecked(getConfig('power.shadow') ~= false)
 	cardY = placeWidget(powerShadow, inner, cardY, CHECK_H)
 
 	-- Power text position anchor
@@ -918,99 +906,87 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	local iconsCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
 
 	-- Show role icon checkbox
-	local showRoleCheck = Widgets.CreateCheckButton(inner, 'Show Role Icon')
-	showRoleCheck:SetChecked(getConfig('statusIcons.role') ~= false)
-	showRoleCheck._callback = function(checked)
+	local showRoleCheck = Widgets.CreateCheckButton(inner, 'Show Role Icon', function(checked)
 		setConfig('statusIcons.role', checked)
-	end
+	end)
+	showRoleCheck:SetChecked(getConfig('statusIcons.role') ~= false)
 	cardY = placeWidget(showRoleCheck, inner, cardY, CHECK_H)
 
 	-- Show leader icon checkbox
-	local showLeaderCheck = Widgets.CreateCheckButton(inner, 'Show Leader Icon')
-	showLeaderCheck:SetChecked(getConfig('statusIcons.leader') ~= false)
-	showLeaderCheck._callback = function(checked)
+	local showLeaderCheck = Widgets.CreateCheckButton(inner, 'Show Leader Icon', function(checked)
 		setConfig('statusIcons.leader', checked)
-	end
+	end)
+	showLeaderCheck:SetChecked(getConfig('statusIcons.leader') ~= false)
 	cardY = placeWidget(showLeaderCheck, inner, cardY, CHECK_H)
 
 	-- Show ready check checkbox
-	local showReadyCheckCheck = Widgets.CreateCheckButton(inner, 'Show Ready Check')
-	showReadyCheckCheck:SetChecked(getConfig('statusIcons.readyCheck') ~= false)
-	showReadyCheckCheck._callback = function(checked)
+	local showReadyCheckCheck = Widgets.CreateCheckButton(inner, 'Show Ready Check', function(checked)
 		setConfig('statusIcons.readyCheck', checked)
-	end
+	end)
+	showReadyCheckCheck:SetChecked(getConfig('statusIcons.readyCheck') ~= false)
 	cardY = placeWidget(showReadyCheckCheck, inner, cardY, CHECK_H)
 
 	-- Show raid icon checkbox
-	local showRaidIconCheck = Widgets.CreateCheckButton(inner, 'Show Raid Icon')
-	showRaidIconCheck:SetChecked(getConfig('statusIcons.raidIcon') ~= false)
-	showRaidIconCheck._callback = function(checked)
+	local showRaidIconCheck = Widgets.CreateCheckButton(inner, 'Show Raid Icon', function(checked)
 		setConfig('statusIcons.raidIcon', checked)
-	end
+	end)
+	showRaidIconCheck:SetChecked(getConfig('statusIcons.raidIcon') ~= false)
 	cardY = placeWidget(showRaidIconCheck, inner, cardY, CHECK_H)
 
 	-- Show combat icon checkbox
-	local showCombatIconCheck = Widgets.CreateCheckButton(inner, 'Show Combat Icon')
-	showCombatIconCheck:SetChecked(getConfig('statusIcons.combat') or false)
-	showCombatIconCheck._callback = function(checked)
+	local showCombatIconCheck = Widgets.CreateCheckButton(inner, 'Show Combat Icon', function(checked)
 		setConfig('statusIcons.combat', checked)
-	end
+	end)
+	showCombatIconCheck:SetChecked(getConfig('statusIcons.combat') or false)
 	cardY = placeWidget(showCombatIconCheck, inner, cardY, CHECK_H)
 
 	-- Show resting icon checkbox
-	local showRestingCheck = Widgets.CreateCheckButton(inner, 'Show Resting Icon')
-	showRestingCheck:SetChecked(getConfig('statusIcons.resting') or false)
-	showRestingCheck._callback = function(checked)
+	local showRestingCheck = Widgets.CreateCheckButton(inner, 'Show Resting Icon', function(checked)
 		setConfig('statusIcons.resting', checked)
-	end
+	end)
+	showRestingCheck:SetChecked(getConfig('statusIcons.resting') or false)
 	cardY = placeWidget(showRestingCheck, inner, cardY, CHECK_H)
 
 	-- Show phase icon checkbox
-	local showPhaseCheck = Widgets.CreateCheckButton(inner, 'Show Phase Icon')
-	showPhaseCheck:SetChecked(getConfig('statusIcons.phase') or false)
-	showPhaseCheck._callback = function(checked)
+	local showPhaseCheck = Widgets.CreateCheckButton(inner, 'Show Phase Icon', function(checked)
 		setConfig('statusIcons.phase', checked)
-	end
+	end)
+	showPhaseCheck:SetChecked(getConfig('statusIcons.phase') or false)
 	cardY = placeWidget(showPhaseCheck, inner, cardY, CHECK_H)
 
 	-- Show resurrect icon checkbox
-	local showResurrectCheck = Widgets.CreateCheckButton(inner, 'Show Resurrect Icon')
-	showResurrectCheck:SetChecked(getConfig('statusIcons.resurrect') or false)
-	showResurrectCheck._callback = function(checked)
+	local showResurrectCheck = Widgets.CreateCheckButton(inner, 'Show Resurrect Icon', function(checked)
 		setConfig('statusIcons.resurrect', checked)
-	end
+	end)
+	showResurrectCheck:SetChecked(getConfig('statusIcons.resurrect') or false)
 	cardY = placeWidget(showResurrectCheck, inner, cardY, CHECK_H)
 
 	-- Show summon icon checkbox
-	local showSummonCheck = Widgets.CreateCheckButton(inner, 'Show Summon Icon')
-	showSummonCheck:SetChecked(getConfig('statusIcons.summon') or false)
-	showSummonCheck._callback = function(checked)
+	local showSummonCheck = Widgets.CreateCheckButton(inner, 'Show Summon Icon', function(checked)
 		setConfig('statusIcons.summon', checked)
-	end
+	end)
+	showSummonCheck:SetChecked(getConfig('statusIcons.summon') or false)
 	cardY = placeWidget(showSummonCheck, inner, cardY, CHECK_H)
 
 	-- Show raid role icon checkbox
-	local showRaidRoleCheck = Widgets.CreateCheckButton(inner, 'Show Raid Role Icon')
-	showRaidRoleCheck:SetChecked(getConfig('statusIcons.raidRole') or false)
-	showRaidRoleCheck._callback = function(checked)
+	local showRaidRoleCheck = Widgets.CreateCheckButton(inner, 'Show Raid Role Icon', function(checked)
 		setConfig('statusIcons.raidRole', checked)
-	end
+	end)
+	showRaidRoleCheck:SetChecked(getConfig('statusIcons.raidRole') or false)
 	cardY = placeWidget(showRaidRoleCheck, inner, cardY, CHECK_H)
 
 	-- Show PvP icon checkbox
-	local showPvPCheck = Widgets.CreateCheckButton(inner, 'Show PvP Icon')
-	showPvPCheck:SetChecked(getConfig('statusIcons.pvp') or false)
-	showPvPCheck._callback = function(checked)
+	local showPvPCheck = Widgets.CreateCheckButton(inner, 'Show PvP Icon', function(checked)
 		setConfig('statusIcons.pvp', checked)
-	end
+	end)
+	showPvPCheck:SetChecked(getConfig('statusIcons.pvp') or false)
 	cardY = placeWidget(showPvPCheck, inner, cardY, CHECK_H)
 
 	-- Show status text checkbox
-	local showStatusTextCheck = Widgets.CreateCheckButton(inner, 'Show Status Text')
-	showStatusTextCheck:SetChecked(getConfig('statusText') ~= false)
-	showStatusTextCheck._callback = function(checked)
+	local showStatusTextCheck = Widgets.CreateCheckButton(inner, 'Show Status Text', function(checked)
 		setConfig('statusText', checked)
-	end
+	end)
+	showStatusTextCheck:SetChecked(getConfig('statusText') ~= false)
 	cardY = placeWidget(showStatusTextCheck, inner, cardY, CHECK_H)
 
 	restY = Widgets.EndCard(iconsCard, afterColorContainer, cardY)
