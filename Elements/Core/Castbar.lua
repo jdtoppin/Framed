@@ -39,12 +39,21 @@ function F.Elements.Castbar.Setup(self, width, height, config)
 	local ic = config.interruptibleColor
 	castbar:SetStatusBarColor(ic[1], ic[2], ic[3], 1)
 
-	-- Background texture
+	-- Background texture (togglable)
 	local bg = castbar:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(castbar)
 	bg:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 	local bgC = C.Colors.background
 	bg:SetVertexColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+	castbar._bg = bg
+	-- Always hide the wrapper border — cast bar only shows the bg fill
+	castbar._wrapper:SetBackdropBorderColor(0, 0, 0, 0)
+
+	castbar._backgroundMode = config.backgroundMode or 'always'
+	if(castbar._backgroundMode == 'oncast') then
+		bg:Hide()
+		castbar._wrapper:SetBackdropColor(0, 0, 0, 0)
+	end
 
 	-- --------------------------------------------------------
 	-- Spell icon (optional) — positioned to the left of the bar
@@ -99,10 +108,27 @@ function F.Elements.Castbar.Setup(self, width, height, config)
 			local icc = config.interruptibleColor
 			cb:SetStatusBarColor(icc[1], icc[2], icc[3], 1)
 		end
+		-- Show background when cast starts (oncast mode)
+		if(cb._backgroundMode == 'oncast') then
+			if(cb._bg) then cb._bg:Show() end
+			local bgC = C.Colors.background
+			cb._wrapper:SetBackdropColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+		end
 	end
 
 	-- Channel casts share the same color logic
 	castbar.PostChannelStart = castbar.PostCastStart
+
+	-- Hide background when cast ends (oncast mode)
+	local function onCastEnd(cb)
+		if(cb._backgroundMode == 'oncast') then
+			if(cb._bg) then cb._bg:Hide() end
+			cb._wrapper:SetBackdropColor(0, 0, 0, 0)
+		end
+	end
+	castbar.PostCastStop    = onCastEnd
+	castbar.PostChannelStop = onCastEnd
+	castbar.PostCastFail    = onCastEnd
 
 	-- --------------------------------------------------------
 	-- Assign to oUF — activates the Castbar element

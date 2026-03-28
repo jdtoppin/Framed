@@ -575,8 +575,8 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- Power bar position (top/bottom of health bar)
 	cardY = placeHeading(inner, 'Position', 3, cardY)
 	local powerPosSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
-		{ text = 'Bottom', value = 'bottom' },
 		{ text = 'Top',    value = 'top' },
+		{ text = 'Bottom', value = 'bottom' },
 	})
 	powerPosSwitch:SetValue(getConfig('power.position') or 'bottom')
 	powerPosSwitch:SetOnSelect(function(value)
@@ -653,12 +653,102 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showCastCheck:SetChecked(getConfig('showCastBar') ~= false)
 	cardY = placeWidget(showCastCheck, inner, cardY, CHECK_H)
 
-	restY = Widgets.EndCard(castCard, afterColorContainer, cardY)
+	-- Size mode: attached (syncs width with parent frame) or detached (own dimensions)
+	cardY = placeHeading(inner, 'Size', 3, cardY)
+	local castSizeSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+		{ text = 'Attached', value = 'attached' },
+		{ text = 'Detached', value = 'detached' },
+	})
+	castSizeSwitch:SetValue(getConfig('castbar.sizeMode') or 'attached')
+	cardY = placeWidget(castSizeSwitch, inner, cardY, SWITCH_H)
+
+	local castSizeSwitchEndY = cardY
+
+	-- Detached width slider
+	local castWidthSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 50, 400, 1)
+	castWidthSlider:SetValue(getConfig('castbar.width') or getConfig('width') or 192)
+	castWidthSlider:SetAfterValueChanged(function(value)
+		setConfig('castbar.width', value)
+	end)
+
+	-- Height slider (shown in both modes)
+	local castHeightSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 4, 40, 1)
+	castHeightSlider:SetValue(getConfig('castbar.height') or 16)
+	castHeightSlider:SetAfterValueChanged(function(value)
+		setConfig('castbar.height', value)
+	end)
+
+	-- Background heading + switch (created here, positioned by reflow)
+	local castBgHeading, castBgHeadingH = Widgets.CreateHeading(inner, 'Background', 3)
+	local castBgSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+		{ text = 'Always',  value = 'always' },
+		{ text = 'On Cast', value = 'oncast' },
+	})
+	castBgSwitch:SetValue(getConfig('castbar.backgroundMode') or 'always')
+	castBgSwitch:SetOnSelect(function(value)
+		setConfig('castbar.backgroundMode', value)
+	end)
+
+	-- Reflow based on size mode
+	local curCastSizeMode = getConfig('castbar.sizeMode') or 'attached'
+
+	local function reflowCastSize()
+		local y = castSizeSwitchEndY
+		if(curCastSizeMode == 'detached') then
+			castWidthSlider:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, y)
+			castWidthSlider:Show()
+			y = y - SLIDER_H - C.Spacing.normal
+		else
+			castWidthSlider:Hide()
+		end
+		castHeightSlider:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, y)
+		castHeightSlider:Show()
+		y = y - SLIDER_H - C.Spacing.normal
+		-- Background heading
+		castBgHeading:ClearAllPoints()
+		Widgets.SetPoint(castBgHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - castBgHeadingH
+		-- Background switch
+		castBgSwitch:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - SWITCH_H - C.Spacing.normal
+		cardY = y
+	end
+
+	reflowCastSize()
+
+	castSizeSwitch:SetOnSelect(function(value)
+		curCastSizeMode = value
+		setConfig('castbar.sizeMode', value)
+		reflowCastSize()
+		local newCastEndY = Widgets.EndCard(castCard, afterColorContainer, cardY)
+		-- Update afterColorContainer height so scroll content stays correct
+		local newAfterColorH = math.abs(newCastEndY) + C.Spacing.normal + afterCastContainer:GetHeight()
+		afterColorContainer:SetHeight(newAfterColorH)
+		scroll._afterColorRestHeight = newAfterColorH
+		-- Recalculate total content height
+		local totalH
+		if(colorCard) then
+			totalH = math.abs(colorCard._startY) + colorCard:GetHeight() + C.Spacing.normal + newAfterColorH + C.Spacing.normal
+		else
+			totalH = newAfterColorH + C.Spacing.normal
+		end
+		content:SetHeight(totalH)
+	end)
+
+	local castCardEndY = Widgets.EndCard(castCard, afterColorContainer, cardY)
+
+	-- Container for everything after the cast card — anchored to castCard
+	-- bottom so that when castCard resizes (attached/detached reflow),
+	-- all subsequent cards shift automatically.
+	local afterCastContainer = CreateFrame('Frame', nil, afterColorContainer)
+	afterCastContainer:SetPoint('TOPLEFT', castCard, 'BOTTOMLEFT', 0, -C.Spacing.normal)
+	afterCastContainer:SetWidth(width)
+	restY = 0
 
 	-- ── Name ──────────────────────────────────────────────────
-	restY = placeHeading(afterColorContainer, 'Name', 2, restY)
+	restY = placeHeading(afterCastContainer, 'Name', 2, restY)
 
-	local nameCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
+	local nameCard, inner, cardY = Widgets.StartCard(afterCastContainer, width, restY)
 
 	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
 		setConfig('showName', checked)
@@ -779,12 +869,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(nameOffsetY, inner, cardY, SLIDER_H)
 
-	restY = Widgets.EndCard(nameCard, afterColorContainer, cardY)
+	restY = Widgets.EndCard(nameCard, afterCastContainer, cardY)
 
 	-- ── Card: Health Text ─────────────────────────────────────
-	restY = placeHeading(afterColorContainer, 'Health Text', 2, restY)
+	restY = placeHeading(afterCastContainer, 'Health Text', 2, restY)
 
-	local healthTextCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
+	local healthTextCard, inner, cardY = Widgets.StartCard(afterCastContainer, width, restY)
 
 	-- Attach to Name toggle
 	local healthPositionWidgets = {}
@@ -893,12 +983,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	healthPositionWidgets[3] = healthOffsetY
 	updateHealthPositionDimming(isAttached)
 
-	restY = Widgets.EndCard(healthTextCard, afterColorContainer, cardY)
+	restY = Widgets.EndCard(healthTextCard, afterCastContainer, cardY)
 
 	-- ── Card: Power Text ──────────────────────────────────────
-	restY = placeHeading(afterColorContainer, 'Power Text', 2, restY)
+	restY = placeHeading(afterCastContainer, 'Power Text', 2, restY)
 
-	local powerTextCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
+	local powerTextCard, inner, cardY = Widgets.StartCard(afterCastContainer, width, restY)
 
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text', function(checked)
 		setConfig('power.showText', checked)
@@ -963,12 +1053,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	cardY = placeWidget(powerOffsetY, inner, cardY, SLIDER_H)
 
-	restY = Widgets.EndCard(powerTextCard, afterColorContainer, cardY)
+	restY = Widgets.EndCard(powerTextCard, afterCastContainer, cardY)
 
 	-- ── Status Icons ──────────────────────────────────────────
-	restY = placeHeading(afterColorContainer, 'Status Icons', 2, restY)
+	restY = placeHeading(afterCastContainer, 'Status Icons', 2, restY)
 
-	local iconsCard, inner, cardY = Widgets.StartCard(afterColorContainer, width, restY)
+	local iconsCard, inner, cardY = Widgets.StartCard(afterCastContainer, width, restY)
 
 	-- Show role icon checkbox
 	local showRoleCheck = Widgets.CreateCheckButton(inner, 'Show Role Icon', function(checked)
@@ -1054,11 +1144,14 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showStatusTextCheck:SetChecked(getConfig('statusText') ~= false)
 	cardY = placeWidget(showStatusTextCheck, inner, cardY, CHECK_H)
 
-	restY = Widgets.EndCard(iconsCard, afterColorContainer, cardY)
+	restY = Widgets.EndCard(iconsCard, afterCastContainer, cardY)
 
-	-- ── Resize content to fit all widgets ─────────────────────
-	-- Store rest height for dynamic reflow when the color card resizes
-	local afterColorRestH = math.abs(restY)
+	-- ── Resize containers to fit all widgets ──────────────────
+	local afterCastRestH = math.abs(restY)
+	afterCastContainer:SetHeight(afterCastRestH)
+
+	-- afterColorContainer height: cast card bottom offset + spacing + afterCast content
+	local afterColorRestH = math.abs(castCardEndY) + C.Spacing.normal + afterCastRestH
 	scroll._afterColorRestHeight = afterColorRestH
 	afterColorContainer:SetHeight(afterColorRestH)
 
