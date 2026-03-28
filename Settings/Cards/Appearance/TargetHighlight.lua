@@ -6,17 +6,13 @@ local B = F.FrameSettingsBuilder
 
 F.AppearanceCards = F.AppearanceCards or {}
 
-local SLIDER_H     = 26
 local SWATCH_H     = 20
-local CARD_PADDING = 12
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 function F.AppearanceCards.TargetHighlight(parent, width, getConfig, setConfig, fireChange)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local widgetW = math.min(width - CARD_PADDING * 2, 220)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, 220)
 
-	cardY = placeHeading(inner, 'Color', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Color', 3, cardY)
 
 	local thColorPicker = Widgets.CreateColorPicker(inner)
 	thColorPicker:SetHasAlpha(true)
@@ -40,10 +36,8 @@ function F.AppearanceCards.TargetHighlight(parent, width, getConfig, setConfig, 
 	thWidthSlider:SetAfterValueChanged(function(value)
 		setConfig('targetHighlightWidth', value)
 	end)
-	cardY = placeWidget(thWidthSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(thWidthSlider, inner, cardY, B.SLIDER_H)
 
 	Widgets.EndCard(card, parent, cardY)
-	card:ClearAllPoints()
-	card._startY = 0
 	return card
 end

@@ -6,33 +6,26 @@ local B = F.FrameSettingsBuilder
 
 F.SettingsCards = F.SettingsCards or {}
 
-local SLIDER_H     = B.SLIDER_H
-local SWITCH_H     = B.SWITCH_H
-local DROPDOWN_H   = B.DROPDOWN_H
-local CHECK_H      = B.CHECK_H
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local CARD_PADDING = 12
-	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
 
 	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
 		setConfig('showName', checked)
 	end)
 	showNameCheck:SetChecked(getConfig('showName') ~= false)
-	cardY = placeWidget(showNameCheck, inner, cardY, CHECK_H)
+	cardY = B.PlaceWidget(showNameCheck, inner, cardY, B.CHECK_H)
 
 	-- Name color mode switch
-	cardY = placeHeading(inner, 'Name Color', 3, cardY)
-	local nameColorSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
+	cardY = B.PlaceHeading(inner, 'Name Color', 3, cardY)
+	local nameColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',  value = 'class' },
 		{ text = 'White',  value = 'white' },
 		{ text = 'Custom', value = 'custom' },
 	})
 	nameColorSwitch:SetValue(getConfig('name.colorMode') or 'class')
-	cardY = placeWidget(nameColorSwitch, inner, cardY, SWITCH_H)
+	cardY = B.PlaceWidget(nameColorSwitch, inner, cardY, B.SWITCH_H)
 
 	-- Y after the color switch -- reflow starts from here
 	local nameColorSwitchEndY = cardY
@@ -99,6 +92,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 	-- Reflow ALL widgets based on color mode
 	local curNameColorMode = getConfig('name.colorMode') or 'class'
+	local initialized = false
 
 	local function reflowNameCard()
 		local y = nameColorSwitchEndY
@@ -114,7 +108,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 		nameFontSize:ClearAllPoints()
 		Widgets.SetPoint(nameFontSize, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - SLIDER_H - C.Spacing.normal
+		y = y - B.SLIDER_H - C.Spacing.normal
 
 		outlineHeading:ClearAllPoints()
 		Widgets.SetPoint(outlineHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
@@ -122,11 +116,11 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 		nameOutline:ClearAllPoints()
 		Widgets.SetPoint(nameOutline, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - DROPDOWN_H - C.Spacing.normal
+		y = y - B.DROPDOWN_H - C.Spacing.normal
 
 		nameShadow:ClearAllPoints()
 		Widgets.SetPoint(nameShadow, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - CHECK_H - C.Spacing.normal
+		y = y - B.CHECK_H - C.Spacing.normal
 
 		-- Text Position
 		posHeading:ClearAllPoints()
@@ -144,17 +138,15 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 		nameOffsetX:ClearAllPoints()
 		Widgets.SetPoint(nameOffsetX, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - SLIDER_H - C.Spacing.normal
+		y = y - B.SLIDER_H - C.Spacing.normal
 
 		nameOffsetY:ClearAllPoints()
 		Widgets.SetPoint(nameOffsetY, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - SLIDER_H - C.Spacing.normal
+		y = y - B.SLIDER_H - C.Spacing.normal
 
 		Widgets.EndCard(card, parent, y)
 		if(initialized and onResize) then onResize() end
 	end
-
-	local initialized = false
 
 	nameColorSwitch:SetOnSelect(function(value)
 		curNameColorMode = value

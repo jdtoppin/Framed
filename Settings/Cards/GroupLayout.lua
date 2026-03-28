@@ -6,17 +6,10 @@ local B = F.FrameSettingsBuilder
 
 F.SettingsCards = F.SettingsCards or {}
 
-local SLIDER_H     = B.SLIDER_H
-local SWITCH_H     = B.SWITCH_H
-local DROPDOWN_H   = B.DROPDOWN_H
-local CHECK_H      = B.CHECK_H
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local CARD_PADDING = 12
-	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
 
 	-- Spacing slider
 	local spacingSlider = Widgets.CreateSlider(inner, 'Spacing', widgetW, 0, 20, 1)
@@ -24,11 +17,11 @@ function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConf
 	spacingSlider:SetAfterValueChanged(function(value)
 		setConfig('spacing', value)
 	end)
-	cardY = placeWidget(spacingSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(spacingSlider, inner, cardY, B.SLIDER_H)
 
 	-- Orientation switch
-	cardY = placeHeading(inner, 'Orientation', 3, cardY)
-	local orientSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
+	cardY = B.PlaceHeading(inner, 'Orientation', 3, cardY)
+	local orientSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Vertical',   value = 'vertical' },
 		{ text = 'Horizontal', value = 'horizontal' },
 	})
@@ -36,10 +29,10 @@ function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConf
 	orientSwitch:SetOnSelect(function(value)
 		setConfig('orientation', value)
 	end)
-	cardY = placeWidget(orientSwitch, inner, cardY, SWITCH_H)
+	cardY = B.PlaceWidget(orientSwitch, inner, cardY, B.SWITCH_H)
 
 	-- Growth direction dropdown
-	cardY = placeHeading(inner, 'Growth Direction', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Growth Direction', 3, cardY)
 	local growthDropdown = Widgets.CreateDropdown(inner, widgetW)
 	growthDropdown:SetItems({
 		{ text = 'Top to Bottom',  value = 'topToBottom' },
@@ -51,10 +44,8 @@ function F.SettingsCards.GroupLayout(parent, width, unitType, getConfig, setConf
 	growthDropdown:SetOnSelect(function(value)
 		setConfig('growthDirection', value)
 	end)
-	cardY = placeWidget(growthDropdown, inner, cardY, DROPDOWN_H)
+	cardY = B.PlaceWidget(growthDropdown, inner, cardY, B.DROPDOWN_H)
 
 	Widgets.EndCard(card, parent, cardY)
-	card:ClearAllPoints()
-	card._startY = 0
 	return card
 end

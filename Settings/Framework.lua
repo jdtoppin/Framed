@@ -264,7 +264,20 @@ function Settings.SetActivePanel(panelId)
 
 	Settings._activePanelFrame = Settings._panelFrames[panelId]
 	if(Settings._activePanelFrame) then
+		local SLIDE_OFFSET = 20
+		Settings._activePanelFrame:SetAlpha(0)
 		Settings._activePanelFrame:Show()
+		Widgets.StartAnimation(Settings._activePanelFrame, 'panelTransition', 0, 1, C.Animation.durationNormal, function(frame, t)
+			frame:SetAlpha(t)
+			frame:ClearAllPoints()
+			local yOff = -(SLIDE_OFFSET * (1 - t))
+			frame:SetPoint('TOPLEFT', Settings._contentParent, 'TOPLEFT', 0, yOff)
+			frame:SetPoint('BOTTOMRIGHT', Settings._contentParent, 'BOTTOMRIGHT', 0, yOff)
+		end, function(frame)
+			frame:SetAlpha(1)
+			frame:ClearAllPoints()
+			frame:SetAllPoints(Settings._contentParent)
+		end)
 		-- Track active scroll so sidebar wheel forwarding can find it
 		Settings._activeScroll = Settings._activePanelFrame
 		-- Reset scroll to top so the hint arrow refreshes for the new panel

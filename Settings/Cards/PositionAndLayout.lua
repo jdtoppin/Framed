@@ -6,17 +6,10 @@ local B = F.FrameSettingsBuilder
 
 F.SettingsCards = F.SettingsCards or {}
 
-local SLIDER_H     = B.SLIDER_H
-local SWITCH_H     = B.SWITCH_H
-local DROPDOWN_H   = B.DROPDOWN_H
-local CHECK_H      = B.CHECK_H
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local CARD_PADDING = 12
-	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
 
 	-- Width slider
 	local widthSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 20, 300, 1)
@@ -24,7 +17,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	widthSlider:SetAfterValueChanged(function(value)
 		setConfig('width', value)
 	end)
-	cardY = placeWidget(widthSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(widthSlider, inner, cardY, B.SLIDER_H)
 
 	-- Height slider
 	local heightSlider = Widgets.CreateSlider(inner, 'Height', widgetW, 16, 100, 1)
@@ -32,7 +25,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	heightSlider:SetAfterValueChanged(function(value)
 		setConfig('height', value)
 	end)
-	cardY = placeWidget(heightSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(heightSlider, inner, cardY, B.SLIDER_H)
 
 	-- Resize Anchor picker -- controls which corner stays fixed during resize
 	local raHeading, raHeadingH = Widgets.CreateHeading(inner, 'Resize Anchor', 3)
@@ -55,31 +48,31 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	anchorPicker:SetOnChanged(function(point)
 		setConfig('position.anchor', point)
 	end)
-	cardY = placeWidget(anchorPicker, inner, cardY, 56)
+	cardY = B.PlaceWidget(anchorPicker, inner, cardY, 56)
 
 	-- Read the actual frame position from config
 	local actualX = getConfig('position.x') or 0
 	local actualY = getConfig('position.y') or 0
 
 	-- Frame Position sliders (X / Y)
-	cardY = placeHeading(inner, 'Frame Position', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Frame Position', 3, cardY)
 
 	local posXSlider = Widgets.CreateSlider(inner, 'X', widgetW, -1000, 1000, 1)
 	posXSlider:SetValue(actualX)
 	posXSlider:SetAfterValueChanged(function(value)
 		setConfig('position.x', value)
 	end)
-	cardY = placeWidget(posXSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(posXSlider, inner, cardY, B.SLIDER_H)
 
 	local posYSlider = Widgets.CreateSlider(inner, 'Y', widgetW, -1000, 1000, 1)
 	posYSlider:SetValue(actualY)
 	posYSlider:SetAfterValueChanged(function(value)
 		setConfig('position.y', value)
 	end)
-	cardY = placeWidget(posYSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(posYSlider, inner, cardY, B.SLIDER_H)
 
 	-- Pixel nudge arrows
-	cardY = placeHeading(inner, 'Pixel Nudge', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Pixel Nudge', 3, cardY)
 
 	local nudgeFrame = CreateFrame('Frame', nil, inner)
 	nudgeFrame:SetSize(100, 50)
@@ -107,10 +100,8 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	nudgeLeft:SetOnClick(function() nudge(-1, 0) end)
 	nudgeRight:SetOnClick(function() nudge(1, 0) end)
 
-	cardY = placeWidget(nudgeFrame, inner, cardY, 50)
+	cardY = B.PlaceWidget(nudgeFrame, inner, cardY, 50)
 
 	Widgets.EndCard(card, parent, cardY)
-	card:ClearAllPoints()
-	card._startY = 0
 	return card
 end

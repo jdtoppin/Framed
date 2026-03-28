@@ -6,12 +6,6 @@ local B = F.FrameSettingsBuilder
 
 F.SettingsCards = F.SettingsCards or {}
 
-local SLIDER_H     = B.SLIDER_H
-local SWITCH_H     = B.SWITCH_H
-local DROPDOWN_H   = B.DROPDOWN_H
-local CHECK_H      = B.CHECK_H
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 -- Per-power-type color overrides (filtered by relevance)
 local ALL_POWER_TYPES = {
@@ -45,18 +39,17 @@ local CLASS_POWER_TYPES = {
 
 function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local CARD_PADDING = 12
-	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
 
 	local showPowerCheck = Widgets.CreateCheckButton(inner, 'Show Power Bar', function(checked)
 		setConfig('showPower', checked)
 	end)
 	showPowerCheck:SetChecked(getConfig('showPower') ~= false)
-	cardY = placeWidget(showPowerCheck, inner, cardY, CHECK_H)
+	cardY = B.PlaceWidget(showPowerCheck, inner, cardY, B.CHECK_H)
 
 	-- Power bar position (top/bottom of health bar)
-	cardY = placeHeading(inner, 'Position', 3, cardY)
-	local powerPosSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
+	cardY = B.PlaceHeading(inner, 'Position', 3, cardY)
+	local powerPosSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Top',    value = 'top' },
 		{ text = 'Bottom', value = 'bottom' },
 	})
@@ -64,7 +57,7 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 	powerPosSwitch:SetOnSelect(function(value)
 		setConfig('power.position', value)
 	end)
-	cardY = placeWidget(powerPosSwitch, inner, cardY, SWITCH_H)
+	cardY = B.PlaceWidget(powerPosSwitch, inner, cardY, B.SWITCH_H)
 
 	-- Power bar height slider
 	local powerHeightSlider = Widgets.CreateSlider(inner, 'Power Bar Height', widgetW, 1, 20, 1)
@@ -72,7 +65,7 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 	powerHeightSlider:SetAfterValueChanged(function(value)
 		setConfig('power.height', value)
 	end)
-	cardY = placeWidget(powerHeightSlider, inner, cardY, SLIDER_H)
+	cardY = B.PlaceWidget(powerHeightSlider, inner, cardY, B.SLIDER_H)
 
 	-- Per-power-type color overrides (filtered by relevance)
 	local filterTokens
@@ -89,12 +82,10 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 				function(r, g, b) setConfig(configKey, { r, g, b }) end)
 			local saved = getConfig(configKey) or pt.default
 			picker:SetColor(saved[1], saved[2], saved[3], 1)
-			cardY = placeWidget(picker, inner, cardY, 22)
+			cardY = B.PlaceWidget(picker, inner, cardY, 22)
 		end
 	end
 
 	Widgets.EndCard(card, parent, cardY)
-	card:ClearAllPoints()
-	card._startY = 0
 	return card
 end

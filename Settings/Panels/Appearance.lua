@@ -78,7 +78,7 @@ F.Settings.RegisterPanel({
 			grid:SetWidth(gridW)
 			content:SetWidth(newW)
 			content:SetHeight(grid:GetTotalHeight())
-		end)
+		end, 'AppearancePanel.resize')
 
 		return scroll
 	end,

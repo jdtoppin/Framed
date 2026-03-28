@@ -321,6 +321,16 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 	valueBox._editbox:SetJustifyH('CENTER')
 	valueBox:SetText(FormatValue(minVal))
 
+	-- Filter non-numeric characters during typing
+	valueBox._editbox:HookScript('OnTextChanged', function(self, userInput)
+		if(not userInput) then return end
+		local text = self:GetText()
+		local filtered = text:gsub('[^%d%.%-]', '')
+		if(filtered ~= text) then
+			self:SetText(filtered)
+		end
+	end)
+
 	-- Commit typed value on Enter or focus loss
 	local function commitTypedValue()
 		local raw = tonumber(valueBox:GetText())

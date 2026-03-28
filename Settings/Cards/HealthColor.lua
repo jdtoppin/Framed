@@ -6,28 +6,21 @@ local B = F.FrameSettingsBuilder
 
 F.SettingsCards = F.SettingsCards or {}
 
-local SLIDER_H     = B.SLIDER_H
-local SWITCH_H     = B.SWITCH_H
-local DROPDOWN_H   = B.DROPDOWN_H
-local CHECK_H      = B.CHECK_H
-local placeWidget  = B.PlaceWidget
-local placeHeading = B.PlaceHeading
 
 function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local CARD_PADDING = 12  -- must match Widgets.Frame CARD_PADDING
-	local widgetW = math.min(width - CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
 
 	-- Health color mode switch
-	cardY = placeHeading(inner, 'Color Mode', 3, cardY)
-	local healthColorSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
+	cardY = B.PlaceHeading(inner, 'Color Mode', 3, cardY)
+	local healthColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',    value = 'class' },
 		{ text = 'Dark',     value = 'dark' },
 		{ text = 'Gradient', value = 'gradient' },
 		{ text = 'Custom',   value = 'custom' },
 	})
 	healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
-	cardY = placeWidget(healthColorSwitch, inner, cardY, SWITCH_H)
+	cardY = B.PlaceWidget(healthColorSwitch, inner, cardY, B.SWITCH_H)
 
 	-- Y after the mode switch -- reflow starts from here
 	local colorSwitchEndY = cardY
@@ -55,7 +48,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 				setConfig(thresholdKey, value)
 			end)
 			pctSlider:SetPoint('TOPLEFT', section, 'TOPLEFT', 0, sY - 22)
-			sY = sY - 22 - SLIDER_H - C.Spacing.normal
+			sY = sY - 22 - B.SLIDER_H - C.Spacing.normal
 		end
 
 		local h = math.abs(sY)
@@ -96,7 +89,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local lossHeading, lossHeadingH = Widgets.CreateHeading(inner, 'Health Loss Color', 3)
 
 	-- ── Loss color mode switch ──
-	local lossColorSwitch = Widgets.CreateSwitch(inner, widgetW, SWITCH_H, {
+	local lossColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',    value = 'class' },
 		{ text = 'Dark',     value = 'dark' },
 		{ text = 'Gradient', value = 'gradient' },
@@ -146,7 +139,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		-- Smooth bars
 		smoothCheck:ClearAllPoints()
 		Widgets.SetPoint(smoothCheck, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - CHECK_H - C.Spacing.normal
+		y = y - B.CHECK_H - C.Spacing.normal
 
 		-- Loss heading
 		lossHeading:ClearAllPoints()
@@ -156,7 +149,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		-- Loss switch
 		lossColorSwitch:ClearAllPoints()
 		Widgets.SetPoint(lossColorSwitch, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		y = y - SWITCH_H - C.Spacing.normal
+		y = y - B.SWITCH_H - C.Spacing.normal
 
 		-- Loss gradient section
 		if(curLossMode == 'gradient') then
@@ -177,11 +170,6 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		else
 			lossPicker:Hide()
 		end
-
-		-- Update card height
-		local innerH = math.abs(y)
-		inner:SetHeight(innerH)
-		card:SetHeight(innerH + CARD_PADDING * 2)
 
 		Widgets.EndCard(card, parent, y)
 		if(initialized and onResize) then onResize() end
