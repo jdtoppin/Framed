@@ -6,94 +6,271 @@ local B = F.FrameSettingsBuilder
 
 F.SettingsCards = F.SettingsCards or {}
 
+-- ============================================================
+-- Icon section builder
+-- Creates: checkbox + collapsible (anchor picker + size slider)
+-- Returns table with widgets and heights for reflow.
+-- ============================================================
+
+local ANCHOR_PICKER_H = 90  -- AnchorPicker with X/Y inputs (grid 52 + gap 6 + label 14 + input 18)
+local SIZE_SLIDER_H   = B.SLIDER_H
+
+local function buildIconSection(inner, widgetW, label, iconKey, defaultOn, getConfig, setConfig, reflowRef)
+	local defaults = F.StyleBuilder.ICON_DEFAULTS[iconKey]
+
+	-- Checkbox — callback saves config AND triggers reflow
+	local check = Widgets.CreateCheckButton(inner, label, function(checked)
+		setConfig('statusIcons.' .. iconKey, checked)
+		if(reflowRef[1]) then reflowRef[1]() end
+	end)
+	local savedVal = getConfig('statusIcons.' .. iconKey)
+	if(savedVal == nil) then savedVal = defaultOn end
+	check:SetChecked(savedVal)
+
+	-- Anchor picker
+	local picker = Widgets.CreateAnchorPicker(inner, widgetW)
+	local savedPoint = getConfig('statusIcons.' .. iconKey .. 'Point') or defaults.point
+	local savedX     = getConfig('statusIcons.' .. iconKey .. 'X')     or defaults.x
+	local savedY     = getConfig('statusIcons.' .. iconKey .. 'Y')     or defaults.y
+	picker:SetAnchor(savedPoint, savedX, savedY)
+	picker:SetOnChanged(function(point, x, y)
+		setConfig('statusIcons.' .. iconKey .. 'Point', point)
+		setConfig('statusIcons.' .. iconKey .. 'X', x)
+		setConfig('statusIcons.' .. iconKey .. 'Y', y)
+	end)
+
+	-- Size slider
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 4, 32, 1)
+	sizeSlider:SetValue(getConfig('statusIcons.' .. iconKey .. 'Size') or defaults.size)
+	sizeSlider:SetAfterValueChanged(function(value)
+		setConfig('statusIcons.' .. iconKey .. 'Size', value)
+	end)
+
+	return {
+		key        = iconKey,
+		check      = check,
+		picker     = picker,
+		sizeSlider = sizeSlider,
+		extras     = {},
+	}
+end
+
+-- ============================================================
+-- StatusIcons Card
+-- ============================================================
 
 function F.SettingsCards.StatusIcons(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
 
-	-- Show role icon checkbox
-	local showRoleCheck = Widgets.CreateCheckButton(inner, 'Show Role Icon', function(checked)
-		setConfig('statusIcons.role', checked)
+	-- ── Build all icon sections ──────────────────────────────
+
+	local sections = {}
+	local reflowRef = {}  -- indirection so builder can call reflow before it's defined
+
+	-- Role icon (special: has style dropdown)
+	local roleSection = buildIconSection(inner, widgetW, 'Show Role Icon', 'role', true, getConfig, setConfig, reflowRef)
+
+	-- Role style dropdown with icon previews
+	local RoleIcon = F.Elements.RoleIcon
+	local oUF = F.oUF
+	local ICON_SIZE = 14
+	local ICON_GAP = 2
+	local TC = RoleIcon.TEXCOORDS
+	local PREVIEW_ROLES = { 'TANK', 'HEALER', 'DAMAGER' }
+
+	local roleStyleLabel = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	roleStyleLabel:SetText('Role Icon Style')
+
+	local function decorateRoleRow(row, item)
+		if(not row._roleIcons) then
+			row._roleIcons = {}
+			row._customDecorations = row._customDecorations or {}
+			local iconX = 4
+			for j = 1, 3 do
+				local icon = row:CreateTexture(nil, 'ARTWORK')
+				icon:SetSize(ICON_SIZE, ICON_SIZE)
+				icon:SetPoint('LEFT', row, 'LEFT', iconX, 0)
+				row._roleIcons[j] = icon
+				row._customDecorations[#row._customDecorations + 1] = icon
+				iconX = iconX + ICON_SIZE + ICON_GAP
+			end
+		end
+		local texPath = RoleIcon.GetTexturePath(item.value)
+		for j, role in next, PREVIEW_ROLES do
+			local icon = row._roleIcons[j]
+			icon:SetTexture(texPath)
+			local tc = TC[role]
+			icon:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+			icon:Show()
+		end
+		local labelOffset = 4 + 3 * (ICON_SIZE + ICON_GAP) + 4
+		row._label:SetPoint('LEFT', row, 'LEFT', labelOffset, 0)
+	end
+
+	local roleStyleItems = {
+		{ text = 'Style 1', value = 2, _decorateRow = decorateRoleRow },
+		{ text = 'Style 2', value = 3, _decorateRow = decorateRoleRow },
+		{ text = 'Style 3', value = 4, _decorateRow = decorateRoleRow },
+		{ text = 'Style 4', value = 5, _decorateRow = decorateRoleRow },
+		{ text = 'Style 5', value = 6, _decorateRow = decorateRoleRow },
+		{ text = 'Style 6', value = 7, _decorateRow = decorateRoleRow },
+	}
+	local roleStyleDD = Widgets.CreateDropdown(inner, widgetW)
+
+	-- Add 3 role icon previews to the dropdown button face
+	local btnIcons = {}
+	local btnIconX = 6
+	for j = 1, 3 do
+		local icon = roleStyleDD:CreateTexture(nil, 'ARTWORK')
+		icon:SetSize(ICON_SIZE, ICON_SIZE)
+		icon:SetPoint('LEFT', roleStyleDD, 'LEFT', btnIconX, 0)
+		btnIcons[j] = icon
+		btnIconX = btnIconX + ICON_SIZE + ICON_GAP
+	end
+	-- Shift the label right to make room for the icons
+	local btnLabelOffset = btnIconX + 4
+	roleStyleDD._label:SetPoint('LEFT', roleStyleDD, 'LEFT', btnLabelOffset, 0)
+
+	local function updateButtonIcons(style)
+		local texPath = RoleIcon.GetTexturePath(style)
+		for j, role in next, PREVIEW_ROLES do
+			local icon = btnIcons[j]
+			icon:SetTexture(texPath)
+			local tc = TC[role]
+			icon:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+		end
+	end
+
+	roleStyleDD:SetItems(roleStyleItems)
+	local currentStyle = (F.Config and F.Config:Get('general.roleIconStyle')) or 2
+	roleStyleDD:SetValue(currentStyle)
+	updateButtonIcons(currentStyle)
+	roleStyleDD:SetOnSelect(function(value)
+		if(F.Config) then F.Config:Set('general.roleIconStyle', value) end
+		updateButtonIcons(value)
+		if(oUF and oUF.objects) then
+			for _, frame in next, oUF.objects do
+				local element = frame.GroupRoleIndicator
+				if(element and element.ForceUpdate) then
+					element:ForceUpdate()
+				end
+			end
+		end
 	end)
-	showRoleCheck:SetChecked(getConfig('statusIcons.role') ~= false)
-	cardY = B.PlaceWidget(showRoleCheck, inner, cardY, B.CHECK_H)
 
-	-- Show leader icon checkbox
-	local showLeaderCheck = Widgets.CreateCheckButton(inner, 'Show Leader Icon', function(checked)
-		setConfig('statusIcons.leader', checked)
-	end)
-	showLeaderCheck:SetChecked(getConfig('statusIcons.leader') ~= false)
-	cardY = B.PlaceWidget(showLeaderCheck, inner, cardY, B.CHECK_H)
+	roleSection.extras = {
+		{ widget = roleStyleLabel, height = C.Font.sizeSmall + 2 },
+		{ widget = roleStyleDD,    height = B.DROPDOWN_H },
+	}
+	sections[#sections + 1] = roleSection
 
-	-- Show ready check checkbox
-	local showReadyCheckCheck = Widgets.CreateCheckButton(inner, 'Show Ready Check', function(checked)
-		setConfig('statusIcons.readyCheck', checked)
-	end)
-	showReadyCheckCheck:SetChecked(getConfig('statusIcons.readyCheck') ~= false)
-	cardY = B.PlaceWidget(showReadyCheckCheck, inner, cardY, B.CHECK_H)
+	-- Leader
+	local leaderSection = buildIconSection(inner, widgetW, 'Show Leader Icon', 'leader', true, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = leaderSection
 
-	-- Show raid icon checkbox
-	local showRaidIconCheck = Widgets.CreateCheckButton(inner, 'Show Raid Icon', function(checked)
-		setConfig('statusIcons.raidIcon', checked)
-	end)
-	showRaidIconCheck:SetChecked(getConfig('statusIcons.raidIcon') ~= false)
-	cardY = B.PlaceWidget(showRaidIconCheck, inner, cardY, B.CHECK_H)
+	-- Ready Check
+	local readyCheckSection = buildIconSection(inner, widgetW, 'Show Ready Check', 'readyCheck', true, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = readyCheckSection
 
-	-- Show combat icon checkbox
-	local showCombatIconCheck = Widgets.CreateCheckButton(inner, 'Show Combat Icon', function(checked)
-		setConfig('statusIcons.combat', checked)
-	end)
-	showCombatIconCheck:SetChecked(getConfig('statusIcons.combat') or false)
-	cardY = B.PlaceWidget(showCombatIconCheck, inner, cardY, B.CHECK_H)
+	-- Raid Icon
+	local raidIconSection = buildIconSection(inner, widgetW, 'Show Raid Icon', 'raidIcon', true, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = raidIconSection
 
-	-- Show resting icon checkbox
-	local showRestingCheck = Widgets.CreateCheckButton(inner, 'Show Resting Icon', function(checked)
-		setConfig('statusIcons.resting', checked)
-	end)
-	showRestingCheck:SetChecked(getConfig('statusIcons.resting') or false)
-	cardY = B.PlaceWidget(showRestingCheck, inner, cardY, B.CHECK_H)
+	-- Combat Icon
+	local combatSection = buildIconSection(inner, widgetW, 'Show Combat Icon', 'combat', false, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = combatSection
 
-	-- Show phase icon checkbox
-	local showPhaseCheck = Widgets.CreateCheckButton(inner, 'Show Phase Icon', function(checked)
-		setConfig('statusIcons.phase', checked)
-	end)
-	showPhaseCheck:SetChecked(getConfig('statusIcons.phase') or false)
-	cardY = B.PlaceWidget(showPhaseCheck, inner, cardY, B.CHECK_H)
+	-- Resting Icon
+	local restingSection = buildIconSection(inner, widgetW, 'Show Resting Icon', 'resting', false, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = restingSection
 
-	-- Show resurrect icon checkbox
-	local showResurrectCheck = Widgets.CreateCheckButton(inner, 'Show Resurrect Icon', function(checked)
-		setConfig('statusIcons.resurrect', checked)
-	end)
-	showResurrectCheck:SetChecked(getConfig('statusIcons.resurrect') or false)
-	cardY = B.PlaceWidget(showResurrectCheck, inner, cardY, B.CHECK_H)
+	-- Phase Icon
+	local phaseSection = buildIconSection(inner, widgetW, 'Show Phase Icon', 'phase', false, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = phaseSection
 
-	-- Show summon icon checkbox
-	local showSummonCheck = Widgets.CreateCheckButton(inner, 'Show Summon Icon', function(checked)
-		setConfig('statusIcons.summon', checked)
-	end)
-	showSummonCheck:SetChecked(getConfig('statusIcons.summon') or false)
-	cardY = B.PlaceWidget(showSummonCheck, inner, cardY, B.CHECK_H)
+	-- Resurrect Icon
+	local resurrectSection = buildIconSection(inner, widgetW, 'Show Resurrect Icon', 'resurrect', false, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = resurrectSection
 
-	-- Show raid role icon checkbox
-	local showRaidRoleCheck = Widgets.CreateCheckButton(inner, 'Show Raid Role Icon', function(checked)
-		setConfig('statusIcons.raidRole', checked)
-	end)
-	showRaidRoleCheck:SetChecked(getConfig('statusIcons.raidRole') or false)
-	cardY = B.PlaceWidget(showRaidRoleCheck, inner, cardY, B.CHECK_H)
+	-- Summon Icon
+	local summonSection = buildIconSection(inner, widgetW, 'Show Summon Icon', 'summon', false, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = summonSection
 
-	-- Show PvP icon checkbox
-	local showPvPCheck = Widgets.CreateCheckButton(inner, 'Show PvP Icon', function(checked)
-		setConfig('statusIcons.pvp', checked)
-	end)
-	showPvPCheck:SetChecked(getConfig('statusIcons.pvp') or false)
-	cardY = B.PlaceWidget(showPvPCheck, inner, cardY, B.CHECK_H)
+	-- Raid Role Icon
+	local raidRoleSection = buildIconSection(inner, widgetW, 'Show Raid Role Icon', 'raidRole', false, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = raidRoleSection
 
-	-- Show status text checkbox
+	-- PvP Icon
+	local pvpSection = buildIconSection(inner, widgetW, 'Show PvP Icon', 'pvp', false, getConfig, setConfig, reflowRef)
+	sections[#sections + 1] = pvpSection
+
+	-- ── Status text (no positioning — it's a FontString, not an icon) ──
+
 	local showStatusTextCheck = Widgets.CreateCheckButton(inner, 'Show Status Text', function(checked)
 		setConfig('statusText', checked)
 	end)
 	showStatusTextCheck:SetChecked(getConfig('statusText') ~= false)
-	cardY = B.PlaceWidget(showStatusTextCheck, inner, cardY, B.CHECK_H)
 
-	Widgets.EndCard(card, parent, cardY)
+	-- ── Reflow ───────────────────────────────────────────────
+
+	local initialized = false
+
+	local function reflowCard()
+		local y = 0
+
+		for _, sec in next, sections do
+			local enabled = sec.check:GetChecked()
+
+			-- Checkbox (always visible)
+			sec.check:ClearAllPoints()
+			Widgets.SetPoint(sec.check, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+			y = y - B.CHECK_H - C.Spacing.normal
+
+			if(enabled) then
+				-- Anchor picker
+				sec.picker:Show()
+				sec.picker:ClearAllPoints()
+				Widgets.SetPoint(sec.picker, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+				y = y - ANCHOR_PICKER_H - C.Spacing.normal
+
+				-- Size slider
+				sec.sizeSlider:Show()
+				sec.sizeSlider:ClearAllPoints()
+				Widgets.SetPoint(sec.sizeSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+				y = y - SIZE_SLIDER_H - C.Spacing.normal
+
+				-- Extra widgets (e.g., role style dropdown)
+				for _, extra in next, sec.extras do
+					extra.widget:Show()
+					extra.widget:ClearAllPoints()
+					Widgets.SetPoint(extra.widget, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+					y = y - extra.height - C.Spacing.normal
+				end
+			else
+				sec.picker:Hide()
+				sec.sizeSlider:Hide()
+				for _, extra in next, sec.extras do
+					extra.widget:Hide()
+				end
+			end
+		end
+
+		-- Status text checkbox (always visible, no sub-controls)
+		showStatusTextCheck:ClearAllPoints()
+		Widgets.SetPoint(showStatusTextCheck, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - B.CHECK_H - C.Spacing.normal
+
+		Widgets.EndCard(card, parent, y)
+		if(initialized and onResize) then onResize() end
+	end
+
+	-- Set reflowRef so checkbox callbacks can trigger reflow
+	reflowRef[1] = reflowCard
+
+	-- Initial reflow
+	reflowCard()
+	initialized = true
+
 	return card
 end

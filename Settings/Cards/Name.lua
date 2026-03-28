@@ -21,6 +21,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	cardY = B.PlaceHeading(inner, 'Name Color', 3, cardY)
 	local nameColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',  value = 'class' },
+		{ text = 'Dark',   value = 'dark' },
 		{ text = 'White',  value = 'white' },
 		{ text = 'Custom', value = 'custom' },
 	})
@@ -40,7 +41,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 
 	-- Name font size
 	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
-	nameFontSize:SetValue(getConfig('name.fontSize') or 0)
+	nameFontSize:SetValue(getConfig('name.fontSize') or C.Font.sizeNormal)
 	Widgets.SetTooltip(nameFontSize, 'Name Font Size', 'Override the global font size for name text')
 	nameFontSize:SetAfterValueChanged(function(value)
 		setConfig('name.fontSize', value)

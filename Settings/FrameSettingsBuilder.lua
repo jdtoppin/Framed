@@ -160,9 +160,9 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:AddCard('shields', 'Shields & Absorbs', F.SettingsCards.ShieldsAndAbsorbs, { unitType, getConfig, setConfig })
 	grid:AddCard('power', 'Power Bar', F.SettingsCards.PowerBar, { unitType, getConfig, setConfig })
 	grid:AddCard('castbar', 'Cast Bar', F.SettingsCards.CastBar, { unitType, getConfig, setConfig, relayout })
-	grid:AddCard('name', 'Name', F.SettingsCards.Name, { unitType, getConfig, setConfig, relayout })
-	grid:AddCard('healthText', 'Health Text', F.SettingsCards.HealthText, { unitType, getConfig, setConfig })
-	grid:AddCard('powerText', 'Power Text', F.SettingsCards.PowerText, { unitType, getConfig, setConfig })
+	grid:AddCard('name', 'Name Text', F.SettingsCards.Name, { unitType, getConfig, setConfig, relayout })
+	grid:AddCard('healthText', 'Health Text', F.SettingsCards.HealthText, { unitType, getConfig, setConfig, relayout })
+	grid:AddCard('powerText', 'Power Text', F.SettingsCards.PowerText, { unitType, getConfig, setConfig, relayout })
 	grid:AddCard('statusIcons', 'Status Icons', F.SettingsCards.StatusIcons, { unitType, getConfig, setConfig })
 
 	-- ── Persist pin state ─────────────────────────────────────
@@ -183,6 +183,15 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:SetTopOffset(C.Spacing.normal)
 	grid:Layout(0, parentH)
 	content:SetHeight(grid:GetTotalHeight())
+
+	-- ── Cancel animations on hide, re-layout on show ──────────
+	scroll:HookScript('OnHide', function()
+		grid:CancelAnimations()
+	end)
+	scroll:HookScript('OnShow', function()
+		grid:Layout(0, parentH, false)
+		content:SetHeight(grid:GetTotalHeight())
+	end)
 
 	-- ── Lazy loading on scroll ─────────────────────────────────
 	local function onScroll()

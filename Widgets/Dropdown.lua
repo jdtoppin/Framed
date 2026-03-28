@@ -4,6 +4,8 @@ local F = Framed
 local Widgets = Framed.Widgets
 local C = Framed.Constants
 
+-- print('|cff00ccffDD|r Dropdown.lua loaded')  -- DEBUG: removed
+
 -- ============================================================
 -- Singleton Dropdown List (shared across all dropdowns)
 -- ============================================================
@@ -313,8 +315,6 @@ local function GetOrCreateRow(index)
 
 	row = CreateFrame('Frame', nil, content, 'BackdropTemplate')
 	row:SetHeight(ITEM_HEIGHT)
-	row:SetPoint('LEFT',  content, 'LEFT',  0, 0)
-	row:SetPoint('RIGHT', content, 'RIGHT', 0, 0)
 	row._bgColor     = C.Colors.panel
 	row._borderColor = { 0, 0, 0, 0 }
 	Widgets.ApplyBackdrop(row, C.Colors.panel, { 0, 0, 0, 0 })
@@ -369,19 +369,20 @@ OpenDropdownList = function(owner)
 	local ownerW = owner:GetWidth()
 	local listH  = showCount * ITEM_HEIGHT + LIST_PAD * 2
 
-	-- Anchor both sides to the owner so width always matches exactly
+	-- Anchor TOPLEFT only and set explicit size to match the owner width.
+	-- (TOPLEFT+TOPRIGHT with SetClampedToScreen can stretch the list.)
 	dropdownList:ClearAllPoints()
 	dropdownList:SetPoint('TOPLEFT', owner, 'BOTTOMLEFT', 0, -2)
-	dropdownList:SetPoint('TOPRIGHT', owner, 'BOTTOMRIGHT', 0, -2)
-	dropdownList:SetHeight(listH)
+	dropdownList:SetSize(ownerW, listH)
 
 	-- Adjust scroll frame right edge for scrollbar
 	local sfRight = needsScroll and (-LIST_PAD - SCROLLBAR_W - SCROLLBAR_GAP) or -LIST_PAD
 	dropdownList._scrollFrame:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', sfRight, LIST_PAD)
 
-	-- Set content width to match the scroll frame inner area
+	-- Content width matches the scroll frame inner area
 	local contentW = ownerW - LIST_PAD * 2 - (needsScroll and (SCROLLBAR_W + SCROLLBAR_GAP) or 0)
 	dropdownList._content:SetWidth(contentW)
+
 
 	-- Hide all existing rows first
 	for _, row in next, dropdownList._rows do
@@ -393,7 +394,9 @@ OpenDropdownList = function(owner)
 
 	if(totalCount == 0) then
 		local row = GetOrCreateRow(1)
+		row:ClearAllPoints()
 		row:SetPoint('TOPLEFT', dropdownList._content, 'TOPLEFT', 0, 0)
+		row:SetPoint('RIGHT', dropdownList._content, 'RIGHT', 0, 0)
 		row._swatch:Hide()
 		row._label:SetPoint('LEFT', row, 'LEFT', 4, 0)
 		row._label:SetText('(empty)')
@@ -409,7 +412,16 @@ OpenDropdownList = function(owner)
 			if(not item) then break end
 
 			local row = GetOrCreateRow(i)
+			row:ClearAllPoints()
 			row:SetPoint('TOPLEFT', dropdownList._content, 'TOPLEFT', 0, -(i - 1) * ITEM_HEIGHT)
+			row:SetPoint('RIGHT', dropdownList._content, 'RIGHT', 0, 0)
+
+			-- Reset any custom decorations from previous use
+			if(row._customDecorations) then
+				for _, tex in next, row._customDecorations do
+					tex:Hide()
+				end
+			end
 
 			-- Swatch (texture preview)
 			if(item._texturePath) then
@@ -439,6 +451,11 @@ OpenDropdownList = function(owner)
 			else
 				local tn = C.Colors.textNormal
 				row._label:SetTextColor(tn[1], tn[2], tn[3], tn[4] or 1)
+			end
+
+			-- Custom row decorator (e.g. for icon previews)
+			if(item._decorateRow) then
+				item._decorateRow(row, item)
 			end
 
 			-- Capture item reference for the click handler
@@ -482,6 +499,7 @@ OpenDropdownList = function(owner)
 	UpdateDropdownHint()
 	dropdownBlocker:Show()
 	dropdownList:Show()
+
 end
 
 -- ============================================================

@@ -15,6 +15,7 @@ local C = F.Constants
 local CARD_MIN_W   = 280           -- minimum card width in logical px
 local CARD_GAP     = C.Spacing.normal  -- 12px horizontal gap between cards
 local CARD_V_GAP   = C.Spacing.normal  -- 12px vertical gap between cards
+local BOTTOM_PAD   = C.Spacing.loose   -- 16px breathing room below last card
 local LAZY_BUFFER  = 400           -- px ahead of visible area to pre-build
 local TITLE_GAP    = C.Spacing.base    -- 4px gap between title and card top
 
@@ -279,7 +280,7 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 		grid._avgCardHeight = totalH / builtCount
 	end
 
-	grid._container:SetHeight(math.max(1, grid._totalHeight))
+	grid._container:SetHeight(math.max(1, grid._totalHeight + BOTTOM_PAD))
 end
 
 --- Register a card builder. The card is not built until Layout is called.
@@ -371,19 +372,36 @@ local function AnimatedReflow(grid)
 	end
 end
 
+--- Cancel all active card animations and snap cards to their final positions.
+--- Called when the parent panel is hidden to prevent stale animation state.
+--- @param grid table
+local function CancelAnimations(grid)
+	for _, entry in next, grid._cards do
+		if(entry.built and entry.card and entry.card._anim) then
+			for animKey, anim in next, entry.card._anim do
+				-- Snap to final value
+				if(anim.onComplete) then
+					anim.onComplete(entry.card)
+				end
+				entry.card._anim[animKey] = nil
+			end
+		end
+	end
+end
+
 --- Update the available width and re-layout.
 --- @param grid     table
 --- @param newWidth number
 local function SetWidth(grid, newWidth)
 	grid._width = newWidth
-	Widgets.SetSize(grid._container, newWidth, math.max(1, grid._totalHeight))
+	Widgets.SetSize(grid._container, newWidth, math.max(1, grid._totalHeight + BOTTOM_PAD))
 	Layout(grid, 0, 0)
 end
 
 --- Return the total content height of all positioned cards.
 --- @return number
 local function GetTotalHeight(grid)
-	return grid._totalHeight
+	return grid._totalHeight + BOTTOM_PAD
 end
 
 --- Set top offset (margin before first card row).
@@ -422,6 +440,7 @@ function Widgets.CreateCardGrid(parent, width)
 	grid.GetSortedCards   = GetSortedCards
 	grid.Layout           = Layout
 	grid.AnimatedReflow   = AnimatedReflow
+	grid.CancelAnimations = CancelAnimations
 	grid.SetWidth         = SetWidth
 	grid.GetTotalHeight   = GetTotalHeight
 	grid.SetTopOffset     = SetTopOffset

@@ -24,7 +24,6 @@ function F.Elements.CombatIcon.Setup(self, config)
 	config = config or {}
 	config.size    = config.size    or 12
 	config.point   = config.point   or { 'CENTER', self, 'CENTER', 0, 0 }
-	config.texture = config.texture or nil   -- nil = use atlas default
 
 	-- --------------------------------------------------------
 	-- Icon texture
@@ -35,13 +34,6 @@ function F.Elements.CombatIcon.Setup(self, config)
 
 	local p = config.point
 	Widgets.SetPoint(icon, p[1], p[2], p[3], p[4], p[5])
-
-	-- Apply texture: caller-supplied path takes priority; fall back to atlas.
-	if(config.texture) then
-		icon:SetTexture(config.texture)
-	else
-		icon:SetAtlas('UI-HUD-UnitFrame-Player-CombatIcon')
-	end
 
 	-- --------------------------------------------------------
 	-- Assign to oUF — activates the CombatIndicator element

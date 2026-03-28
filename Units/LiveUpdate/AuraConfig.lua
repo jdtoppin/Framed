@@ -79,9 +79,9 @@ end
 -- ============================================================
 
 local function parseAuraConfigPath(path)
-	local unitType, auraType, rest = path:match('^presets%.[^%.]+%.auras%.([^%.]+)%.([^%.]+)(.*)$')
+	local editPreset, unitType, auraType, rest = path:match('^presets%.([^%.]+)%.auras%.([^%.]+)%.([^%.]+)(.*)$')
 	if(rest) then rest = rest:match('^%.(.+)$') end
-	return unitType, auraType, rest
+	return unitType, auraType, rest, editPreset
 end
 
 -- ============================================================
@@ -89,8 +89,11 @@ end
 -- ============================================================
 
 F.EventBus:Register('CONFIG_CHANGED', function(path)
-	local unitType, auraType, subKey = parseAuraConfigPath(path)
+	local unitType, auraType, subKey, editPreset = parseAuraConfigPath(path)
 	if(not unitType or not auraType) then return end
+
+	-- Only apply when editing the active preset
+	if(editPreset and editPreset ~= F.AutoSwitch.GetCurrentPreset()) then return end
 
 	local elementName = AURA_ELEMENT_MAP[auraType]
 	if(not elementName) then return end
