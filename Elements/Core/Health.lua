@@ -190,9 +190,15 @@ function F.Elements.Health.Setup(self, width, height, config)
 				config.gradientColor2, config.gradientThreshold2,
 				config.gradientColor3, config.gradientThreshold3
 			))
-		else
-			-- dark / custom — no oUF color concept, override UpdateColor
-			health.UpdateColor = function() end
+		elseif(config.colorMode == 'dark') then
+			health.UpdateColor = function(self)
+				self.Health:SetStatusBarColor(0.25, 0.25, 0.25)
+			end
+		elseif(config.colorMode == 'custom') then
+			health.UpdateColor = function(self)
+				local cc = self.Health._customColor or { 0.2, 0.8, 0.2 }
+				self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
+			end
 		end
 	end
 

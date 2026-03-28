@@ -1,5 +1,6 @@
 local addonName, Framed = ...
 local F = Framed
+local oUF = F.oUF
 local C = F.Constants
 local Widgets = F.Widgets
 
@@ -224,6 +225,74 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				frame:EnableElement('Castbar')
 			else
 				frame:DisableElement('Castbar')
+			end
+		end)
+		return
+	end
+
+	-- Health bar color mode
+	if(key == 'health.colorMode') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local mode = config.health and config.health.colorMode or 'class'
+		ForEachFrame(unitType, function(frame)
+			local h = frame.Health
+			if(not h) then return end
+
+			-- Clear all color flags
+			h.colorClass  = nil
+			h.colorSmooth = nil
+			h.UpdateColor = nil
+
+			-- Update stored mode and custom color for PostUpdate
+			h._colorMode   = mode
+			h._customColor = config.health and config.health.customColor or { 0.2, 0.8, 0.2 }
+
+			-- Set flags for new mode
+			if(mode == 'class') then
+				h.colorClass    = true
+				h.colorReaction = true
+			elseif(mode == 'gradient') then
+				h.colorSmooth = true
+				-- Ensure per-frame colors table exists
+				if(not rawget(frame, 'colors')) then
+					frame.colors = setmetatable({}, { __index = oUF.colors })
+				end
+				local hc = config.health
+				frame.colors.health = oUF:CreateColor(0.2, 0.8, 0.2)
+				frame.colors.health:SetCurve({
+					[(hc.gradientThreshold3 or 5) / 100]  = CreateColor(unpack(hc.gradientColor3 or { 0.8, 0.1, 0.1 })),
+					[(hc.gradientThreshold2 or 50) / 100] = CreateColor(unpack(hc.gradientColor2 or { 0.9, 0.6, 0.1 })),
+					[(hc.gradientThreshold1 or 95) / 100] = CreateColor(unpack(hc.gradientColor1 or { 0.2, 0.8, 0.2 })),
+				})
+			elseif(mode == 'dark') then
+				-- Override UpdateColor to directly set dark gray
+				h.UpdateColor = function(self)
+					self.Health:SetStatusBarColor(0.25, 0.25, 0.25)
+				end
+			elseif(mode == 'custom') then
+				-- Override UpdateColor to directly set the custom color
+				h.UpdateColor = function(self)
+					local cc = self.Health._customColor or { 0.2, 0.8, 0.2 }
+					self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
+				end
+			end
+
+			h:ForceUpdate()
+		end)
+		return
+	end
+
+	-- Health custom color (live picker change)
+	if(key == 'health.customColor') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local color = config.health and config.health.customColor or { 0.2, 0.8, 0.2 }
+		ForEachFrame(unitType, function(frame)
+			if(frame.Health) then
+				frame.Health._customColor = color
+				-- Apply immediately if in custom mode
+				if(frame.Health._colorMode == 'custom') then
+					frame.Health:SetStatusBarColor(color[1], color[2], color[3])
+				end
 			end
 		end)
 		return

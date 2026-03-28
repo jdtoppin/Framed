@@ -244,6 +244,7 @@ local function CreatePickerFrame()
 	sbPane = CreateFrame('Frame', nil, sbBorder)
 	sbPane:SetPoint('TOPLEFT', sbBorder, 'TOPLEFT', 1, -1)
 	sbPane:SetPoint('BOTTOMRIGHT', sbBorder, 'BOTTOMRIGHT', -1, 1)
+	sbPane:EnableMouse(true)
 
 	-- Hue-tinted horizontal gradient (white -> pure hue color)
 	sbPane.colorTex = sbPane:CreateTexture(nil, 'ARTWORK', nil, 0)
@@ -346,8 +347,8 @@ local function CreatePickerFrame()
 			local newY = startY + (newMY - mouseY) / scale
 
 			local w, h = sbPane:GetWidth(), sbPane:GetHeight()
-			newX = CU.Clamp(newX, 0, w)
-			newY = CU.Clamp(newY, 0, h)
+			newX = Clamp(newX, 0, w)
+			newY = Clamp(newY, 0, h)
 
 			pickerDot:SetPoint('CENTER', sbPane, 'BOTTOMLEFT', newX, newY)
 
@@ -413,9 +414,9 @@ local function CreatePickerFrame()
 
 	-- Wire up RGB edit box enter-press
 	local function OnRGBEnter(self)
-		local rv = CU.Clamp(rEB:GetNumber(), 0, 255)
-		local gv = CU.Clamp(gEB:GetNumber(), 0, 255)
-		local bv = CU.Clamp(bEB:GetNumber(), 0, 255)
+		local rv = Clamp(rEB:GetNumber(), 0, 255)
+		local gv = Clamp(gEB:GetNumber(), 0, 255)
+		local bv = Clamp(bEB:GetNumber(), 0, 255)
 		rEB:SetNumber(rv)
 		gEB:SetNumber(gv)
 		bEB:SetNumber(bv)
@@ -431,7 +432,7 @@ local function CreatePickerFrame()
 
 	-- Wire up Alpha edit box
 	aEB:SetScript('OnEnterPressed', function(self)
-		local av = CU.Clamp(self:GetNumber(), 0, 100)
+		local av = Clamp(self:GetNumber(), 0, 100)
 		self:SetNumber(av)
 		A = av / 100
 		alphaSlider:SetValue(1 - A)
@@ -441,9 +442,9 @@ local function CreatePickerFrame()
 
 	-- Wire up HSB edit box enter-press
 	local function OnHSBEnter(self)
-		local hv = CU.Clamp(hEB:GetNumber(), 0, 360)
-		local sv = CU.Clamp(sEB:GetNumber(), 0, 100)
-		local bv = CU.Clamp(vEB:GetNumber(), 0, 100)
+		local hv = Clamp(hEB:GetNumber(), 0, 360)
+		local sv = Clamp(sEB:GetNumber(), 0, 100)
+		local bv = Clamp(vEB:GetNumber(), 0, 100)
 		hEB:SetNumber(hv)
 		sEB:SetNumber(sv)
 		vEB:SetNumber(bv)
