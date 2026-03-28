@@ -108,37 +108,53 @@ function F.Elements.Power.Setup(self, width, height, config)
 			end
 		end
 
-		-- Guard against secret values before Lua arithmetic.
-		-- The bar itself handles secrets natively via SetValue().
-		if(not F.IsValueNonSecret(cur) or not F.IsValueNonSecret(max)) then
-			if(p.text) then p.text:SetText('') end
-			return
-		end
-
-		-- Power text formatting
-		if(config.showText and p.text) then
-			local fmt = config.textFormat
-			if(fmt == 'none' or max <= 0) then
+		-- Power text formatting — uses secret-safe APIs throughout.
+		-- AbbreviateNumbers (C-level) handles secret values from UnitPower.
+		-- UnitPowerPercent (C-level) returns non-secret percentage.
+		if(p.text and p.text:IsShown()) then
+			local powerType = UnitPowerType(unit)
+			local fmt = p._textFormat or config.textFormat
+			if(fmt == 'none') then
 				p.text:SetText('')
 			elseif(fmt == 'percent') then
-				local pct = math.floor(cur / max * 100 + 0.5)
-				p.text:SetText(pct .. '%')
+				local pct = UnitPowerPercent(unit, nil, true, CurveConstants.ScaleTo100)
+				p.text:SetText(string.format('%d', pct) .. '%')
 			elseif(fmt == 'current') then
-				p.text:SetText(F.AbbreviateNumber(cur))
+				p.text:SetText(F.AbbreviateNumber(UnitPower(unit, powerType)))
 			elseif(fmt == 'deficit') then
-				local deficit = max - cur
-				if(deficit <= 0) then
-					p.text:SetText('')
-				else
-					p.text:SetText('-' .. F.AbbreviateNumber(deficit))
-				end
-			elseif(fmt == 'current-max') then
-				p.text:SetText(F.AbbreviateNumber(cur) .. '/' .. F.AbbreviateNumber(max))
+				p.text:SetText('')
+			elseif(fmt == 'currentMax') then
+				p.text:SetText(F.AbbreviateNumber(UnitPower(unit, powerType)) .. '/' .. F.AbbreviateNumber(UnitPowerMax(unit, powerType)))
 			else
 				p.text:SetText('')
 			end
+
+			-- Text color
+			local colorMode = p._textColorMode or 'white'
+			if(colorMode == 'class') then
+				local _, class = UnitClass(unit)
+				if(class) then
+					local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+					if(classColor) then
+						p.text:SetTextColor(classColor.r, classColor.g, classColor.b, 1)
+					end
+				end
+			elseif(colorMode == 'dark') then
+				p.text:SetTextColor(0.25, 0.25, 0.25, 1)
+			elseif(colorMode == 'custom') then
+				local cc = p._textCustomColor or { 1, 1, 1 }
+				p.text:SetTextColor(cc[1], cc[2], cc[3], 1)
+			else
+				local tc = C.Colors.textActive
+				p.text:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+			end
 		end
 	end
+
+	-- Store text state for PostUpdate
+	power._textFormat      = config.textFormat
+	power._textColorMode   = config.textColorMode or 'white'
+	power._textCustomColor = config.textCustomColor
 
 	-- --------------------------------------------------------
 	-- Assign to oUF — activates the Power element

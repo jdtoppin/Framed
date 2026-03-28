@@ -117,6 +117,7 @@ function F.Elements.Health.Setup(self, width, height, config)
 	config.shadow             = (config.shadow == nil) and true or config.shadow
 	config.attachedToName     = config.attachedToName or false
 	config.healPrediction      = config.healPrediction ~= false  -- incoming heal bars
+	config.healPredictionMode  = config.healPredictionMode or 'all' -- 'all', 'player', 'other'
 	config.healPredictionColor = config.healPredictionColor or { 0.6, 0.6, 0.6, 0.4 }
 	config.damageAbsorb        = config.damageAbsorb ~= false    -- shield/absorb bar
 	config.damageAbsorbColor   = config.damageAbsorbColor or { 1, 1, 1, 0.6 }
@@ -267,6 +268,11 @@ function F.Elements.Health.Setup(self, width, height, config)
 		health.text = text
 	end
 
+	-- Store text state for PostUpdate
+	health._textFormat      = config.textFormat
+	health._textColorMode   = config.textColorMode or 'white'
+	health._textCustomColor = config.textCustomColor
+
 	-- Store mutable color state on the health element for live updates
 	health._colorMode      = config.colorMode
 	health._customColor    = config.customColor
@@ -336,46 +342,57 @@ function F.Elements.Health.Setup(self, width, height, config)
 			h.OverDamageAbsorbIndicator:SetAlphaFromBoolean(isClamped, 1, 0)
 		end
 
-		-- Guard against secret values before Lua arithmetic.
-		-- The bar itself handles secrets natively via SetValue().
-		if(not F.IsValueNonSecret(cur) or not F.IsValueNonSecret(max)) then
-			if(h.text) then h.text:SetText('') end
-			return
-		end
-
-		local pct = (max > 0) and (cur / max) or 1
-
 		-- ── Prediction bar positioning (deferred from creation) ──
-		-- Dispellable overlay tracks health fill width
+		-- Dispellable overlay tracks health fill width via C-level safe pct
 		if(h._dispelOverlay) then
 			local bw = (h._wrapper:GetWidth() or 0) - 2
 			if(bw > 0) then
-				h._dispelOverlay:SetWidth(math.max(bw * pct, 0.001))
+				local safePct = UnitHealthPercent(unit, true, CurveConstants.ScaleTo100)
+				if(F.IsValueNonSecret(safePct)) then
+					h._dispelOverlay:SetWidth(math.max(bw * (safePct / 100), 0.001))
+				end
 			end
 		end
 
-		-- Health text formatting
-		if((config.showText or h._attachedToName) and h.text) then
-			local fmt = config.textFormat
+		-- Health text formatting — uses secret-safe APIs throughout.
+		-- AbbreviateNumbers (C-level) handles secret values from UnitHealth.
+		-- UnitHealthPercent (C-level) returns non-secret percentage.
+		if(h.text and h.text:IsShown()) then
+			local fmt = h._textFormat or config.textFormat
 			local prefix = h._attachedToName and ' - ' or ''
-			if(fmt == 'none' or max <= 0) then
+			if(fmt == 'none') then
 				h.text:SetText('')
 			elseif(fmt == 'percent') then
-				local pctDisplay = math.floor(cur / max * 100 + 0.5)
-				h.text:SetText(prefix .. pctDisplay .. '%')
+				local pct = UnitHealthPercent(unit, true, CurveConstants.ScaleTo100)
+				h.text:SetText(prefix .. string.format('%d', pct) .. '%')
 			elseif(fmt == 'current') then
-				h.text:SetText(prefix .. F.AbbreviateNumber(cur))
+				h.text:SetText(prefix .. F.AbbreviateNumber(UnitHealth(unit)))
 			elseif(fmt == 'deficit') then
-				local deficit = max - cur
-				if(deficit <= 0) then
-					h.text:SetText('')
-				else
-					h.text:SetText(prefix .. '-' .. F.AbbreviateNumber(deficit))
-				end
-			elseif(fmt == 'current-max') then
-				h.text:SetText(prefix .. F.AbbreviateNumber(cur) .. '/' .. F.AbbreviateNumber(max))
+				h.text:SetFormattedText('%s-%s', prefix, F.AbbreviateNumber(UnitHealthMissing(unit)))
+			elseif(fmt == 'currentMax') then
+				h.text:SetText(prefix .. F.AbbreviateNumber(UnitHealth(unit)) .. '/' .. F.AbbreviateNumber(UnitHealthMax(unit)))
 			else
 				h.text:SetText('')
+			end
+
+			-- Text color
+			local colorMode = h._textColorMode or 'white'
+			if(colorMode == 'class') then
+				local _, class = UnitClass(unit)
+				if(class) then
+					local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+					if(classColor) then
+						h.text:SetTextColor(classColor.r, classColor.g, classColor.b, 1)
+					end
+				end
+			elseif(colorMode == 'dark') then
+				h.text:SetTextColor(0.25, 0.25, 0.25, 1)
+			elseif(colorMode == 'custom') then
+				local cc = h._textCustomColor or { 1, 1, 1 }
+				h.text:SetTextColor(cc[1], cc[2], cc[3], 1)
+			else
+				local tc = C.Colors.textActive
+				h.text:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
 			end
 		end
 	end
@@ -415,7 +432,15 @@ function F.Elements.Health.Setup(self, width, height, config)
 			healBar:SetSize(predWidth, height)
 			healBar:SetPoint('BOTTOMLEFT', health)
 			healBar:SetPoint('LEFT', healthBarTexture, 'RIGHT')
-			health.HealingAll = healBar
+			health._healPredBar = healBar
+			local mode = config.healPredictionMode
+			if(mode == 'player') then
+				health.HealingPlayer = healBar
+			elseif(mode == 'other') then
+				health.HealingOther = healBar
+			else
+				health.HealingAll = healBar
+			end
 		end
 
 		-- Always create absorb bars so live toggles can show/hide them

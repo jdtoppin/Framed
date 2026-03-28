@@ -1,10 +1,22 @@
 local addonName, Framed = ...
 local F = Framed
 
---- Abbreviate a large number for display.
---- @param value number
+--- Secret-safe number abbreviation config (C-level, handles secret values).
+--- Uses Blizzard's AbbreviateNumbers API which works with secret numbers.
+local _abbreviateConfig = CreateAbbreviateConfig and CreateAbbreviateConfig({
+	{ breakpoint = 1000000000, abbreviation = 'B', significandDivisor = 10000000, fractionDivisor = 100, abbreviationIsGlobal = false },
+	{ breakpoint = 1000000,    abbreviation = 'M', significandDivisor = 10000,    fractionDivisor = 100, abbreviationIsGlobal = false },
+	{ breakpoint = 1000,       abbreviation = 'K', significandDivisor = 100,      fractionDivisor = 10,  abbreviationIsGlobal = false },
+})
+
+--- Abbreviate a number for display.  Secret-value safe.
+--- @param value number|secretnumber
 --- @return string
 function F.AbbreviateNumber(value)
+	if(_abbreviateConfig) then
+		return AbbreviateNumbers(value, { config = _abbreviateConfig })
+	end
+	-- Fallback for classic or missing API
 	if(value >= 1000000) then
 		return string.format('%.1fM', value / 1000000)
 	elseif(value >= 1000) then
