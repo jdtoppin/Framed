@@ -154,14 +154,17 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	cardY = placeWidget(heightSlider, inner, cardY, SLIDER_H)
 
 	-- Resize Anchor picker — controls which corner stays fixed during resize
-	cardY = placeHeading(inner, 'Resize Anchor', 3, cardY)
+	local raHeading, raHeadingH = Widgets.CreateHeading(inner, 'Resize Anchor', 3)
+	raHeading:ClearAllPoints()
+	Widgets.SetPoint(raHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+	cardY = cardY - raHeadingH
 
 	local anchorInfo = Widgets.CreateInfoIcon(inner,
 		'Resize Anchor',
 		'Controls which corner or edge of the frame stays fixed when you change '
 		.. 'the width or height. For example, TOPLEFT means the top-left corner '
 		.. 'stays pinned and the frame grows right and downward.')
-	anchorInfo:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', -4, cardY + 14)
+	anchorInfo:SetPoint('LEFT', raHeading, 'RIGHT', 4, 0)
 
 	local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
 	local savedAnchor = getConfig('position.anchor') or 'CENTER'
@@ -569,6 +572,18 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	showPowerCheck:SetChecked(getConfig('showPower') ~= false)
 	cardY = placeWidget(showPowerCheck, inner, cardY, CHECK_H)
 
+	-- Power bar position (top/bottom of health bar)
+	cardY = placeHeading(inner, 'Position', 3, cardY)
+	local powerPosSwitch = Widgets.CreateSwitch(inner, WIDGET_W, SWITCH_H, {
+		{ text = 'Bottom', value = 'bottom' },
+		{ text = 'Top',    value = 'top' },
+	})
+	powerPosSwitch:SetValue(getConfig('power.position') or 'bottom')
+	powerPosSwitch:SetOnSelect(function(value)
+		setConfig('power.position', value)
+	end)
+	cardY = placeWidget(powerPosSwitch, inner, cardY, SWITCH_H)
+
 	-- Power bar height slider
 	local powerHeightSlider = Widgets.CreateSlider(inner, 'Power Bar Height', WIDGET_W, 1, 20, 1)
 	powerHeightSlider:SetValue(getConfig('power.height') or 2)
@@ -576,6 +591,54 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		setConfig('power.height', value)
 	end)
 	cardY = placeWidget(powerHeightSlider, inner, cardY, SLIDER_H)
+
+	-- Per-power-type color overrides (filtered by relevance)
+	local ALL_POWER_TYPES = {
+		{ token = 'MANA',         label = 'Mana',         default = { 0.00, 0.44, 0.87 } },
+		{ token = 'RAGE',         label = 'Rage',         default = { 1.00, 0.00, 0.00 } },
+		{ token = 'ENERGY',       label = 'Energy',       default = { 1.00, 1.00, 0.00 } },
+		{ token = 'FOCUS',        label = 'Focus',        default = { 1.00, 0.50, 0.25 } },
+		{ token = 'RUNIC_POWER',  label = 'Runic Power',  default = { 0.00, 0.82, 1.00 } },
+		{ token = 'INSANITY',     label = 'Insanity',     default = { 0.40, 0.00, 0.80 } },
+		{ token = 'FURY',         label = 'Fury',         default = { 0.79, 0.26, 0.99 } },
+		{ token = 'MAELSTROM',    label = 'Maelstrom',    default = { 0.00, 0.50, 1.00 } },
+		{ token = 'LUNAR_POWER',  label = 'Lunar Power',  default = { 0.30, 0.52, 0.90 } },
+	}
+
+	-- Class → power types shown on the player frame
+	local CLASS_POWER_TYPES = {
+		WARRIOR     = { RAGE = true },
+		PALADIN     = { MANA = true },
+		HUNTER      = { FOCUS = true },
+		ROGUE       = { ENERGY = true },
+		PRIEST      = { MANA = true, INSANITY = true },
+		DEATHKNIGHT = { RUNIC_POWER = true },
+		SHAMAN      = { MANA = true, MAELSTROM = true },
+		MAGE        = { MANA = true },
+		WARLOCK     = { MANA = true },
+		MONK        = { MANA = true, ENERGY = true },
+		DRUID       = { MANA = true, RAGE = true, ENERGY = true, LUNAR_POWER = true },
+		DEMONHUNTER = { FURY = true },
+		EVOKER      = { MANA = true },
+	}
+
+	local filterTokens
+	if(unitType == 'player') then
+		local _, playerClass = UnitClass('player')
+		filterTokens = playerClass and CLASS_POWER_TYPES[playerClass]
+	end
+
+	for _, pt in next, ALL_POWER_TYPES do
+		if(not filterTokens or filterTokens[pt.token]) then
+			local configKey = 'power.customColors.' .. pt.token
+			local picker = Widgets.CreateColorPicker(inner, pt.label, false,
+				nil,
+				function(r, g, b) setConfig(configKey, { r, g, b }) end)
+			local saved = getConfig(configKey) or pt.default
+			picker:SetColor(saved[1], saved[2], saved[3], 1)
+			cardY = placeWidget(picker, inner, cardY, 22)
+		end
+	end
 
 	restY = Widgets.EndCard(powerCard, afterColorContainer, cardY)
 

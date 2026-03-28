@@ -217,6 +217,30 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		return
 	end
 
+	-- Power bar height or position
+	if(key == 'power.height' or key == 'power.position') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local powerHeight = config.power and config.power.height or 0
+		local pos = config.power and config.power.position or 'bottom'
+		ForEachFrame(unitType, function(frame)
+			local healthH = frame.Health and frame.Health._wrapper and frame.Health._wrapper:GetHeight() or config.height
+			Widgets.SetSize(frame, config.width, healthH + powerHeight)
+			if(frame.Power and frame.Power._wrapper) then
+				Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
+				frame.Power._wrapper:ClearAllPoints()
+				frame.Health._wrapper:ClearAllPoints()
+				if(pos == 'top') then
+					frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+					frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -powerHeight)
+				else
+					frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+					frame.Power._wrapper:SetPoint('TOPLEFT', frame.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+				end
+			end
+		end)
+		return
+	end
+
 	-- Cast bar
 	if(key == 'showCastBar') then
 		local config = F.StyleBuilder.GetConfig(unitType)
@@ -416,6 +440,19 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(frame.Health and frame.Health.text) then
 				frame.Health.text:SetShown(config.health and config.health.showText)
 			end
+		end)
+		return
+	end
+
+	-- Power bar per-type custom colors
+	if(key:match('^power%.customColors%.')) then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local customColors = config.power and config.power.customColors
+		ForEachFrame(unitType, function(frame)
+			local p = frame.Power
+			if(not p) then return end
+			p._customColors = customColors
+			p:ForceUpdate()
 		end)
 		return
 	end

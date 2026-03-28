@@ -47,10 +47,24 @@ function F.Elements.Power.Setup(self, width, height, config)
 	power._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, 0)
 
 	-- --------------------------------------------------------
-	-- Let oUF auto-color the bar by the unit's power type
+	-- Color: per-power-type overrides with oUF auto-color fallback
 	-- --------------------------------------------------------
 
-	power.colorPower = true
+	power._customColors = config.customColors or nil
+
+	power.UpdateColor = function(self, event, unit)
+		local p = self.Power
+		local powerType, powerToken = UnitPowerType(unit)
+		local cc = p._customColors and p._customColors[powerToken]
+		if(cc) then
+			p:SetStatusBarColor(cc[1], cc[2], cc[3])
+		else
+			local color = self.colors.power[powerToken] or self.colors.power[powerType]
+			if(color) then
+				p:SetStatusBarColor(color:GetRGB())
+			end
+		end
+	end
 
 	-- --------------------------------------------------------
 	-- Background texture behind the power bar fill

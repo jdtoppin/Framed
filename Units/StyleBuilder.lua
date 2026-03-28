@@ -548,24 +548,30 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 
 	-- --------------------------------------------------------
 	-- 3. Calculate health / power bar heights
-	--    Power bar sits at the bottom; health fills the rest.
 	-- --------------------------------------------------------
 
 	local powerHeight  = config.power and config.power.height or 0
 	local healthHeight = config.height - powerHeight
+	local powerPosition = config.power and config.power.position or 'bottom'
 
 	-- --------------------------------------------------------
 	-- 4. Core element setup
 	-- --------------------------------------------------------
 
-	-- Health bar — anchored to TOPLEFT, fills frame minus power strip
+	-- Health bar
 	F.Elements.Health.Setup(self, config.width, healthHeight, config.health)
-	self.Health._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, 0)
 
-	-- Power bar — anchored immediately below health bar
+	-- Power bar
 	F.Elements.Power.Setup(self, config.width, powerHeight, config.power)
 	self.Power._wrapper:ClearAllPoints()
-	self.Power._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, -healthHeight)
+
+	if(powerPosition == 'top') then
+		self.Health._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, -powerHeight)
+		self.Power._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, 0)
+	else
+		self.Health._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, 0)
+		self.Power._wrapper:SetPoint('TOPLEFT', self.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+	end
 
 	-- Name text — positioned on the health bar region (default: center)
 	local nameCfg = F.DeepCopy(config.name)
