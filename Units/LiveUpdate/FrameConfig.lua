@@ -239,9 +239,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(not h) then return end
 
 			-- Clear all color flags
-			h.colorClass  = nil
-			h.colorSmooth = nil
-			h.UpdateColor = nil
+			h.colorClass    = nil
+			h.colorReaction = nil
+			h.colorSmooth   = nil
+			h.UpdateColor   = nil
 
 			-- Update stored mode and custom color for PostUpdate
 			h._colorMode   = mode
@@ -294,6 +295,90 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					frame.Health:SetStatusBarColor(color[1], color[2], color[3])
 				end
 			end
+		end)
+		return
+	end
+
+	-- Health loss color mode
+	if(key == 'health.lossColorMode') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local hc = config.health or {}
+		local mode = hc.lossColorMode or 'dark'
+		ForEachFrame(unitType, function(frame)
+			local h = frame.Health
+			if(not h or not h._bg) then return end
+			h._lossColorMode = mode
+			-- Build gradient curve if switching to gradient mode
+			if(mode == 'gradient') then
+				local curve = C_CurveUtil.CreateColorCurve()
+				local t1 = (hc.lossGradientThreshold1 or 95) / 100
+				local t2 = (hc.lossGradientThreshold2 or 50) / 100
+				local t3 = (hc.lossGradientThreshold3 or 5) / 100
+				local c1 = hc.lossGradientColor1 or { 0.1, 0.4, 0.1 }
+				local c2 = hc.lossGradientColor2 or { 0.4, 0.25, 0.05 }
+				local c3 = hc.lossGradientColor3 or { 0.4, 0.05, 0.05 }
+				curve:AddPoint(t3, CreateColor(c3[1], c3[2], c3[3]))
+				curve:AddPoint(t2, CreateColor(c2[1], c2[2], c2[3]))
+				curve:AddPoint(t1, CreateColor(c1[1], c1[2], c1[3]))
+				h._lossGradientCurve = curve
+			else
+				h._lossGradientCurve = nil
+			end
+			-- Apply directly, then ForceUpdate to let PostUpdate maintain it
+			if(mode == 'dark') then
+				h._bg:SetVertexColor(0.15, 0.15, 0.15, 1)
+			elseif(mode == 'custom') then
+				local lc = h._lossCustomColor or { 0.15, 0.15, 0.15 }
+				h._bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
+			elseif(mode == 'class') then
+				local _, class = UnitClass(frame.unit or 'player')
+				if(class) then
+					local cc = RAID_CLASS_COLORS and RAID_CLASS_COLORS[class]
+					if(cc) then
+						h._bg:SetVertexColor(cc.r * 0.3, cc.g * 0.3, cc.b * 0.3, 1)
+					end
+				end
+			end
+			h:ForceUpdate()
+		end)
+		return
+	end
+
+	-- Health loss custom color
+	if(key == 'health.lossCustomColor') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local color = config.health and config.health.lossCustomColor or { 0.15, 0.15, 0.15 }
+		ForEachFrame(unitType, function(frame)
+			local h = frame.Health
+			if(not h) then return end
+			h._lossCustomColor = color
+			if(h._lossColorMode == 'custom' and h._bg) then
+				h._bg:SetVertexColor(color[1], color[2], color[3], 1)
+			end
+		end)
+		return
+	end
+
+	-- Health loss gradient colors/thresholds
+	if(key:match('^health%.lossGradient')) then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local hc = config.health or {}
+		ForEachFrame(unitType, function(frame)
+			local h = frame.Health
+			if(not h) then return end
+			-- Rebuild the curve with updated colors/thresholds
+			local curve = C_CurveUtil.CreateColorCurve()
+			local t1 = (hc.lossGradientThreshold1 or 95) / 100
+			local t2 = (hc.lossGradientThreshold2 or 50) / 100
+			local t3 = (hc.lossGradientThreshold3 or 5) / 100
+			local c1 = hc.lossGradientColor1 or { 0.1, 0.4, 0.1 }
+			local c2 = hc.lossGradientColor2 or { 0.4, 0.25, 0.05 }
+			local c3 = hc.lossGradientColor3 or { 0.4, 0.05, 0.05 }
+			curve:AddPoint(t3, CreateColor(c3[1], c3[2], c3[3]))
+			curve:AddPoint(t2, CreateColor(c2[1], c2[2], c2[3]))
+			curve:AddPoint(t1, CreateColor(c1[1], c1[2], c1[3]))
+			h._lossGradientCurve = curve
+			h:ForceUpdate()
 		end)
 		return
 	end

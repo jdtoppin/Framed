@@ -174,10 +174,10 @@ function F.Elements.Health.Setup(self, width, height, config)
 	else
 		-- Player/group: selective flags
 		health.colorThreat   = config.colorThreat
-		health.colorReaction = true  -- fallback for non-player units in group
 
 		if(config.colorMode == 'class') then
-			health.colorClass = true
+			health.colorClass    = true
+			health.colorReaction = true  -- fallback for non-player units in group
 		elseif(config.colorMode == 'gradient') then
 			health.colorSmooth = true
 			-- Per-frame colors table so we don't pollute oUF's shared colors
@@ -207,13 +207,27 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	health._bg = bg
+	health._lossColorMode = config.lossColorMode
+	health._lossCustomColor = config.lossCustomColor
+
 	if(config.lossColorMode == 'dark') then
 		bg:SetVertexColor(0.15, 0.15, 0.15, 1)
 	elseif(config.lossColorMode == 'custom') then
 		local lc = config.lossCustomColor
 		bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
+	elseif(config.lossColorMode == 'gradient') then
+		local curve = C_CurveUtil.CreateColorCurve()
+		local curveTable = buildCurveTable(
+			config.lossGradientColor1, config.lossGradientThreshold1,
+			config.lossGradientColor2, config.lossGradientThreshold2,
+			config.lossGradientColor3, config.lossGradientThreshold3
+		)
+		for x, y in next, curveTable do
+			curve:AddPoint(x, y)
+		end
+		health._lossGradientCurve = curve
 	end
-	-- 'class' and 'gradient' loss colors are handled in PostUpdate
+	-- 'class' loss color is handled in PostUpdate (needs unit class)
 
 	-- --------------------------------------------------------
 	-- Smooth interpolation (oUF passes health.smoothing to SetValue)
@@ -271,16 +285,8 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- --------------------------------------------------------
 
 	health.PostUpdate = function(h, unit, cur, max)
-		-- Guard against secret values before Lua arithmetic.
-		-- The bar itself handles secrets natively via SetValue().
-		if(not F.IsValueNonSecret(cur) or not F.IsValueNonSecret(max)) then
-			if(h.text) then h.text:SetText('') end
-			return
-		end
-
-		local pct = (max > 0) and (cur / max) or 1
-
 		-- ── Bar color (only for modes oUF can't handle) ──
+		-- These use SetStatusBarColor which accepts secret values natively.
 		if(not h._isNpcFrame) then
 			if(h._colorMode == 'dark') then
 				h:SetStatusBarColor(0.25, 0.25, 0.25)
@@ -295,16 +301,9 @@ function F.Elements.Health.Setup(self, width, height, config)
 			h:SetStatusBarColor(0.2, 0.2, 0.2)
 		end
 
-		-- ── Prediction bar positioning (deferred from creation) ──
-		-- Dispellable overlay tracks health fill width
-		if(h._dispelOverlay) then
-			local bw = (h._wrapper:GetWidth() or 0) - 2
-			if(bw > 0) then
-				h._dispelOverlay:SetWidth(math.max(bw * pct, 0.001))
-			end
-		end
-
 		-- ── Loss color (background) ───────────────────────
+		-- Uses UnitClass (non-secret) or h.values:EvaluateCurrentHealthPercent
+		-- (handles secrets natively), so this runs before the secret guard.
 		if(h._bg) then
 			if(h._lossColorMode == 'class') then
 				local _, class = UnitClass(unit)
@@ -314,36 +313,34 @@ function F.Elements.Health.Setup(self, width, height, config)
 						h._bg:SetVertexColor(cc.r * 0.3, cc.g * 0.3, cc.b * 0.3, 1)
 					end
 				end
-			elseif(h._lossColorMode == 'gradient') then
-				local lt1 = (h._lossGradientThreshold1 or 95) / 100
-				local lt2 = (h._lossGradientThreshold2 or 50) / 100
-				local lt3 = (h._lossGradientThreshold3 or 5) / 100
-				local lc1 = h._lossGradientColor1 or { 0.1, 0.4, 0.1 }
-				local lc2 = h._lossGradientColor2 or { 0.4, 0.25, 0.05 }
-				local lc3 = h._lossGradientColor3 or { 0.4, 0.05, 0.05 }
-
-				local lr, lg, lb
-				if(pct >= lt1) then
-					lr, lg, lb = lc1[1], lc1[2], lc1[3]
-				elseif(pct >= lt2) then
-					local t = (pct - lt2) / (lt1 - lt2)
-					lr = lc2[1] + (lc1[1] - lc2[1]) * t
-					lg = lc2[2] + (lc1[2] - lc2[2]) * t
-					lb = lc2[3] + (lc1[3] - lc2[3]) * t
-				elseif(pct >= lt3) then
-					local t = (pct - lt3) / (lt2 - lt3)
-					lr = lc3[1] + (lc2[1] - lc3[1]) * t
-					lg = lc3[2] + (lc2[2] - lc3[2]) * t
-					lb = lc3[3] + (lc2[3] - lc3[3]) * t
-				else
-					lr, lg, lb = lc3[1], lc3[2], lc3[3]
+			elseif(h._lossColorMode == 'gradient' and h._lossGradientCurve) then
+				local color = h.values:EvaluateCurrentHealthPercent(h._lossGradientCurve)
+				if(color) then
+					h._bg:SetVertexColor(color:GetRGBA())
 				end
-				h._bg:SetVertexColor(lr, lg, lb, 1)
 			elseif(h._lossColorMode == 'dark') then
 				h._bg:SetVertexColor(0.15, 0.15, 0.15, 1)
 			elseif(h._lossColorMode == 'custom') then
 				local lc = h._lossCustomColor or { 0.15, 0.15, 0.15 }
 				h._bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
+			end
+		end
+
+		-- Guard against secret values before Lua arithmetic.
+		-- The bar itself handles secrets natively via SetValue().
+		if(not F.IsValueNonSecret(cur) or not F.IsValueNonSecret(max)) then
+			if(h.text) then h.text:SetText('') end
+			return
+		end
+
+		local pct = (max > 0) and (cur / max) or 1
+
+		-- ── Prediction bar positioning (deferred from creation) ──
+		-- Dispellable overlay tracks health fill width
+		if(h._dispelOverlay) then
+			local bw = (h._wrapper:GetWidth() or 0) - 2
+			if(bw > 0) then
+				h._dispelOverlay:SetWidth(math.max(bw * pct, 0.001))
 			end
 		end
 
