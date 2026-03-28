@@ -99,6 +99,8 @@ function F.Elements.Name.Setup(self, config)
 	if(config.colorMode == 'white') then
 		local tc = C.Colors.textActive
 		nameText:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+	elseif(config.colorMode == 'dark') then
+		nameText:SetTextColor(0.25, 0.25, 0.25, 1)
 	elseif(config.colorMode == 'custom') then
 		local cc = config.customColor
 		nameText:SetTextColor(cc[1], cc[2], cc[3], cc[4] or 1)
