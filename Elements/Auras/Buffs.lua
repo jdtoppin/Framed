@@ -24,6 +24,49 @@ local RENDERERS = {
 }
 
 -- ============================================================
+-- Anchor derivation for Icons containers
+-- ============================================================
+
+-- Decompose WoW anchor points into vertical/horizontal components
+local POINT_V = {
+	TOPLEFT = 'TOP', TOP = 'TOP', TOPRIGHT = 'TOP',
+	LEFT = '', CENTER = '', RIGHT = '',
+	BOTTOMLEFT = 'BOTTOM', BOTTOM = 'BOTTOM', BOTTOMRIGHT = 'BOTTOM',
+}
+local POINT_H = {
+	TOPLEFT = 'LEFT', TOP = '', TOPRIGHT = 'RIGHT',
+	LEFT = 'LEFT', CENTER = '', RIGHT = 'RIGHT',
+	BOTTOMLEFT = 'LEFT', BOTTOM = '', BOTTOMRIGHT = 'RIGHT',
+}
+
+--- Derive the container frame point from the parent anchor point and grow direction.
+--- Ensures the first icon appears at the parent anchor point.
+--- @param parentPoint string WoW anchor point on the parent frame
+--- @param growDirection string 'RIGHT'|'LEFT'|'UP'|'DOWN'
+--- @return string containerPoint
+local function deriveContainerPoint(parentPoint, growDirection)
+	local v = POINT_V[parentPoint] or ''
+	local h = POINT_H[parentPoint] or ''
+	if(growDirection == 'RIGHT') then h = 'LEFT'
+	elseif(growDirection == 'LEFT') then h = 'RIGHT'
+	elseif(growDirection == 'DOWN') then v = 'TOP'
+	elseif(growDirection == 'UP') then v = 'BOTTOM'
+	end
+	local pt = v .. h
+	return (pt ~= '') and pt or 'CENTER'
+end
+
+--- Return a sensible default grow direction for a given parent anchor.
+--- Right-side anchors default to LEFT; everything else defaults to RIGHT.
+--- @param parentPoint string
+--- @return string
+local function defaultGrowForAnchor(parentPoint)
+	local h = POINT_H[parentPoint] or ''
+	if(h == 'RIGHT') then return 'LEFT' end
+	return 'RIGHT'
+end
+
+-- ============================================================
 -- castBy filter helper
 -- ============================================================
 
@@ -354,11 +397,13 @@ local function createRenderer(parent, indConfig)
 			glowConfig   = indConfig.glowConfig,
 		}
 		if(indType == C.IndicatorType.ICONS) then
+			local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
+			local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3] or 'TOPLEFT')
 			iconConfig.maxIcons      = indConfig.maxDisplayed or 4
 			iconConfig.numPerLine    = indConfig.numPerLine or 0
 			iconConfig.spacingX      = indConfig.spacingX or 1
 			iconConfig.spacingY      = indConfig.spacingY or 1
-			iconConfig.growDirection = indConfig.orientation or 'RIGHT'
+			iconConfig.growDirection = growDir
 			return factory.Create(parent, iconConfig)
 		else
 			return factory.Create(parent, nil, iconConfig)
@@ -477,7 +522,15 @@ local function Rebuild(element, config)
 				local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
 				if(renderer.ClearAllPoints and renderer.SetPoint) then
 					renderer:ClearAllPoints()
-					renderer:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+					local containerPoint = anchor[1]
+
+					-- For Icons, derive container point so first icon is at the anchor
+					if(indConfig.type == C.IndicatorType.ICONS) then
+						local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3] or 'TOPLEFT')
+						containerPoint = deriveContainerPoint(anchor[3] or 'TOPLEFT', growDir)
+					end
+
+					renderer:SetPoint(containerPoint, element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
 				end
 				if(indConfig.frameLevel and renderer.GetFrame) then
 					local frame = renderer:GetFrame()
@@ -560,7 +613,15 @@ function F.Elements.Buffs.Setup(self, config)
 				local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
 				if(renderer.SetPoint) then
 					local anchorParent = anchor[2] or self
-					renderer:SetPoint(anchor[1], anchorParent, anchor[3], anchor[4] or 0, anchor[5] or 0)
+					local containerPoint = anchor[1]
+
+					-- For Icons, derive container point so first icon is at the anchor
+					if(indConfig.type == C.IndicatorType.ICONS) then
+						local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3] or 'TOPLEFT')
+						containerPoint = deriveContainerPoint(anchor[3] or 'TOPLEFT', growDir)
+					end
+
+					renderer:SetPoint(containerPoint, anchorParent, anchor[3], anchor[4] or 0, anchor[5] or 0)
 				end
 
 				-- Set frame level if supported

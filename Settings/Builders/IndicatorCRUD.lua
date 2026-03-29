@@ -458,10 +458,14 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 			data.maxDisplayed = 3
 			data.orientation = 'RIGHT'
 			data.displayType = selectedDisplayType
+			data.showCooldown = true
+			data.durationMode = 'Never'
 		elseif(iType == C.IndicatorType.ICON) then
 			data.iconWidth = 16
 			data.iconHeight = 16
 			data.displayType = selectedDisplayType
+			data.showCooldown = true
+			data.durationMode = 'Never'
 		elseif(iType == C.IndicatorType.GLOW) then
 			data.glowType = C.GlowType.PROC
 		elseif(iType == C.IndicatorType.BAR) then

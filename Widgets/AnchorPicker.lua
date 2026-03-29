@@ -206,12 +206,12 @@ function Widgets.CreateAnchorPicker(parent, width)
 	local sliderW = width
 	local offsetsY = -(gridH + SECTION_GAP)
 
-	local xSlider = Widgets.CreateSlider(picker, 'X Offset', sliderW, -50, 50, 1)
+	local xSlider = Widgets.CreateSlider(picker, 'X Offset', sliderW, -200, 200, 1)
 	xSlider:SetPoint('TOPLEFT', picker, 'TOPLEFT', 0, offsetsY)
 	xSlider:SetValue(0)
 	picker._xSlider = xSlider
 
-	local ySlider = Widgets.CreateSlider(picker, 'Y Offset', sliderW, -50, 50, 1)
+	local ySlider = Widgets.CreateSlider(picker, 'Y Offset', sliderW, -200, 200, 1)
 	ySlider:SetPoint('TOPLEFT', picker, 'TOPLEFT', 0, offsetsY - SLIDER_H - SECTION_GAP)
 	ySlider:SetValue(0)
 	picker._ySlider = ySlider

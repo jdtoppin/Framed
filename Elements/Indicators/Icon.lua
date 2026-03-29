@@ -10,38 +10,63 @@ F.Indicators.Icon = {}
 local DEBUFF_TYPE_COLORS = setmetatable({ none = C.Colors.dispel.Physical }, { __index = C.Colors.dispel })
 
 -- ============================================================
--- Duration OnUpdate handler
--- Stored on the frame so it can be set/cleared via SetScript.
+-- Combined OnUpdate handler for depletion fill + duration text
 -- ============================================================
 
 local DURATION_UPDATE_INTERVAL = 0.1
 
-local function DurationOnUpdate(frame, elapsed)
+local function IconOnUpdate(frame, elapsed)
 	local icon = frame._iconRef
 	if(not icon) then return end
 
-	icon._durationElapsed = (icon._durationElapsed or 0) + elapsed
-	if(icon._durationElapsed < DURATION_UPDATE_INTERVAL) then return end
-	icon._durationElapsed = 0
+	local now = GetTime()
+	local needsUpdate = false
 
-	local remaining = icon._expirationTime - GetTime()
-	if(remaining <= 0) then
-		if(icon.duration) then
-			icon.duration:SetText('')
+	-- Depletion fill update
+	if(icon._depletionActive and icon._depletionBar) then
+		local rem = icon._depletionExpiration - now
+		if(rem <= 0) then
+			icon._depletionBar:SetValue(1)
+			icon._depletionActive = false
+		else
+			icon._depletionBar:SetValue(1 - (rem / icon._depletionDuration))
+			needsUpdate = true
 		end
-		icon._durationActive = false
-		frame:SetScript('OnUpdate', nil)
-		return
 	end
 
-	if(icon.duration) then
-		local show = F.Indicators.ShouldShowDuration(icon._durationMode, remaining, icon._totalDuration or 0)
-		if(show) then
-			icon.duration:SetText(F.FormatDuration(remaining))
-			icon.duration:Show()
+	-- Duration text update (throttled)
+	if(icon._durationActive and icon.duration) then
+		icon._durationElapsed = (icon._durationElapsed or 0) + elapsed
+		if(icon._durationElapsed >= DURATION_UPDATE_INTERVAL) then
+			icon._durationElapsed = 0
+			local remaining = icon._expirationTime - now
+			if(remaining <= 0) then
+				icon.duration:SetText('')
+				icon._durationActive = false
+			else
+				local show = F.Indicators.ShouldShowDuration(icon._durationMode, remaining, icon._totalDuration or 0)
+				if(show) then
+					icon.duration:SetText(F.FormatDuration(remaining))
+					icon.duration:Show()
+
+					-- Color progression (green → yellow → red)
+					if(icon._durationColorCurve and icon._totalDuration and icon._totalDuration > 0) then
+						local pct = remaining / icon._totalDuration
+						local color = icon._durationColorCurve:Evaluate(pct)
+						icon.duration:SetTextColor(color:GetRGB())
+					end
+				else
+					icon.duration:Hide()
+				end
+				needsUpdate = true
+			end
 		else
-			icon.duration:Hide()
+			needsUpdate = true
 		end
+	end
+
+	if(not needsUpdate) then
+		frame:SetScript('OnUpdate', nil)
 	end
 end
 
@@ -109,27 +134,38 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 		if(not durationSafe or not expirationSafe or duration == 0) then
 			self.duration:SetText('')
 			self._durationActive = false
-			self._frame:SetScript('OnUpdate', nil)
 		else
 			self._expirationTime = expirationTime
-			self._durationActive = true
 			self._durationElapsed = 0
 			local remaining = expirationTime - GetTime()
 			if(remaining > 0) then
+				self._durationActive = true
 				local show = F.Indicators.ShouldShowDuration(self._durationMode, remaining, duration)
 				if(show) then
 					self.duration:SetText(F.FormatDuration(remaining))
 					self.duration:Show()
+
+					-- Initial color progression
+					if(self._durationColorCurve and duration > 0) then
+						local pct = remaining / duration
+						local color = self._durationColorCurve:Evaluate(pct)
+						self.duration:SetTextColor(color:GetRGB())
+					end
 				else
 					self.duration:Hide()
 				end
-				self._frame:SetScript('OnUpdate', DurationOnUpdate)
 			else
 				self.duration:SetText('')
 				self._durationActive = false
-				self._frame:SetScript('OnUpdate', nil)
 			end
 		end
+	end
+
+	-- Start combined OnUpdate if either depletion or duration is active
+	if(self._depletionActive or self._durationActive) then
+		self._frame:SetScript('OnUpdate', IconOnUpdate)
+	else
+		self._frame:SetScript('OnUpdate', nil)
 	end
 
 	self._frame:Show()
@@ -166,12 +202,14 @@ function IconMethods:SetDepletion(duration, expirationTime)
 	if(not durationSafe or not expirationSafe or duration == 0) then
 		self._depletionBar:SetValue(0)
 		self._depletionBar:Hide()
+		self._depletionActive = false
 		return
 	end
 
 	self._depletionBar:Show()
 	self._depletionDuration = duration
 	self._depletionExpiration = expirationTime
+	self._depletionActive = true
 
 	-- Initial value
 	local remaining = expirationTime - GetTime()
@@ -179,19 +217,8 @@ function IconMethods:SetDepletion(duration, expirationTime)
 		self._depletionBar:SetValue(1 - (remaining / duration))
 	else
 		self._depletionBar:SetValue(1)
+		self._depletionActive = false
 	end
-
-	self._frame:SetScript('OnUpdate', function(f, elapsed)
-		local icon = f._iconRef
-		if(not icon or not icon._depletionBar) then return end
-		local rem = icon._depletionExpiration - GetTime()
-		if(rem <= 0) then
-			icon._depletionBar:SetValue(1)
-			f:SetScript('OnUpdate', nil)
-			return
-		end
-		icon._depletionBar:SetValue(1 - (rem / icon._depletionDuration))
-	end)
 end
 
 --- Clear and hide this icon, stopping any active OnUpdate.
@@ -209,6 +236,7 @@ function IconMethods:Clear()
 		self._depletionBar:Hide()
 	end
 	self._durationActive = false
+	self._depletionActive = false
 	self._frame:SetScript('OnUpdate', nil)
 	self._frame:Hide()
 end
@@ -291,9 +319,6 @@ function F.Indicators.Icon.Create(parent, size, config)
 	Widgets.SetSize(frame, iconWidth, iconHeight)
 	frame:Hide()
 
-	-- Back-reference so OnUpdate can reach the icon table
-	-- (assigned below after icon table is built)
-
 	-- 1. Icon texture
 	local texture = frame:CreateTexture(nil, 'ARTWORK')
 	texture:SetAllPoints(frame)
@@ -329,21 +354,43 @@ function F.Indicators.Icon.Create(parent, size, config)
 		depletionBar:Hide()
 	end
 
-	-- 3. Stack count text (bottom-right)
+	-- 3. Text overlay frame — renders above the depletion bar
+	local textOverlay
+	if(showStacks or showDuration) then
+		textOverlay = CreateFrame('Frame', nil, frame)
+		textOverlay:SetAllPoints(frame)
+		textOverlay:SetFrameLevel((depletionBar and depletionBar:GetFrameLevel() or frame:GetFrameLevel()) + 1)
+	end
+
+	-- 4. Stack count text (configurable anchor, font, outline, shadow)
 	local stacksText
 	if(showStacks) then
 		local sf = config.stackFont or {}
-		stacksText = Widgets.CreateFontString(frame, sf.size or C.Font.sizeSmall, C.Colors.textActive)
-		stacksText:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 1, 0)
+		local sfAnchor = sf.anchor or 'BOTTOMRIGHT'
+		stacksText = Widgets.CreateFontString(textOverlay, sf.size or C.Font.sizeSmall, C.Colors.textActive, sf.outline or '', sf.shadow)
+		stacksText:SetPoint(sfAnchor, textOverlay, sfAnchor, sf.offsetX or 0, sf.offsetY or 0)
 		stacksText:Hide()
 	end
 
-	-- 4. Duration text (bottom)
+	-- 5. Duration text (configurable anchor, font, outline, shadow)
 	local durationText
+	local durationColorCurve
 	if(showDuration) then
 		local df = config.durationFont or {}
-		durationText = Widgets.CreateFontString(frame, df.size or C.Font.sizeSmall, C.Colors.textActive)
-		durationText:SetPoint('BOTTOM', frame, 'BOTTOM', 0, 0)
+		local dfAnchor = df.anchor or 'BOTTOM'
+		durationText = Widgets.CreateFontString(textOverlay, df.size or C.Font.sizeSmall, C.Colors.textActive, df.outline or '', df.shadow)
+		durationText:SetPoint(dfAnchor, textOverlay, dfAnchor, df.offsetX or 0, df.offsetY or 0)
+
+		-- Color progression curve (green → yellow → red based on remaining %)
+		if(df.colorProgression) then
+			local startColor = df.progressionStart or { 0, 1, 0 }   -- green (full)
+			local midColor   = df.progressionMid   or { 1, 1, 0 }   -- yellow (half)
+			local endColor   = df.progressionEnd    or { 1, 0, 0 }   -- red (expired)
+			durationColorCurve = C_CurveUtil.CreateColorCurve()
+			durationColorCurve:AddPoint(0, CreateColor(endColor[1], endColor[2], endColor[3]))
+			durationColorCurve:AddPoint(0.5, CreateColor(midColor[1], midColor[2], midColor[3]))
+			durationColorCurve:AddPoint(1, CreateColor(startColor[1], startColor[2], startColor[3]))
+		end
 	end
 
 	-- Build icon object
@@ -355,6 +402,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 		},
 		_displayType  = displayType,
 		_durationMode    = durationMode,
+		_durationColorCurve = durationColorCurve,
 		_spellColors     = config.spellColors,
 		_totalDuration   = 0,
 		_durationActive  = false,
@@ -364,6 +412,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 		_depletionBar        = depletionBar,
 		_depletionDuration   = 0,
 		_depletionExpiration = 0,
+		_depletionActive     = false,
 
 		texture  = texture,
 		stacks   = stacksText,
@@ -375,7 +424,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 		icon[k] = v
 	end
 
-	-- Allow DurationOnUpdate to reach icon via frame._iconRef
+	-- Allow IconOnUpdate to reach icon via frame._iconRef
 	frame._iconRef = icon
 
 	return icon

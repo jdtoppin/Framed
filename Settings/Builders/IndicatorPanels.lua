@@ -325,6 +325,46 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			yOffset = placeHeading(parent, 'Layout', 2, yOffset)
 			local layCard, layInner, layY = Widgets.StartCard(parent, width, yOffset)
 
+			-- Anchor picker
+			if(Widgets.CreateAnchorPicker) then
+				local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+				local picker = Widgets.CreateAnchorPicker(layInner, WIDGET_W)
+				picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
+				picker:SetOnChanged(function(point, x, y)
+					local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+					a[1] = point
+					a[3] = point
+					a[4] = x
+					a[5] = y
+					set('anchor', a)
+				end)
+				layY = placeWidget(picker, layInner, layY, picker._height or 91)
+			end
+
+			-- Frame level
+			local flSlider = Widgets.CreateSlider(layInner, 'Frame Level', WIDGET_W, 1, 50, 1)
+			flSlider:SetValue(get('frameLevel') or 5)
+			flSlider:SetAfterValueChanged(function(val)
+				set('frameLevel', val)
+			end)
+			layY = placeWidget(flSlider, layInner, layY, SLIDER_H)
+
+			-- Grow direction — default is derived from anchor when not explicitly set
+			local anchorData = data.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
+			local anchorH = anchorData[3] or 'TOPLEFT'
+			local defaultGrow = (anchorH == 'TOPRIGHT' or anchorH == 'RIGHT' or anchorH == 'BOTTOMRIGHT') and 'LEFT' or 'RIGHT'
+			local effectiveGrow = data.orientation or defaultGrow
+
+			local growLabel = Widgets.CreateFontString(layInner, C.Font.sizeSmall, C.Colors.textSecondary)
+			growLabel:SetText('Grow Direction')
+			layY = placeWidget(growLabel, layInner, layY, C.Font.sizeSmall)
+
+			local oriDD = Widgets.CreateDropdown(layInner, WIDGET_W)
+			oriDD:SetItems(ORIENTATION_ITEMS)
+			oriDD:SetValue(effectiveGrow)
+			oriDD:SetOnSelect(function(v) update('orientation', v) end)
+			layY = placeWidget(oriDD, layInner, layY, DROPDOWN_H)
+
 			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
 			mxSlider:SetValue(data.maxDisplayed or 3)
 			mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
@@ -345,12 +385,6 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
 			layY = placeWidget(spySlider, layInner, layY, SLIDER_H)
 
-			local oriDD = Widgets.CreateDropdown(layInner, WIDGET_W)
-			oriDD:SetItems(ORIENTATION_ITEMS)
-			oriDD:SetValue(data.orientation or 'RIGHT')
-			oriDD:SetOnSelect(function(v) update('orientation', v) end)
-			layY = placeWidget(oriDD, layInner, layY, DROPDOWN_H)
-
 			yOffset = Widgets.EndCard(layCard, parent, layY)
 		end
 
@@ -364,18 +398,99 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		cdSwitch:SetChecked(data.showCooldown ~= false)
 		cdY = placeWidget(cdSwitch, cdInner, cdY, CHECK_H)
 
+		local durModeLabel = Widgets.CreateFontString(cdInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		durModeLabel:SetText('Duration Text')
+		cdY = placeWidget(durModeLabel, cdInner, cdY, C.Font.sizeSmall)
+
 		local durDD = Widgets.CreateDropdown(cdInner, WIDGET_W)
 		durDD:SetItems(DURATION_MODE_ITEMS)
 		durDD:SetValue(data.durationMode or 'Never')
 		durDD:SetOnSelect(function(v) update('durationMode', v) end)
 		cdY = placeWidget(durDD, cdInner, cdY, DROPDOWN_H)
 
-		yOffset = Widgets.EndCard(cdCard, parent, cdY)
-
-		-- Duration font (shown when durationMode != Never)
+		-- Duration text settings (shown when durationMode != Never)
 		if(data.durationMode and data.durationMode ~= 'Never') then
-			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Duration Font', 'durationFont', get, set)
+			local fontCfg = get('durationFont') or {}
+
+			-- Anchor picker for duration text position on the icon
+			if(Widgets.CreateAnchorPicker) then
+				local dfAnchor = fontCfg.anchor or 'BOTTOM'
+				local dfPicker = Widgets.CreateAnchorPicker(cdInner, WIDGET_W)
+				dfPicker:SetAnchor(dfAnchor, fontCfg.offsetX or 0, fontCfg.offsetY or 0)
+				dfPicker:SetOnChanged(function(point, x, y)
+					fontCfg.anchor = point
+					fontCfg.offsetX = x
+					fontCfg.offsetY = y
+					set('durationFont', fontCfg)
+				end)
+				cdY = placeWidget(dfPicker, cdInner, cdY, dfPicker._height or 91)
+			end
+
+			-- Font size
+			local dfSizeSlider = Widgets.CreateSlider(cdInner, 'Font Size', WIDGET_W, 6, 24, 1)
+			dfSizeSlider:SetValue(fontCfg.size or C.Font.sizeSmall)
+			dfSizeSlider:SetAfterValueChanged(function(val)
+				fontCfg.size = val
+				set('durationFont', fontCfg)
+			end)
+			cdY = placeWidget(dfSizeSlider, cdInner, cdY, SLIDER_H)
+
+			-- Outline
+			local dfOutlineDD = Widgets.CreateDropdown(cdInner, WIDGET_W)
+			dfOutlineDD:SetItems({
+				{ text = 'None',    value = '' },
+				{ text = 'Outline', value = 'OUTLINE' },
+				{ text = 'Mono',    value = 'MONOCHROME' },
+			})
+			dfOutlineDD:SetValue(fontCfg.outline or '')
+			dfOutlineDD:SetOnSelect(function(value)
+				fontCfg.outline = value
+				set('durationFont', fontCfg)
+			end)
+			cdY = placeWidget(dfOutlineDD, cdInner, cdY, DROPDOWN_H)
+
+			-- Shadow
+			local dfShadowCB = Widgets.CreateCheckButton(cdInner, 'Shadow', function(checked)
+				fontCfg.shadow = checked
+				set('durationFont', fontCfg)
+			end)
+			dfShadowCB:SetChecked(fontCfg.shadow or false)
+			cdY = placeWidget(dfShadowCB, cdInner, cdY, CHECK_H)
+
+			-- Color progression toggle + color pickers (always shown for now)
+			local cpCB = Widgets.CreateCheckButton(cdInner, 'Color Progression', function(checked)
+				fontCfg.colorProgression = checked
+				set('durationFont', fontCfg)
+			end)
+			cpCB:SetChecked(fontCfg.colorProgression or false)
+			cdY = placeWidget(cpCB, cdInner, cdY, CHECK_H)
+
+			local startC = fontCfg.progressionStart or { 0, 1, 0 }
+			local startPicker = Widgets.CreateColorPicker(cdInner, 'Full Duration', false, function(r, g, b)
+				fontCfg.progressionStart = { r, g, b }
+				set('durationFont', fontCfg)
+			end)
+			startPicker:SetColor(startC[1], startC[2], startC[3], 1)
+			cdY = placeWidget(startPicker, cdInner, cdY, DROPDOWN_H)
+
+			local midC = fontCfg.progressionMid or { 1, 1, 0 }
+			local midPicker = Widgets.CreateColorPicker(cdInner, 'Half Duration', false, function(r, g, b)
+				fontCfg.progressionMid = { r, g, b }
+				set('durationFont', fontCfg)
+			end)
+			midPicker:SetColor(midC[1], midC[2], midC[3], 1)
+			cdY = placeWidget(midPicker, cdInner, cdY, DROPDOWN_H)
+
+			local endC = fontCfg.progressionEnd or { 1, 0, 0 }
+			local endPicker = Widgets.CreateColorPicker(cdInner, 'Near Expiry', false, function(r, g, b)
+				fontCfg.progressionEnd = { r, g, b }
+				set('durationFont', fontCfg)
+			end)
+			endPicker:SetColor(endC[1], endC[2], endC[3], 1)
+			cdY = placeWidget(endPicker, cdInner, cdY, DROPDOWN_H)
 		end
+
+		yOffset = Widgets.EndCard(cdCard, parent, cdY)
 
 		-- Stack card
 		yOffset = placeHeading(parent, 'Stacks', 2, yOffset)
@@ -387,17 +502,64 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		stSwitch:SetChecked(data.showStacks == true)
 		stY = placeWidget(stSwitch, stInner, stY, CHECK_H)
 
-		yOffset = Widgets.EndCard(stCard, parent, stY)
-
 		if(data.showStacks) then
-			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Font', 'stackFont', get, set)
+			local sfCfg = get('stackFont') or {}
+
+			-- Anchor picker for stack text position on the icon
+			if(Widgets.CreateAnchorPicker) then
+				local sfAnchor = sfCfg.anchor or 'BOTTOMRIGHT'
+				local sfPicker = Widgets.CreateAnchorPicker(stInner, WIDGET_W)
+				sfPicker:SetAnchor(sfAnchor, sfCfg.offsetX or 0, sfCfg.offsetY or 0)
+				sfPicker:SetOnChanged(function(point, x, y)
+					sfCfg.anchor = point
+					sfCfg.offsetX = x
+					sfCfg.offsetY = y
+					set('stackFont', sfCfg)
+				end)
+				stY = placeWidget(sfPicker, stInner, stY, sfPicker._height or 91)
+			end
+
+			-- Font size
+			local sfSizeSlider = Widgets.CreateSlider(stInner, 'Font Size', WIDGET_W, 6, 24, 1)
+			sfSizeSlider:SetValue(sfCfg.size or C.Font.sizeSmall)
+			sfSizeSlider:SetAfterValueChanged(function(val)
+				sfCfg.size = val
+				set('stackFont', sfCfg)
+			end)
+			stY = placeWidget(sfSizeSlider, stInner, stY, SLIDER_H)
+
+			-- Outline
+			local sfOutlineDD = Widgets.CreateDropdown(stInner, WIDGET_W)
+			sfOutlineDD:SetItems({
+				{ text = 'None',    value = '' },
+				{ text = 'Outline', value = 'OUTLINE' },
+				{ text = 'Mono',    value = 'MONOCHROME' },
+			})
+			sfOutlineDD:SetValue(sfCfg.outline or '')
+			sfOutlineDD:SetOnSelect(function(value)
+				sfCfg.outline = value
+				set('stackFont', sfCfg)
+			end)
+			stY = placeWidget(sfOutlineDD, stInner, stY, DROPDOWN_H)
+
+			-- Shadow
+			local sfShadowCB = Widgets.CreateCheckButton(stInner, 'Shadow', function(checked)
+				sfCfg.shadow = checked
+				set('stackFont', sfCfg)
+			end)
+			sfShadowCB:SetChecked(sfCfg.shadow or false)
+			stY = placeWidget(sfShadowCB, stInner, stY, CHECK_H)
 		end
+
+		yOffset = Widgets.EndCard(stCard, parent, stY)
 
 		-- Glow card
 		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = true })
 
-		-- Position card
-		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
+		-- Position card (single Icon only — Icons has position in Layout card)
+		if(iType == C.IndicatorType.ICON) then
+			yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
+		end
 
 	elseif(iType == C.IndicatorType.BAR or iType == C.IndicatorType.BARS) then
 		-- Size card
