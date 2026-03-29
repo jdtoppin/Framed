@@ -347,6 +347,13 @@ function Widgets.CreateSpellList(parent, width, height)
 			if(id == spellID) then return end
 		end
 		self._spells[#self._spells + 1] = spellID
+		-- Auto-save white as default spell color when color pickers are active
+		if(self._showColorPicker) then
+			if(not self._spellColors) then self._spellColors = {} end
+			if(not self._spellColors[spellID]) then
+				self._spellColors[spellID] = { 1, 1, 1 }
+			end
+		end
 		NotifyChanged()
 	end
 
@@ -358,6 +365,9 @@ function Widgets.CreateSpellList(parent, width, height)
 		for i, id in next, self._spells do
 			if(id == spellID) then
 				table.remove(self._spells, i)
+				if(self._spellColors) then
+					self._spellColors[spellID] = nil
+				end
 				NotifyChanged()
 				return
 			end
@@ -380,6 +390,7 @@ function Widgets.CreateSpellList(parent, width, height)
 	--- @param spellIDs table Array of spell IDs
 	function spellList:SetSpells(spellIDs)
 		self._spells = {}
+		self._spellColors = {}
 		if(spellIDs) then
 			for _, id in next, spellIDs do
 				local n = tonumber(id)
@@ -391,11 +402,14 @@ function Widgets.CreateSpellList(parent, width, height)
 					end
 					if(not dup) then
 						self._spells[#self._spells + 1] = n
+						if(self._showColorPicker) then
+							self._spellColors[n] = { 1, 1, 1 }
+						end
 					end
 				end
 			end
 		end
-		Layout()
+		NotifyChanged()
 		-- Deferred re-layout: the inner scroll content width may not be
 		-- resolved yet on the first frame, causing 0-width rows.
 		C_Timer.After(0, function()
