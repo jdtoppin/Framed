@@ -31,6 +31,7 @@ function F.Elements.RaidIcon.Setup(self, config)
 
 	local icon = (self._iconOverlay or self):CreateTexture(nil, 'OVERLAY')
 	Widgets.SetSize(icon, config.size, config.size)
+	icon:Hide()
 
 	local p = config.point
 	Widgets.SetPoint(icon, p[1], p[2], p[3], p[4], p[5])
