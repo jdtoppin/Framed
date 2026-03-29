@@ -67,7 +67,7 @@ function IconsMethods:SetIcons(auraList)
 		end
 
 		icon:SetSpell(
-			aura.spellID,
+			aura.spellId,
 			aura.icon,
 			aura.duration,
 			aura.expirationTime,
@@ -75,6 +75,7 @@ function IconsMethods:SetIcons(auraList)
 			aura.dispelType
 		)
 		icon:Show()
+
 	end
 
 	-- Hide any pool entries beyond the active count

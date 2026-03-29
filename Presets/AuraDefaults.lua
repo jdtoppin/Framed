@@ -81,7 +81,7 @@ end
 -- Solo/boss units: buffs + debuffs only
 function F.AuraDefaults.Solo(debuffSize, debuffMax)
 	return {
-		buffs = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = debuffConfig(debuffSize or 14, debuffMax or 6),
 		lossOfControl = {
 			enabled    = false,
@@ -103,7 +103,7 @@ end
 -- Minimal auras for simple units (targettarget, pet)
 function F.AuraDefaults.Minimal()
 	return {
-		buffs = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = debuffConfig(14, 3),
 		lossOfControl = {
 			enabled    = false,
@@ -140,6 +140,7 @@ function F.AuraDefaults.Group(sizes)
 
 	return {
 		buffs = {
+			enabled = true,
 			hideUnimportantBuffs = true,
 			indicators = { ['My Buffs'] = defaultBuffIndicator() },
 		},
@@ -255,7 +256,7 @@ end
 -- Arena enemy auras — debuffs + dispellable (from old arenaEnemyBase)
 function F.AuraDefaults.Arena()
 	return {
-		buffs = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = {
 			enabled              = true,
 			iconSize             = 14,
@@ -298,7 +299,7 @@ end
 -- Boss auras — buffs + debuffs + raidDebuffs
 function F.AuraDefaults.Boss()
 	return {
-		buffs   = { indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs   = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = debuffConfig(14, 4),
 		raidDebuffs = {
 			enabled        = true,

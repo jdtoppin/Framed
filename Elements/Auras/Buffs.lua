@@ -474,8 +474,8 @@ local function Rebuild(element, config)
 		if(indConfig.enabled ~= false) then
 			local renderer = createRenderer(element.__owner, indConfig)
 			if(renderer) then
-				local anchor = indConfig.anchor
-				if(anchor and renderer.ClearAllPoints and renderer.SetPoint) then
+				local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
+				if(renderer.ClearAllPoints and renderer.SetPoint) then
 					renderer:ClearAllPoints()
 					renderer:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
 				end
@@ -557,18 +557,18 @@ function F.Elements.Buffs.Setup(self, config)
 			local renderer = createRenderer(self, indConfig)
 			if(renderer) then
 				-- Position renderers that support SetPoint
-				local anchor = indConfig.anchor
-				if(anchor and renderer.SetPoint) then
-					-- Resolve nil parent ref to self
+				local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
+				if(renderer.SetPoint) then
 					local anchorParent = anchor[2] or self
 					renderer:SetPoint(anchor[1], anchorParent, anchor[3], anchor[4] or 0, anchor[5] or 0)
 				end
 
 				-- Set frame level if supported
-				if(indConfig.frameLevel and renderer.GetFrame) then
+				local fl = indConfig.frameLevel or 5
+				if(renderer.GetFrame) then
 					local frame = renderer:GetFrame()
 					if(frame and frame.SetFrameLevel) then
-						frame:SetFrameLevel(indConfig.frameLevel)
+						frame:SetFrameLevel(fl)
 					end
 				end
 

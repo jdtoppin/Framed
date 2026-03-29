@@ -551,6 +551,19 @@ function F.PresetDefaults.EnsureDefaults()
 			if(preset.partyPets and not FramedDB.presets[name].partyPets) then
 				FramedDB.presets[name].partyPets = preset.partyPets
 			end
+			-- Backfill buffs.enabled (was missing in earlier versions)
+			-- Backfill hideUnimportantBuffs for group unit types
+			local savedAuras = FramedDB.presets[name].auras
+			if(savedAuras) then
+				for unitType, auraSet in next, savedAuras do
+					if(auraSet.buffs and auraSet.buffs.indicators and auraSet.buffs.enabled == nil) then
+						auraSet.buffs.enabled = true
+					end
+					if(auraSet.buffs and (unitType == 'party' or unitType == 'raid') and auraSet.buffs.hideUnimportantBuffs == nil) then
+						auraSet.buffs.hideUnimportantBuffs = true
+					end
+				end
+			end
 		end
 	end
 end

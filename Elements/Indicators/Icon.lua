@@ -84,11 +84,9 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 	-- Store total duration for ShouldShowDuration
 	self._totalDuration = duration
 
-	-- Cooldown swipe OR vertical depletion
-	if(self._displayType == C.IconDisplay.COLORED_SQUARE and self._depletionBar) then
+	-- Depletion fill overlay
+	if(self._depletionBar) then
 		self:SetDepletion(duration, expirationTime)
-	elseif(self._config.showCooldown and self.cooldown) then
-		self:SetCooldown(duration, expirationTime)
 	end
 
 	-- Stacks
@@ -143,30 +141,6 @@ function IconMethods:SetDisplayType(displayType)
 	self._displayType = displayType
 end
 
---- Update the cooldown swipe animation.
---- Uses SetCooldownFromDurationObject when available for secret-safe display.
---- @param duration number
---- @param expirationTime number
-function IconMethods:SetCooldown(duration, expirationTime)
-	if(not self.cooldown) then return end
-
-	local durationSafe = F.IsValueNonSecret(duration)
-	local expirationSafe = F.IsValueNonSecret(expirationTime)
-
-	if(not durationSafe or not expirationSafe) then
-		-- Secret values: degrade gracefully — clear the cooldown display
-		self.cooldown:Clear()
-		return
-	end
-
-	if(duration and duration > 0 and expirationTime and expirationTime > 0) then
-		local startTime = expirationTime - duration
-		self.cooldown:SetCooldown(startTime, duration)
-	else
-		self.cooldown:Clear()
-	end
-end
-
 --- Show/update stack count text. Hidden when stacks <= 1.
 --- @param count number|nil
 function IconMethods:SetStacks(count)
@@ -180,7 +154,8 @@ function IconMethods:SetStacks(count)
 	end
 end
 
---- Start the vertical depletion animation.
+--- Start the depletion fill animation.
+--- Value goes from 0 (full duration remaining, no overlay) to 1 (expired, fully covered).
 --- @param duration number
 --- @param expirationTime number
 function IconMethods:SetDepletion(duration, expirationTime)
@@ -189,7 +164,7 @@ function IconMethods:SetDepletion(duration, expirationTime)
 	local expirationSafe = F.IsValueNonSecret(expirationTime)
 
 	if(not durationSafe or not expirationSafe or duration == 0) then
-		self._depletionBar:SetValue(1)
+		self._depletionBar:SetValue(0)
 		self._depletionBar:Hide()
 		return
 	end
@@ -197,25 +172,31 @@ function IconMethods:SetDepletion(duration, expirationTime)
 	self._depletionBar:Show()
 	self._depletionDuration = duration
 	self._depletionExpiration = expirationTime
+
+	-- Initial value
+	local remaining = expirationTime - GetTime()
+	if(remaining > 0) then
+		self._depletionBar:SetValue(1 - (remaining / duration))
+	else
+		self._depletionBar:SetValue(1)
+	end
+
 	self._frame:SetScript('OnUpdate', function(f, elapsed)
 		local icon = f._iconRef
 		if(not icon or not icon._depletionBar) then return end
-		local remaining = icon._depletionExpiration - GetTime()
-		if(remaining <= 0) then
-			icon._depletionBar:SetValue(0)
+		local rem = icon._depletionExpiration - GetTime()
+		if(rem <= 0) then
+			icon._depletionBar:SetValue(1)
 			f:SetScript('OnUpdate', nil)
 			return
 		end
-		icon._depletionBar:SetValue(remaining / icon._depletionDuration)
+		icon._depletionBar:SetValue(1 - (rem / icon._depletionDuration))
 	end)
 end
 
 --- Clear and hide this icon, stopping any active OnUpdate.
 function IconMethods:Clear()
 	self.texture:SetTexture(nil)
-	if(self.cooldown) then
-		self.cooldown:Clear()
-	end
 	if(self.stacks) then
 		self.stacks:SetText('')
 		self.stacks:Hide()
@@ -224,7 +205,7 @@ function IconMethods:Clear()
 		self.duration:SetText('')
 	end
 	if(self._depletionBar) then
-		self._depletionBar:SetValue(1)
+		self._depletionBar:SetValue(0)
 		self._depletionBar:Hide()
 	end
 	self._durationActive = false
@@ -319,29 +300,33 @@ function F.Indicators.Icon.Create(parent, size, config)
 	-- Trim default icon border
 	texture:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
-	-- 2. Cooldown frame
-	local cooldown
-	if(showCooldown) then
-		cooldown = CreateFrame('Cooldown', nil, frame, 'CooldownFrameTemplate')
-		cooldown:SetAllPoints(frame)
-		cooldown:SetDrawBling(false)
-		cooldown:SetDrawEdge(false)
-		cooldown:SetHideCountdownNumbers(true)
-	end
-
-	-- 2a. Vertical depletion bar (for ColoredSquare mode)
+	-- 2. Depletion bar overlay (dark fill for SpellIcon, white fill for ColoredSquare)
 	local depletionBar
-	if(displayType == C.IconDisplay.COLORED_SQUARE) then
+	if(showCooldown) then
+		local fillDirection = config.fillDirection or 'topToBottom'
 		depletionBar = CreateFrame('StatusBar', nil, frame)
 		depletionBar:SetAllPoints(frame)
-		depletionBar:SetOrientation('VERTICAL')
-		depletionBar:SetFillStyle('REVERSE')  -- depletes from top
+
+		-- Orientation and fill direction
+		if(fillDirection == 'topToBottom') then
+			depletionBar:SetOrientation('VERTICAL')
+			depletionBar:SetReverseFill(true)
+		elseif(fillDirection == 'bottomToTop') then
+			depletionBar:SetOrientation('VERTICAL')
+			depletionBar:SetReverseFill(false)
+		elseif(fillDirection == 'leftToRight') then
+			depletionBar:SetOrientation('HORIZONTAL')
+			depletionBar:SetReverseFill(false)
+		elseif(fillDirection == 'rightToLeft') then
+			depletionBar:SetOrientation('HORIZONTAL')
+			depletionBar:SetReverseFill(true)
+		end
+
 		depletionBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+		depletionBar:SetStatusBarColor(0, 0, 0, 0.6)
 		depletionBar:SetMinMaxValues(0, 1)
-		depletionBar:SetValue(1)
+		depletionBar:SetValue(0)
 		depletionBar:Hide()
-		-- Don't create the CooldownFrame when in ColoredSquare mode
-		cooldown = nil
 	end
 
 	-- 3. Stack count text (bottom-right)
@@ -381,7 +366,6 @@ function F.Indicators.Icon.Create(parent, size, config)
 		_depletionExpiration = 0,
 
 		texture  = texture,
-		cooldown = cooldown,
 		stacks   = stacksText,
 		duration = durationText,
 	}
