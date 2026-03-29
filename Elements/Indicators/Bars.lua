@@ -40,11 +40,16 @@ function BarsMethods:SetBars(auraList)
 			bar:SetStacks(aura.stacks)
 		end
 		bar:Show()
+		-- Apply per-bar glow if active
+		if(self._glowType and self._glowType ~= 'None') then
+			bar:StartGlow(self._glowColor, self._glowType, self._glowConfig)
+		end
 	end
 
-	-- Hide unused bars
+	-- Hide unused bars and stop their glow
 	for i = count + 1, #self._pool do
 		self._pool[i]:Clear()
+		if(self._pool[i].StopGlow) then self._pool[i]:StopGlow() end
 	end
 
 	self._activeCount = count
@@ -67,6 +72,23 @@ function BarsMethods:GetFrame() return self._frame end
 function BarsMethods:SetPoint(...) self._frame:SetPoint(...) end
 function BarsMethods:ClearAllPoints() self._frame:ClearAllPoints() end
 function BarsMethods:GetActiveCount() return self._activeCount end
+
+function BarsMethods:StartGlow(color, glowType, glowConfig)
+	self._glowColor  = color
+	self._glowType   = glowType
+	self._glowConfig = glowConfig
+	for i = 1, self._activeCount do
+		local bar = self._pool[i]
+		if(bar) then bar:StartGlow(color, glowType, glowConfig) end
+	end
+end
+
+function BarsMethods:StopGlow()
+	self._glowType = nil
+	for _, bar in next, self._pool do
+		if(bar.StopGlow) then bar:StopGlow() end
+	end
+end
 
 --- Lazily create or return an existing bar in the pool.
 function BarsMethods:_GetBar(index)
