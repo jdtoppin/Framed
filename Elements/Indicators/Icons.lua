@@ -34,6 +34,9 @@ function IconsMethods:SetIcons(auraList)
 				durationFont = cfg.durationFont,
 				stackFont    = cfg.stackFont,
 				spellColors  = cfg.spellColors,
+				glowType     = cfg.glowType,
+				glowColor    = cfg.glowColor,
+				glowConfig   = cfg.glowConfig,
 			})
 		end
 
@@ -186,6 +189,9 @@ function F.Indicators.Icons.Create(parent, config)
 		durationFont  = config.durationFont,
 		stackFont     = config.stackFont,
 		spellColors   = config.spellColors,
+		glowType      = config.glowType,
+		glowColor     = config.glowColor,
+		glowConfig    = config.glowConfig,
 	}
 
 	-- Container frame — sized to fit max icons in the grow direction

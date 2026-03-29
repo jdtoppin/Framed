@@ -168,6 +168,11 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 		self._frame:SetScript('OnUpdate', nil)
 	end
 
+	-- Glow (auto-start when glowType is configured and not 'None')
+	if(self._glowType and self._glowType ~= 'None') then
+		self:StartGlow(self._glowColor, self._glowType, self._glowConfig)
+	end
+
 	self._frame:Show()
 end
 
@@ -235,6 +240,7 @@ function IconMethods:Clear()
 		self._depletionBar:SetValue(0)
 		self._depletionBar:Hide()
 	end
+	self:StopGlow()
 	self._durationActive = false
 	self._depletionActive = false
 	self._frame:SetScript('OnUpdate', nil)
@@ -413,6 +419,10 @@ function F.Indicators.Icon.Create(parent, size, config)
 		_depletionDuration   = 0,
 		_depletionExpiration = 0,
 		_depletionActive     = false,
+
+		_glowType   = config.glowType,
+		_glowColor  = config.glowColor,
+		_glowConfig = config.glowConfig,
 
 		texture  = texture,
 		stacks   = stacksText,
