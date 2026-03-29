@@ -31,7 +31,7 @@ function F.AppearanceCards.TargetHighlight(parent, width, getConfig, setConfig, 
 	end)
 	cardY = cardY - SWATCH_H - C.Spacing.normal
 
-	local thWidthSlider = Widgets.CreateSlider(inner, 'Border Width', widgetW, 1, 4, 1)
+	local thWidthSlider = Widgets.CreateSlider(inner, 'Border Width', widgetW, 0.5, 2, 0.25)
 	thWidthSlider:SetValue(getConfig('targetHighlightWidth') or 2)
 	thWidthSlider:SetAfterValueChanged(function(value)
 		setConfig('targetHighlightWidth', value)

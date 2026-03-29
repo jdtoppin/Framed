@@ -31,7 +31,7 @@ function F.AppearanceCards.MouseoverHighlight(parent, width, getConfig, setConfi
 	end)
 	cardY = cardY - SWATCH_H - C.Spacing.normal
 
-	local moWidthSlider = Widgets.CreateSlider(inner, 'Border Width', widgetW, 1, 4, 1)
+	local moWidthSlider = Widgets.CreateSlider(inner, 'Border Width', widgetW, 0.5, 2, 0.25)
 	moWidthSlider:SetValue(getConfig('mouseoverHighlightWidth') or 2)
 	moWidthSlider:SetAfterValueChanged(function(value)
 		setConfig('mouseoverHighlightWidth', value)
