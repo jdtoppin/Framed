@@ -394,6 +394,46 @@ function F.Elements.Health.Setup(self, width, height, config)
 				local tc = C.Colors.textActive
 				h.text:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
 			end
+
+			-- Center the combined Name + Health text as a group.
+			-- GetStringWidth() on the health text returns a secret number
+			-- (health values are secret) so we measure a hidden proxy
+			-- FontString with non-secret representative text instead.
+			if(h._attachedToName and self.Name) then
+				if(not h._measureProxy) then
+					h._measureProxy = (h._wrapper or h):CreateFontString(nil, 'ARTWORK')
+					h._measureProxy:Hide()
+				end
+				local font, size, flags = h.text:GetFont()
+				h._measureProxy:SetFont(font, size, flags)
+
+				local proxyStr
+				if(fmt == 'percent') then
+					-- UnitHealthPercent is C-level and returns non-secret
+					local pct = UnitHealthPercent(unit, true, CurveConstants.ScaleTo100)
+					proxyStr = prefix .. string.format('%d', pct) .. '%'
+				elseif(fmt == 'currentMax') then
+					proxyStr = prefix .. '000k/000k'
+				elseif(fmt == 'deficit') then
+					proxyStr = prefix .. '-000k'
+				else
+					proxyStr = prefix .. '000.0k'
+				end
+				h._measureProxy:SetText(proxyStr)
+				local healthW = h._measureProxy:GetStringWidth() or 0
+
+				local gap = 2
+				local shift = (gap + healthW) / 2
+				if(shift ~= h._lastAttachShift) then
+					h._lastAttachShift = shift
+					local anchor = h._wrapper or h
+					local ap = self.Name._anchorPoint or 'CENTER'
+					local baseX = self.Name._anchorX or 0
+					local baseY = self.Name._anchorY or 0
+					self.Name:ClearAllPoints()
+					Widgets.SetPoint(self.Name, ap, anchor, ap, baseX - shift, baseY)
+				end
+			end
 		end
 	end
 

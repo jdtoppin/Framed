@@ -42,6 +42,35 @@ function F.Elements.Power.Setup(self, width, height, config)
 
 	local power = Widgets.CreateStatusBar(self, width, config.height)
 
+	-- Remove the shared border edge so health and power bars don't
+	-- double up their 1px borders. Which edge to remove depends on
+	-- whether the power bar sits above or below the health bar.
+	local pos = config.position or 'bottom'
+	power:ClearAllPoints()
+	if(pos == 'top') then
+		-- Shared edge is the bottom — extend inner bar down to 0
+		power:SetPoint('TOPLEFT',     power._wrapper, 'TOPLEFT',      1, -1)
+		power:SetPoint('BOTTOMRIGHT', power._wrapper, 'BOTTOMRIGHT', -1,  0)
+	else
+		-- Shared edge is the top — extend inner bar up to 0
+		power:SetPoint('TOPLEFT',     power._wrapper, 'TOPLEFT',      1,  0)
+		power:SetPoint('BOTTOMRIGHT', power._wrapper, 'BOTTOMRIGHT', -1,  1)
+	end
+
+	--- Update which border edge is removed based on power position.
+	--- Call this when the position changes at runtime.
+	--- @param position string 'top' or 'bottom'
+	function power:SetSharedEdge(position)
+		self:ClearAllPoints()
+		if(position == 'top') then
+			self:SetPoint('TOPLEFT',     self._wrapper, 'TOPLEFT',      1, -1)
+			self:SetPoint('BOTTOMRIGHT', self._wrapper, 'BOTTOMRIGHT', -1,  0)
+		else
+			self:SetPoint('TOPLEFT',     self._wrapper, 'TOPLEFT',      1,  0)
+			self:SetPoint('BOTTOMRIGHT', self._wrapper, 'BOTTOMRIGHT', -1,  1)
+		end
+	end
+
 	-- Position the wrapper below the health bar wrapper (caller
 	-- is responsible for SetPoint if desired; default to TOPLEFT).
 	power._wrapper:SetPoint('TOPLEFT', self, 'TOPLEFT', 0, 0)
