@@ -173,6 +173,31 @@ function BarMethods:Hide()
 	self._frame:Hide()
 end
 
+--- Position the bar frame.
+function BarMethods:SetPoint(...)
+	self._frame:SetPoint(...)
+end
+
+--- Clear all anchors.
+function BarMethods:ClearAllPoints()
+	self._frame:ClearAllPoints()
+end
+
+--- Start a glow effect on this bar.
+function BarMethods:StartGlow(color, glowType, glowConfig)
+	if(not self._glow) then
+		self._glow = F.Indicators.Glow.Create(self._frame)
+	end
+	self._glow:Start(color, glowType, glowConfig)
+end
+
+--- Stop any active glow effect on this bar.
+function BarMethods:StopGlow()
+	if(self._glow) then
+		self._glow:Stop()
+	end
+end
+
 --- Return the underlying container frame.
 --- @return Frame
 function BarMethods:GetFrame()
@@ -252,7 +277,7 @@ function F.Indicators.Bar.Create(parent, config)
 		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
 		edgeSize = 0.5,
 	})
-	border:SetBackdropBorderColor(0, 0, 0, 1)
+	border:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1)
 	border:SetFrameLevel(frame:GetFrameLevel() + 2)
 
 	-- Wrapper reference for Show/Hide compatibility

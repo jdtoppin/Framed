@@ -229,14 +229,28 @@ local function Update(self, event, unit)
 		elseif(rendererType == C.IndicatorType.BAR) then
 			local aura = matched[idx]
 			if(aura) then
+				-- Apply spell color before showing
+				local sc = ind._spellColors and ind._spellColors[aura.spellId]
+				if(sc) then
+					renderer:SetColor(sc[1], sc[2], sc[3], 1)
+				elseif(ind._defaultColor) then
+					renderer:SetColor(ind._defaultColor[1], ind._defaultColor[2], ind._defaultColor[3], ind._defaultColor[4] or 1)
+				else
+					renderer:SetColor(1, 1, 1, 1)
+				end
 				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
 					renderer:SetDuration(aura.duration, aura.expirationTime)
 				else
 					renderer:SetValue(1, 1)
 				end
 				if(aura.stacks) then renderer:SetStacks(aura.stacks) end
+				-- Glow
+				if(ind._glowType and ind._glowType ~= 'None') then
+					renderer:StartGlow(ind._glowColor, ind._glowType, ind._glowConfig)
+				end
 			else
 				renderer:Clear()
+				if(renderer.StopGlow) then renderer:StopGlow() end
 			end
 
 		elseif(rendererType == C.IndicatorType.BARS) then
@@ -253,9 +267,14 @@ local function Update(self, event, unit)
 				end
 				renderer:SetBars(list)
 				renderer:Show()
+				-- Glow
+				if(ind._glowType and ind._glowType ~= 'None') then
+					renderer:StartGlow(ind._glowColor, ind._glowType, ind._glowConfig)
+				end
 			else
 				renderer:Clear()
 				renderer:Hide()
+				if(renderer.StopGlow) then renderer:StopGlow() end
 			end
 
 		elseif(rendererType == C.IndicatorType.FRAME_BAR) then
@@ -573,7 +592,10 @@ local function Rebuild(element, config)
 					_type          = indConfig.type,
 					_castBy        = indConfig.castBy or 'anyone',
 					_color         = indConfig.color,
+					_defaultColor  = indConfig.color,
+					_spellColors   = indConfig.spellColors,
 					_glowType      = indConfig.glowType,
+					_glowColor     = indConfig.glowColor,
 					_glowConfig    = indConfig.glowConfig,
 					_name          = name,
 					_spellPriority = spellPriority,
