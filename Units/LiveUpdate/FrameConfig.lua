@@ -1737,8 +1737,10 @@ F.EventBus:Register('PRESET_CHANGED', function(presetName)
 			end
 
 			-- Re-apply auras from new preset
+			-- Party pets share party aura config
+			local auraUnitType = (unitType == 'partypet') and 'party' or unitType
 			for _, aura in next, AURA_ELEMENTS do
-				local auraCfg = F.StyleBuilder.GetAuraConfig(unitType, aura.key)
+				local auraCfg = F.StyleBuilder.GetAuraConfig(auraUnitType, aura.key)
 				local enabled = auraCfg and auraCfg.enabled
 				-- missingBuffs uses next() check instead of .enabled
 				if(aura.key == 'missingBuffs') then

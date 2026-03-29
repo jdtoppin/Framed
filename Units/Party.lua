@@ -66,6 +66,17 @@ local function PetStyle(self, unit)
 	self.Name = name
 
 
+	-- Aura elements (share party aura config)
+	local buffsConfig = F.StyleBuilder.GetAuraConfig('party', 'buffs')
+	if(buffsConfig and buffsConfig.enabled and F.Elements.Buffs) then
+		F.Elements.Buffs.Setup(self, buffsConfig)
+	end
+
+	local debuffsConfig = F.StyleBuilder.GetAuraConfig('party', 'debuffs')
+	if(debuffsConfig and debuffsConfig.enabled and F.Elements.Debuffs) then
+		F.Elements.Debuffs.Setup(self, debuffsConfig)
+	end
+
 	-- Target highlight
 	local thColor = F.Config and F.Config:Get('general.targetHighlightColor')
 	local thWidth = F.Config and F.Config:Get('general.targetHighlightWidth')

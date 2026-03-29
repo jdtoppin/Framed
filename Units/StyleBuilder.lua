@@ -534,6 +534,9 @@ function F.StyleBuilder.ForEachFrame(unitType, callback)
 	for _, frame in next, oUF.objects do
 		if(frame._framedUnitType == unitType) then
 			callback(frame)
+		-- Party pet frames share party aura config
+		elseif(unitType == 'party' and frame._framedUnitType == 'partypet') then
+			callback(frame)
 		end
 	end
 end
