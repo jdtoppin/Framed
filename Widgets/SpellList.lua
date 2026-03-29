@@ -70,15 +70,24 @@ local function CreateRow(parent)
 	local row = CreateFrame('Frame', nil, parent)
 	row:SetHeight(ROW_HEIGHT)
 
-	-- Spell icon
-	local icon = row:CreateTexture(nil, 'ARTWORK')
-	icon:SetSize(ICON_SIZE, ICON_SIZE)
-	icon:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
+	-- Spell icon with clean border
+	local iconFrame = CreateFrame('Frame', nil, row, 'BackdropTemplate')
+	iconFrame:SetSize(ICON_SIZE, ICON_SIZE)
+	iconFrame:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
+	iconFrame:SetBackdrop({
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 0.5,
+	})
+	iconFrame:SetBackdropBorderColor(0, 0, 0, 1)
+
+	local icon = iconFrame:CreateTexture(nil, 'ARTWORK')
+	icon:SetAllPoints(iconFrame)
+	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 	row._icon = icon
 
 	-- Spell name + ID on same line
 	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
-	nameFS:SetPoint('LEFT', icon, 'RIGHT', ICON_GAP, 0)
+	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
 	nameFS:SetJustifyH('LEFT')
 	row._nameFS = nameFS
 
@@ -266,6 +275,14 @@ function Widgets.CreateSpellList(parent, width, height)
 				end)
 			elseif(row._colorSwatch) then
 				row._colorSwatch:Hide()
+			end
+
+			-- Reset arrow anchors to default (remove button) when swatch is hidden
+			if(not showSwatch) then
+				row._downBtn:ClearAllPoints()
+				row._downBtn:SetPoint('RIGHT', row._removeBtn, 'LEFT', -PAD_H, 0)
+				row._upBtn:ClearAllPoints()
+				row._upBtn:SetPoint('RIGHT', row._downBtn, 'LEFT', -ARROW_GAP, 0)
 			end
 
 			-- Clamp name + ID width so they do not overlap controls
