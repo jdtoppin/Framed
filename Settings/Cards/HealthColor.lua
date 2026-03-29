@@ -42,7 +42,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local portraitCheckEndY = cardY
 
 	-- Health color mode heading + switch (created here, positioned by reflow)
-	local colorModeHeading, colorModeHeadingH = Widgets.CreateHeading(inner, 'Color Mode', 3)
+	local colorModeHeading, colorModeHeadingH = Widgets.CreateHeading(inner, 'Color Mode', 4)
 	local healthColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',    value = 'class' },
 		{ text = 'Dark',     value = 'dark' },
@@ -112,7 +112,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	smoothCheck:SetChecked(getConfig('health.smooth') ~= false)
 
 	-- ── Health Loss Color heading ──
-	local lossHeading, lossHeadingH = Widgets.CreateHeading(inner, 'Health Loss Color', 3)
+	local lossHeading, lossHeadingH = Widgets.CreateHeading(inner, 'Health Loss Color', 4)
 
 	-- ── Loss color mode switch ──
 	local lossColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {

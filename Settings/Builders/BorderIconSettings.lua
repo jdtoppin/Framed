@@ -169,7 +169,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	displayCardY = displayCardY - CHECK_H - C.Spacing.normal
 
 	-- Orientation
-	local oriLabel, oriLabelH = Widgets.CreateHeading(displayInner, 'Orientation', 3)
+	local oriLabel, oriLabelH = Widgets.CreateHeading(displayInner, 'Orientation', 4)
 	oriLabel:ClearAllPoints()
 	Widgets.SetPoint(oriLabel, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
 	displayCardY = displayCardY - oriLabelH

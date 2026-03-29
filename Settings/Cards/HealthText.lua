@@ -13,15 +13,20 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 
 	-- Attach to Name toggle
 	local healthPositionWidgets = {}
+
+	-- Recursively enable/disable mouse on a frame and all its children
+	local function setMouseRecursive(frame, enabled)
+		frame:EnableMouse(enabled)
+		for _, child in next, { frame:GetChildren() } do
+			setMouseRecursive(child, enabled)
+		end
+	end
+
 	local function updateHealthPositionDimming(attached)
 		local alpha = attached and 0.35 or 1
 		for _, w in next, healthPositionWidgets do
 			w:SetAlpha(alpha)
-			if(attached) then
-				w:EnableMouse(false)
-			else
-				w:EnableMouse(true)
-			end
+			setMouseRecursive(w, not attached)
 		end
 	end
 
@@ -40,7 +45,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	cardY = B.PlaceWidget(showHealthTextCheck, inner, cardY, B.CHECK_H)
 
 	-- Health text format dropdown
-	cardY = B.PlaceHeading(inner, 'Health Text Format', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Health Text Format', 4, cardY)
 	local healthFormatDropdown = Widgets.CreateDropdown(inner, widgetW)
 	healthFormatDropdown:SetItems({
 		{ text = 'Percentage',   value = 'percent' },
@@ -64,7 +69,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	cardY = B.PlaceWidget(healthFontSize, inner, cardY, B.SLIDER_H)
 
 	-- Health text color mode
-	cardY = B.PlaceHeading(inner, 'Text Color', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Text Color', 4, cardY)
 	local healthColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',  value = 'class' },
 		{ text = 'Dark',   value = 'dark' },
@@ -85,7 +90,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	local colorPickerH = 22
 
 	-- Health text outline
-	local outlineHeading, outlineHeadingH = Widgets.CreateHeading(inner, 'Outline', 3)
+	local outlineHeading, outlineHeadingH = Widgets.CreateHeading(inner, 'Outline', 4)
 	local healthOutline = Widgets.CreateDropdown(inner, widgetW)
 	healthOutline:SetItems({
 		{ text = 'None',       value = '' },
@@ -104,7 +109,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	healthShadow:SetChecked(getConfig('health.shadow') ~= false)
 
 	-- Health text position anchor
-	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 3)
+	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 4)
 	local healthTextAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
 	local savedHealthAnchor = getConfig('health.textAnchor') or 'CENTER'
 	healthTextAnchor:SetAnchor(savedHealthAnchor, 0, 0)
@@ -115,7 +120,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	healthTextAnchor._ySlider:Hide()
 
 	-- Health text offsets
-	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 3)
+	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 4)
 	local healthOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
 	healthOffsetX:SetValue(getConfig('health.textAnchorX') or 0)
 	healthOffsetX:SetAfterValueChanged(function(value)

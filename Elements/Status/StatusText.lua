@@ -125,20 +125,34 @@ oUF:AddElement('FramedStatusText', Update, Enable, Disable)
 --- Create the status text overlay FontString on a unit frame.
 --- Assigns result to self.FramedStatusText, activating the element.
 --- @param self Frame  The oUF unit frame
---- @param config? table  Optional config: size, point
+--- @param config? table  Optional config: fontSize, outline, shadow, anchor, anchorX, anchorY
 function F.Elements.StatusText.Setup(self, config)
 	config = config or {}
-	config.size  = config.size  or C.Font.sizeSmall
-	config.point = config.point or { 'CENTER', self, 'CENTER', 0, 0 }
+	local size    = config.fontSize or C.Font.sizeSmall
+	local outline = config.outline or 'OUTLINE'
+	local anchor  = config.anchor or 'CENTER'
+	local ax      = config.anchorX or 0
+	local ay      = config.anchorY or 0
 
 	-- FontString sits in the OVERLAY layer so it renders above bars/textures
-	local fs = Widgets.CreateFontString(self, config.size, C.Colors.textActive)
-	fs:SetFont(F.Media.GetActiveFont(), config.size, 'OUTLINE')
-
-	local p = config.point
-	fs:SetPoint(p[1], p[2], p[3], p[4] or 0, p[5] or 0)
+	local fs = self.FramedStatusText
+	if(not fs) then
+		fs = Widgets.CreateFontString(self, size, C.Colors.textActive)
+	end
+	fs:SetFont(F.Media.GetActiveFont(), size, outline ~= '' and outline or nil)
+	if(config.shadow) then
+		fs:SetShadowOffset(1, -1)
+		fs:SetShadowColor(0, 0, 0, 0.8)
+	else
+		fs:SetShadowOffset(0, 0)
+	end
+	fs:ClearAllPoints()
+	fs:SetPoint(anchor, self, anchor, ax, ay)
 	fs:SetJustifyH('CENTER')
 	fs:Hide()
+
+	-- Store config for live updates
+	fs._config = config
 
 	self.FramedStatusText = fs
 end

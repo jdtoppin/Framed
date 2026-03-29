@@ -106,7 +106,7 @@ local DEFAULT_CONFIG = {
 		raidRole   = true,
 		pvp        = false,
 	},
-	statusText          = true,
+	statusText          = { enabled = true },
 	targetHighlight     = true,
 	mouseoverHighlight  = true,
 }
@@ -719,8 +719,11 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- 6. Status overlays
 	-- --------------------------------------------------------
 
-	if(config.statusText) then
-		F.Elements.StatusText.Setup(self)
+	local stCfg = config.statusText
+	-- Backward compat: boolean → table
+	if(stCfg == true) then stCfg = { enabled = true } end
+	if(type(stCfg) == 'table' and stCfg.enabled ~= false) then
+		F.Elements.StatusText.Setup(self, stCfg)
 	end
 
 	if(config.targetHighlight) then

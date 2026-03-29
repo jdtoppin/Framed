@@ -13,6 +13,7 @@ local function playerConfig()
 	return {
 		width  = 200,
 		height = 40,
+		position = { x = -200, y = -200 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -47,7 +48,7 @@ local function playerConfig()
 			raidRole   = false,
 			pvp        = false,
 		},
-		statusText         = true,
+		statusText         = { enabled = true },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -57,6 +58,7 @@ local function targetConfig()
 	return {
 		width  = 200,
 		height = 40,
+		position = { x = 200, y = -200 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -94,7 +96,7 @@ local function targetConfig()
 			raidRole   = false,
 			pvp        = false,
 		},
-		statusText         = true,
+		statusText         = { enabled = true },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -104,6 +106,7 @@ local function targettargetConfig()
 	return {
 		width  = 120,
 		height = 24,
+		position = { x = 200, y = -240 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -123,7 +126,7 @@ local function targettargetConfig()
 			resting = false, phase = false, resurrect = false,
 			summon = false, raidRole = false, pvp = false,
 		},
-		statusText         = false,
+		statusText         = { enabled = false },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -133,6 +136,7 @@ local function focusConfig()
 	return {
 		width  = 150,
 		height = 30,
+		position = { x = -300, y = -100 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -153,7 +157,7 @@ local function focusConfig()
 			resting = false, phase = false, resurrect = false,
 			summon = false, raidRole = false, pvp = false,
 		},
-		statusText         = false,
+		statusText         = { enabled = false },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -163,6 +167,7 @@ local function petConfig()
 	return {
 		width  = 120,
 		height = 24,
+		position = { x = -200, y = -260 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -182,7 +187,7 @@ local function petConfig()
 			resting = false, phase = false, resurrect = false,
 			summon = false, raidRole = false, pvp = false,
 		},
-		statusText         = false,
+		statusText         = { enabled = false },
 		targetHighlight    = false,
 		mouseoverHighlight = true,
 	}
@@ -192,6 +197,7 @@ local function bossConfig()
 	return {
 		width  = 150,
 		height = 30,
+		position = { x = 300, y = 0 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -212,7 +218,7 @@ local function bossConfig()
 			resting = false, phase = false, resurrect = false,
 			summon = false, raidRole = false, pvp = false,
 		},
-		statusText         = false,
+		statusText         = { enabled = false },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -224,7 +230,8 @@ local function partyConfig()
 		height = 36,
 		spacing          = 2,
 		orientation      = 'vertical',
-		growthDirection  = 'topToBottom',
+		anchorPoint      = 'TOPLEFT',
+		position         = { x = 20, y = -200 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -249,7 +256,7 @@ local function partyConfig()
 			raidRole   = true,
 			pvp        = false,
 		},
-		statusText         = true,
+		statusText         = { enabled = true },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -261,7 +268,8 @@ local function raidConfig()
 		height = 36,
 		spacing          = 2,
 		orientation      = 'vertical',
-		growthDirection  = 'topToBottom',
+		anchorPoint      = 'TOPLEFT',
+		position         = { x = 20, y = -200 },
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -285,7 +293,7 @@ local function raidConfig()
 			raidRole   = true,
 			pvp        = false,
 		},
-		statusText         = true,
+		statusText         = { enabled = true },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -295,9 +303,10 @@ local function arenaConfig()
 	return {
 		width  = 150,
 		height = 30,
+		position = { x = 300, y = 0 },
 		spacing          = 2,
 		orientation      = 'vertical',
-		growthDirection  = 'topToBottom',
+		anchorPoint      = 'TOPLEFT',
 		health = {
 			colorMode      = 'class',
 			smooth         = true,
@@ -318,7 +327,7 @@ local function arenaConfig()
 			resting = false, phase = false, resurrect = false,
 			summon = false, raidRole = false, pvp = true,
 		},
-		statusText         = false,
+		statusText         = { enabled = false },
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
@@ -403,6 +412,18 @@ function F.PresetDefaults.GetAll()
 			end)(),
 			boss  = bossConfig(),
 			party = partyConfig(),
+		},
+		partyPets = {
+			enabled            = true,
+			spacing            = 2,
+			showHealthText     = true,
+			healthTextFormat   = 'percent',
+			healthTextFontSize = C.Font.sizeSmall,
+			healthTextColor    = 'white',
+			healthTextOutline  = '',
+			healthTextShadow   = true,
+			healthTextOffsetX  = 0,
+			healthTextOffsetY  = 2,
 		},
 		auras = partyAuras,
 	}
@@ -505,12 +526,30 @@ function F.PresetDefaults.EnsureDefaults()
 								end
 							end
 						end
-						-- Backfill statusText
-						if(savedUC[unitType].statusText == nil and defaultConf.statusText ~= nil) then
+						-- Backfill / migrate statusText (was boolean, now table)
+						local saved = savedUC[unitType].statusText
+						if(saved == nil) then
 							savedUC[unitType].statusText = defaultConf.statusText
+						elseif(type(saved) == 'boolean') then
+							savedUC[unitType].statusText = { enabled = saved }
+						end
+						-- Migrate growthDirection → anchorPoint
+						if(savedUC[unitType].growthDirection) then
+							local map = {
+								topToBottom  = 'TOPLEFT',
+								bottomToTop  = 'BOTTOMLEFT',
+								leftToRight  = 'TOPLEFT',
+								rightToLeft  = 'TOPRIGHT',
+							}
+							savedUC[unitType].anchorPoint = map[savedUC[unitType].growthDirection] or 'TOPLEFT'
+							savedUC[unitType].growthDirection = nil
 						end
 					end
 				end
+			end
+			-- Backfill partyPets config
+			if(preset.partyPets and not FramedDB.presets[name].partyPets) then
+				FramedDB.presets[name].partyPets = preset.partyPets
 			end
 		end
 	end

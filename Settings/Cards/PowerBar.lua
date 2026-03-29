@@ -48,7 +48,7 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 	cardY = B.PlaceWidget(showPowerCheck, inner, cardY, B.CHECK_H)
 
 	-- Power bar position (top/bottom of health bar)
-	cardY = B.PlaceHeading(inner, 'Position', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Position', 4, cardY)
 	local powerPosSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Top',    value = 'top' },
 		{ text = 'Bottom', value = 'bottom' },

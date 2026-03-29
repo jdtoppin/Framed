@@ -26,8 +26,8 @@ function F.Units.Target.Spawn()
 
 	local config = F.StyleBuilder.GetConfig('target')
 	local pos = config.position
-	local x = (pos and pos.x) or 200
-	local y = (pos and pos.y) or -200
+	local x = (pos and pos.x) or 0
+	local y = (pos and pos.y) or 0
 	F.Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
 
 	F.Widgets.RegisterForUIScale(frame)

@@ -104,6 +104,77 @@ local GROUP_TYPES = {
 	worldraid    = true,
 }
 
+--- Look up the SecureGroupHeader for a group unitType.
+--- @param unitType string  'party', 'raid', etc.
+--- @return Frame|nil header
+local function getGroupHeader(unitType)
+	if(unitType == 'party') then
+		return F.Units.Party and F.Units.Party.header
+	elseif(unitType == 'raid') then
+		return F.Units.Raid and F.Units.Raid.header
+	end
+	return nil
+end
+
+--- Apply group layout attributes (point, yOffset, xOffset, columnAnchorPoint)
+--- to a header based on orientation, anchorPoint, and spacing from config.
+---
+--- orientation = 'vertical'   → frames stack top-to-bottom or bottom-to-top
+--- orientation = 'horizontal' → frames go side-by-side left-to-right or right-to-left
+--- anchorPoint = corner the group grows FROM (TOPLEFT, TOPRIGHT, BOTTOMLEFT, BOTTOMRIGHT)
+---
+--- IMPORTANT: Offsets are set BEFORE point to avoid cascading intermediate
+--- layouts — each SetAttribute triggers a header relayout, so if point
+--- changes while the old offsets are still active, frames briefly appear
+--- in a diagonal/cascading arrangement.
+---
+--- @param header Frame  SecureGroupHeader
+--- @param config table  Unit config table
+local function applyGroupLayoutToHeader(header, config)
+	local orient  = config.orientation or 'vertical'
+	local anchor  = config.anchorPoint or 'TOPLEFT'
+	local spacing = config.spacing or 2
+
+	-- Compute all four attributes before applying any
+	local point, yOff, xOff, colAnchor
+
+	if(orient == 'vertical') then
+		local goDown = (anchor == 'TOPLEFT' or anchor == 'TOPRIGHT')
+		point  = goDown and 'TOP' or 'BOTTOM'
+		yOff   = goDown and -spacing or spacing
+		xOff   = 0
+		colAnchor = (anchor == 'TOPLEFT' or anchor == 'BOTTOMLEFT') and 'LEFT' or 'RIGHT'
+	else
+		local goRight = (anchor == 'TOPLEFT' or anchor == 'BOTTOMLEFT')
+		point  = goRight and 'LEFT' or 'RIGHT'
+		xOff   = goRight and spacing or -spacing
+		yOff   = 0
+		colAnchor = (anchor == 'TOPLEFT' or anchor == 'TOPRIGHT') and 'TOP' or 'BOTTOM'
+	end
+
+	-- Apply offsets first so the relayout triggered by 'point' already
+	-- sees the correct spacing values (avoids cascading visual glitch)
+	applyOrQueue(header, 'xOffset', xOff)
+	applyOrQueue(header, 'yOffset', yOff)
+	applyOrQueue(header, 'point', point)
+	applyOrQueue(header, 'columnAnchorPoint', colAnchor)
+
+	-- Force SecureGroupHeader to fully re-layout children.
+	-- Setting attributes above should trigger SecureGroupHeader_Update,
+	-- but in practice the header sometimes doesn't re-anchor existing
+	-- children until a filter toggle forces a complete pass.
+	if(not InCombatLockdown()) then
+		local name = header:GetName()
+		if(name and name:find('Party')) then
+			header:SetAttribute('showParty', false)
+			header:SetAttribute('showParty', true)
+		elseif(name and name:find('Raid')) then
+			header:SetAttribute('showRaid', false)
+			header:SetAttribute('showRaid', true)
+		end
+	end
+end
+
 --- Reposition a solo frame using CENTER anchor + config offsets.
 --- position.x/y are always relative to UIParent CENTER.
 local function repositionFrame(frame, config)
@@ -137,6 +208,37 @@ local function resizeShift(anchor, dw, dh)
 	return dx, dy
 end
 
+--- Parse an anchor string into x/y fractions (0=left/top, 0.5=center, 1=right/bottom).
+--- @param pt string  Anchor point (e.g. 'TOPLEFT', 'CENTER')
+--- @return number fx, number fy
+local function anchorFractions(pt)
+	local fx, fy = 0.5, 0.5
+	if(pt:find('LEFT'))   then fx = 0 end
+	if(pt:find('RIGHT'))  then fx = 1 end
+	if(pt:find('TOP'))    then fy = 0 end
+	if(pt:find('BOTTOM')) then fy = 1 end
+	return fx, fy
+end
+
+--- Compute shift to a header's SetPoint offsets when its content resizes,
+--- keeping the resize-anchor corner fixed.  Works for any header anchor point.
+--- @param headerAnchor string  The header's own anchor point (e.g. 'TOPLEFT')
+--- @param resizeAnchor string  The user's resize preference (e.g. 'TOPRIGHT')
+--- @param dw number  Width change (new - old)
+--- @param dh number  Height change (new - old)
+--- @return number dx, number dy  Shift to apply to header offsets
+local function groupResizeShift(headerAnchor, resizeAnchor, dw, dh)
+	local hx, hy = anchorFractions(headerAnchor)
+	local rx, ry = anchorFractions(resizeAnchor)
+	-- Positive dw means wider; if resize anchor is further right than header
+	-- anchor, the header must shift left (negative dx).
+	-- Positive dh means taller; if resize anchor is further down than header
+	-- anchor, the header must shift up (positive dy in WoW coords).
+	local dx = -(rx - hx) * dw
+	local dy =  (ry - hy) * dh
+	return dx, dy
+end
+
 -- ============================================================
 -- Main CONFIG_CHANGED handler
 -- ============================================================
@@ -158,71 +260,174 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Frame position (x, y)
 	if(key == 'position.x' or key == 'position.y') then
 		if(suppressPositionUpdate) then return end
-		if(GROUP_TYPES[unitType]) then return end
 		local config = F.StyleBuilder.GetConfig(unitType)
-		ForEachFrame(unitType, function(frame)
-			repositionFrame(frame, config)
-		end)
+		if(GROUP_TYPES[unitType]) then
+			-- Group frames: reposition the header
+			local header = getGroupHeader(unitType)
+			if(header) then
+				local pos = config.position or {}
+				local x = pos.x or 0
+				local y = pos.y or 0
+				header:ClearAllPoints()
+				Widgets.SetPoint(header, 'TOPLEFT', UIParent, 'TOPLEFT', x, y)
+			end
+		else
+			ForEachFrame(unitType, function(frame)
+				repositionFrame(frame, config)
+			end)
+		end
 		return
 	end
 
 	-- Dimensions — resize frame, health wrapper, power wrapper
 	if(key == 'width' or key == 'height') then
-		if(GROUP_TYPES[unitType]) then return end
 		local config = F.StyleBuilder.GetConfig(unitType)
 		debouncedApply('dimensions.' .. unitType, function()
 			local powerHeight = config.power and config.power.height or 0
 			local healthHeight = config.height - powerHeight
-			local anchor = config.position and config.position.anchor or 'CENTER'
-			ForEachFrame(unitType, function(frame)
-				-- Compute how much the center needs to shift to keep
-				-- the configured anchor corner/edge fixed during resize
-				local oldW = frame._width or frame:GetWidth() or config.width
-				local oldH = frame._height or frame:GetHeight() or config.height
-				local dw = config.width - oldW
-				local dh = config.height - oldH
-				if(dw ~= 0 or dh ~= 0) then
-					local dx, dy = resizeShift(anchor, dw, dh)
-					local pos = config.position
-					local curX = (pos and pos.x) or 0
-					local curY = (pos and pos.y) or 0
-					suppressPositionUpdate = true
-					local presetName = F.AutoSwitch.GetCurrentPreset()
-					local basePath = 'presets.' .. presetName .. '.unitConfigs.' .. unitType .. '.position.'
-					F.Config:Set(basePath .. 'x', Widgets.Round(curX + dx))
-					F.Config:Set(basePath .. 'y', Widgets.Round(curY + dy))
-					suppressPositionUpdate = false
-				end
-				-- Reposition with (possibly shifted) center offsets
-				repositionFrame(frame, F.StyleBuilder.GetConfig(unitType))
-				Widgets.SetSize(frame, config.width, config.height)
-				if(frame.Health and frame.Health._wrapper) then
-					Widgets.SetSize(frame.Health._wrapper, config.width, healthHeight)
-				end
-				if(frame.Power and frame.Power._wrapper) then
-					Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
-					local pos = config.power and config.power.position or 'bottom'
-					frame.Power._wrapper:ClearAllPoints()
-					frame.Health._wrapper:ClearAllPoints()
-					if(pos == 'top') then
-						frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
-						frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -powerHeight)
+
+			if(GROUP_TYPES[unitType]) then
+				-- Group frames: resize each child, header manages positioning
+				local header = getGroupHeader(unitType)
+
+				-- Capture old dimensions and count visible frames BEFORE
+				-- resizing (GetWidth returns the current rendered size)
+				local oldW, oldH, numFrames = nil, nil, 0
+				ForEachFrame(unitType, function(frame)
+					if(not oldW) then
+						oldW = frame:GetWidth() or config.width
+						oldH = frame:GetHeight() or config.height
+					end
+					numFrames = numFrames + 1
+				end)
+
+				ForEachFrame(unitType, function(frame)
+					Widgets.SetSize(frame, config.width, config.height)
+					if(frame.Health and frame.Health._wrapper) then
+						Widgets.SetSize(frame.Health._wrapper, config.width, healthHeight)
+					end
+					if(frame.Power and frame.Power._wrapper) then
+						Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
+						local pos = config.power and config.power.position or 'bottom'
+						frame.Power._wrapper:ClearAllPoints()
+						frame.Health._wrapper:ClearAllPoints()
+						if(pos == 'top') then
+							frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+							frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -powerHeight)
+						else
+							frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+							frame.Power._wrapper:SetPoint('TOPLEFT', frame.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+						end
+						if(frame.Power.SetSharedEdge) then
+							frame.Power:SetSharedEdge(pos)
+						end
+					end
+					-- Sync cast bar width in attached mode
+					local cbCfg = config.castbar or {}
+					if(frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
+						local cbHeight = cbCfg.height or 16
+						Widgets.SetSize(frame.Castbar._wrapper, config.width, cbHeight)
+					end
+				end)
+				-- Shift header position to keep resize anchor corner fixed.
+				-- For the stacking axis, the total group size change is
+				-- numFrames * per-frame delta (all children grew).
+				if(header and oldW) then
+					local anchor = config.position and config.position.anchor or 'TOPLEFT'
+					local orient = config.orientation or 'vertical'
+					local dw = config.width  - oldW
+					local dh = config.height - oldH
+					if(orient == 'vertical') then
+						dh = dh * numFrames
 					else
-						frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
-						frame.Power._wrapper:SetPoint('TOPLEFT', frame.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+						dw = dw * numFrames
 					end
-					if(frame.Power.SetSharedEdge) then
-						frame.Power:SetSharedEdge(pos)
+					if(dw ~= 0 or dh ~= 0) then
+						local hPt, hRel, hRelPt, hX, hY = header:GetPoint(1)
+						if(hPt) then
+							local dx, dy = groupResizeShift(hPt, anchor, dw, dh)
+							header:ClearAllPoints()
+							Widgets.SetPoint(header, hPt, hRel, hRelPt, hX + dx, hY + dy)
+						end
 					end
+					applyOrQueue(header, 'initial-width', config.width)
+					applyOrQueue(header, 'initial-height', config.height)
 				end
-				-- Sync cast bar width in attached mode
-				local cbCfg = config.castbar or {}
-				if(frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
-					local cbHeight = cbCfg.height or 16
-					Widgets.SetSize(frame.Castbar._wrapper, config.width, cbHeight)
+
+				-- Resize party pet frames to match new owner size
+				if(unitType == 'party' and F.Units.Party.petFrames) then
+					ForEachFrame('partypet', function(frame)
+						Widgets.SetSize(frame, config.width, config.height)
+						if(frame.Health and frame.Health._wrapper) then
+							Widgets.SetSize(frame.Health._wrapper, config.width, config.height)
+						end
+					end)
 				end
-			end)
+			else
+				-- Solo frames: resize + shift position to keep anchor fixed
+				local anchor = config.position and config.position.anchor or 'CENTER'
+				ForEachFrame(unitType, function(frame)
+					local oldW = frame._width or frame:GetWidth() or config.width
+					local oldH = frame._height or frame:GetHeight() or config.height
+					local dw = config.width - oldW
+					local dh = config.height - oldH
+					if(dw ~= 0 or dh ~= 0) then
+						local dx, dy = resizeShift(anchor, dw, dh)
+						local pos = config.position
+						local curX = (pos and pos.x) or 0
+						local curY = (pos and pos.y) or 0
+						suppressPositionUpdate = true
+						local presetName = F.AutoSwitch.GetCurrentPreset()
+						local basePath = 'presets.' .. presetName .. '.unitConfigs.' .. unitType .. '.position.'
+						F.Config:Set(basePath .. 'x', Widgets.Round(curX + dx))
+						F.Config:Set(basePath .. 'y', Widgets.Round(curY + dy))
+						suppressPositionUpdate = false
+					end
+					repositionFrame(frame, F.StyleBuilder.GetConfig(unitType))
+					Widgets.SetSize(frame, config.width, config.height)
+					if(frame.Health and frame.Health._wrapper) then
+						Widgets.SetSize(frame.Health._wrapper, config.width, healthHeight)
+					end
+					if(frame.Power and frame.Power._wrapper) then
+						Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
+						local pos = config.power and config.power.position or 'bottom'
+						frame.Power._wrapper:ClearAllPoints()
+						frame.Health._wrapper:ClearAllPoints()
+						if(pos == 'top') then
+							frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+							frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -powerHeight)
+						else
+							frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+							frame.Power._wrapper:SetPoint('TOPLEFT', frame.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+						end
+						if(frame.Power.SetSharedEdge) then
+							frame.Power:SetSharedEdge(pos)
+						end
+					end
+					-- Sync cast bar width in attached mode
+					local cbCfg = config.castbar or {}
+					if(frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
+						local cbHeight = cbCfg.height or 16
+						Widgets.SetSize(frame.Castbar._wrapper, config.width, cbHeight)
+					end
+				end)
+			end
 		end)
+		return
+	end
+
+	-- Group layout: spacing, orientation, anchorPoint
+	if(key == 'spacing' or key == 'orientation' or key == 'anchorPoint') then
+		if(not GROUP_TYPES[unitType]) then return end
+		local header = getGroupHeader(unitType)
+		if(not header) then return end
+		local config = F.StyleBuilder.GetConfig(unitType)
+		applyGroupLayoutToHeader(header, config)
+
+		-- Re-anchor pet frames when party layout changes
+		if(unitType == 'party' and F.Units.Party.petFrames) then
+			F.Units.Party.AnchorPetFrames()
+		end
 		return
 	end
 
@@ -502,6 +707,33 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			h._lossGradientCurve = curve
 			h:ForceUpdate()
 		end)
+		return
+	end
+
+	-- Status text settings
+	local stKey = key:match('^statusText%.(.+)$')
+	if(stKey) then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local stCfg = config.statusText
+		if(stCfg == true) then stCfg = { enabled = true } end
+		if(type(stCfg) ~= 'table') then stCfg = { enabled = false } end
+
+		if(stKey == 'enabled') then
+			ForEachFrame(unitType, function(frame)
+				if(stCfg.enabled ~= false) then
+					F.Elements.StatusText.Setup(frame, stCfg)
+					frame:EnableElement('FramedStatusText')
+				else
+					frame:DisableElement('FramedStatusText')
+				end
+			end)
+		else
+			-- Font, outline, shadow, anchor, offset changes
+			if(stCfg.enabled == false) then return end
+			ForEachFrame(unitType, function(frame)
+				F.Elements.StatusText.Setup(frame, stCfg)
+			end)
+		end
 		return
 	end
 
@@ -1465,10 +1697,10 @@ local function applyFullConfig(frame, config)
 	end
 
 	-- ── Status text ─────────────────────────────────────────
-	if(config.statusText ~= false) then
-		if(not frame.FramedStatusText) then
-			F.Elements.StatusText.Setup(frame)
-		end
+	local stCfg = config.statusText
+	if(stCfg == true) then stCfg = { enabled = true } end
+	if(type(stCfg) == 'table' and stCfg.enabled ~= false) then
+		F.Elements.StatusText.Setup(frame, stCfg)
 		frame:EnableElement('FramedStatusText')
 	else
 		frame:DisableElement('FramedStatusText')
@@ -1495,9 +1727,13 @@ F.EventBus:Register('PRESET_CHANGED', function(presetName)
 	for _, frame in next, oUF.objects do
 		if(frame._framedUnitType) then
 			local unitType = frame._framedUnitType
-			local config = F.StyleBuilder.GetConfig(unitType)
-			if(config) then
-				applyFullConfig(frame, config)
+
+			-- Pet frames have their own sync block below; skip generic apply
+			if(unitType ~= 'partypet') then
+				local config = F.StyleBuilder.GetConfig(unitType)
+				if(config) then
+					applyFullConfig(frame, config)
+				end
 			end
 
 			-- Re-apply auras from new preset
@@ -1523,4 +1759,117 @@ F.EventBus:Register('PRESET_CHANGED', function(presetName)
 			end
 		end
 	end
+
+	-- Apply group layout attributes to headers from new preset
+	for groupType in next, GROUP_TYPES do
+		local header = getGroupHeader(groupType)
+		if(header) then
+			local config = F.StyleBuilder.GetConfig(groupType)
+			if(config) then
+				applyGroupLayoutToHeader(header, config)
+				applyOrQueue(header, 'initial-width', config.width)
+				applyOrQueue(header, 'initial-height', config.height)
+			end
+		end
+	end
+
+	-- Sync pet frames from new preset
+	if(F.Units.Party.petFrames) then
+		local petCfg = F.Units.Party.GetPetConfig()
+		local partyConfig = F.StyleBuilder.GetConfig('party')
+		local enabled = petCfg.enabled ~= false
+
+		F.Units.Party.SetPetsEnabled(enabled)
+
+		if(enabled and partyConfig) then
+			-- Resize pet frames to match party frame size
+			local w = partyConfig.width or 120
+			local h = partyConfig.height or 36
+			ForEachFrame('partypet', function(frame)
+				Widgets.SetSize(frame, w, h)
+				if(frame.Health and frame.Health._wrapper) then
+					Widgets.SetSize(frame.Health._wrapper, w, h)
+				end
+			end)
+			F.Units.Party.AnchorPetFrames()
+		end
+	end
 end, 'LiveUpdate.PresetChanged')
+
+-- ============================================================
+-- Party Pets live update
+-- partyPets config lives at presets.<name>.partyPets, not inside
+-- unitConfigs, so it needs its own CONFIG_CHANGED handler.
+-- ============================================================
+
+F.EventBus:Register('CONFIG_CHANGED', function(path)
+	local presetName, petKey = path:match('presets%.([^%.]+)%.partyPets%.?(.*)$')
+	if(not presetName) then return end
+	if(presetName ~= F.AutoSwitch.GetCurrentPreset()) then return end
+
+	local petCfg = F.Units.Party.GetPetConfig()
+
+	-- Enabled toggle
+	if(petKey == 'enabled') then
+		F.Units.Party.SetPetsEnabled(petCfg.enabled ~= false)
+		return
+	end
+
+	-- Spacing: re-anchor pet frames to owners
+	if(petKey == 'spacing') then
+		F.Units.Party.AnchorPetFrames()
+		return
+	end
+
+	-- Health text changes (show, format, fontSize, color, outline, shadow, offsets)
+	if(petKey:match('^healthText') or petKey == 'showHealthText') then
+		local show     = petCfg.showHealthText ~= false
+		local format   = petCfg.healthTextFormat or 'percent'
+		local fontSize = petCfg.healthTextFontSize or C.Font.sizeSmall
+		local outline  = petCfg.healthTextOutline or ''
+		local shadow   = petCfg.healthTextShadow ~= false
+		local colorMode = petCfg.healthTextColor or 'white'
+		local offX     = petCfg.healthTextOffsetX or 0
+		local offY     = petCfg.healthTextOffsetY or 2
+
+		ForEachFrame('partypet', function(frame)
+			if(not frame.Health) then return end
+			frame.Health._textFormat    = format
+			frame.Health._textColorMode = colorMode
+
+			if(show and not frame.Health.text) then
+				-- Create health text on first enable
+				local textOverlay = frame._textOverlay
+				if(not textOverlay) then
+					textOverlay = CreateFrame('Frame', nil, frame)
+					textOverlay:SetAllPoints(frame)
+					textOverlay:SetFrameLevel(frame:GetFrameLevel() + 5)
+					frame._textOverlay = textOverlay
+				end
+				local text = Widgets.CreateFontString(textOverlay, fontSize, C.Colors.textActive, outline, shadow)
+				text:SetPoint('BOTTOM', frame.Health._wrapper or frame.Health, 'BOTTOM', offX, offY)
+				frame.Health.text = text
+			end
+
+			-- Update font properties and position on existing text
+			if(frame.Health.text) then
+				frame.Health.text:SetShown(show)
+				local fontPath = frame.Health.text:GetFont()
+				if(fontPath) then
+					frame.Health.text:SetFont(fontPath, fontSize, outline)
+				end
+				if(shadow) then
+					frame.Health.text:SetShadowOffset(1, -1)
+					frame.Health.text:SetShadowColor(0, 0, 0, 1)
+				else
+					frame.Health.text:SetShadowOffset(0, 0)
+				end
+				-- Reposition for offset changes
+				frame.Health.text:ClearAllPoints()
+				frame.Health.text:SetPoint('BOTTOM', frame.Health._wrapper or frame.Health, 'BOTTOM', offX, offY)
+			end
+			if(frame.Health.ForceUpdate) then frame.Health:ForceUpdate() end
+		end)
+		return
+	end
+end, 'LiveUpdate.PartyPets')

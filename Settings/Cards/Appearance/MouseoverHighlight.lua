@@ -12,7 +12,7 @@ function F.AppearanceCards.MouseoverHighlight(parent, width, getConfig, setConfi
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, 220)
 
-	cardY = B.PlaceHeading(inner, 'Color', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Color', 4, cardY)
 
 	local moColorPicker = Widgets.CreateColorPicker(inner)
 	moColorPicker:SetHasAlpha(true)

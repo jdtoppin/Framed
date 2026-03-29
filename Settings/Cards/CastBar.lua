@@ -18,7 +18,7 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 	cardY = B.PlaceWidget(showCastCheck, inner, cardY, B.CHECK_H)
 
 	-- Size mode: attached (syncs width with parent frame) or detached (own dimensions)
-	cardY = B.PlaceHeading(inner, 'Size', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Size', 4, cardY)
 	local castSizeSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Attached', value = 'attached' },
 		{ text = 'Detached', value = 'detached' },
@@ -43,7 +43,7 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 	end)
 
 	-- Background heading + switch (created here, positioned by reflow)
-	local castBgHeading, castBgHeadingH = Widgets.CreateHeading(inner, 'Background', 3)
+	local castBgHeading, castBgHeadingH = Widgets.CreateHeading(inner, 'Background', 4)
 	local castBgSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Always',  value = 'always' },
 		{ text = 'On Cast', value = 'oncast' },

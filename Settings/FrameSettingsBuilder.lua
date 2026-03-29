@@ -139,19 +139,30 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- ── CardGrid orchestrator ──────────────────────────────────
 	local grid = Widgets.CreateCardGrid(content, width)
 
-	-- Helper: animated re-layout after a card changes height
+	-- Helper: animated re-layout after a card changes height.
+	-- Auto-scrolls down when content grows below the visible area.
 	local function relayout()
+		local oldContentH = content:GetHeight()
+		local oldScroll   = scroll._scrollFrame:GetVerticalScroll()
+
 		grid:AnimatedReflow()
 		content:SetHeight(grid:GetTotalHeight())
 		scroll:UpdateScrollRange()
+
+		-- If content grew, scroll down by the growth amount so the
+		-- newly revealed controls stay visible
+		local growth = content:GetHeight() - oldContentH
+		if(growth > 0) then
+			local viewH    = scroll._scrollFrame:GetHeight()
+			local maxScroll = math.max(0, content:GetHeight() - viewH)
+			local newScroll = math.min(oldScroll + growth, maxScroll)
+			scroll._scrollFrame:SetVerticalScroll(newScroll)
+			scroll:_UpdateThumb()
+		end
 	end
 
 	-- Register cards in display order
 	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig })
-
-	if(isGroup) then
-		grid:AddCard('group', 'Group Layout', F.SettingsCards.GroupLayout, { unitType, getConfig, setConfig })
-	end
 
 	if(not isNpcFrame) then
 		grid:AddCard('healthColor', 'Portrait & Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, setConfig, relayout })
@@ -163,7 +174,19 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:AddCard('name', 'Name Text', F.SettingsCards.Name, { unitType, getConfig, setConfig, relayout })
 	grid:AddCard('healthText', 'Health Text', F.SettingsCards.HealthText, { unitType, getConfig, setConfig, relayout })
 	grid:AddCard('powerText', 'Power Text', F.SettingsCards.PowerText, { unitType, getConfig, setConfig, relayout })
-	grid:AddCard('statusIcons', 'Status Icons', F.SettingsCards.StatusIcons, { unitType, getConfig, setConfig })
+	-- Icon cards — split by category, filtered by unit type relevance
+	local GROUP_ICON_TYPES = { party = true, raid = true, arena = true }
+	if(GROUP_ICON_TYPES[unitType]) then
+		grid:AddCard('groupIcons', 'Group Icons', F.SettingsCards.GroupIcons, { unitType, getConfig, setConfig, relayout })
+	end
+	if(GROUP_ICON_TYPES[unitType]) then
+		grid:AddCard('statusText', 'Status Text', F.SettingsCards.StatusText, { unitType, getConfig, setConfig, relayout })
+	end
+	grid:AddCard('statusIcons', 'Status Icons', F.SettingsCards.StatusIcons, { unitType, getConfig, setConfig, relayout })
+	grid:AddCard('markers', 'Markers', F.SettingsCards.Markers, { unitType, getConfig, setConfig, relayout })
+	if(unitType == 'party') then
+		grid:AddCard('partyPets', 'Party Pets', F.SettingsCards.PartyPets, {})
+	end
 
 	-- ── Persist pin state ─────────────────────────────────────
 	grid._onPinChanged = function(cardId, pinned)

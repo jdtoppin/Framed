@@ -205,8 +205,9 @@ end
 
 local HEADING_CONFIG = {
 	[1] = { size = C.Font.sizeTitle,  color = C.Colors.accent,        upper = true,  separator = true  },
-	[2] = { size = C.Font.sizeNormal, color = C.Colors.textSecondary, upper = false, separator = false },
-	[3] = { size = C.Font.sizeSmall,  color = C.Colors.textSecondary, upper = false, separator = false },
+	[2] = { size = C.Font.sizeNormal, color = C.Colors.textNormal,    upper = false, separator = false },
+	[3] = { size = C.Font.sizeSmall,  color = C.Colors.textNormal,    upper = false, separator = false },
+	[4] = { size = C.Font.sizeSmall,  color = C.Colors.textSecondary, upper = false, separator = false },
 }
 
 --- Create a heading font string at the given level.

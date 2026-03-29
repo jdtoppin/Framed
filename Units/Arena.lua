@@ -26,10 +26,16 @@ function F.Units.Arena.Spawn()
 	oUF:RegisterStyle('FramedArena', Style)
 	oUF:SetActiveStyle('FramedArena')
 
+	local config = F.StyleBuilder.GetConfig('arena')
+	local pos = config.position or {}
+	local baseX = (pos and pos.x) or 0
+	local baseY = (pos and pos.y) or 0
+	local spacing = config.spacing or 4
+
 	local frames = {}
 	for i = 1, 5 do
 		local arena = oUF:Spawn('arena' .. i, 'FramedArenaFrame' .. i)
-		arena:SetPoint('TOPRIGHT', UIParent, 'TOPRIGHT', -20, -200 - (i - 1) * 50)
+		arena:SetPoint('CENTER', UIParent, 'CENTER', baseX, baseY - (i - 1) * (config.height + spacing))
 		F.Widgets.RegisterForUIScale(arena)
 		frames[i] = arena
 	end

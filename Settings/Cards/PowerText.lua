@@ -18,7 +18,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	cardY = B.PlaceWidget(showPowerTextCheck, inner, cardY, B.CHECK_H)
 
 	-- Power text format dropdown
-	cardY = B.PlaceHeading(inner, 'Power Text Format', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Power Text Format', 4, cardY)
 	local powerFormatDropdown = Widgets.CreateDropdown(inner, widgetW)
 	powerFormatDropdown:SetItems({
 		{ text = 'Percentage', value = 'percent' },
@@ -40,7 +40,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	cardY = B.PlaceWidget(powerFontSize, inner, cardY, B.SLIDER_H)
 
 	-- Power text color mode
-	cardY = B.PlaceHeading(inner, 'Text Color', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Text Color', 4, cardY)
 	local powerColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',  value = 'class' },
 		{ text = 'Dark',   value = 'dark' },
@@ -61,7 +61,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	local colorPickerH = 22
 
 	-- Power text outline
-	local outlineHeading, outlineHeadingH = Widgets.CreateHeading(inner, 'Outline', 3)
+	local outlineHeading, outlineHeadingH = Widgets.CreateHeading(inner, 'Outline', 4)
 	local powerOutline = Widgets.CreateDropdown(inner, widgetW)
 	powerOutline:SetItems({
 		{ text = 'None',       value = '' },
@@ -80,7 +80,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	powerShadow:SetChecked(getConfig('power.shadow') ~= false)
 
 	-- Power text position anchor
-	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 3)
+	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 4)
 	local powerTextAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
 	local savedPowerAnchor = getConfig('power.textAnchor') or 'CENTER'
 	powerTextAnchor:SetAnchor(savedPowerAnchor, 0, 0)
@@ -91,7 +91,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	powerTextAnchor._ySlider:Hide()
 
 	-- Power text offsets
-	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 3)
+	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 4)
 	local powerOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
 	powerOffsetX:SetValue(getConfig('power.textAnchorX') or 0)
 	powerOffsetX:SetAfterValueChanged(function(value)

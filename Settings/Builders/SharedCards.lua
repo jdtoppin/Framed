@@ -19,7 +19,7 @@ local function placeWidget(widget, content, yOffset, height)
 end
 
 local function placeHeading(content, text, yOffset)
-	local heading, height = Widgets.CreateHeading(content, text, 3)
+	local heading, height = Widgets.CreateHeading(content, text, 4)
 	heading:ClearAllPoints()
 	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 	return yOffset - height

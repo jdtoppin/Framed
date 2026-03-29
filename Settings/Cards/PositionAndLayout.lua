@@ -7,9 +7,12 @@ local B = F.FrameSettingsBuilder
 F.SettingsCards = F.SettingsCards or {}
 
 
+local GROUP_TYPES = { party = true, raid = true, arena = true }
+
 function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
+	local isGroup = GROUP_TYPES[unitType] or false
 
 	-- Width slider
 	local widthSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 20, 300, 1)
@@ -27,8 +30,8 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	end)
 	cardY = B.PlaceWidget(heightSlider, inner, cardY, B.SLIDER_H)
 
-	-- Resize Anchor picker -- controls which corner stays fixed during resize
-	local raHeading, raHeadingH = Widgets.CreateHeading(inner, 'Resize Anchor', 3)
+	-- Resize Anchor picker — right after width/height since it's tied to those
+	local raHeading, raHeadingH = Widgets.CreateHeading(inner, 'Resize Anchor', 4)
 	raHeading:ClearAllPoints()
 	Widgets.SetPoint(raHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 	cardY = cardY - raHeadingH
@@ -50,12 +53,50 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	end)
 	cardY = B.PlaceWidget(anchorPicker, inner, cardY, 56)
 
+	-- ── Group layout (group frames only) ─────────────────────
+	if(isGroup) then
+		-- Spacing slider
+		local spacingSlider = Widgets.CreateSlider(inner, 'Spacing', widgetW, 0, 20, 1)
+		spacingSlider:SetValue(getConfig('spacing') or 2)
+		spacingSlider:SetAfterValueChanged(function(value)
+			setConfig('spacing', value)
+		end)
+		cardY = B.PlaceWidget(spacingSlider, inner, cardY, B.SLIDER_H)
+
+		-- Orientation switch
+		cardY = B.PlaceHeading(inner, 'Orientation', 4, cardY)
+		local orientSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
+			{ text = 'Vertical',   value = 'vertical' },
+			{ text = 'Horizontal', value = 'horizontal' },
+		})
+		orientSwitch:SetValue(getConfig('orientation') or 'vertical')
+		orientSwitch:SetOnSelect(function(value)
+			setConfig('orientation', value)
+		end)
+		cardY = B.PlaceWidget(orientSwitch, inner, cardY, B.SWITCH_H)
+
+		-- Anchor Point dropdown — corner the group grows from
+		cardY = B.PlaceHeading(inner, 'Anchor Point', 4, cardY)
+		local apDropdown = Widgets.CreateDropdown(inner, widgetW)
+		apDropdown:SetItems({
+			{ text = 'Top Left',     value = 'TOPLEFT' },
+			{ text = 'Top Right',    value = 'TOPRIGHT' },
+			{ text = 'Bottom Left',  value = 'BOTTOMLEFT' },
+			{ text = 'Bottom Right', value = 'BOTTOMRIGHT' },
+		})
+		apDropdown:SetValue(getConfig('anchorPoint') or 'TOPLEFT')
+		apDropdown:SetOnSelect(function(value)
+			setConfig('anchorPoint', value)
+		end)
+		cardY = B.PlaceWidget(apDropdown, inner, cardY, B.DROPDOWN_H)
+	end
+
 	-- Read the actual frame position from config
 	local actualX = getConfig('position.x') or 0
 	local actualY = getConfig('position.y') or 0
 
 	-- Frame Position sliders (X / Y)
-	cardY = B.PlaceHeading(inner, 'Frame Position', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Frame Position', 4, cardY)
 
 	local posXSlider = Widgets.CreateSlider(inner, 'X', widgetW, -1000, 1000, 1)
 	posXSlider:SetValue(actualX)
@@ -72,7 +113,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	cardY = B.PlaceWidget(posYSlider, inner, cardY, B.SLIDER_H)
 
 	-- Pixel nudge arrows
-	cardY = B.PlaceHeading(inner, 'Pixel Nudge', 3, cardY)
+	cardY = B.PlaceHeading(inner, 'Pixel Nudge', 4, cardY)
 
 	local nudgeFrame = CreateFrame('Frame', nil, inner)
 	nudgeFrame:SetSize(100, 50)
