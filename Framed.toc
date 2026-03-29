@@ -85,10 +85,9 @@ Elements/Indicators/Icons.lua
 Elements/Indicators/FrameBar.lua
 Elements/Indicators/Bar.lua
 Elements/Indicators/Bars.lua
-Elements/Indicators/Border.lua
+Elements/Indicators/BorderGlow.lua
 Elements/Indicators/Color.lua
 Elements/Indicators/Overlay.lua
-Elements/Indicators/Glow.lua
 Elements/Indicators/BorderIcon.lua
 
 # Data
