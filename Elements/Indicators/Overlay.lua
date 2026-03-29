@@ -21,15 +21,15 @@ function OverlayMethods:SetDuration(duration, expirationTime)
 
 	local mode = self._overlayMode
 
-	-- FrameBar layer: static fill while aura is active
-	if(mode == 'FrameBar' or mode == 'Both') then
+	-- Color layer: static fill while aura is active
+	if(mode == 'Color' or mode == 'Both') then
 		self._fbTexture:SetWidth(self._parent:GetWidth())
 		self._fbTexture:Show()
 		self._fbFrame:Show()
 	end
 
-	-- Overlay layer: depleting bar
-	if(mode == 'Overlay' or mode == 'Both') then
+	-- DurationOverlay layer: depleting bar
+	if(mode == 'DurationOverlay' or mode == 'Both') then
 		self._olStatusBar:SetMinMaxValues(0, duration)
 		self._olStatusBar:SetValue(expirationTime - GetTime())
 		self._olFrame:Show()
@@ -45,12 +45,12 @@ function OverlayMethods:SetValue(current, max)
 	self._expirationTime = nil
 
 	local mode = self._overlayMode
-	if(mode == 'FrameBar' or mode == 'Both') then
+	if(mode == 'Color' or mode == 'Both') then
 		self._fbTexture:SetWidth(self._parent:GetWidth())
 		self._fbTexture:Show()
 		self._fbFrame:Show()
 	end
-	if(mode == 'Overlay' or mode == 'Both') then
+	if(mode == 'DurationOverlay' or mode == 'Both') then
 		self._olStatusBar:SetMinMaxValues(0, 1)
 		self._olStatusBar:SetValue(1)
 		self._olFrame:Show()
@@ -102,7 +102,7 @@ end
 function F.Indicators.Overlay.Create(parent, config)
 	config = config or {}
 	local color       = config.color or { 0, 0, 0, 0.6 }
-	local mode        = config.overlayMode or 'Overlay'
+	local mode        = config.overlayMode or 'DurationOverlay'
 	local orientation = config.barOrientation or 'Horizontal'
 	local smooth      = config.smooth ~= false
 
@@ -112,7 +112,7 @@ function F.Indicators.Overlay.Create(parent, config)
 	frame:SetFrameLevel(parent:GetFrameLevel() + 2)
 	frame:Hide()
 
-	-- FrameBar layer (static fill)
+	-- Color layer (static fill)
 	local fbFrame = CreateFrame('Frame', nil, frame)
 	fbFrame:SetAllPoints(frame)
 	fbFrame:SetFrameLevel(frame:GetFrameLevel())

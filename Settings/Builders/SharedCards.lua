@@ -86,10 +86,16 @@ function F.Settings.BuildGlowCard(parent, width, yOffset, get, set, opts)
 	if(opts.allowNone) then
 		typeItems[#typeItems + 1] = { text = 'None', value = 'None' }
 	end
-	typeItems[#typeItems + 1] = { text = 'Proc',  value = C.GlowType.PROC }
-	typeItems[#typeItems + 1] = { text = 'Pixel', value = C.GlowType.PIXEL }
-	typeItems[#typeItems + 1] = { text = 'Soft',  value = C.GlowType.SOFT }
-	typeItems[#typeItems + 1] = { text = 'Shine', value = C.GlowType.SHINE }
+	if(opts.frameGlowOnly) then
+		-- Only procedural glows that work on non-square frames
+		typeItems[#typeItems + 1] = { text = 'Pixel', value = C.GlowType.PIXEL }
+		typeItems[#typeItems + 1] = { text = 'Shine', value = C.GlowType.SHINE }
+	else
+		typeItems[#typeItems + 1] = { text = 'Proc',  value = C.GlowType.PROC }
+		typeItems[#typeItems + 1] = { text = 'Pixel', value = C.GlowType.PIXEL }
+		typeItems[#typeItems + 1] = { text = 'Soft',  value = C.GlowType.SOFT }
+		typeItems[#typeItems + 1] = { text = 'Shine', value = C.GlowType.SHINE }
+	end
 
 	local typeDD = Widgets.CreateDropdown(inner, WIDGET_W)
 	typeDD:SetItems(typeItems)

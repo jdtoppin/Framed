@@ -81,10 +81,9 @@ local function getTypeItems()
 		{ text = 'Icon',      value = C.IndicatorType.ICON },
 		{ text = 'Bars',      value = C.IndicatorType.BARS },
 		{ text = 'Bar',       value = C.IndicatorType.BAR },
-		{ text = 'Frame Bar', value = C.IndicatorType.FRAME_BAR },
-		{ text = 'Border',    value = C.IndicatorType.BORDER },
-		{ text = 'Color',     value = C.IndicatorType.COLOR },
-		{ text = 'Overlay',   value = C.IndicatorType.OVERLAY },
+		{ text = 'Color / Duration Overlay', value = C.IndicatorType.OVERLAY },
+		{ text = 'Border / Glow', value = C.IndicatorType.BORDER },
+		{ text = 'Rectangle', value = C.IndicatorType.RECTANGLE },
 	}
 end
 
@@ -96,10 +95,15 @@ local TYPE_DESCRIPTIONS = {
 	Icons   = 'Row/grid of spell icons or colored squares',
 	Bar     = 'Single depleting status bar',
 	Bars    = 'Row/grid of depleting status bars',
-	Color   = 'Colored rectangle positioned on frame',
-	Overlay = 'Health bar overlay — depleting, static fill, or both',
+	Rectangle = 'Colored rectangle positioned on frame',
+	Overlay   = 'Color fill, depleting overlay, or both',
 	Border  = 'Colored border or glow effect around the frame',
-	FrameBar = 'Full-frame status bar overlay',
+}
+
+-- Display names for indicator types in the list
+local TYPE_DISPLAY = {
+	Border  = 'Border / Glow',
+	Overlay = 'Color / Duration Overlay',
 }
 
 -- ============================================================
@@ -107,7 +111,7 @@ local TYPE_DESCRIPTIONS = {
 -- ============================================================
 local function createListRow(scrollContent)
 	local row = CreateFrame('Frame', nil, scrollContent, 'BackdropTemplate')
-	Widgets.ApplyBackdrop(row, C.Colors.widget, C.Colors.border)
+	Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.border)
 	row:SetHeight(ROW_HEIGHT)
 
 	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
@@ -384,7 +388,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 				row.__editingWrap:SetAlpha(1)
 				row.__editingWrap:Show()
 			end
-			row.__typeFS:SetText(iData.type or '?')
+			row.__typeFS:SetText(TYPE_DISPLAY[iData.type] or iData.type or '?')
 			row.__enabledCB:SetChecked(iData.enabled ~= false)
 
 			-- Dynamic callback for this row's enabled checkbox
@@ -515,13 +519,11 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 			data.barHeight = 4
 			data.maxDisplayed = 3
 			data.orientation = 'DOWN'
-		elseif(iType == C.IndicatorType.FRAME_BAR) then
-			data.barHeight = 4
-		elseif(iType == C.IndicatorType.COLOR) then
+		elseif(iType == C.IndicatorType.RECTANGLE) then
 			data.rectWidth = 10
 			data.rectHeight = 10
 		elseif(iType == C.IndicatorType.OVERLAY) then
-			data.overlayMode = 'Overlay'
+			data.overlayMode = 'DurationOverlay'
 			data.color = { 0, 0, 0, 0.6 }
 		elseif(iType == C.IndicatorType.BORDER) then
 			data.borderGlowMode = selectedBorderGlowMode
@@ -529,7 +531,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 				data.borderThickness = 2
 				data.color = { 1, 1, 1, 1 }
 			else
-				data.glowType = C.GlowType.PROC
+				data.glowType = C.GlowType.PIXEL
 				data.glowColor = { 1, 1, 1, 1 }
 			end
 		end

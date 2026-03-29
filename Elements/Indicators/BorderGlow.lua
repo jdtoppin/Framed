@@ -45,19 +45,16 @@ end
 --- @param color table {r,g,b,a}
 --- @param glowConfig? table optional per-type config (lines, frequency, length, thickness)
 local function LCG_Start(parent, glowType, color, glowConfig)
+	local cfg = glowConfig or {}
 	if(glowType == C.GlowType.PIXEL) then
-		local cfg = glowConfig or {}
 		LCG.PixelGlow_Start(parent, color, cfg.lines, cfg.frequency, cfg.length, cfg.thickness, nil, nil)
 	elseif(glowType == C.GlowType.SOFT) then
-		local cfg = glowConfig or {}
-		LCG.AutoCastGlow_Start(parent, color, cfg.particles, cfg.frequency, cfg.scale)
+		LCG.ButtonGlow_Start(parent, color, cfg.frequency)
 	elseif(glowType == C.GlowType.SHINE) then
-		local cfg = glowConfig or {}
-		LCG.ButtonGlow_Start(parent, color, cfg.frequency)
+		LCG.AutoCastGlow_Start(parent, color, cfg.particles, cfg.frequency, cfg.scale)
 	else
-		-- Default: Proc / ButtonGlow
-		local cfg = glowConfig or {}
-		LCG.ButtonGlow_Start(parent, color, cfg.frequency)
+		-- Default: Proc
+		LCG.ProcGlow_Start(parent, { color = color, duration = cfg.duration, startAnim = false })
 	end
 end
 
@@ -68,11 +65,11 @@ local function LCG_Stop(parent, glowType)
 	if(glowType == C.GlowType.PIXEL) then
 		LCG.PixelGlow_Stop(parent)
 	elseif(glowType == C.GlowType.SOFT) then
-		LCG.AutoCastGlow_Stop(parent)
+		LCG.ButtonGlow_Stop(parent)
 	elseif(glowType == C.GlowType.SHINE) then
-		LCG.ButtonGlow_Stop(parent)
+		LCG.AutoCastGlow_Stop(parent)
 	else
-		LCG.ButtonGlow_Stop(parent)
+		LCG.ProcGlow_Stop(parent)
 	end
 end
 
@@ -126,6 +123,7 @@ function BorderGlowMethods:Start(color, glowType, glowConfig)
 	self._glowConfig = glowConfig
 
 	if(LCG) then
+		self._glowFrame:Show()
 		LCG_Start(self._glowFrame, glowType, color, glowConfig)
 	end
 
@@ -293,7 +291,7 @@ function F.Indicators.BorderGlow.Create(parent, config)
 		glowFrame._bgRef = bg
 
 		bg._glowFrame  = glowFrame
-		bg._glowType   = config.glowType or C.GlowType.PROC
+		bg._glowType   = config.glowType or C.GlowType.PIXEL
 		bg._color      = config.glowColor or C.Colors.accent
 		bg._glowActive = false
 	else

@@ -134,11 +134,10 @@ Constants.DebuffFilterMode = {
 Constants.IndicatorType = {
 	ICON      = 'Icon',
 	ICONS     = 'Icons',
-	FRAME_BAR = 'FrameBar',
 	BAR       = 'Bar',
 	BARS      = 'Bars',
 	BORDER    = 'Border',
-	COLOR     = 'Color',
+	RECTANGLE = 'Rectangle',
 	OVERLAY   = 'Overlay',
 }
 

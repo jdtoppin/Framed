@@ -702,7 +702,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		-- Glow
 		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = true })
 
-	elseif(iType == C.IndicatorType.COLOR) then
+	elseif(iType == C.IndicatorType.RECTANGLE) then
 		-- Size card
 		yOffset = placeHeading(parent, 'Size', 2, yOffset)
 		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
@@ -744,16 +744,16 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 
 	elseif(iType == C.IndicatorType.OVERLAY) then
 		-- Mode card
-		yOffset = placeHeading(parent, 'Overlay Mode', 2, yOffset)
+		yOffset = placeHeading(parent, 'Mode', 2, yOffset)
 		local modeCard, modeInner, modeY = Widgets.StartCard(parent, width, yOffset)
 
 		local modeDD = Widgets.CreateDropdown(modeInner, WIDGET_W)
 		modeDD:SetItems({
-			{ text = 'Overlay',  value = 'Overlay' },
-			{ text = 'FrameBar', value = 'FrameBar' },
-			{ text = 'Both',     value = 'Both' },
+			{ text = 'Duration Overlay', value = 'DurationOverlay' },
+			{ text = 'Color',            value = 'Color' },
+			{ text = 'Both',             value = 'Both' },
 		})
-		modeDD:SetValue(data.overlayMode or 'Overlay')
+		modeDD:SetValue(data.overlayMode or 'DurationOverlay')
 		modeDD:SetOnSelect(function(v) update('overlayMode', v) end)
 		modeY = placeWidget(modeDD, modeInner, modeY, DROPDOWN_H)
 
@@ -766,9 +766,9 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 
 		yOffset = Widgets.EndCard(modeCard, parent, modeY)
 
-		-- Conditional: Overlay or Both — threshold colors + smooth + bar orientation
-		local ovMode = data.overlayMode or 'Overlay'
-		if(ovMode == 'Overlay' or ovMode == 'Both') then
+		-- Conditional: DurationOverlay or Both — threshold colors + smooth + bar orientation
+		local ovMode = data.overlayMode or 'DurationOverlay'
+		if(ovMode == 'DurationOverlay' or ovMode == 'Both') then
 			yOffset = F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, {})
 
 			yOffset = placeHeading(parent, 'Animation', 2, yOffset)
@@ -850,26 +850,13 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 
 			yOffset = Widgets.EndCard(glowCard, parent, glowY)
 
-			-- Glow type + color (no None option)
-			yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = false })
+			-- Glow type + color (frame-level glows only — Pixel and Shine)
+			yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = false, frameGlowOnly = true })
 		end
 
 		-- Position (frame level only)
 		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
 
-	elseif(iType == C.IndicatorType.FRAME_BAR) then
-		-- Legacy Frame Bar — basic bar height + position
-		yOffset = placeHeading(parent, 'Bar Settings', 2, yOffset)
-		local barCard, barInner, barY = Widgets.StartCard(parent, width, yOffset)
-
-		local bh = Widgets.CreateSlider(barInner, 'Bar Height', WIDGET_W, 2, 20, 1)
-		bh:SetValue(data.barHeight or 4)
-		bh:SetAfterValueChanged(function(v) update('barHeight', v) end)
-		barY = placeWidget(bh, barInner, barY, SLIDER_H)
-
-		yOffset = Widgets.EndCard(barCard, parent, barY)
-
-		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
 	end
 
 	return yOffset

@@ -16,9 +16,8 @@ local RENDERERS = {
 	[C.IndicatorType.ICONS]     = F.Indicators.Icons,
 	[C.IndicatorType.BAR]       = F.Indicators.Bar,
 	[C.IndicatorType.BARS]      = F.Indicators.Bars,
-	[C.IndicatorType.FRAME_BAR] = F.Indicators.Overlay,
 	[C.IndicatorType.BORDER]    = F.Indicators.BorderGlow,
-	[C.IndicatorType.COLOR]     = F.Indicators.Color,
+	[C.IndicatorType.RECTANGLE] = F.Indicators.Color,
 	[C.IndicatorType.OVERLAY]   = F.Indicators.Overlay,
 }
 
@@ -276,18 +275,6 @@ local function Update(self, event, unit)
 				if(renderer.StopGlow) then renderer:StopGlow() end
 			end
 
-		elseif(rendererType == C.IndicatorType.FRAME_BAR) then
-			local aura = matched[idx]
-			if(aura) then
-				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
-					renderer:SetDuration(aura.duration, aura.expirationTime)
-				else
-					renderer:SetValue(1, 1)
-				end
-			else
-				renderer:Clear()
-			end
-
 		elseif(rendererType == C.IndicatorType.BORDER) then
 			local aura = matched[idx]
 			if(aura) then
@@ -309,7 +296,7 @@ local function Update(self, event, unit)
 				renderer:Clear()
 			end
 
-		elseif(rendererType == C.IndicatorType.COLOR) then
+		elseif(rendererType == C.IndicatorType.RECTANGLE) then
 			local aura = matched[idx]
 			if(aura) then
 				local color = ind._color or { 1, 1, 1, 1 }
@@ -385,11 +372,9 @@ local function Disable(self)
 			renderer:Clear()
 		elseif(rendererType == C.IndicatorType.BAR) then
 			renderer:Clear()
-		elseif(rendererType == C.IndicatorType.FRAME_BAR) then
-			renderer:Clear()
 		elseif(rendererType == C.IndicatorType.BORDER) then
 			renderer:Clear()
-		elseif(rendererType == C.IndicatorType.COLOR) then
+		elseif(rendererType == C.IndicatorType.RECTANGLE) then
 			renderer:Clear()
 		elseif(rendererType == C.IndicatorType.OVERLAY) then
 			renderer:Clear()
@@ -484,12 +469,6 @@ local function createRenderer(parent, indConfig)
 			orientation    = indConfig.orientation or 'DOWN',
 		})
 
-	elseif(indType == C.IndicatorType.FRAME_BAR) then
-		return F.Indicators.Overlay.Create(parent.Health or parent, {
-			overlayMode = 'FrameBar',
-			color = indConfig.color,
-		})
-
 	elseif(indType == C.IndicatorType.BORDER) then
 		return factory.Create(parent, {
 			borderGlowMode  = indConfig.borderGlowMode or 'Border',
@@ -500,7 +479,7 @@ local function createRenderer(parent, indConfig)
 			glowColor        = indConfig.glowColor,
 		})
 
-	elseif(indType == C.IndicatorType.COLOR) then
+	elseif(indType == C.IndicatorType.RECTANGLE) then
 		return factory.Create(parent, {
 			color         = indConfig.color,
 			rectWidth     = indConfig.rectWidth or 10,
@@ -515,7 +494,7 @@ local function createRenderer(parent, indConfig)
 
 	elseif(indType == C.IndicatorType.OVERLAY) then
 		return F.Indicators.Overlay.Create(parent.Health or parent, {
-			overlayMode    = indConfig.overlayMode or 'Overlay',
+			overlayMode    = indConfig.overlayMode or 'DurationOverlay',
 			color          = indConfig.color,
 			barOrientation = indConfig.barOrientation or 'Horizontal',
 			smooth         = indConfig.smooth,

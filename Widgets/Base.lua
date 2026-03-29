@@ -254,6 +254,8 @@ function Widgets.ApplyBackdrop(frame, bgColor, borderColor)
 	frame:SetBackdrop(backdropInfo)
 	bgColor = bgColor or C.Colors.panel
 	borderColor = borderColor or C.Colors.border
+	frame._bgColor = bgColor
+	frame._borderColor = borderColor
 	frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 1)
 	frame:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1)
 end
