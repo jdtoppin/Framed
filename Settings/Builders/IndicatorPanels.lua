@@ -233,7 +233,7 @@ end
 -- ============================================================
 -- Build type-specific indicator settings
 -- ============================================================
-function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name, data, setIndicator)
+function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name, data, setIndicator, rebuildPanel)
 	local function update(key, value)
 		data[key] = value
 		setIndicator(name, data)
@@ -793,48 +793,66 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
 
 	elseif(iType == C.IndicatorType.BORDER) then
-		-- Border settings card
-		yOffset = placeHeading(parent, 'Border Settings', 2, yOffset)
-		local borCard, borInner, borY = Widgets.StartCard(parent, width, yOffset)
+		-- Mode switch: Border / Glow
+		yOffset = placeHeading(parent, 'Mode', 2, yOffset)
+		local modeCard, modeInner, modeY = Widgets.StartCard(parent, width, yOffset)
 
-		local thkSlider = Widgets.CreateSlider(borInner, 'Thickness', WIDGET_W, 1, 15, 1)
-		thkSlider:SetValue(data.borderThickness or 2)
-		thkSlider:SetAfterValueChanged(function(v) update('borderThickness', v) end)
-		borY = placeWidget(thkSlider, borInner, borY, SLIDER_H)
-
-		local borColor = data.color or { 1, 1, 1, 1 }
-		local colorPicker = Widgets.CreateColorPicker(borInner, 'Color', true, function(r, g, b, a)
-			update('color', { r, g, b, a })
+		local modeSwitch = Widgets.CreateSwitch(modeInner, WIDGET_W, BUTTON_H, {
+			{ text = 'Border', value = 'Border' },
+			{ text = 'Glow',   value = 'Glow' },
+		})
+		modeSwitch:SetValue(data.borderGlowMode or 'Border')
+		modeSwitch:SetOnSelect(function(v)
+			update('borderGlowMode', v)
+			if(rebuildPanel) then rebuildPanel() end
 		end)
-		colorPicker:SetColor(borColor[1], borColor[2], borColor[3], borColor[4] or 1)
-		borY = placeWidget(colorPicker, borInner, borY, DROPDOWN_H)
+		modeY = placeWidget(modeSwitch, modeInner, modeY, BUTTON_H)
 
-		local fadeSwitch = Widgets.CreateCheckButton(borInner, 'Fade Out', function(checked)
-			update('fadeOut', checked)
-		end)
-		fadeSwitch:SetChecked(data.fadeOut == true)
-		borY = placeWidget(fadeSwitch, borInner, borY, CHECK_H)
+		yOffset = Widgets.EndCard(modeCard, parent, modeY)
 
-		yOffset = Widgets.EndCard(borCard, parent, borY)
+		local bgMode = data.borderGlowMode or 'Border'
 
-		-- Position (frame level only)
-		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })
+		if(bgMode == 'Border') then
+			-- Border settings card
+			yOffset = placeHeading(parent, 'Border Settings', 2, yOffset)
+			local borCard, borInner, borY = Widgets.StartCard(parent, width, yOffset)
 
-	elseif(iType == C.IndicatorType.GLOW) then
-		-- Fade Out + Glow type card
-		yOffset = placeHeading(parent, 'Glow Settings', 2, yOffset)
-		local glowSettCard, glowSettInner, glowSettY = Widgets.StartCard(parent, width, yOffset)
+			local thkSlider = Widgets.CreateSlider(borInner, 'Thickness', WIDGET_W, 1, 15, 1)
+			thkSlider:SetValue(data.borderThickness or 2)
+			thkSlider:SetAfterValueChanged(function(v) update('borderThickness', v) end)
+			borY = placeWidget(thkSlider, borInner, borY, SLIDER_H)
 
-		local fadeSwitch = Widgets.CreateCheckButton(glowSettInner, 'Fade Out', function(checked)
-			update('fadeOut', checked)
-		end)
-		fadeSwitch:SetChecked(data.fadeOut == true)
-		glowSettY = placeWidget(fadeSwitch, glowSettInner, glowSettY, CHECK_H)
+			local borColor = data.color or { 1, 1, 1, 1 }
+			local borColorPicker = Widgets.CreateColorPicker(borInner, 'Color', true, function(r, g, b, a)
+				update('color', { r, g, b, a })
+			end)
+			borColorPicker:SetColor(borColor[1], borColor[2], borColor[3], borColor[4] or 1)
+			borY = placeWidget(borColorPicker, borInner, borY, DROPDOWN_H)
 
-		yOffset = Widgets.EndCard(glowSettCard, parent, glowSettY)
+			local borFade = Widgets.CreateCheckButton(borInner, 'Fade Out', function(checked)
+				update('fadeOut', checked)
+			end)
+			borFade:SetChecked(data.fadeOut == true)
+			borY = placeWidget(borFade, borInner, borY, CHECK_H)
 
-		-- Glow card (no None)
-		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = false })
+			yOffset = Widgets.EndCard(borCard, parent, borY)
+
+		elseif(bgMode == 'Glow') then
+			-- Glow settings card
+			yOffset = placeHeading(parent, 'Glow Settings', 2, yOffset)
+			local glowCard, glowInner, glowY = Widgets.StartCard(parent, width, yOffset)
+
+			local glowFade = Widgets.CreateCheckButton(glowInner, 'Fade Out', function(checked)
+				update('fadeOut', checked)
+			end)
+			glowFade:SetChecked(data.fadeOut == true)
+			glowY = placeWidget(glowFade, glowInner, glowY, CHECK_H)
+
+			yOffset = Widgets.EndCard(glowCard, parent, glowY)
+
+			-- Glow type + color (no None option)
+			yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = false })
+		end
 
 		-- Position (frame level only)
 		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set, { hidePosition = true })

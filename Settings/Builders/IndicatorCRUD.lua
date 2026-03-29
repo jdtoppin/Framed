@@ -365,8 +365,10 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 				setIndicator(capName, capData)
 			end
 
-			row.__editBtn:SetOnClick(function()
-				editingName = capName
+			-- Rebuild the settings panel in-place (used by mode switches that change visible sections)
+			local function rebuildSettings()
+				local cur = getIndicators()[capName]
+				if(not cur) then return end
 
 				-- Clear previous settings: hide all child frames AND regions (FontStrings/Textures)
 				for _, child in next, { settingsContainer:GetChildren() } do
@@ -377,6 +379,25 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 					region:Hide()
 					region:ClearAllPoints()
 				end
+
+				-- Build settings into container
+				local settingsEndY = buildIndicatorSettings(settingsContainer, width, 0, capName, cur, setIndicator, rebuildSettings)
+
+				-- Update settingsContainer height
+				settingsContainer:SetHeight(math.abs(settingsEndY) + C.Spacing.normal)
+
+				-- Update the scroll content height and scroll range
+				local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+				local cardEndY = Widgets.EndCard(listCard, parent, -listH)
+				local totalH = math.abs(cardEndY) + settingsHeadingH + math.abs(settingsEndY) + C.Spacing.normal * 2
+				parent:SetHeight(totalH)
+				if(parent._scrollParent and parent._scrollParent.UpdateScrollRange) then
+					parent._scrollParent:UpdateScrollRange()
+				end
+			end
+
+			row.__editBtn:SetOnClick(function()
+				editingName = capName
 
 				-- Show heading and container
 				settingsHeading:Show()
@@ -397,23 +418,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 				-- Reposition settings snug below the list (uses total indicatorCount)
 				repositionSettings()
 
-				local cur = getIndicators()[capName]
-				if(not cur) then return end
-
-				-- Build settings into container
-				local settingsEndY = buildIndicatorSettings(settingsContainer, width, 0, capName, cur, setIndicator)
-
-				-- Update settingsContainer height
-				settingsContainer:SetHeight(math.abs(settingsEndY) + C.Spacing.normal)
-
-				-- Update the scroll content height and scroll range
-				local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
-				local cardEndY = Widgets.EndCard(listCard, parent, -listH)
-				local totalH = math.abs(cardEndY) + settingsHeadingH + math.abs(settingsEndY) + C.Spacing.normal * 2
-				parent:SetHeight(totalH)
-				if(parent._scrollParent and parent._scrollParent.UpdateScrollRange) then
-					parent._scrollParent:UpdateScrollRange()
-				end
+				rebuildSettings()
 			end)
 
 			row.__deleteBtn:SetOnClick(function()
