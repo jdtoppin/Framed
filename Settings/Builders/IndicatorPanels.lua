@@ -588,12 +588,12 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = placeHeading(parent, 'Size', 2, yOffset)
 		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
 
-		local bwSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 3, 500, 1)
+		local bwSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 3, 100, 1)
 		bwSlider:SetValue(data.barWidth or 100)
 		bwSlider:SetAfterValueChanged(function(v) update('barWidth', v) end)
 		szY = placeWidget(bwSlider, szInner, szY, SLIDER_H)
 
-		local bhSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 3, 500, 1)
+		local bhSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 3, 100, 1)
 		bhSlider:SetValue(data.barHeight or 4)
 		bhSlider:SetAfterValueChanged(function(v) update('barHeight', v) end)
 		szY = placeWidget(bhSlider, szInner, szY, SLIDER_H)
@@ -606,11 +606,11 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 
 		yOffset = Widgets.EndCard(szCard, parent, szY)
 
-		-- Layout card (Bars only)
-		if(iType == C.IndicatorType.BARS) then
-			yOffset = placeHeading(parent, 'Layout', 2, yOffset)
-			local layCard, layInner, layY = Widgets.StartCard(parent, width, yOffset)
+		-- Layout card
+		yOffset = placeHeading(parent, 'Layout', 2, yOffset)
+		local layCard, layInner, layY = Widgets.StartCard(parent, width, yOffset)
 
+		if(iType == C.IndicatorType.BARS) then
 			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
 			mxSlider:SetValue(data.maxDisplayed or 3)
 			mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
@@ -636,12 +636,36 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			dirDD:SetValue(data.orientation or 'DOWN')
 			dirDD:SetOnSelect(function(v) update('orientation', v) end)
 			layY = placeWidget(dirDD, layInner, layY, DROPDOWN_H)
-
-			yOffset = Widgets.EndCard(layCard, parent, layY)
 		end
 
-		-- Threshold color card
-		yOffset = F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, { showBorderColor = true, showBgColor = true })
+		-- Position (anchor picker)
+		if(Widgets.CreateAnchorPicker) then
+			local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+			local picker = Widgets.CreateAnchorPicker(layInner, WIDGET_W, 50)
+			picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
+			picker:SetOnChanged(function(point, x, y)
+				local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+				a[1] = point
+				a[3] = point
+				a[4] = x
+				a[5] = y
+				set('anchor', a)
+			end)
+			layY = placeWidget(picker, layInner, layY, picker._height or 91)
+		end
+
+		-- Frame level
+		local flSlider = Widgets.CreateSlider(layInner, 'Frame Level', WIDGET_W, 1, 50, 1)
+		flSlider:SetValue(get('frameLevel') or 5)
+		flSlider:SetAfterValueChanged(function(val)
+			set('frameLevel', val)
+		end)
+		layY = placeWidget(flSlider, layInner, layY, SLIDER_H)
+
+		yOffset = Widgets.EndCard(layCard, parent, layY)
+
+		-- Threshold color card (hide base color — set via per-spell color pickers)
+		yOffset = F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, { showBorderColor = true, showBgColor = true, hideBaseColor = true })
 
 		-- Duration dropdown
 		yOffset = placeHeading(parent, 'Duration', 2, yOffset)
@@ -675,9 +699,8 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Font', 'stackFont', get, set)
 		end
 
-		-- Glow + Position
+		-- Glow
 		yOffset = F.Settings.BuildGlowCard(parent, width, yOffset, get, set, { allowNone = true })
-		yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
 
 	elseif(iType == C.IndicatorType.COLOR) then
 		-- Size card

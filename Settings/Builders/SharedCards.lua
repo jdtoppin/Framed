@@ -171,23 +171,29 @@ function F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, op
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
-	-- Base color
-	local baseColor = get('color') or { 1, 1, 1, 1 }
-	local basePicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
-		set('color', { r, g, b, a })
-	end)
-	basePicker:SetColor(baseColor[1], baseColor[2], baseColor[3], baseColor[4] or 1)
-	cy = placeWidget(basePicker, inner, cy, DROPDOWN_H)
+	-- Base color (skip when per-spell colors are used)
+	if(not opts.hideBaseColor) then
+		local baseColor = get('color') or { 1, 1, 1, 1 }
+		local basePicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
+			set('color', { r, g, b, a })
+		end)
+		basePicker:SetColor(baseColor[1], baseColor[2], baseColor[3], baseColor[4] or 1)
+		cy = placeWidget(basePicker, inner, cy, DROPDOWN_H)
+	end
 
 	-- Low Time % toggle + threshold + color
 	local ltc = get('lowTimeColor') or { enabled = false, threshold = 25, color = { 1, 0.5, 0, 1 } }
 
 	local ltSlider, ltColor
 
+	local lsSwitch, lsSlider, lsColor
+
 	local ltSwitch = Widgets.CreateCheckButton(inner, 'Low Time %', function(checked)
 		ltc.enabled = checked
 		if(ltSlider) then ltSlider:SetShown(checked) end
 		if(ltColor) then ltColor:SetShown(checked) end
+		-- Mutual exclusion: disable Low Seconds when Low Time % is enabled
+		if(lsSwitch) then lsSwitch:SetEnabled(not checked) end
 		set('lowTimeColor', ltc)
 	end)
 	ltSwitch:SetChecked(ltc.enabled)
@@ -214,16 +220,20 @@ function F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, op
 	-- Low Seconds toggle + threshold + color
 	local lsc = get('lowSecsColor') or { enabled = false, threshold = 5, color = { 1, 0, 0, 1 } }
 
-	local lsSlider, lsColor
-
-	local lsSwitch = Widgets.CreateCheckButton(inner, 'Low Seconds', function(checked)
+	lsSwitch = Widgets.CreateCheckButton(inner, 'Low Seconds', function(checked)
 		lsc.enabled = checked
 		if(lsSlider) then lsSlider:SetShown(checked) end
 		if(lsColor) then lsColor:SetShown(checked) end
+		-- Mutual exclusion: disable Low Time % when Low Seconds is enabled
+		if(ltSwitch) then ltSwitch:SetEnabled(not checked) end
 		set('lowSecsColor', lsc)
 	end)
 	lsSwitch:SetChecked(lsc.enabled)
 	cy = placeWidget(lsSwitch, inner, cy, CHECK_H)
+
+	-- Apply initial mutual exclusion state
+	if(ltc.enabled) then lsSwitch:SetEnabled(false) end
+	if(lsc.enabled) then ltSwitch:SetEnabled(false) end
 
 	lsSlider = Widgets.CreateSlider(inner, 'Threshold (sec)', WIDGET_W, 1, 30, 1)
 	lsSlider:SetValue(lsc.threshold or 5)

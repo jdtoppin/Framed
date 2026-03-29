@@ -369,6 +369,12 @@ function Widgets.CreateCheckButton(parent, label, callback)
 		ApplyVisual(checked)
 	end
 
+	function frame:UpdateEnabledState()
+		local enabled = self:IsEnabled()
+		self:SetAlpha(enabled and 1 or 0.35)
+		self:EnableMouse(enabled)
+	end
+
 	Widgets.ApplyBaseMixin(frame)
 
 	return frame
