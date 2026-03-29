@@ -17,10 +17,9 @@ local RENDERERS = {
 	[C.IndicatorType.BAR]       = F.Indicators.Bar,
 	[C.IndicatorType.BARS]      = F.Indicators.Bars,
 	[C.IndicatorType.FRAME_BAR] = F.Indicators.Overlay,
-	[C.IndicatorType.BORDER]    = F.Indicators.Border,
+	[C.IndicatorType.BORDER]    = F.Indicators.BorderGlow,
 	[C.IndicatorType.COLOR]     = F.Indicators.Color,
 	[C.IndicatorType.OVERLAY]   = F.Indicators.Overlay,
-	[C.IndicatorType.GLOW]      = F.Indicators.Glow,
 }
 
 -- ============================================================
@@ -292,8 +291,15 @@ local function Update(self, event, unit)
 		elseif(rendererType == C.IndicatorType.BORDER) then
 			local aura = matched[idx]
 			if(aura) then
-				local color = ind._color or { 1, 1, 1, 1 }
-				renderer:SetColor(color[1], color[2], color[3], color[4])
+				local mode = ind._borderGlowMode or 'Border'
+				if(mode == 'Border') then
+					local color = ind._color or { 1, 1, 1, 1 }
+					renderer:SetColor(color[1], color[2], color[3], color[4])
+				elseif(mode == 'Glow') then
+					if(not renderer:IsActive()) then
+						renderer:Start(ind._glowColor, ind._glowType, ind._glowConfig)
+					end
+				end
 				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
 					renderer:SetCooldown(aura.duration, aura.expirationTime)
 				else
@@ -332,15 +338,6 @@ local function Update(self, event, unit)
 				renderer:Clear()
 			end
 
-		elseif(rendererType == C.IndicatorType.GLOW) then
-			local aura = matched[idx]
-			if(aura) then
-				if(not renderer:IsActive()) then
-					renderer:Start(ind._color, ind._glowType, ind._glowConfig)
-				end
-			else
-				renderer:Stop()
-			end
 		end
 	end
 end
@@ -396,8 +393,6 @@ local function Disable(self)
 			renderer:Clear()
 		elseif(rendererType == C.IndicatorType.OVERLAY) then
 			renderer:Clear()
-		elseif(rendererType == C.IndicatorType.GLOW) then
-			renderer:Stop()
 		end
 	end
 
@@ -497,8 +492,12 @@ local function createRenderer(parent, indConfig)
 
 	elseif(indType == C.IndicatorType.BORDER) then
 		return factory.Create(parent, {
+			borderGlowMode  = indConfig.borderGlowMode or 'Border',
 			borderThickness = indConfig.borderThickness,
 			fadeOut          = indConfig.fadeOut,
+			color            = indConfig.color,
+			glowType         = indConfig.glowType,
+			glowColor        = indConfig.glowColor,
 		})
 
 	elseif(indType == C.IndicatorType.COLOR) then
@@ -524,12 +523,6 @@ local function createRenderer(parent, indConfig)
 			lowSecsColor   = indConfig.lowSecsColor,
 		})
 
-	elseif(indType == C.IndicatorType.GLOW) then
-		return factory.Create(parent, {
-			glowType = indConfig.glowType,
-			color    = indConfig.color,
-			fadeOut  = indConfig.fadeOut,
-		})
 	end
 
 	return nil
@@ -593,17 +586,18 @@ local function Rebuild(element, config)
 				end
 
 				element._indicators[idx] = {
-					_renderer      = renderer,
-					_type          = indConfig.type,
-					_castBy        = indConfig.castBy or 'anyone',
-					_color         = indConfig.color,
-					_defaultColor  = indConfig.color,
-					_spellColors   = indConfig.spellColors,
-					_glowType      = indConfig.glowType,
-					_glowColor     = indConfig.glowColor,
-					_glowConfig    = indConfig.glowConfig,
-					_name          = name,
-					_spellPriority = spellPriority,
+					_renderer       = renderer,
+					_type           = indConfig.type,
+					_castBy         = indConfig.castBy or 'anyone',
+					_color          = indConfig.color,
+					_defaultColor   = indConfig.color,
+					_spellColors    = indConfig.spellColors,
+					_glowType       = indConfig.glowType,
+					_glowColor      = indConfig.glowColor,
+					_glowConfig     = indConfig.glowConfig,
+					_borderGlowMode = indConfig.borderGlowMode,
+					_name           = name,
+					_spellPriority  = spellPriority,
 				}
 
 				if(spells and #spells > 0) then
