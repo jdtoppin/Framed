@@ -242,6 +242,15 @@ local function Update(self, event, unit)
 		elseif(rendererType == C.IndicatorType.BARS) then
 			local list = iconsAuras[idx]
 			if(#list > 0) then
+				-- Sort by spell list priority
+				local priority = ind._spellPriority
+				if(priority) then
+					table.sort(list, function(a, b)
+						local pa = priority[a.spellId] or 999
+						local pb = priority[b.spellId] or 999
+						return pa < pb
+					end)
+				end
 				renderer:SetBars(list)
 				renderer:Show()
 			else
@@ -448,6 +457,7 @@ local function createRenderer(parent, indConfig)
 			durationMode   = indConfig.durationMode,
 			durationFont   = indConfig.durationFont,
 			stackFont      = indConfig.stackFont,
+			spellColors    = indConfig.spellColors,
 			maxDisplayed   = indConfig.maxDisplayed or 3,
 			numPerLine     = indConfig.numPerLine or 0,
 			spacingX       = indConfig.spacingX or 1,

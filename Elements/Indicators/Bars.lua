@@ -16,21 +16,28 @@ local BarsMethods = {}
 --- @param auraList table[]
 function BarsMethods:SetBars(auraList)
 	local count = math.min(#auraList, self._maxDisplayed)
-	local config = self._config
+	local spellColors = self._config.spellColors
+	local defaultColor = self._config.color
 
 	for i = 1, count do
 		local bar = self:_GetBar(i)
 		local aura = auraList[i]
+		-- Apply color before showing to prevent flicker
+		local sc = spellColors and spellColors[aura.spellId]
+		if(sc) then
+			bar:SetColor(sc[1], sc[2], sc[3], 1)
+		elseif(aura.color) then
+			bar:SetColor(aura.color[1], aura.color[2], aura.color[3], aura.color[4] or 1)
+		elseif(defaultColor) then
+			bar:SetColor(defaultColor[1], defaultColor[2], defaultColor[3], defaultColor[4] or 1)
+		end
 		if(aura.duration and aura.duration > 0 and aura.expirationTime) then
 			bar:SetDuration(aura.duration, aura.expirationTime)
 		else
 			bar:SetValue(1, 1)
 		end
-		if(aura.color) then
-			bar:SetColor(aura.color[1], aura.color[2], aura.color[3], aura.color[4] or 1)
-		end
-		if(aura.count) then
-			bar:SetStacks(aura.count)
+		if(aura.stacks) then
+			bar:SetStacks(aura.stacks)
 		end
 		bar:Show()
 	end
@@ -104,7 +111,7 @@ function BarsMethods:_Layout(count)
 			y = col * (barH + spY)
 		end
 
-		frame:SetPoint('TOPLEFT', self._frame, 'TOPLEFT', x, y)
+		Widgets.SetPoint(frame, 'TOPLEFT', self._frame, 'TOPLEFT', x, y)
 	end
 end
 
@@ -119,7 +126,37 @@ end
 function F.Indicators.Bars.Create(parent, config)
 	config = config or {}
 
+	-- Compute container size to fit max bars in the grow direction
+	local barW      = config.barWidth or 50
+	local barH      = config.barHeight or 4
+	local spX       = config.spacingX or 1
+	local spY       = config.spacingY or 1
+	local maxBars   = config.maxDisplayed or 3
+	local perLine   = config.numPerLine or 0
+	local orient    = config.orientation or 'DOWN'
+
+	local totalWidth, totalHeight
+	if(perLine > 0 and maxBars > perLine) then
+		local numLines = math.ceil(maxBars / perLine)
+		if(orient == 'RIGHT' or orient == 'LEFT') then
+			totalWidth  = perLine * barW + math.max(0, perLine - 1) * spX
+			totalHeight = numLines * barH + math.max(0, numLines - 1) * spY
+		else
+			totalWidth  = numLines * barW + math.max(0, numLines - 1) * spX
+			totalHeight = perLine * barH + math.max(0, perLine - 1) * spY
+		end
+	else
+		if(orient == 'RIGHT' or orient == 'LEFT') then
+			totalWidth  = maxBars * barW + math.max(0, maxBars - 1) * spX
+			totalHeight = barH
+		else
+			totalWidth  = barW
+			totalHeight = maxBars * barH + math.max(0, maxBars - 1) * spY
+		end
+	end
+
 	local frame = CreateFrame('Frame', nil, parent)
+	Widgets.SetSize(frame, totalWidth, totalHeight)
 	frame:SetFrameLevel(parent:GetFrameLevel() + 5)
 	frame:Hide()
 

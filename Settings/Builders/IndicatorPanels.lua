@@ -276,8 +276,10 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		end
 	end)
 
-	-- Show per-spell color pickers for colored square display type
-	if(data.displayType == C.IconDisplay.COLORED_SQUARE) then
+	-- Show per-spell color pickers for colored square and bars types
+	if(data.displayType == C.IconDisplay.COLORED_SQUARE
+		or data.type == C.IndicatorType.BAR
+		or data.type == C.IndicatorType.BARS) then
 		spList:SetSpellColors(data.spellColors or {})
 		spList:SetShowColorPicker(true)
 	end

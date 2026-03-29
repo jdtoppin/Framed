@@ -33,7 +33,7 @@ local function DepletingOnUpdate(statusBar, elapsed)
 	local fraction = remaining / bar._duration
 	fraction = math.max(0, math.min(1, fraction))
 	statusBar:SetMinMaxValues(0, 1)
-	statusBar:SetValue_Raw(fraction)
+	statusBar:SetValue(fraction)
 
 	-- Update threshold colors
 	F.Indicators.UpdateThresholdColor(bar, remaining, bar._duration or 0, function(r, g, b, a)
@@ -70,9 +70,19 @@ function BarMethods:SetDuration(duration, expirationTime)
 		return
 	end
 
+	-- Skip re-initialization if already tracking the same aura
+	if(self._expirationTime == expirationTime and self._duration == duration) then
+		self._frame:Show()
+		return
+	end
+
 	self._duration      = duration
 	self._expirationTime = expirationTime
 	self._elapsed       = 0
+
+	-- Calculate current fraction immediately to avoid flicker
+	local remaining = expirationTime - GetTime()
+	local fraction = math.max(0, math.min(1, remaining / duration))
 
 	-- Primary: use C-level SetTimerDuration (12.0.1, secret-safe)
 	-- Safe feature detection: check Enum exists before accessing nested fields.
@@ -89,7 +99,6 @@ function BarMethods:SetDuration(duration, expirationTime)
 			self._statusBar:SetTimerDuration(durObj, nil, Enum.StatusBarTimerDirection.RemainingTime)
 			self._depleting = false  -- C-level handles it
 
-			self._statusBar:SetSmooth(false)
 			self._statusBar:SetMinMaxValues(0, 1)
 			self._statusBar:Show()
 			self._statusBar._wrapper:Show()
@@ -102,9 +111,8 @@ function BarMethods:SetDuration(duration, expirationTime)
 	-- Fallback: OnUpdate-based depletion
 	self._depleting = true
 
-	self._statusBar:SetSmooth(false)
 	self._statusBar:SetMinMaxValues(0, 1)
-	self._statusBar:SetValue_Raw(1)
+	self._statusBar:SetValue(fraction)
 	self._statusBar:Show()
 	self._statusBar._wrapper:Show()
 	self._frame:Show()
@@ -124,7 +132,7 @@ function BarMethods:SetValue(current, max)
 		self._statusBar:SetMinMaxValues(0, 1)
 		self._statusBar:SetValue(0)
 	else
-		self._statusBar:SetSmooth(false)
+		
 		self._statusBar:SetMinMaxValues(0, max)
 		self._statusBar:SetValue(current)
 	end
@@ -140,7 +148,7 @@ end
 --- @param b number
 --- @param a? number
 function BarMethods:SetColor(r, g, b, a)
-	self._statusBar:SetBarColor(r, g, b, a or 1)
+	self._statusBar:SetStatusBarColor(r, g, b, a or 1)
 end
 
 --- Hide the bar and stop any active animation.
@@ -210,7 +218,6 @@ end
 --- @return table bar
 function F.Indicators.Bar.Create(parent, config)
 	config = config or {}
-	local color       = config.color or { C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1 }
 	local barWidth    = config.barWidth or 50
 	local barHeight   = config.barHeight or 4
 	local orientation = config.barOrientation or 'Horizontal'
@@ -218,22 +225,38 @@ function F.Indicators.Bar.Create(parent, config)
 	local bgColor     = config.bgColor or { 0, 0, 0, 0.5 }
 
 	-- Container frame
-	local frame = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
+	local frame = CreateFrame('Frame', nil, parent)
 	Widgets.SetSize(frame, barWidth, barHeight)
 	frame:SetFrameLevel(parent:GetFrameLevel() + 5)
-	frame:SetBackdrop({
-		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
-		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
-		edgeSize = 1,
-	})
-	frame:SetBackdropColor(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 0.5)
-	frame:SetBackdropBorderColor(borderColor[1], borderColor[2], borderColor[3], borderColor[4] or 1)
 	frame:Hide()
 
-	-- Status bar
-	local statusBar = Widgets.CreateStatusBar(frame, barWidth - 2, barHeight - 2)
-	statusBar:SetPoint('CENTER', frame, 'CENTER', 0, 0)
-	statusBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 1)
+	-- Dark background
+	local bg = frame:CreateTexture(nil, 'BACKGROUND')
+	bg:SetAllPoints(frame)
+	bg:SetColorTexture(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 0.5)
+
+	-- Status bar (solid color fill)
+	local statusBar = CreateFrame('StatusBar', nil, frame)
+	statusBar:SetAllPoints(frame)
+	statusBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+	statusBar:GetStatusBarTexture():SetHorizTile(false)
+	statusBar:GetStatusBarTexture():SetVertTile(false)
+	statusBar:SetStatusBarColor(0, 0, 0, 0)
+	statusBar:SetMinMaxValues(0, 1)
+	statusBar:SetValue(0)
+
+	-- 0.5px border overlay
+	local border = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
+	border:SetAllPoints(frame)
+	border:SetBackdrop({
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 0.5,
+	})
+	border:SetBackdropBorderColor(0, 0, 0, 1)
+	border:SetFrameLevel(frame:GetFrameLevel() + 2)
+
+	-- Wrapper reference for Show/Hide compatibility
+	statusBar._wrapper = statusBar
 
 	if(orientation == 'Vertical') then
 		statusBar:SetOrientation('VERTICAL')
@@ -264,7 +287,6 @@ function F.Indicators.Bar.Create(parent, config)
 		_statusBar    = statusBar,
 		_stackText    = stackText,
 		_durationText = durationText,
-		_color        = color,
 		_lowTimeColor = config.lowTimeColor,   -- { enabled, threshold, color }
 		_lowSecsColor = config.lowSecsColor,   -- { enabled, threshold, color }
 		_durationMode = config.durationMode or 'Never',
