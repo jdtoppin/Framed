@@ -532,10 +532,10 @@ local function Rebuild(element, config)
 
 					renderer:SetPoint(containerPoint, element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
 				end
-				if(indConfig.frameLevel and renderer.GetFrame) then
+				if(renderer.GetFrame) then
 					local frame = renderer:GetFrame()
 				if(frame and frame.SetFrameLevel) then
-					frame:SetFrameLevel(indConfig.frameLevel)
+					frame:SetFrameLevel(indConfig.frameLevel or 10)
 				end
 				end
 
@@ -625,7 +625,7 @@ function F.Elements.Buffs.Setup(self, config)
 				end
 
 				-- Set frame level if supported
-				local fl = indConfig.frameLevel or 5
+				local fl = indConfig.frameLevel or 10
 				if(renderer.GetFrame) then
 					local frame = renderer:GetFrame()
 					if(frame and frame.SetFrameLevel) then
