@@ -85,7 +85,6 @@ local function getTypeItems()
 		{ text = 'Border',    value = C.IndicatorType.BORDER },
 		{ text = 'Color',     value = C.IndicatorType.COLOR },
 		{ text = 'Overlay',   value = C.IndicatorType.OVERLAY },
-		{ text = 'Glow',      value = C.IndicatorType.GLOW },
 	}
 end
 
@@ -99,8 +98,7 @@ local TYPE_DESCRIPTIONS = {
 	Bars    = 'Row/grid of depleting status bars',
 	Color   = 'Colored rectangle positioned on frame',
 	Overlay = 'Health bar overlay — depleting, static fill, or both',
-	Border  = 'Colored border around the frame edge',
-	Glow    = 'Glow effect around the frame',
+	Border  = 'Colored border or glow effect around the frame',
 	FrameBar = 'Full-frame status bar overlay',
 }
 
@@ -252,9 +250,35 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 		return t == C.IndicatorType.ICON or t == C.IndicatorType.ICONS
 	end
 
+	-- borderGlowMode toggle row (Border / Glow) — only for Border type
+	local borderGlowRow = CreateFrame('Frame', nil, createInner)
+	borderGlowRow:SetSize(width, BUTTON_H)
+	borderGlowRow:ClearAllPoints()
+	Widgets.SetPoint(borderGlowRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+
+	local borderModeBtn = Widgets.CreateButton(borderGlowRow, 'Border', 'accent', 100, BUTTON_H)
+	borderModeBtn:SetPoint('TOPLEFT', borderGlowRow, 'TOPLEFT', 0, 0)
+	borderModeBtn.value = 'Border'
+
+	local glowModeBtn = Widgets.CreateButton(borderGlowRow, 'Glow', 'widget', 100, BUTTON_H)
+	glowModeBtn:SetPoint('LEFT', borderModeBtn, 'RIGHT', C.Spacing.tight, 0)
+	glowModeBtn.value = 'Glow'
+
+	local selectedBorderGlowMode = 'Border'
+	local borderGlowGroup = Widgets.CreateButtonGroup({ borderModeBtn, glowModeBtn }, function(value)
+		selectedBorderGlowMode = value
+	end)
+	borderGlowGroup:SetValue('Border')
+
+	local borderGlowRowH = BUTTON_H + C.Spacing.normal
+	borderGlowRow:Hide()
+
 	if(isIconType(selectedType)) then
 		displayTypeRow:Show()
 		createY = createY - displayTypeRowH
+	elseif(selectedType == C.IndicatorType.BORDER) then
+		borderGlowRow:Show()
+		createY = createY - borderGlowRowH
 	else
 		displayTypeRow:Hide()
 	end
@@ -267,6 +291,11 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 			displayTypeRow:Show()
 		else
 			displayTypeRow:Hide()
+		end
+		if(value == C.IndicatorType.BORDER) then
+			borderGlowRow:Show()
+		else
+			borderGlowRow:Hide()
 		end
 	end)
 
@@ -478,8 +507,6 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 			data.displayType = selectedDisplayType
 			data.showCooldown = true
 			data.durationMode = 'Never'
-		elseif(iType == C.IndicatorType.GLOW) then
-			data.glowType = C.GlowType.PROC
 		elseif(iType == C.IndicatorType.BAR) then
 			data.barWidth = 100
 			data.barHeight = 4
@@ -497,8 +524,14 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 			data.overlayMode = 'Overlay'
 			data.color = { 0, 0, 0, 0.6 }
 		elseif(iType == C.IndicatorType.BORDER) then
-			data.borderThickness = 2
-			data.color = { 1, 1, 1, 1 }
+			data.borderGlowMode = selectedBorderGlowMode
+			if(selectedBorderGlowMode == 'Border') then
+				data.borderThickness = 2
+				data.color = { 1, 1, 1, 1 }
+			else
+				data.glowType = C.GlowType.PROC
+				data.glowColor = { 1, 1, 1, 1 }
+			end
 		end
 
 		setIndicator(iName, data)
