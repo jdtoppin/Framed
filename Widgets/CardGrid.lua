@@ -12,7 +12,7 @@ local C = F.Constants
 -- loading, and per-card title headings.
 -- ============================================================
 
-local CARD_MIN_W   = 280           -- minimum card width in logical px
+local CARD_MIN_W   = 240           -- minimum card width in logical px
 local CARD_GAP     = C.Spacing.normal  -- 12px horizontal gap between cards
 local CARD_V_GAP   = C.Spacing.normal  -- 12px vertical gap between cards
 local BOTTOM_PAD   = C.Spacing.loose   -- 16px breathing room below last card

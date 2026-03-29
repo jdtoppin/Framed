@@ -18,7 +18,7 @@ function F.SettingsCards.ShieldsAndAbsorbs(parent, width, unitType, getConfig, s
 	healPredCheck:SetChecked(getConfig('health.healPrediction') ~= false)
 	cardY = B.PlaceWidget(healPredCheck, inner, cardY, B.CHECK_H)
 
-	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 	local healPredMode = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'All',    value = 'all' },
 		{ text = 'Player', value = 'player' },

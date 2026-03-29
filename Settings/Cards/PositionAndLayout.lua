@@ -9,7 +9,7 @@ F.SettingsCards = F.SettingsCards or {}
 
 function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Width slider
 	local widthSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 20, 300, 1)

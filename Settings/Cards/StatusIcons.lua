@@ -61,7 +61,7 @@ end
 
 function F.SettingsCards.StatusIcons(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- ── Build all icon sections ──────────────────────────────
 

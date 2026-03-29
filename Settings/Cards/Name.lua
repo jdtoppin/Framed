@@ -9,7 +9,7 @@ F.SettingsCards = F.SettingsCards or {}
 
 function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, B.WIDGET_W)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
 		setConfig('showName', checked)
