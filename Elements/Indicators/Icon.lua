@@ -288,7 +288,7 @@ end
 --- @param glowConfig table|nil
 function IconMethods:StartGlow(color, glowType, glowConfig)
 	if(not self._glow) then
-		self._glow = F.Indicators.Glow.Create(self._frame)
+		self._glow = F.Indicators.BorderGlow.Create(self._frame, { borderGlowMode = 'Glow' })
 	end
 	self._glow:Start(color, glowType, glowConfig)
 end

@@ -252,9 +252,10 @@ local function Rebuild(element, config)
 	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
 		local glowConfig = config.glow or {}
 		if(element._glowFrame) then
-			element._glow = F.Indicators.Glow.Create(element._glowFrame, {
+			element._glow = F.Indicators.BorderGlow.Create(element._glowFrame, {
+				borderGlowMode = 'Glow',
 				glowType = glowConfig.type,
-				color    = glowConfig.color,
+				glowColor = glowConfig.color,
 			})
 		end
 		element._glowType   = glowConfig.type
@@ -343,10 +344,11 @@ function F.Elements.TargetedSpells.Setup(self, config)
 		glowFrame:SetAllPoints(self)
 		glowFrame:SetFrameLevel(self:GetFrameLevel() + (frameLevel or 10))
 		local glowCreateConfig = {
+			borderGlowMode = 'Glow',
 			glowType = glowType,
-			color    = glowColor,
+			glowColor = glowColor,
 		}
-		glow = F.Indicators.Glow.Create(glowFrame, glowCreateConfig)
+		glow = F.Indicators.BorderGlow.Create(glowFrame, glowCreateConfig)
 	end
 
 	local container = {

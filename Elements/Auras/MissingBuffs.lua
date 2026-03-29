@@ -217,9 +217,10 @@ local function Rebuild(element, config)
 			showDuration = false,
 			frameLevel   = element.__owner:GetFrameLevel() + frameLevel,
 		})
-		local glow = F.Indicators.Glow.Create(bi._frame, {
+		local glow = F.Indicators.BorderGlow.Create(bi._frame, {
+			borderGlowMode = 'Glow',
 			glowType = glowType,
-			color    = glowColor,
+			glowColor = glowColor,
 		})
 		element._slots[spellId] = { bi = bi, glow = glow }
 	end
@@ -301,9 +302,10 @@ function F.Elements.MissingBuffs.Setup(self, config)
 
 		bi:Hide()
 
-		local glow = F.Indicators.Glow.Create(bi._frame, {
+		local glow = F.Indicators.BorderGlow.Create(bi._frame, {
+			borderGlowMode = 'Glow',
 			glowType = config.glowType,
-			color    = config.glowColor,
+			glowColor = config.glowColor,
 		})
 
 		slots[spellId] = { bi = bi, glow = glow }
