@@ -294,6 +294,11 @@ local function Update(self, event, unit)
 			if(aura) then
 				local color = ind._color or { 1, 1, 1, 1 }
 				renderer:SetColor(color[1], color[2], color[3], color[4])
+				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+					renderer:SetCooldown(aura.duration, aura.expirationTime)
+				else
+					renderer:SetCooldown(0, 0)
+				end
 			else
 				renderer:Clear()
 			end

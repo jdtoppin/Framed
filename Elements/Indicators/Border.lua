@@ -7,6 +7,29 @@ F.Indicators = F.Indicators or {}
 F.Indicators.Border = {}
 
 -- ============================================================
+-- OnUpdate handler for duration-based fade
+-- ============================================================
+-- Fades overlay alpha from 1.0 → 0.1 over the aura's full duration.
+
+local FADE_UPDATE_INTERVAL = 0.1
+
+local function Border_OnUpdate(overlay, elapsed)
+	local border = overlay._borderRef
+	if(not border or not border._start) then
+		overlay:SetScript('OnUpdate', nil)
+		return
+	end
+
+	border._elapsed = (border._elapsed or 0) + elapsed
+	if(border._elapsed < FADE_UPDATE_INTERVAL) then return end
+	border._elapsed = 0
+
+	local remain = border._duration - (GetTime() - border._start)
+	if(remain < 0) then remain = 0 end
+	overlay:SetAlpha(remain / border._duration * 0.9 + 0.1)
+end
+
+-- ============================================================
 -- Border methods
 -- ============================================================
 -- Uses four individual edge textures at OVERLAY layer so this
@@ -29,6 +52,24 @@ function BorderMethods:SetColor(r, g, b, a)
 	self._bottom:Show()
 	self._left:Show()
 	self._right:Show()
+end
+
+--- Start duration-based fade from 1.0 → 0.1 over the aura lifetime.
+--- @param duration number Total aura duration in seconds
+--- @param expirationTime number Absolute expiration from GetTime()
+function BorderMethods:SetCooldown(duration, expirationTime)
+	if(not self._fadeOut or not duration or duration <= 0) then
+		self._overlay:SetScript('OnUpdate', nil)
+		self._start = nil
+		self._duration = nil
+		self._overlay:SetAlpha(1)
+		return
+	end
+
+	self._start    = expirationTime - duration
+	self._duration = duration
+	self._elapsed  = FADE_UPDATE_INTERVAL  -- update immediately on first tick
+	self._overlay:SetScript('OnUpdate', Border_OnUpdate)
 end
 
 --- Set border thickness in pixels and re-anchor edges.
@@ -64,23 +105,12 @@ function BorderMethods:SetThickness(px)
 	right:SetWidth(px)
 end
 
---- Hide all edges and reset color state.
+--- Hide all edges and stop any fade.
 function BorderMethods:Clear()
-	if(self._fadeOut) then
-		local alpha = self._top:GetAlpha()
-		if(alpha > 0) then
-			Widgets.FadeOut(self._top, C.Animation.durationNormal)
-			Widgets.FadeOut(self._bottom, C.Animation.durationNormal)
-			Widgets.FadeOut(self._left, C.Animation.durationNormal)
-			Widgets.FadeOut(self._right, C.Animation.durationNormal, function()
-				self._top:Hide()
-				self._bottom:Hide()
-				self._left:Hide()
-				self._right:Hide()
-			end)
-			return
-		end
-	end
+	self._overlay:SetScript('OnUpdate', nil)
+	self._start = nil
+	self._duration = nil
+	self._overlay:SetAlpha(1)
 	self._top:Hide()
 	self._bottom:Hide()
 	self._left:Hide()
@@ -113,10 +143,14 @@ function F.Indicators.Border.Create(parent, config)
 	config = config or {}
 	local thickness = config.borderThickness or 2
 	local fadeOut   = config.fadeOut or false
-	local level = parent:GetFrameLevel() + 3
+
+	-- Overlay frame at a high level so border draws above child frames
+	local overlay = CreateFrame('Frame', nil, parent)
+	overlay:SetAllPoints(parent)
+	overlay:SetFrameLevel(parent:GetFrameLevel() + 10)
 
 	local function MakeEdge()
-		local t = parent:CreateTexture(nil, 'OVERLAY')
+		local t = overlay:CreateTexture(nil, 'OVERLAY')
 		t:SetColorTexture(1, 1, 1, 1)
 		t:Hide()
 		return t
@@ -128,7 +162,8 @@ function F.Indicators.Border.Create(parent, config)
 	local right  = MakeEdge()
 
 	local border = {
-		_parent    = parent,
+		_parent    = overlay,
+		_overlay   = overlay,
 		_top       = top,
 		_bottom    = bottom,
 		_left      = left,
@@ -136,6 +171,8 @@ function F.Indicators.Border.Create(parent, config)
 		_thickness = thickness,
 		_fadeOut   = fadeOut,
 	}
+
+	overlay._borderRef = border
 
 	for k, v in next, BorderMethods do
 		border[k] = v
