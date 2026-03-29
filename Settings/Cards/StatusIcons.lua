@@ -12,7 +12,7 @@ F.SettingsCards = F.SettingsCards or {}
 -- Returns table with widgets and heights for reflow.
 -- ============================================================
 
-local ANCHOR_PICKER_H = 90  -- AnchorPicker with X/Y inputs (grid 52 + gap 6 + label 14 + input 18)
+local ANCHOR_PICKER_H = 110 -- AnchorPicker with X/Y sliders (grid 52 + gap 6 + slider 26 + gap 6 + slider 26)
 local SIZE_SLIDER_H   = B.SLIDER_H
 
 local function buildIconSection(inner, widgetW, label, iconKey, defaultOn, getConfig, setConfig, reflowRef)
@@ -163,47 +163,50 @@ function F.SettingsCards.StatusIcons(parent, width, unitType, getConfig, setConf
 		{ widget = roleStyleLabel, height = C.Font.sizeSmall + 2 },
 		{ widget = roleStyleDD,    height = B.DROPDOWN_H },
 	}
-	sections[#sections + 1] = roleSection
 
-	-- Leader
-	local leaderSection = buildIconSection(inner, widgetW, 'Show Leader Icon', 'leader', true, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = leaderSection
+	-- ── Group headings ──────────────────────────────────────
+	local groupHeading, groupHeadingH   = Widgets.CreateHeading(inner, 'Group', 3)
+	local statusHeading, statusHeadingH = Widgets.CreateHeading(inner, 'Status', 3)
+	local markerHeading, markerHeadingH = Widgets.CreateHeading(inner, 'Markers', 3)
 
-	-- Ready Check
-	local readyCheckSection = buildIconSection(inner, widgetW, 'Show Ready Check', 'readyCheck', true, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = readyCheckSection
+	-- ── Grouped sections ────────────────────────────────────
 
-	-- Raid Icon
-	local raidIconSection = buildIconSection(inner, widgetW, 'Show Raid Icon', 'raidIcon', true, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = raidIconSection
+	-- Group icons
+	local groups = {
+		{
+			heading = groupHeading, headingH = groupHeadingH,
+			items = {
+				roleSection,
+				buildIconSection(inner, widgetW, 'Show Leader Icon', 'leader', true, getConfig, setConfig, reflowRef),
+				buildIconSection(inner, widgetW, 'Show Raid Role Icon', 'raidRole', false, getConfig, setConfig, reflowRef),
+			},
+		},
+		{
+			heading = statusHeading, headingH = statusHeadingH,
+			items = {
+				buildIconSection(inner, widgetW, 'Show Ready Check', 'readyCheck', true, getConfig, setConfig, reflowRef),
+				buildIconSection(inner, widgetW, 'Show Combat Icon', 'combat', false, getConfig, setConfig, reflowRef),
+				buildIconSection(inner, widgetW, 'Show Resting Icon', 'resting', false, getConfig, setConfig, reflowRef),
+				buildIconSection(inner, widgetW, 'Show Phase Icon', 'phase', false, getConfig, setConfig, reflowRef),
+				buildIconSection(inner, widgetW, 'Show Resurrect Icon', 'resurrect', false, getConfig, setConfig, reflowRef),
+				buildIconSection(inner, widgetW, 'Show Summon Icon', 'summon', false, getConfig, setConfig, reflowRef),
+			},
+		},
+		{
+			heading = markerHeading, headingH = markerHeadingH,
+			items = {
+				buildIconSection(inner, widgetW, 'Show Raid Icon', 'raidIcon', true, getConfig, setConfig, reflowRef),
+				buildIconSection(inner, widgetW, 'Show PvP Icon', 'pvp', false, getConfig, setConfig, reflowRef),
+			},
+		},
+	}
 
-	-- Combat Icon
-	local combatSection = buildIconSection(inner, widgetW, 'Show Combat Icon', 'combat', false, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = combatSection
-
-	-- Resting Icon
-	local restingSection = buildIconSection(inner, widgetW, 'Show Resting Icon', 'resting', false, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = restingSection
-
-	-- Phase Icon
-	local phaseSection = buildIconSection(inner, widgetW, 'Show Phase Icon', 'phase', false, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = phaseSection
-
-	-- Resurrect Icon
-	local resurrectSection = buildIconSection(inner, widgetW, 'Show Resurrect Icon', 'resurrect', false, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = resurrectSection
-
-	-- Summon Icon
-	local summonSection = buildIconSection(inner, widgetW, 'Show Summon Icon', 'summon', false, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = summonSection
-
-	-- Raid Role Icon
-	local raidRoleSection = buildIconSection(inner, widgetW, 'Show Raid Role Icon', 'raidRole', false, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = raidRoleSection
-
-	-- PvP Icon
-	local pvpSection = buildIconSection(inner, widgetW, 'Show PvP Icon', 'pvp', false, getConfig, setConfig, reflowRef)
-	sections[#sections + 1] = pvpSection
+	-- Flatten into sections for reflow (preserves group order)
+	for _, group in next, groups do
+		for _, sec in next, group.items do
+			sections[#sections + 1] = sec
+		end
+	end
 
 	-- ── Status text (no positioning — it's a FontString, not an icon) ──
 
@@ -219,39 +222,46 @@ function F.SettingsCards.StatusIcons(parent, width, unitType, getConfig, setConf
 	local function reflowCard()
 		local y = 0
 
-		for _, sec in next, sections do
-			local enabled = sec.check:GetChecked()
+		for _, group in next, groups do
+			-- Group heading
+			group.heading:ClearAllPoints()
+			Widgets.SetPoint(group.heading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+			y = y - group.headingH
 
-			-- Checkbox (always visible)
-			sec.check:ClearAllPoints()
-			Widgets.SetPoint(sec.check, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-			y = y - B.CHECK_H - C.Spacing.normal
+			for _, sec in next, group.items do
+				local enabled = sec.check:GetChecked()
 
-			if(enabled) then
-				-- Anchor picker
-				sec.picker:Show()
-				sec.picker:ClearAllPoints()
-				Widgets.SetPoint(sec.picker, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-				y = y - ANCHOR_PICKER_H - C.Spacing.normal
+				-- Checkbox (always visible)
+				sec.check:ClearAllPoints()
+				Widgets.SetPoint(sec.check, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+				y = y - B.CHECK_H - C.Spacing.normal
 
-				-- Size slider
-				sec.sizeSlider:Show()
-				sec.sizeSlider:ClearAllPoints()
-				Widgets.SetPoint(sec.sizeSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-				y = y - SIZE_SLIDER_H - C.Spacing.normal
+				if(enabled) then
+					-- Anchor picker
+					sec.picker:Show()
+					sec.picker:ClearAllPoints()
+					Widgets.SetPoint(sec.picker, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+					y = y - ANCHOR_PICKER_H - C.Spacing.normal
 
-				-- Extra widgets (e.g., role style dropdown)
-				for _, extra in next, sec.extras do
-					extra.widget:Show()
-					extra.widget:ClearAllPoints()
-					Widgets.SetPoint(extra.widget, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-					y = y - extra.height - C.Spacing.normal
-				end
-			else
-				sec.picker:Hide()
-				sec.sizeSlider:Hide()
-				for _, extra in next, sec.extras do
-					extra.widget:Hide()
+					-- Size slider
+					sec.sizeSlider:Show()
+					sec.sizeSlider:ClearAllPoints()
+					Widgets.SetPoint(sec.sizeSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+					y = y - SIZE_SLIDER_H - C.Spacing.normal
+
+					-- Extra widgets (e.g., role style dropdown)
+					for _, extra in next, sec.extras do
+						extra.widget:Show()
+						extra.widget:ClearAllPoints()
+						Widgets.SetPoint(extra.widget, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+						y = y - extra.height - C.Spacing.normal
+					end
+				else
+					sec.picker:Hide()
+					sec.sizeSlider:Hide()
+					for _, extra in next, sec.extras do
+						extra.widget:Hide()
+					end
 				end
 			end
 		end

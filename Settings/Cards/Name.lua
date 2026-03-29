@@ -74,8 +74,8 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	nameAnchor:SetOnChanged(function(point)
 		setConfig('name.anchor', point)
 	end)
-	nameAnchor._xInput:Hide()
-	nameAnchor._yInput:Hide()
+	nameAnchor._xSlider:Hide()
+	nameAnchor._ySlider:Hide()
 
 	-- Name text offsets (created here, positioned by reflow)
 	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 3)

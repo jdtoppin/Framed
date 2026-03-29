@@ -87,8 +87,8 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	powerTextAnchor:SetOnChanged(function(point)
 		setConfig('power.textAnchor', point)
 	end)
-	powerTextAnchor._xInput:Hide()
-	powerTextAnchor._yInput:Hide()
+	powerTextAnchor._xSlider:Hide()
+	powerTextAnchor._ySlider:Hide()
 
 	-- Power text offsets
 	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 3)

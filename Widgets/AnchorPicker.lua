@@ -14,9 +14,7 @@ local BUTTON_SIZE  = 16   -- px per anchor button
 local BUTTON_GAP   = 2    -- px gap between buttons
 local GRID_COLS    = 3
 local GRID_ROWS    = 3
-local OFFSET_W     = 50   -- width of each offset edit box
-local LABEL_H      = C.Font.sizeSmall + 4
-local INPUT_H      = 18   -- height of offset input rows
+local SLIDER_H     = 26   -- matches B.SLIDER_H (labelH + track + gap)
 local PREVIEW_W    = 40
 local PREVIEW_H    = 30
 local DOT_SIZE     = 4
@@ -147,9 +145,9 @@ function Widgets.CreateAnchorPicker(parent, width)
 	-- Grid pixel span
 	local gridSpan = GRID_COLS * BUTTON_SIZE + (GRID_COLS - 1) * BUTTON_GAP
 
-	-- Total height: grid rows + gap + label + input
+	-- Total height: grid rows + gap + two sliders
 	local gridH    = GRID_ROWS * BUTTON_SIZE + (GRID_ROWS - 1) * BUTTON_GAP
-	local totalH   = gridH + SECTION_GAP + LABEL_H + INPUT_H
+	local totalH   = gridH + SECTION_GAP + SLIDER_H + SECTION_GAP + SLIDER_H
 
 	local picker = CreateFrame('Frame', nil, parent)
 	Widgets.SetSize(picker, width, totalH)
@@ -203,45 +201,29 @@ function Widgets.CreateAnchorPicker(parent, width)
 	picker._previewDot = dot
 
 	-- --------------------------------------------------------
-	-- X / Y offset inputs (below grid)
+	-- X / Y offset sliders (below grid)
 	-- --------------------------------------------------------
+	local sliderW = width
 	local offsetsY = -(gridH + SECTION_GAP)
 
-	-- 'X' label
-	local xLabel = Widgets.CreateFontString(picker, C.Font.sizeSmall, C.Colors.textSecondary)
-	xLabel:SetText('X')
-	xLabel:SetPoint('TOPLEFT', picker, 'TOPLEFT', 0, offsetsY)
+	local xSlider = Widgets.CreateSlider(picker, 'X Offset', sliderW, -50, 50, 1)
+	xSlider:SetPoint('TOPLEFT', picker, 'TOPLEFT', 0, offsetsY)
+	xSlider:SetValue(0)
+	picker._xSlider = xSlider
 
-	local xLabelW = xLabel:GetStringWidth() + 4
-
-	-- X edit box
-	local xInput = Widgets.CreateEditBox(picker, nil, OFFSET_W, INPUT_H, 'number')
-	xInput:SetPoint('TOPLEFT', picker, 'TOPLEFT', xLabelW, offsetsY)
-	xInput:SetText('0')
-	picker._xInput = xInput
-
-	-- 'Y' label
-	local yLabel = Widgets.CreateFontString(picker, C.Font.sizeSmall, C.Colors.textSecondary)
-	yLabel:SetText('Y')
-	local yLabelX = xLabelW + OFFSET_W + SECTION_GAP
-	yLabel:SetPoint('TOPLEFT', picker, 'TOPLEFT', yLabelX, offsetsY)
-
-	local yLabelW = yLabel:GetStringWidth() + 4
-
-	-- Y edit box
-	local yInput = Widgets.CreateEditBox(picker, nil, OFFSET_W, INPUT_H, 'number')
-	yInput:SetPoint('TOPLEFT', picker, 'TOPLEFT', yLabelX + yLabelW, offsetsY)
-	yInput:SetText('0')
-	picker._yInput = yInput
+	local ySlider = Widgets.CreateSlider(picker, 'Y Offset', sliderW, -50, 50, 1)
+	ySlider:SetPoint('TOPLEFT', picker, 'TOPLEFT', 0, offsetsY - SLIDER_H - SECTION_GAP)
+	ySlider:SetValue(0)
+	picker._ySlider = ySlider
 
 	-- Wire offset callbacks
-	xInput:SetOnTextChanged(function(text)
-		picker._offsetX = tonumber(text) or 0
+	xSlider:SetAfterValueChanged(function(value)
+		picker._offsetX = value
 		picker:_FireChanged()
 	end)
 
-	yInput:SetOnTextChanged(function(text)
-		picker._offsetY = tonumber(text) or 0
+	ySlider:SetAfterValueChanged(function(value)
+		picker._offsetY = value
 		picker:_FireChanged()
 	end)
 
@@ -285,8 +267,8 @@ function Widgets.CreateAnchorPicker(parent, width)
 		self:_SelectPoint(point or 'CENTER')
 		self._offsetX = x or 0
 		self._offsetY = y or 0
-		self._xInput:SetText(tostring(self._offsetX))
-		self._yInput:SetText(tostring(self._offsetY))
+		self._xSlider:SetValue(self._offsetX)
+		self._ySlider:SetValue(self._offsetY)
 	end
 
 	--- Get the current anchor point and offsets.

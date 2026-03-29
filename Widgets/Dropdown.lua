@@ -113,6 +113,8 @@ local function FadeDropdownScrollbar(targetAlpha, duration)
 	end)
 end
 
+local UpdateDropdownHint  -- forward declaration
+
 local function OnDropdownScrollActivity()
 	if(not dropdownList) then return end
 	local maxScroll = GetScrollMax()
@@ -142,7 +144,6 @@ end
 
 -- ── Scroll hint arrow ────────────────────────────────────────
 
-local UpdateDropdownHint
 UpdateDropdownHint = function()
 	if(not dropdownList or not dropdownList._scrollHint) then return end
 	local hint = dropdownList._scrollHint

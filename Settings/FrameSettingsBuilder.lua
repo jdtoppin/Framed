@@ -154,7 +154,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	if(not isNpcFrame) then
-		grid:AddCard('healthColor', 'Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, setConfig, relayout })
+		grid:AddCard('healthColor', 'Portrait & Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, setConfig, relayout })
 	end
 
 	grid:AddCard('shields', 'Shields & Absorbs', F.SettingsCards.ShieldsAndAbsorbs, { unitType, getConfig, setConfig })

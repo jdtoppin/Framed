@@ -11,8 +11,38 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	-- Health color mode switch
-	cardY = B.PlaceHeading(inner, 'Color Mode', 3, cardY)
+	-- ── Portrait toggle ─────────────────────────────────────
+	cardY = B.PlaceHeading(inner, 'Portrait', 3, cardY)
+
+	local portraitStyle = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
+		{ text = '2D', value = '2D' },
+		{ text = '3D', value = '3D' },
+	})
+
+	local savedPortrait = getConfig('portrait')
+	local portraitEnabled = savedPortrait and true or false
+	local portraitType = (type(savedPortrait) == 'table' and savedPortrait.type) or '2D'
+
+	local reflowRef = {}
+	local portraitCheck = Widgets.CreateCheckButton(inner, 'Show Portrait', function(checked)
+		if(checked) then
+			setConfig('portrait', { type = portraitStyle:GetValue() or '2D' })
+		else
+			setConfig('portrait', nil)
+		end
+		if(reflowRef[1]) then reflowRef[1]() end
+	end)
+	portraitCheck:SetChecked(portraitEnabled)
+	cardY = B.PlaceWidget(portraitCheck, inner, cardY, B.CHECK_H)
+
+	portraitStyle:SetValue(portraitType)
+	if(not portraitEnabled) then portraitStyle:Hide() end
+
+	-- Y after portrait checkbox — reflow starts here
+	local portraitCheckEndY = cardY
+
+	-- Health color mode heading + switch (created here, positioned by reflow)
+	local colorModeHeading, colorModeHeadingH = Widgets.CreateHeading(inner, 'Color Mode', 3)
 	local healthColorSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
 		{ text = 'Class',    value = 'class' },
 		{ text = 'Dark',     value = 'dark' },
@@ -20,10 +50,6 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		{ text = 'Custom',   value = 'custom' },
 	})
 	healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
-	cardY = B.PlaceWidget(healthColorSwitch, inner, cardY, B.SWITCH_H)
-
-	-- Y after the mode switch -- reflow starts from here
-	local colorSwitchEndY = cardY
 
 	-- ── Helper: build a gradient section (3 color pickers + threshold sliders) ──
 	local function buildGradientSection(gradParent, prefix, defaults)
@@ -114,7 +140,26 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local initialized = false
 
 	local function reflowColorCard()
-		local y = colorSwitchEndY
+		local y = portraitCheckEndY
+
+		-- Portrait style switch
+		if(portraitCheck:GetChecked()) then
+			portraitStyle:Show()
+			portraitStyle:ClearAllPoints()
+			Widgets.SetPoint(portraitStyle, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+			y = y - B.SWITCH_H - C.Spacing.normal
+		else
+			portraitStyle:Hide()
+		end
+
+		-- Color mode heading + switch
+		colorModeHeading:ClearAllPoints()
+		Widgets.SetPoint(colorModeHeading, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - colorModeHeadingH
+
+		healthColorSwitch:ClearAllPoints()
+		Widgets.SetPoint(healthColorSwitch, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		y = y - B.SWITCH_H - C.Spacing.normal
 
 		-- Health gradient section
 		if(curHealthMode == 'gradient') then
@@ -186,6 +231,14 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		setConfig('health.lossColorMode', value)
 		reflowColorCard()
 	end)
+
+	-- Wire up portrait style select
+	portraitStyle:SetOnSelect(function(value)
+		setConfig('portrait', { type = value })
+	end)
+
+	-- Set reflow reference for portrait checkbox
+	reflowRef[1] = reflowColorCard
 
 	-- Initial reflow (without triggering grid re-layout)
 	reflowColorCard()

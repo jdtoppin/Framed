@@ -126,7 +126,7 @@ do
 		showText = true,
 		showTime = true,
 	}
-	p.portrait = { type = '2D' }
+	p.portrait = nil
 	p.statusIcons.combat  = true
 	p.statusIcons.resting = true
 	p.buffs = {
@@ -161,7 +161,7 @@ do
 		showText = true,
 		showTime = true,
 	}
-	p.portrait = { type = '2D' }
+	p.portrait = nil
 	p.buffs = {
 		enabled    = true,
 		indicators = {},

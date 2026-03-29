@@ -111,8 +111,8 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	healthTextAnchor:SetOnChanged(function(point)
 		setConfig('health.textAnchor', point)
 	end)
-	healthTextAnchor._xInput:Hide()
-	healthTextAnchor._yInput:Hide()
+	healthTextAnchor._xSlider:Hide()
+	healthTextAnchor._ySlider:Hide()
 
 	-- Health text offsets
 	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 3)

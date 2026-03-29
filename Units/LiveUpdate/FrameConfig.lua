@@ -262,6 +262,42 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		return
 	end
 
+	-- Portrait toggle / type change
+	if(key == 'portrait') then
+		local config = F.StyleBuilder.GetConfig(unitType)
+		local pCfg = config.portrait
+		ForEachFrame(unitType, function(frame)
+			if(pCfg) then
+				local wantType = (type(pCfg) == 'table' and pCfg.type) or '2D'
+				local curType = frame._portraitType
+
+				-- Recreate if type changed or not yet created
+				if(not frame.Portrait or curType ~= wantType) then
+					-- Disconnect oUF from the old element before swapping
+					if(frame.Portrait) then
+						frame:DisableElement('Portrait')
+						frame.Portrait:Hide()
+						frame.Portrait = nil
+					end
+					F.Elements.Portrait.Setup(frame, config.height, config.height, pCfg == true and {} or pCfg)
+					frame.Portrait:ClearAllPoints()
+					Widgets.SetPoint(frame.Portrait, 'TOPRIGHT', frame, 'TOPLEFT', -(C.Spacing.base), 0)
+					frame._portraitType = wantType
+					-- Re-enable so oUF sets __owner, ForceUpdate, and registers events
+					frame:EnableElement('Portrait')
+				end
+				frame.Portrait:Show()
+				if(frame.Portrait.ForceUpdate) then frame.Portrait:ForceUpdate() end
+			else
+				if(frame.Portrait) then
+					frame:DisableElement('Portrait')
+					frame.Portrait:Hide()
+				end
+			end
+		end)
+		return
+	end
+
 	-- Cast bar
 	if(key == 'showCastBar') then
 		local config = F.StyleBuilder.GetConfig(unitType)
@@ -1009,6 +1045,76 @@ local function applyFullConfig(frame, config)
 		end
 	end
 
+	-- ── Portrait ────────────────────────────────────────────
+	local pCfg = config.portrait
+	if(pCfg) then
+		local wantType = (type(pCfg) == 'table' and pCfg.type) or '2D'
+		local curType = frame._portraitType
+		if(not frame.Portrait or curType ~= wantType) then
+			if(frame.Portrait) then
+				frame:DisableElement('Portrait')
+				frame.Portrait:Hide()
+				frame.Portrait = nil
+			end
+			F.Elements.Portrait.Setup(frame, config.height, config.height, pCfg == true and {} or pCfg)
+			frame.Portrait:ClearAllPoints()
+			Widgets.SetPoint(frame.Portrait, 'TOPRIGHT', frame, 'TOPLEFT', -(C.Spacing.base), 0)
+			frame._portraitType = wantType
+			frame:EnableElement('Portrait')
+		end
+		frame.Portrait:Show()
+		if(frame.Portrait.ForceUpdate) then frame.Portrait:ForceUpdate() end
+	else
+		if(frame.Portrait) then
+			frame:DisableElement('Portrait')
+			frame.Portrait:Hide()
+		end
+	end
+
+	-- ── Status icons ────────────────────────────────────────
+	local icons = config.statusIcons or {}
+	local ICON_DEFAULTS = F.StyleBuilder.ICON_DEFAULTS
+	for iconKey, elementName in next, STATUS_ELEMENT_MAP do
+		local defaults = ICON_DEFAULTS[iconKey]
+		if(not defaults) then break end
+
+		local enabled = icons[iconKey]
+		if(enabled == nil) then
+			-- Default: role, leader, readyCheck, raidIcon on; others off
+			enabled = (iconKey == 'role' or iconKey == 'leader' or iconKey == 'readyCheck' or iconKey == 'raidIcon')
+		end
+
+		if(enabled) then
+			frame:EnableElement(elementName)
+			local element = frame[elementName]
+			if(element) then
+				local pt = icons[iconKey .. 'Point'] or defaults.point
+				local x  = icons[iconKey .. 'X']     or defaults.x
+				local y  = icons[iconKey .. 'Y']     or defaults.y
+				local sz = icons[iconKey .. 'Size']  or defaults.size
+				if(element.SetSize) then
+					element:SetSize(sz, sz)
+				elseif(element.GetParent and element:IsObjectType('Texture')) then
+					Widgets.SetSize(element, sz, sz)
+				end
+				element:ClearAllPoints()
+				Widgets.SetPoint(element, pt, frame, pt, x, y)
+			end
+		else
+			frame:DisableElement(elementName)
+		end
+	end
+
+	-- ── Status text ─────────────────────────────────────────
+	if(config.statusText ~= false) then
+		if(not frame.FramedStatusText) then
+			F.Elements.StatusText.Setup(frame)
+		end
+		frame:EnableElement('FramedStatusText')
+	else
+		frame:DisableElement('FramedStatusText')
+	end
+
 	-- ── Name ─────────────────────────────────────────────────
 	if(frame.Name) then
 		frame.Name:SetShown(config.showName ~= false)
@@ -1034,12 +1140,50 @@ local function applyFullConfig(frame, config)
 	end
 end
 
+-- Aura element map for preset switching
+local AURA_ELEMENTS = {
+	{ key = 'debuffs',        element = 'FramedDebuffs',        setup = 'Debuffs' },
+	{ key = 'externals',      element = 'FramedExternals',      setup = 'Externals' },
+	{ key = 'defensives',     element = 'FramedDefensives',     setup = 'Defensives' },
+	{ key = 'raidDebuffs',    element = 'FramedRaidDebuffs',    setup = 'RaidDebuffs' },
+	{ key = 'dispellable',    element = 'FramedDispellable',    setup = 'Dispellable' },
+	{ key = 'targetedSpells', element = 'FramedTargetedSpells', setup = 'TargetedSpells' },
+	{ key = 'buffs',          element = 'FramedBuffs',          setup = 'Buffs' },
+	{ key = 'lossOfControl',  element = 'FramedLossOfControl',  setup = 'LossOfControl' },
+	{ key = 'crowdControl',   element = 'FramedCrowdControl',   setup = 'CrowdControl' },
+	{ key = 'missingBuffs',   element = 'FramedMissingBuffs',   setup = 'MissingBuffs' },
+	{ key = 'privateAuras',   element = 'FramedPrivateAuras',   setup = 'PrivateAuras' },
+}
+
 F.EventBus:Register('PRESET_CHANGED', function(presetName)
 	for _, frame in next, oUF.objects do
 		if(frame._framedUnitType) then
-			local config = F.StyleBuilder.GetConfig(frame._framedUnitType)
+			local unitType = frame._framedUnitType
+			local config = F.StyleBuilder.GetConfig(unitType)
 			if(config) then
 				applyFullConfig(frame, config)
+			end
+
+			-- Re-apply auras from new preset
+			for _, aura in next, AURA_ELEMENTS do
+				local auraCfg = F.StyleBuilder.GetAuraConfig(unitType, aura.key)
+				local enabled = auraCfg and auraCfg.enabled
+				-- missingBuffs uses next() check instead of .enabled
+				if(aura.key == 'missingBuffs') then
+					enabled = auraCfg and next(auraCfg)
+				end
+
+				if(enabled) then
+					local el = frame[aura.element]
+					if(el and el.Rebuild) then
+						el:Rebuild(auraCfg)
+					elseif(F.Elements[aura.setup] and F.Elements[aura.setup].Setup) then
+						F.Elements[aura.setup].Setup(frame, auraCfg)
+					end
+					frame:EnableElement(aura.element)
+				else
+					frame:DisableElement(aura.element)
+				end
 			end
 		end
 	end

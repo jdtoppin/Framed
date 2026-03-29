@@ -42,8 +42,8 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 
 	local anchorPicker = Widgets.CreateAnchorPicker(inner, widgetW)
 	local savedAnchor = getConfig('position.anchor') or 'CENTER'
-	anchorPicker._xInput:Hide()
-	anchorPicker._yInput:Hide()
+	anchorPicker._xSlider:Hide()
+	anchorPicker._ySlider:Hide()
 	anchorPicker:SetAnchor(savedAnchor, 0, 0)
 	anchorPicker:SetOnChanged(function(point)
 		setConfig('position.anchor', point)
