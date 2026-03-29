@@ -268,7 +268,19 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 	local spList = Widgets.CreateSpellList(spInner, width - 24, 120)
 	spY = placeWidget(spList, spInner, spY, 120)
 	spList:SetSpells(data.spells or {})
-	spList:SetOnChanged(function(spells) update('spells', spells) end)
+	spList:SetOnChanged(function(spells)
+		update('spells', spells)
+		-- Sync spell colors when spells change
+		if(spList._showColorPicker) then
+			update('spellColors', spList:GetSpellColors())
+		end
+	end)
+
+	-- Show per-spell color pickers for colored square display type
+	if(data.displayType == C.IconDisplay.COLORED_SQUARE) then
+		spList:SetSpellColors(data.spellColors or {})
+		spList:SetShowColorPicker(true)
+	end
 
 	local spInput = Widgets.CreateSpellInput(spInner, width - 24)
 	spY = placeWidget(spInput, spInner, spY, 50)
@@ -304,21 +316,41 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 	local iType = data.type
 
 	if(iType == C.IndicatorType.ICON or iType == C.IndicatorType.ICONS) then
-		-- Size card
-		yOffset = placeHeading(parent, 'Size', 2, yOffset)
-		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
+		-- Appearance card
+		yOffset = placeHeading(parent, 'Appearance', 2, yOffset)
+		local appCard, appInner, appY = Widgets.StartCard(parent, width, yOffset)
 
-		local wSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 8, 48, 1)
+		local dtLabel = Widgets.CreateFontString(appInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		dtLabel:SetText('Display Type')
+		appY = placeWidget(dtLabel, appInner, appY, C.Font.sizeSmall)
+
+		local dtSwitch = Widgets.CreateSwitch(appInner, WIDGET_W, BUTTON_H, {
+			{ text = 'Spell Icons',    value = C.IconDisplay.SPELL_ICON },
+			{ text = 'Color Squares',  value = C.IconDisplay.COLORED_SQUARE },
+		})
+		dtSwitch:SetValue(data.displayType or C.IconDisplay.SPELL_ICON)
+		dtSwitch:SetOnSelect(function(v)
+			update('displayType', v)
+			if(v == C.IconDisplay.COLORED_SQUARE) then
+				spList:SetSpellColors(data.spellColors or {})
+				spList:SetShowColorPicker(true)
+			else
+				spList:SetShowColorPicker(false)
+			end
+		end)
+		appY = placeWidget(dtSwitch, appInner, appY, BUTTON_H)
+
+		local wSlider = Widgets.CreateSlider(appInner, 'Width', WIDGET_W, 8, 48, 1)
 		wSlider:SetValue(data.iconWidth or 16)
 		wSlider:SetAfterValueChanged(function(v) update('iconWidth', v) end)
-		szY = placeWidget(wSlider, szInner, szY, SLIDER_H)
+		appY = placeWidget(wSlider, appInner, appY, SLIDER_H)
 
-		local hSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 8, 48, 1)
+		local hSlider = Widgets.CreateSlider(appInner, 'Height', WIDGET_W, 8, 48, 1)
 		hSlider:SetValue(data.iconHeight or 16)
 		hSlider:SetAfterValueChanged(function(v) update('iconHeight', v) end)
-		szY = placeWidget(hSlider, szInner, szY, SLIDER_H)
+		appY = placeWidget(hSlider, appInner, appY, SLIDER_H)
 
-		yOffset = Widgets.EndCard(szCard, parent, szY)
+		yOffset = Widgets.EndCard(appCard, parent, appY)
 
 		-- Layout card (Icons only)
 		if(iType == C.IndicatorType.ICONS) then
@@ -375,12 +407,12 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			nplSlider:SetAfterValueChanged(function(v) update('numPerLine', v) end)
 			layY = placeWidget(nplSlider, layInner, layY, SLIDER_H)
 
-			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', WIDGET_W, 0, 20, 1)
+			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', WIDGET_W, -20, 20, 1)
 			spxSlider:SetValue(data.spacingX or 2)
 			spxSlider:SetAfterValueChanged(function(v) update('spacingX', v) end)
 			layY = placeWidget(spxSlider, layInner, layY, SLIDER_H)
 
-			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', WIDGET_W, 0, 20, 1)
+			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', WIDGET_W, -20, 20, 1)
 			spySlider:SetValue(data.spacingY or 2)
 			spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
 			layY = placeWidget(spySlider, layInner, layY, SLIDER_H)
@@ -408,87 +440,80 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		durDD:SetOnSelect(function(v) update('durationMode', v) end)
 		cdY = placeWidget(durDD, cdInner, cdY, DROPDOWN_H)
 
-		-- Duration text settings (shown when durationMode != Never)
-		if(data.durationMode and data.durationMode ~= 'Never') then
-			local fontCfg = get('durationFont') or {}
+		-- Duration font settings (always shown — reflow deferred to grid rework)
+		local fontCfg = get('durationFont') or {}
 
-			-- Anchor picker for duration text position on the icon
-			if(Widgets.CreateAnchorPicker) then
-				local dfAnchor = fontCfg.anchor or 'BOTTOM'
-				local dfPicker = Widgets.CreateAnchorPicker(cdInner, WIDGET_W, 15)
-				dfPicker:SetAnchor(dfAnchor, fontCfg.offsetX or 0, fontCfg.offsetY or 0)
-				dfPicker:SetOnChanged(function(point, x, y)
-					fontCfg.anchor = point
-					fontCfg.offsetX = x
-					fontCfg.offsetY = y
-					set('durationFont', fontCfg)
-				end)
-				cdY = placeWidget(dfPicker, cdInner, cdY, dfPicker._height or 91)
-			end
-
-			-- Font size
-			local dfSizeSlider = Widgets.CreateSlider(cdInner, 'Font Size', WIDGET_W, 6, 24, 1)
-			dfSizeSlider:SetValue(fontCfg.size or C.Font.sizeSmall)
-			dfSizeSlider:SetAfterValueChanged(function(val)
-				fontCfg.size = val
+		if(Widgets.CreateAnchorPicker) then
+			local dfAnchor = fontCfg.anchor or 'BOTTOM'
+			local dfPicker = Widgets.CreateAnchorPicker(cdInner, WIDGET_W, 15)
+			dfPicker:SetAnchor(dfAnchor, fontCfg.offsetX or 0, fontCfg.offsetY or 0)
+			dfPicker:SetOnChanged(function(point, x, y)
+				fontCfg.anchor = point
+				fontCfg.offsetX = x
+				fontCfg.offsetY = y
 				set('durationFont', fontCfg)
 			end)
-			cdY = placeWidget(dfSizeSlider, cdInner, cdY, SLIDER_H)
-
-			-- Outline
-			local dfOutlineDD = Widgets.CreateDropdown(cdInner, WIDGET_W)
-			dfOutlineDD:SetItems({
-				{ text = 'None',    value = '' },
-				{ text = 'Outline', value = 'OUTLINE' },
-				{ text = 'Mono',    value = 'MONOCHROME' },
-			})
-			dfOutlineDD:SetValue(fontCfg.outline or '')
-			dfOutlineDD:SetOnSelect(function(value)
-				fontCfg.outline = value
-				set('durationFont', fontCfg)
-			end)
-			cdY = placeWidget(dfOutlineDD, cdInner, cdY, DROPDOWN_H)
-
-			-- Shadow
-			local dfShadowCB = Widgets.CreateCheckButton(cdInner, 'Shadow', function(checked)
-				fontCfg.shadow = checked
-				set('durationFont', fontCfg)
-			end)
-			dfShadowCB:SetChecked(fontCfg.shadow or false)
-			cdY = placeWidget(dfShadowCB, cdInner, cdY, CHECK_H)
-
-			-- Color progression toggle + color pickers (always shown for now)
-			local cpCB = Widgets.CreateCheckButton(cdInner, 'Color Progression', function(checked)
-				fontCfg.colorProgression = checked
-				set('durationFont', fontCfg)
-			end)
-			cpCB:SetChecked(fontCfg.colorProgression or false)
-			cdY = placeWidget(cpCB, cdInner, cdY, CHECK_H)
-
-			local startC = fontCfg.progressionStart or { 0, 1, 0 }
-			local startPicker = Widgets.CreateColorPicker(cdInner, 'Full Duration', false, function(r, g, b)
-				fontCfg.progressionStart = { r, g, b }
-				set('durationFont', fontCfg)
-			end)
-			startPicker:SetColor(startC[1], startC[2], startC[3], 1)
-			cdY = placeWidget(startPicker, cdInner, cdY, DROPDOWN_H)
-
-			local midC = fontCfg.progressionMid or { 1, 1, 0 }
-			local midPicker = Widgets.CreateColorPicker(cdInner, 'Half Duration', false, function(r, g, b)
-				fontCfg.progressionMid = { r, g, b }
-				set('durationFont', fontCfg)
-			end)
-			midPicker:SetColor(midC[1], midC[2], midC[3], 1)
-			cdY = placeWidget(midPicker, cdInner, cdY, DROPDOWN_H)
-
-			local endC = fontCfg.progressionEnd or { 1, 0, 0 }
-			local endPicker = Widgets.CreateColorPicker(cdInner, 'Near Expiry', false, function(r, g, b)
-				fontCfg.progressionEnd = { r, g, b }
-				set('durationFont', fontCfg)
-			end)
-			endPicker:SetColor(endC[1], endC[2], endC[3], 1)
-			cdY = placeWidget(endPicker, cdInner, cdY, DROPDOWN_H)
+			cdY = placeWidget(dfPicker, cdInner, cdY, dfPicker._height or 91)
 		end
+
+		local dfSizeSlider = Widgets.CreateSlider(cdInner, 'Font Size', WIDGET_W, 6, 24, 1)
+		dfSizeSlider:SetValue(fontCfg.size or C.Font.sizeSmall)
+		dfSizeSlider:SetAfterValueChanged(function(val)
+			fontCfg.size = val
+			set('durationFont', fontCfg)
+		end)
+		cdY = placeWidget(dfSizeSlider, cdInner, cdY, SLIDER_H)
+
+		local dfOutlineDD = Widgets.CreateDropdown(cdInner, WIDGET_W)
+		dfOutlineDD:SetItems({
+			{ text = 'None',    value = '' },
+			{ text = 'Outline', value = 'OUTLINE' },
+			{ text = 'Mono',    value = 'MONOCHROME' },
+		})
+		dfOutlineDD:SetValue(fontCfg.outline or '')
+		dfOutlineDD:SetOnSelect(function(value)
+			fontCfg.outline = value
+			set('durationFont', fontCfg)
+		end)
+		cdY = placeWidget(dfOutlineDD, cdInner, cdY, DROPDOWN_H)
+
+		local dfShadowCB = Widgets.CreateCheckButton(cdInner, 'Shadow', function(checked)
+			fontCfg.shadow = checked
+			set('durationFont', fontCfg)
+		end)
+		dfShadowCB:SetChecked(fontCfg.shadow or false)
+		cdY = placeWidget(dfShadowCB, cdInner, cdY, CHECK_H)
+
+		local cpCB = Widgets.CreateCheckButton(cdInner, 'Color Progression', function(checked)
+			fontCfg.colorProgression = checked
+			set('durationFont', fontCfg)
+		end)
+		cpCB:SetChecked(fontCfg.colorProgression or false)
+		cdY = placeWidget(cpCB, cdInner, cdY, CHECK_H)
+
+		local startC = fontCfg.progressionStart or { 0, 1, 0 }
+		local startPicker = Widgets.CreateColorPicker(cdInner, 'Full Duration', false, function(r, g, b)
+			fontCfg.progressionStart = { r, g, b }
+			set('durationFont', fontCfg)
+		end)
+		startPicker:SetColor(startC[1], startC[2], startC[3], 1)
+		cdY = placeWidget(startPicker, cdInner, cdY, DROPDOWN_H)
+
+		local midC = fontCfg.progressionMid or { 1, 1, 0 }
+		local midPicker = Widgets.CreateColorPicker(cdInner, 'Half Duration', false, function(r, g, b)
+			fontCfg.progressionMid = { r, g, b }
+			set('durationFont', fontCfg)
+		end)
+		midPicker:SetColor(midC[1], midC[2], midC[3], 1)
+		cdY = placeWidget(midPicker, cdInner, cdY, DROPDOWN_H)
+
+		local endC = fontCfg.progressionEnd or { 1, 0, 0 }
+		local endPicker = Widgets.CreateColorPicker(cdInner, 'Near Expiry', false, function(r, g, b)
+			fontCfg.progressionEnd = { r, g, b }
+			set('durationFont', fontCfg)
+		end)
+		endPicker:SetColor(endC[1], endC[2], endC[3], 1)
+		cdY = placeWidget(endPicker, cdInner, cdY, DROPDOWN_H)
 
 		yOffset = Widgets.EndCard(cdCard, parent, cdY)
 
@@ -502,54 +527,49 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		stSwitch:SetChecked(data.showStacks == true)
 		stY = placeWidget(stSwitch, stInner, stY, CHECK_H)
 
-		if(data.showStacks) then
-			local sfCfg = get('stackFont') or {}
+		-- Stack font settings (always shown — reflow deferred to grid rework)
+		local sfCfg = get('stackFont') or {}
 
-			-- Anchor picker for stack text position on the icon
-			if(Widgets.CreateAnchorPicker) then
-				local sfAnchor = sfCfg.anchor or 'BOTTOMRIGHT'
-				local sfPicker = Widgets.CreateAnchorPicker(stInner, WIDGET_W, 15)
-				sfPicker:SetAnchor(sfAnchor, sfCfg.offsetX or 0, sfCfg.offsetY or 0)
-				sfPicker:SetOnChanged(function(point, x, y)
-					sfCfg.anchor = point
-					sfCfg.offsetX = x
-					sfCfg.offsetY = y
-					set('stackFont', sfCfg)
-				end)
-				stY = placeWidget(sfPicker, stInner, stY, sfPicker._height or 91)
-			end
-
-			-- Font size
-			local sfSizeSlider = Widgets.CreateSlider(stInner, 'Font Size', WIDGET_W, 6, 24, 1)
-			sfSizeSlider:SetValue(sfCfg.size or C.Font.sizeSmall)
-			sfSizeSlider:SetAfterValueChanged(function(val)
-				sfCfg.size = val
+		if(Widgets.CreateAnchorPicker) then
+			local sfAnchor = sfCfg.anchor or 'BOTTOMRIGHT'
+			local sfPicker = Widgets.CreateAnchorPicker(stInner, WIDGET_W, 15)
+			sfPicker:SetAnchor(sfAnchor, sfCfg.offsetX or 0, sfCfg.offsetY or 0)
+			sfPicker:SetOnChanged(function(point, x, y)
+				sfCfg.anchor = point
+				sfCfg.offsetX = x
+				sfCfg.offsetY = y
 				set('stackFont', sfCfg)
 			end)
-			stY = placeWidget(sfSizeSlider, stInner, stY, SLIDER_H)
-
-			-- Outline
-			local sfOutlineDD = Widgets.CreateDropdown(stInner, WIDGET_W)
-			sfOutlineDD:SetItems({
-				{ text = 'None',    value = '' },
-				{ text = 'Outline', value = 'OUTLINE' },
-				{ text = 'Mono',    value = 'MONOCHROME' },
-			})
-			sfOutlineDD:SetValue(sfCfg.outline or '')
-			sfOutlineDD:SetOnSelect(function(value)
-				sfCfg.outline = value
-				set('stackFont', sfCfg)
-			end)
-			stY = placeWidget(sfOutlineDD, stInner, stY, DROPDOWN_H)
-
-			-- Shadow
-			local sfShadowCB = Widgets.CreateCheckButton(stInner, 'Shadow', function(checked)
-				sfCfg.shadow = checked
-				set('stackFont', sfCfg)
-			end)
-			sfShadowCB:SetChecked(sfCfg.shadow or false)
-			stY = placeWidget(sfShadowCB, stInner, stY, CHECK_H)
+			stY = placeWidget(sfPicker, stInner, stY, sfPicker._height or 91)
 		end
+
+		local sfSizeSlider = Widgets.CreateSlider(stInner, 'Font Size', WIDGET_W, 6, 24, 1)
+		sfSizeSlider:SetValue(sfCfg.size or C.Font.sizeSmall)
+		sfSizeSlider:SetAfterValueChanged(function(val)
+			sfCfg.size = val
+			set('stackFont', sfCfg)
+		end)
+		stY = placeWidget(sfSizeSlider, stInner, stY, SLIDER_H)
+
+		local sfOutlineDD = Widgets.CreateDropdown(stInner, WIDGET_W)
+		sfOutlineDD:SetItems({
+			{ text = 'None',    value = '' },
+			{ text = 'Outline', value = 'OUTLINE' },
+			{ text = 'Mono',    value = 'MONOCHROME' },
+		})
+		sfOutlineDD:SetValue(sfCfg.outline or '')
+		sfOutlineDD:SetOnSelect(function(value)
+			sfCfg.outline = value
+			set('stackFont', sfCfg)
+		end)
+		stY = placeWidget(sfOutlineDD, stInner, stY, DROPDOWN_H)
+
+		local sfShadowCB = Widgets.CreateCheckButton(stInner, 'Shadow', function(checked)
+			sfCfg.shadow = checked
+			set('stackFont', sfCfg)
+		end)
+		sfShadowCB:SetChecked(sfCfg.shadow or false)
+		stY = placeWidget(sfShadowCB, stInner, stY, CHECK_H)
 
 		yOffset = Widgets.EndCard(stCard, parent, stY)
 

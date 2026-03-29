@@ -64,6 +64,8 @@ local function CreateArrowButton(parent, flipped)
 	return btn
 end
 
+local CLOSE_ICON = [[Interface\AddOns\Framed\Media\Icons\Close]]
+
 local function CreateRow(parent)
 	local row = CreateFrame('Frame', nil, parent)
 	row:SetHeight(ROW_HEIGHT)
@@ -74,31 +76,37 @@ local function CreateRow(parent)
 	icon:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
 	row._icon = icon
 
-	-- Spell name
+	-- Spell name + ID on same line
 	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
 	nameFS:SetPoint('LEFT', icon, 'RIGHT', ICON_GAP, 0)
 	nameFS:SetJustifyH('LEFT')
 	row._nameFS = nameFS
 
-	-- Right side controls (right to left): remove, down, up, ID
+	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	idFS:SetJustifyH('LEFT')
+	idFS:SetPoint('LEFT', nameFS, 'RIGHT', ICON_GAP, 0)
+	row._idFS = idFS
 
-	-- Remove button ("X", 14x14)
+	-- Right side controls (right to left): remove, down, up, [color swatch]
+
+	-- Remove button (Close icon)
 	local removeBtn = CreateFrame('Button', nil, row)
 	Widgets.SetSize(removeBtn, REMOVE_SIZE, REMOVE_SIZE)
 	removeBtn:SetPoint('RIGHT', row, 'RIGHT', -PAD_H, 0)
 
-	local removeLbl = Widgets.CreateFontString(removeBtn, C.Font.sizeSmall, C.Colors.textSecondary)
-	removeLbl:SetPoint('CENTER', removeBtn, 'CENTER', 0, 0)
-	removeLbl:SetText('X')
-	removeBtn._label = removeLbl
+	local removeTex = removeBtn:CreateTexture(nil, 'ARTWORK')
+	removeTex:SetAllPoints(removeBtn)
+	removeTex:SetTexture(CLOSE_ICON)
+	local ts = C.Colors.textSecondary
+	removeTex:SetVertexColor(ts[1], ts[2], ts[3], 1)
+	removeBtn._tex = removeTex
 
 	removeBtn:SetScript('OnEnter', function(self)
-		local tc = C.Colors.textActive
-		self._label:SetTextColor(tc[1], tc[2], tc[3], 1)
+		self._tex:SetVertexColor(1, 1, 1, 1)
 	end)
 	removeBtn:SetScript('OnLeave', function(self)
 		local s = C.Colors.textSecondary
-		self._label:SetTextColor(s[1], s[2], s[3], 1)
+		self._tex:SetVertexColor(s[1], s[2], s[3], 1)
 	end)
 	row._removeBtn = removeBtn
 
@@ -110,12 +118,6 @@ local function CreateRow(parent)
 	local upBtn = CreateArrowButton(row, false)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
-
-	-- Spell ID (gray, right-aligned before arrows)
-	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-	idFS:SetJustifyH('RIGHT')
-	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -PAD_H, 0)
-	row._idFS = idFS
 
 	-- Hover highlight (accent color)
 	local highlight = row:CreateTexture(nil, 'BACKGROUND')
@@ -212,7 +214,7 @@ function Widgets.CreateSpellList(parent, width, height)
 			-- Populate spell data
 			local name, icon = GetSpellData(spellID)
 			row._nameFS:SetText(name or ('Spell ' .. spellID))
-			row._idFS:SetText('ID: ' .. spellID)
+			row._idFS:SetText('Spell ID: ' .. spellID)
 
 			if(icon) then
 				row._icon:SetTexture(icon)
@@ -236,9 +238,14 @@ function Widgets.CreateSpellList(parent, width, height)
 					row._colorSwatch = swatch
 				end
 				row._colorSwatch:Show()
-				-- Position swatch to the left of the up arrow
+				-- Position swatch between the arrows and the remove button
 				row._colorSwatch:ClearAllPoints()
-				row._colorSwatch:SetPoint('RIGHT', row._upBtn, 'LEFT', -PAD_H, 0)
+				row._colorSwatch:SetPoint('RIGHT', row._removeBtn, 'LEFT', -PAD_H, 0)
+				-- Shift arrows to the left of the swatch
+				row._upBtn:ClearAllPoints()
+				row._upBtn:SetPoint('RIGHT', row._colorSwatch, 'LEFT', -PAD_H, 0)
+				row._downBtn:ClearAllPoints()
+				row._downBtn:SetPoint('RIGHT', row._upBtn, 'LEFT', -ARROW_GAP, 0)
 				-- Apply spell color or white default
 				local colors = spellList._spellColors or {}
 				local c = colors[capturedID] or { 1, 1, 1 }
@@ -261,12 +268,13 @@ function Widgets.CreateSpellList(parent, width, height)
 				row._colorSwatch:Hide()
 			end
 
-			-- Clamp name width so it does not overlap controls
-			local idWidth = row._idFS:GetStringWidth()
+			-- Clamp name + ID width so they do not overlap controls
 			local swatchUsed = showSwatch and (SWATCH_SIZE + PAD_H) or 0
-			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + swatchUsed + idWidth + PAD_H
+			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + swatchUsed
 			local usedLeft  = PAD_H + ICON_SIZE + ICON_GAP
-			row._nameFS:SetWidth(math.max(1, (contentWidth - usedLeft - usedRight)))
+			local idWidth = row._idFS:GetStringWidth() + ICON_GAP
+			local availName = math.max(1, contentWidth - usedLeft - usedRight - idWidth)
+			row._nameFS:SetWidth(availName)
 
 			-- Wire remove button with confirmation
 			row._removeBtn:SetScript('OnClick', function()

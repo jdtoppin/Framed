@@ -331,6 +331,20 @@ function F.Indicators.Icon.Create(parent, size, config)
 	-- Trim default icon border
 	texture:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
+	-- 1b. Border overlay
+	local border = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
+	border:SetAllPoints(frame)
+	border:SetBackdrop({
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 0.5,
+	})
+	border:SetBackdropBorderColor(0, 0, 0, 1)
+	border:SetFrameLevel(frame:GetFrameLevel() + 1)
+
+	if(displayType == C.IconDisplay.COLORED_SQUARE) then
+		texture:SetTexCoord(0, 1, 0, 1)  -- no trim needed for solid color
+	end
+
 	-- 2. Depletion bar overlay (dark fill for SpellIcon, white fill for ColoredSquare)
 	local depletionBar
 	if(showCooldown) then

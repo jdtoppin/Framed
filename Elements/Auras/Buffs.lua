@@ -195,6 +195,15 @@ local function Update(self, event, unit)
 		if(rendererType == C.IndicatorType.ICONS) then
 			local list = iconsAuras[idx]
 			if(#list > 0) then
+				-- Sort by spell list priority (lower index = higher priority)
+				local priority = ind._spellPriority
+				if(priority) then
+					table.sort(list, function(a, b)
+						local pa = priority[a.spellId] or 999
+						local pb = priority[b.spellId] or 999
+						return pa < pb
+					end)
+				end
 				renderer:SetIcons(list)
 				renderer:Show()
 			else
@@ -540,17 +549,26 @@ local function Rebuild(element, config)
 				end
 
 				local idx = #element._indicators + 1
+				-- Build spell priority map (list order = display priority)
+				local spellPriority = {}
+				local spells = indConfig.spells
+				if(spells and #spells > 0) then
+					for pri, spellId in next, spells do
+						spellPriority[spellId] = pri
+					end
+				end
+
 				element._indicators[idx] = {
-					_renderer   = renderer,
-					_type       = indConfig.type,
-					_castBy     = indConfig.castBy or 'anyone',
-					_color      = indConfig.color,
-					_glowType   = indConfig.glowType,
-					_glowConfig = indConfig.glowConfig,
-					_name       = name,
+					_renderer      = renderer,
+					_type          = indConfig.type,
+					_castBy        = indConfig.castBy or 'anyone',
+					_color         = indConfig.color,
+					_glowType      = indConfig.glowType,
+					_glowConfig    = indConfig.glowConfig,
+					_name          = name,
+					_spellPriority = spellPriority,
 				}
 
-				local spells = indConfig.spells
 				if(spells and #spells > 0) then
 					for _, spellId in next, spells do
 						if(not element._spellLookup[spellId]) then
