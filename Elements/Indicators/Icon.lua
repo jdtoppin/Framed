@@ -371,6 +371,29 @@ function F.Indicators.Icon.Create(parent, size, config)
 		depletionBar:SetStatusBarColor(0, 0, 0, 0.6)
 		depletionBar:SetMinMaxValues(0, 1)
 		depletionBar:SetValue(0)
+
+		-- Leading edge line — thin white line at the fill boundary
+		local barTex = depletionBar:GetStatusBarTexture()
+		local edgeLine = depletionBar:CreateTexture(nil, 'OVERLAY')
+		edgeLine:SetColorTexture(1, 1, 1, 0.8)
+
+		if(fillDirection == 'topToBottom') then
+			edgeLine:SetHeight(0.75)
+			edgeLine:SetPoint('BOTTOMLEFT', barTex, 'BOTTOMLEFT', 0, 0)
+			edgeLine:SetPoint('BOTTOMRIGHT', barTex, 'BOTTOMRIGHT', 0, 0)
+		elseif(fillDirection == 'bottomToTop') then
+			edgeLine:SetHeight(0.75)
+			edgeLine:SetPoint('TOPLEFT', barTex, 'TOPLEFT', 0, 0)
+			edgeLine:SetPoint('TOPRIGHT', barTex, 'TOPRIGHT', 0, 0)
+		elseif(fillDirection == 'leftToRight') then
+			edgeLine:SetWidth(0.75)
+			edgeLine:SetPoint('TOPRIGHT', barTex, 'TOPRIGHT', 0, 0)
+			edgeLine:SetPoint('BOTTOMRIGHT', barTex, 'BOTTOMRIGHT', 0, 0)
+		elseif(fillDirection == 'rightToLeft') then
+			edgeLine:SetWidth(0.75)
+			edgeLine:SetPoint('TOPLEFT', barTex, 'TOPLEFT', 0, 0)
+			edgeLine:SetPoint('BOTTOMLEFT', barTex, 'BOTTOMLEFT', 0, 0)
+		end
 		depletionBar:Hide()
 	end
 
