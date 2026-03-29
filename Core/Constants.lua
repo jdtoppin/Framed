@@ -140,7 +140,14 @@ Constants.IndicatorType = {
 	BORDER    = 'Border',
 	COLOR     = 'Color',
 	OVERLAY   = 'Overlay',
-	GLOW      = 'Glow',
+}
+
+-- ============================================================
+-- Border / Glow Mode
+-- ============================================================
+Constants.BorderGlowMode = {
+	BORDER = 'Border',
+	GLOW   = 'Glow',
 }
 
 -- ============================================================
