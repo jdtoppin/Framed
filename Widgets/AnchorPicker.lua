@@ -139,8 +139,9 @@ end
 --- @param parent Frame   Parent frame
 --- @param width  number  Total logical width (defaults to 120)
 --- @return Frame picker  Widget with AnchorPicker API
-function Widgets.CreateAnchorPicker(parent, width)
+function Widgets.CreateAnchorPicker(parent, width, offsetRange)
 	width = width or 120
+	offsetRange = offsetRange or 200
 
 	-- Grid pixel span
 	local gridSpan = GRID_COLS * BUTTON_SIZE + (GRID_COLS - 1) * BUTTON_GAP
@@ -206,12 +207,12 @@ function Widgets.CreateAnchorPicker(parent, width)
 	local sliderW = width
 	local offsetsY = -(gridH + SECTION_GAP)
 
-	local xSlider = Widgets.CreateSlider(picker, 'X Offset', sliderW, -200, 200, 1)
+	local xSlider = Widgets.CreateSlider(picker, 'X Offset', sliderW, -offsetRange, offsetRange, 1)
 	xSlider:SetPoint('TOPLEFT', picker, 'TOPLEFT', 0, offsetsY)
 	xSlider:SetValue(0)
 	picker._xSlider = xSlider
 
-	local ySlider = Widgets.CreateSlider(picker, 'Y Offset', sliderW, -200, 200, 1)
+	local ySlider = Widgets.CreateSlider(picker, 'Y Offset', sliderW, -offsetRange, offsetRange, 1)
 	ySlider:SetPoint('TOPLEFT', picker, 'TOPLEFT', 0, offsetsY - SLIDER_H - SECTION_GAP)
 	ySlider:SetValue(0)
 	picker._ySlider = ySlider

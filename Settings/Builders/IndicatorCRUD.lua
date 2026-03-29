@@ -12,7 +12,8 @@ F.Settings.Builders = F.Settings.Builders or {}
 local CHECK_H      = 22
 local BUTTON_H     = 24
 local ROW_HEIGHT   = 28
-local LIST_HEIGHT  = 160
+local MAX_VISIBLE_ROWS = 7
+local LIST_HEIGHT  = MAX_VISIBLE_ROWS * ROW_HEIGHT
 local PAD          = 16
 local PAD_H        = 6
 
@@ -274,16 +275,20 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	-- ── Indicator list ─────────────────────────────────────
 	yOffset = placeHeading(parent, 'Indicators', 2, yOffset)
 
-	local listTopY = yOffset  -- remember where the list starts
-	local listScroll = Widgets.CreateScrollFrame(parent, nil, width, LIST_HEIGHT)
+	local listCard, listInner, listY = Widgets.StartCard(parent, width, yOffset)
+	local listWidgetW = width - Widgets.CARD_PADDING * 2
+
+	local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, LIST_HEIGHT)
 	listScroll:ClearAllPoints()
-	Widgets.SetPoint(listScroll, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - LIST_HEIGHT - C.Spacing.normal
+	Widgets.SetPoint(listScroll, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
+	listY = listY - LIST_HEIGHT
 	local listContent = listScroll:GetContentFrame()
 
 	local emptyLabel = Widgets.CreateFontString(listScroll, C.Font.sizeNormal, C.Colors.textSecondary)
 	emptyLabel:SetPoint('CENTER', listScroll, 'CENTER', 0, 0)
 	emptyLabel:SetText('No indicators configured')
+
+	yOffset = Widgets.EndCard(listCard, parent, listY)
 
 	-- ── Settings section (dynamic) ─────────────────────────
 	local settingsHeading, settingsHeadingH = Widgets.CreateHeading(parent, 'Indicator Settings', 2)
@@ -301,7 +306,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	local function repositionSettings()
 		local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
 		listScroll:SetHeight(listH)
-		local settingsY = listTopY - listH - C.Spacing.normal
+		local settingsY = Widgets.EndCard(listCard, parent, -listH)
 		settingsHeading:ClearAllPoints()
 		Widgets.SetPoint(settingsHeading, 'TOPLEFT', parent, 'TOPLEFT', 0, settingsY)
 		settingsContainer:ClearAllPoints()
@@ -321,6 +326,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 			listContent:SetHeight(1)
 			listScroll:SetHeight(ROW_HEIGHT)
 			listScroll:UpdateScrollRange()
+			Widgets.EndCard(listCard, parent, -ROW_HEIGHT)
 			return
 		end
 		emptyLabel:Hide()
@@ -402,8 +408,8 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 				-- Update the scroll content height and scroll range
 				local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
-				local settingsTopY = listTopY - listH - C.Spacing.normal
-				local totalH = math.abs(settingsTopY) + settingsHeadingH + math.abs(settingsEndY) + C.Spacing.normal * 2
+				local cardEndY = Widgets.EndCard(listCard, parent, -listH)
+				local totalH = math.abs(cardEndY) + settingsHeadingH + math.abs(settingsEndY) + C.Spacing.normal * 2
 				parent:SetHeight(totalH)
 				if(parent._scrollParent and parent._scrollParent.UpdateScrollRange) then
 					parent._scrollParent:UpdateScrollRange()
@@ -431,15 +437,16 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 		end
 
 		listContent:SetHeight(idx * ROW_HEIGHT)
-		listScroll:UpdateScrollRange()
 		-- Only reposition settings section when it's visible
 		if(settingsContainer:IsShown()) then
 			repositionSettings()
 		else
-			-- Still resize the list to fit content
+			-- Still resize the list and card to fit content
 			local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
 			listScroll:SetHeight(listH)
+			Widgets.EndCard(listCard, parent, -listH)
 		end
+		listScroll:UpdateScrollRange()
 	end
 
 	-- ── Create handler ─────────────────────────────────────

@@ -328,7 +328,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			-- Anchor picker
 			if(Widgets.CreateAnchorPicker) then
 				local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-				local picker = Widgets.CreateAnchorPicker(layInner, WIDGET_W)
+				local picker = Widgets.CreateAnchorPicker(layInner, WIDGET_W, 50)
 				picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
 				picker:SetOnChanged(function(point, x, y)
 					local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
@@ -415,7 +415,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			-- Anchor picker for duration text position on the icon
 			if(Widgets.CreateAnchorPicker) then
 				local dfAnchor = fontCfg.anchor or 'BOTTOM'
-				local dfPicker = Widgets.CreateAnchorPicker(cdInner, WIDGET_W)
+				local dfPicker = Widgets.CreateAnchorPicker(cdInner, WIDGET_W, 15)
 				dfPicker:SetAnchor(dfAnchor, fontCfg.offsetX or 0, fontCfg.offsetY or 0)
 				dfPicker:SetOnChanged(function(point, x, y)
 					fontCfg.anchor = point
@@ -508,7 +508,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			-- Anchor picker for stack text position on the icon
 			if(Widgets.CreateAnchorPicker) then
 				local sfAnchor = sfCfg.anchor or 'BOTTOMRIGHT'
-				local sfPicker = Widgets.CreateAnchorPicker(stInner, WIDGET_W)
+				local sfPicker = Widgets.CreateAnchorPicker(stInner, WIDGET_W, 15)
 				sfPicker:SetAnchor(sfAnchor, sfCfg.offsetX or 0, sfCfg.offsetY or 0)
 				sfPicker:SetOnChanged(function(point, x, y)
 					sfCfg.anchor = point

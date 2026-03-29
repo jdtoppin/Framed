@@ -52,9 +52,11 @@ local function Clamp(v, lo, hi)
 end
 
 --- Return the current scroll range max (0 when content fits).
+--- Uses the outer container height rather than the anchored ScrollFrame
+--- height, because WoW may not have resolved anchor-based sizes yet.
 local function GetScrollMax(scroll)
 	local contentH = scroll._content:GetHeight()
-	local viewH    = scroll._scrollFrame:GetHeight()
+	local viewH    = scroll:GetHeight()
 	return math.max(0, contentH - viewH)
 end
 
@@ -206,6 +208,7 @@ function Widgets._ScrollFrame_UpdateScrollRange(scroll)
 		scroll._scrollFrame:SetVerticalScroll(maxScroll)
 	end
 	scroll:_UpdateThumb()
+	UpdateScrollHint(scroll)
 end
 
 -- ============================================================

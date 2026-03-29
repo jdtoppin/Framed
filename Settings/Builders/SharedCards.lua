@@ -133,7 +133,7 @@ function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 		-- Anchor picker (includes its own X/Y offset inputs)
 		if(Widgets.CreateAnchorPicker) then
 			local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+			local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 50)
 			picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
 			picker:SetOnChanged(function(point, x, y)
 				local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
