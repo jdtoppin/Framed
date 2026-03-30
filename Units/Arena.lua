@@ -27,10 +27,9 @@ function F.Units.Arena.Spawn()
 	oUF:SetActiveStyle('FramedArena')
 
 	local config = F.StyleBuilder.GetConfig('arena')
-	local pos = config.position or {}
-	local baseX = (pos and pos.x) or 0
-	local baseY = (pos and pos.y) or 0
-	local spacing = config.spacing or 4
+	local baseX = config.position.x
+	local baseY = config.position.y
+	local spacing = config.spacing
 
 	local frames = {}
 	for i = 1, 5 do

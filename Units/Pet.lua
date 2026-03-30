@@ -25,9 +25,8 @@ function F.Units.Pet.Spawn()
 	local frame = oUF:Spawn('pet', 'FramedPetFrame')
 
 	local config = F.StyleBuilder.GetConfig('pet')
-	local pos = config.position or {}
-	local x = (pos and pos.x) or 0
-	local y = (pos and pos.y) or 0
+	local x = config.position.x
+	local y = config.position.y
 	F.Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
 	F.Widgets.RegisterForUIScale(frame)
 

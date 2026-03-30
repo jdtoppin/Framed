@@ -25,9 +25,9 @@ function F.Units.Raid.Spawn()
 
 	-- Read layout from saved config so spawn matches user settings
 	local config = F.StyleBuilder.GetConfig('raid')
-	local orient  = config.orientation or 'vertical'
-	local anchor  = config.anchorPoint or 'TOPLEFT'
-	local spacing = config.spacing or 2
+	local orient  = config.orientation
+	local anchor  = config.anchorPoint
+	local spacing = config.spacing
 
 	local point, xOff, yOff, colAnchor
 	if(orient == 'vertical') then
@@ -60,15 +60,14 @@ function F.Units.Raid.Spawn()
 		'sortMethod', 'INDEX',
 		'groupBy', 'GROUP',
 		'groupingOrder', '1,2,3,4,5,6,7,8',
-		'initial-width', config.width or 72,
-		'initial-height', config.height or 36
+		'initial-width', config.width,
+		'initial-height', config.height
 	)
 
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('raid')
-	local pos = config.position or {}
-	local posX = pos.x or 0
-	local posY = pos.y or 0
+	local posX = config.position.x
+	local posY = config.position.y
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', posX, posY)
 	Widgets.RegisterForUIScale(header)
 

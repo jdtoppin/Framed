@@ -26,9 +26,8 @@ function F.Units.Player.Spawn()
 
 	-- Read saved position from config, fall back to default
 	local config = F.StyleBuilder.GetConfig('player')
-	local pos = config.position
-	local x = (pos and pos.x) or 0
-	local y = (pos and pos.y) or 0
+	local x = config.position.x
+	local y = config.position.y
 	F.Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
 
 	F.Widgets.RegisterForUIScale(frame)

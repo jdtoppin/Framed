@@ -24,8 +24,8 @@ end
 local function PetStyle(self, unit)
 	local config = F.StyleBuilder.GetConfig('party')
 	local petCfg = F.Units.Party.GetPetConfig()
-	local w = config.width or 120
-	local h = config.height or 36
+	local w = config.width
+	local h = config.height
 
 	-- Store unit type BEFORE Health.Setup (used inside for NPC detection)
 	self._framedUnitType = 'partypet'
@@ -38,20 +38,20 @@ local function PetStyle(self, unit)
 	bg:SetAllPoints(self)
 	bg:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 	local bgC = C.Colors.background
-	bg:SetVertexColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+	bg:SetVertexColor(bgC[1], bgC[2], bgC[3], bgC[4])
 
 	-- Health bar fills the whole frame (same path as regular party frames)
 	local healthCfg = {
 		colorMode     = 'class',
 		smooth        = true,
 		showText      = petCfg.showHealthText ~= false,
-		textFormat    = petCfg.healthTextFormat or 'percent',
-		fontSize      = petCfg.healthTextFontSize or C.Font.sizeSmall,
-		textColorMode = petCfg.healthTextColor or 'white',
+		textFormat    = petCfg.healthTextFormat,
+		fontSize      = petCfg.healthTextFontSize,
+		textColorMode = petCfg.healthTextColor,
 		textAnchor    = 'CENTER',
-		textAnchorX   = petCfg.healthTextOffsetX or 0,
-		textAnchorY   = petCfg.healthTextOffsetY or 0,
-		outline       = petCfg.healthTextOutline or '',
+		textAnchorX   = petCfg.healthTextOffsetX,
+		textAnchorY   = petCfg.healthTextOffsetY,
+		outline       = petCfg.healthTextOutline,
 		shadow        = petCfg.healthTextShadow ~= false,
 	}
 	F.Elements.Health.Setup(self, w, h, healthCfg)
@@ -78,13 +78,13 @@ local function PetStyle(self, unit)
 	end
 
 	-- Target highlight
-	local thColor = F.Config and F.Config:Get('general.targetHighlightColor')
-	local thWidth = F.Config and F.Config:Get('general.targetHighlightWidth')
+	local thColor = F.Config:Get('general.targetHighlightColor')
+	local thWidth = F.Config:Get('general.targetHighlightWidth')
 	F.Elements.TargetHighlight.Setup(self, { color = thColor, thickness = thWidth })
 
 	-- Mouseover highlight
-	local moColor = F.Config and F.Config:Get('general.mouseoverHighlightColor')
-	local moWidth = F.Config and F.Config:Get('general.mouseoverHighlightWidth')
+	local moColor = F.Config:Get('general.mouseoverHighlightColor')
+	local moWidth = F.Config:Get('general.mouseoverHighlightWidth')
 	F.Elements.MouseoverHighlight.Setup(self, { color = moColor, thickness = moWidth })
 
 	-- Store unit type for live config
@@ -140,9 +140,9 @@ function F.Units.Party.Spawn()
 
 	-- Read layout from saved config so spawn matches user settings
 	local config = F.StyleBuilder.GetConfig('party')
-	local orient  = config.orientation or 'vertical'
-	local anchor  = config.anchorPoint or 'TOPLEFT'
-	local spacing = config.spacing or 2
+	local orient  = config.orientation
+	local anchor  = config.anchorPoint
+	local spacing = config.spacing
 
 	local point, xOff, yOff, colAnchor
 	if(orient == 'vertical') then
@@ -172,15 +172,14 @@ function F.Units.Party.Spawn()
 		'maxColumns', 1,
 		'unitsPerColumn', 5,
 		'sortMethod', 'INDEX',
-		'initial-width', config.width or 120,
-		'initial-height', config.height or 36
+		'initial-width', config.width,
+		'initial-height', config.height
 	)
 
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('party')
-	local pos = config.position or {}
-	local posX = pos.x or 0
-	local posY = pos.y or 0
+	local posX = config.position.x
+	local posY = config.position.y
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', posX, posY)
 	Widgets.RegisterForUIScale(header)
 
@@ -254,9 +253,9 @@ function F.Units.Party.AnchorPetFrames()
 
 	local config  = F.StyleBuilder.GetConfig('party')
 	local petCfg  = F.Units.Party.GetPetConfig()
-	local orient  = config.orientation or 'vertical'
-	local anchor  = config.anchorPoint or 'TOPLEFT'
-	local gap     = petCfg.spacing or 2
+	local orient  = config.orientation
+	local anchor  = config.anchorPoint
+	local gap     = petCfg.spacing
 
 	local petPt, ownerPt, dx, dy = computePetAnchorToOwner(orient, anchor, gap)
 
