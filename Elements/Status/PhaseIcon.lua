@@ -19,14 +19,6 @@ F.Elements.PhaseIcon = {}
 function F.Elements.PhaseIcon.Setup(self, config)
 
 	-- --------------------------------------------------------
-	-- Config defaults
-	-- --------------------------------------------------------
-
-	config = config or {}
-	config.size  = config.size  or 16
-	config.point = config.point or { 'CENTER', self, 'CENTER', 0, 0 }
-
-	-- --------------------------------------------------------
 	-- Container frame (required for tooltip support)
 	-- --------------------------------------------------------
 

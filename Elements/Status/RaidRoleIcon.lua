@@ -18,14 +18,6 @@ F.Elements.RaidRoleIcon = {}
 function F.Elements.RaidRoleIcon.Setup(self, config)
 
 	-- --------------------------------------------------------
-	-- Config defaults
-	-- --------------------------------------------------------
-
-	config = config or {}
-	config.size  = config.size  or 12
-	config.point = config.point or { 'TOPLEFT', self, 'TOPLEFT', 2, -2 }
-
-	-- --------------------------------------------------------
 	-- Icon texture
 	-- --------------------------------------------------------
 

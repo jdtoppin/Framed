@@ -72,14 +72,6 @@ end
 function F.Elements.PvPIcon.Setup(self, config)
 
 	-- --------------------------------------------------------
-	-- Config defaults
-	-- --------------------------------------------------------
-
-	config = config or {}
-	config.size  = config.size  or 16
-	config.point = config.point or { 'BOTTOMLEFT', self, 'BOTTOMLEFT', 2, 2 }
-
-	-- --------------------------------------------------------
 	-- Icon texture
 	-- --------------------------------------------------------
 

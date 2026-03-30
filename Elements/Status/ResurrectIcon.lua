@@ -18,14 +18,6 @@ F.Elements.ResurrectIcon = {}
 function F.Elements.ResurrectIcon.Setup(self, config)
 
 	-- --------------------------------------------------------
-	-- Config defaults
-	-- --------------------------------------------------------
-
-	config = config or {}
-	config.size  = config.size  or 16
-	config.point = config.point or { 'CENTER', self, 'CENTER', 0, 0 }
-
-	-- --------------------------------------------------------
 	-- Icon texture
 	-- --------------------------------------------------------
 

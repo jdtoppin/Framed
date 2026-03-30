@@ -18,14 +18,6 @@ F.Elements.CombatIcon = {}
 function F.Elements.CombatIcon.Setup(self, config)
 
 	-- --------------------------------------------------------
-	-- Config defaults
-	-- --------------------------------------------------------
-
-	config = config or {}
-	config.size    = config.size    or 12
-	config.point   = config.point   or { 'CENTER', self, 'CENTER', 0, 0 }
-
-	-- --------------------------------------------------------
 	-- Icon texture
 	-- --------------------------------------------------------
 

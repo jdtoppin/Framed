@@ -127,12 +127,11 @@ oUF:AddElement('FramedStatusText', Update, Enable, Disable)
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config: fontSize, outline, shadow, anchor, anchorX, anchorY
 function F.Elements.StatusText.Setup(self, config)
-	config = config or {}
-	local size    = config.fontSize or C.Font.sizeSmall
-	local outline = config.outline or 'OUTLINE'
-	local anchor  = config.anchor or 'CENTER'
-	local ax      = config.anchorX or 0
-	local ay      = config.anchorY or 0
+	local size    = config.fontSize
+	local outline = config.outline
+	local anchor  = config.anchor
+	local ax      = config.anchorX
+	local ay      = config.anchorY
 
 	-- FontString sits in the OVERLAY layer so it renders above bars/textures
 	local fs = self.FramedStatusText

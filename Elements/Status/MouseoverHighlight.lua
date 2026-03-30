@@ -54,9 +54,6 @@ oUF:AddElement('FramedMouseoverHighlight', nil, Enable, Disable)
 -- Setup
 -- ============================================================
 
---- Default mouseover highlight color: #f7ecff at 60% opacity
-local DEFAULT_COLOR = { 0.969, 0.925, 1, 0.6 }
-
 --- Create the mouseover highlight border frame on a unit frame.
 --- The border is a colored overlay drawn around the frame edges (same style
 --- as TargetHighlight).
@@ -64,9 +61,8 @@ local DEFAULT_COLOR = { 0.969, 0.925, 1, 0.6 }
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config: color, thickness
 function F.Elements.MouseoverHighlight.Setup(self, config)
-	config = config or {}
-	local color     = config.color     or DEFAULT_COLOR
-	local thickness = config.thickness or 2
+	local color     = config.color
+	local thickness = config.thickness
 
 	-- Container frame that sits above most content in the unit frame
 	-- Offset outward so the border renders outside the frame edge
@@ -82,7 +78,7 @@ function F.Elements.MouseoverHighlight.Setup(self, config)
 		edgeSize = thickness,
 	})
 	border:SetBackdropColor(0, 0, 0, 0)
-	border:SetBackdropBorderColor(color[1], color[2], color[3], color[4] or 0.6)
+	border:SetBackdropBorderColor(color[1], color[2], color[3], color[4])
 	border._thickness = thickness
 	border:Hide()
 
@@ -94,12 +90,8 @@ end
 --- @param border Frame  The highlight border frame
 function F.Elements.MouseoverHighlight.UpdateAppearance(border)
 	if(not border) then return end
-	local color = DEFAULT_COLOR
-	local thickness = 2
-	if(F.Config) then
-		color = F.Config:Get('general.mouseoverHighlightColor') or DEFAULT_COLOR
-		thickness = F.Config:Get('general.mouseoverHighlightWidth') or 2
-	end
+	local color = F.Config:Get('general.mouseoverHighlightColor')
+	local thickness = F.Config:Get('general.mouseoverHighlightWidth')
 	-- Re-anchor if thickness changed
 	if(thickness ~= border._thickness) then
 		local owner = border:GetParent()
@@ -114,5 +106,5 @@ function F.Elements.MouseoverHighlight.UpdateAppearance(border)
 		border:SetBackdropColor(0, 0, 0, 0)
 		border._thickness = thickness
 	end
-	border:SetBackdropBorderColor(color[1], color[2], color[3], color[4] or 0.6)
+	border:SetBackdropBorderColor(color[1], color[2], color[3], color[4])
 end

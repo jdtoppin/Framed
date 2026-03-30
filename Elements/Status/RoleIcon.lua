@@ -34,7 +34,7 @@ end
 --- @return number
 local function getConfiguredStyle()
 	if(F.Config) then
-		return F.Config:Get('general.roleIconStyle') or 2
+		return F.Config:Get('general.roleIconStyle')
 	end
 	return 2
 end
@@ -70,14 +70,6 @@ end
 --- @param self Frame  The oUF unit frame
 --- @param config? table  Optional config table; defaults applied if nil
 function F.Elements.RoleIcon.Setup(self, config)
-
-	-- --------------------------------------------------------
-	-- Config defaults
-	-- --------------------------------------------------------
-
-	config = config or {}
-	config.size  = config.size  or 12
-	config.point = config.point or { 'TOPLEFT', self, 'TOPLEFT', 2, -2 }
 
 	-- --------------------------------------------------------
 	-- Icon texture
