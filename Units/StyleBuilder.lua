@@ -132,9 +132,9 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- 3. Calculate health / power bar heights
 	-- --------------------------------------------------------
 
-	local powerHeight  = config.power and config.power.height or 0
+	local powerHeight  = config.power.height
 	local healthHeight = config.height - powerHeight
-	local powerPosition = config.power and config.power.position or 'bottom'
+	local powerPosition = config.power.position
 
 	-- --------------------------------------------------------
 	-- 4. Core element setup
@@ -157,9 +157,9 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 
 	-- Name text — positioned on the health bar region (default: center)
 	local nameCfg = F.DeepCopy(config.name)
-	local nameAnchorPt = nameCfg.anchor or 'CENTER'
-	local nameAnchorX  = nameCfg.anchorX or 0
-	local nameAnchorY  = nameCfg.anchorY or 0
+	local nameAnchorPt = nameCfg.anchor
+	local nameAnchorX  = nameCfg.anchorX
+	local nameAnchorY  = nameCfg.anchorY
 	nameCfg.anchor = { nameAnchorPt, self.Health._wrapper, nameAnchorPt, nameAnchorX, nameAnchorY }
 	F.Elements.Name.Setup(self, nameCfg)
 
@@ -181,7 +181,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	if(config.castbar) then
 		local cbCfg   = config.castbar
 		local cbWidth  = (cbCfg.sizeMode == 'detached' and cbCfg.width) or config.width
-		local cbHeight = cbCfg.height or 16
+		local cbHeight = cbCfg.height
 		F.Elements.Castbar.Setup(self, cbWidth, cbHeight, cbCfg)
 		-- Position the castbar below the unit frame by default
 		self.Castbar._wrapper:ClearAllPoints()
@@ -432,8 +432,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 			elseif(remainder == 'name.anchor' and frame.Name and frame.Health) then
 				local anchor = frame.Health._wrapper or frame.Health
 				frame.Name:ClearAllPoints()
-				local x = frame.Name._anchorX or 0
-				local y = frame.Name._anchorY or 0
+				local x = frame.Name._anchorX
+				local y = frame.Name._anchorY
 				frame.Name:SetPoint(value, anchor, value, x, y)
 				frame.Name._anchorPoint = value
 				-- Re-anchor health text if attached
@@ -444,15 +444,15 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 			elseif(remainder == 'name.anchorX' and frame.Name and frame.Health) then
 				local anchor = frame.Health._wrapper or frame.Health
 				frame.Name._anchorX = value
-				local pt = frame.Name._anchorPoint or 'CENTER'
-				local y  = frame.Name._anchorY or 0
+				local pt = frame.Name._anchorPoint
+				local y  = frame.Name._anchorY
 				frame.Name:ClearAllPoints()
 				frame.Name:SetPoint(pt, anchor, pt, value, y)
 			elseif(remainder == 'name.anchorY' and frame.Name and frame.Health) then
 				local anchor = frame.Health._wrapper or frame.Health
 				frame.Name._anchorY = value
-				local pt = frame.Name._anchorPoint or 'CENTER'
-				local x  = frame.Name._anchorX or 0
+				local pt = frame.Name._anchorPoint
+				local x  = frame.Name._anchorX
 				frame.Name:ClearAllPoints()
 				frame.Name:SetPoint(pt, anchor, pt, x, value)
 			elseif(remainder == 'name.colorMode' and frame.Name) then
@@ -461,12 +461,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				local unit = frame:GetAttribute('unit')
 				if(value == 'white') then
 					local tc = C.Colors.textActive
-					frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+					frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4])
 				elseif(value == 'dark') then
 					frame.Name:SetTextColor(0.25, 0.25, 0.25, 1)
 				elseif(value == 'custom') then
-					local cc = frame.Name._config.customColor or { 1, 1, 1 }
-					frame.Name:SetTextColor(cc[1], cc[2], cc[3], cc[4] or 1)
+					local cc = frame.Name._config.customColor
+					frame.Name:SetTextColor(cc[1], cc[2], cc[3], cc[4])
 				elseif(value == 'class' and unit) then
 					local _, class = UnitClass(unit)
 					if(class) then
@@ -483,8 +483,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				end
 			elseif(remainder == 'name.outline' and frame.Name) then
 				local _, size = frame.Name:GetFont()
-				frame.Name:SetFont(fontPath, size or C.Font.sizeNormal, value or '')
-				frame.Name._fontFlags = value or ''
+				frame.Name:SetFont(fontPath, size, value)
+				frame.Name._fontFlags = value
 			elseif(remainder == 'name.shadow' and frame.Name) then
 				if(value) then
 					frame.Name:SetShadowOffset(1, -1)
@@ -499,29 +499,29 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				frame.Health.text._fontSize = value
 			elseif(remainder == 'health.textAnchor' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
 				local anchor = frame.Health._wrapper or frame.Health
-				local x = frame.Health.text._anchorX or 0
-				local y = frame.Health.text._anchorY or 0
+				local x = frame.Health.text._anchorX
+				local y = frame.Health.text._anchorY
 				frame.Health.text:ClearAllPoints()
 				frame.Health.text:SetPoint(value, anchor, value, x, y)
 				frame.Health.text._anchorPoint = value
 			elseif(remainder == 'health.textAnchorX' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
 				local anchor = frame.Health._wrapper or frame.Health
 				frame.Health.text._anchorX = value
-				local pt = frame.Health.text._anchorPoint or 'CENTER'
-				local y  = frame.Health.text._anchorY or 0
+				local pt = frame.Health.text._anchorPoint
+				local y  = frame.Health.text._anchorY
 				frame.Health.text:ClearAllPoints()
 				frame.Health.text:SetPoint(pt, anchor, pt, value, y)
 			elseif(remainder == 'health.textAnchorY' and frame.Health and frame.Health.text and not frame.Health._attachedToName) then
 				local anchor = frame.Health._wrapper or frame.Health
 				frame.Health.text._anchorY = value
-				local pt = frame.Health.text._anchorPoint or 'CENTER'
-				local x  = frame.Health.text._anchorX or 0
+				local pt = frame.Health.text._anchorPoint
+				local x  = frame.Health.text._anchorX
 				frame.Health.text:ClearAllPoints()
 				frame.Health.text:SetPoint(pt, anchor, pt, x, value)
 			elseif(remainder == 'health.outline' and frame.Health and frame.Health.text) then
 				local _, size = frame.Health.text:GetFont()
-				frame.Health.text:SetFont(fontPath, size or C.Font.sizeSmall, value or '')
-				frame.Health.text._fontFlags = value or ''
+				frame.Health.text:SetFont(fontPath, size, value)
+				frame.Health.text._fontFlags = value
 			elseif(remainder == 'health.shadow' and frame.Health and frame.Health.text) then
 				if(value) then
 					frame.Health.text:SetShadowOffset(1, -1)
@@ -545,11 +545,11 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 					elseif(value == 'dark') then
 						frame.Health.text:SetTextColor(0.25, 0.25, 0.25, 1)
 					elseif(value == 'custom') then
-						local cc = frame.Health._textCustomColor or { 1, 1, 1 }
+						local cc = frame.Health._textCustomColor
 						frame.Health.text:SetTextColor(cc[1], cc[2], cc[3], 1)
 					else
 						local tc = C.Colors.textActive
-						frame.Health.text:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+						frame.Health.text:SetTextColor(tc[1], tc[2], tc[3], tc[4])
 					end
 				end
 			elseif(remainder == 'health.textCustomColor' and frame.Health) then
@@ -565,29 +565,29 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 				frame.Power.text._fontSize = value
 			elseif(remainder == 'power.textAnchor' and frame.Power and frame.Power.text) then
 				local anchor = frame.Power._wrapper or frame.Power
-				local x = frame.Power.text._anchorX or 0
-				local y = frame.Power.text._anchorY or 0
+				local x = frame.Power.text._anchorX
+				local y = frame.Power.text._anchorY
 				frame.Power.text:ClearAllPoints()
 				frame.Power.text:SetPoint(value, anchor, value, x, y)
 				frame.Power.text._anchorPoint = value
 			elseif(remainder == 'power.textAnchorX' and frame.Power and frame.Power.text) then
 				local anchor = frame.Power._wrapper or frame.Power
 				frame.Power.text._anchorX = value
-				local pt = frame.Power.text._anchorPoint or 'CENTER'
-				local y  = frame.Power.text._anchorY or 0
+				local pt = frame.Power.text._anchorPoint
+				local y  = frame.Power.text._anchorY
 				frame.Power.text:ClearAllPoints()
 				frame.Power.text:SetPoint(pt, anchor, pt, value, y)
 			elseif(remainder == 'power.textAnchorY' and frame.Power and frame.Power.text) then
 				local anchor = frame.Power._wrapper or frame.Power
 				frame.Power.text._anchorY = value
-				local pt = frame.Power.text._anchorPoint or 'CENTER'
-				local x  = frame.Power.text._anchorX or 0
+				local pt = frame.Power.text._anchorPoint
+				local x  = frame.Power.text._anchorX
 				frame.Power.text:ClearAllPoints()
 				frame.Power.text:SetPoint(pt, anchor, pt, x, value)
 			elseif(remainder == 'power.outline' and frame.Power and frame.Power.text) then
 				local _, size = frame.Power.text:GetFont()
-				frame.Power.text:SetFont(fontPath, size or C.Font.sizeSmall, value or '')
-				frame.Power.text._fontFlags = value or ''
+				frame.Power.text:SetFont(fontPath, size, value)
+				frame.Power.text._fontFlags = value
 			elseif(remainder == 'power.shadow' and frame.Power and frame.Power.text) then
 				if(value) then
 					frame.Power.text:SetShadowOffset(1, -1)
@@ -611,11 +611,11 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 					elseif(value == 'dark') then
 						frame.Power.text:SetTextColor(0.25, 0.25, 0.25, 1)
 					elseif(value == 'custom') then
-						local cc = frame.Power._textCustomColor or { 1, 1, 1 }
+						local cc = frame.Power._textCustomColor
 						frame.Power.text:SetTextColor(cc[1], cc[2], cc[3], 1)
 					else
 						local tc = C.Colors.textActive
-						frame.Power.text:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+						frame.Power.text:SetTextColor(tc[1], tc[2], tc[3], tc[4])
 					end
 				end
 			elseif(remainder == 'power.textCustomColor' and frame.Power) then
@@ -661,9 +661,9 @@ local function rebuildHealthCurve(frame, cfg)
 		frame.colors.health = F.oUF:CreateColor(0.2, 0.8, 0.2)
 	end
 	frame.colors.health:SetCurve({
-		[(cfg.gradientThreshold3 or 5)  / 100] = CreateColor(unpack(cfg.gradientColor3 or { 0.8, 0.1, 0.1 })),
-		[(cfg.gradientThreshold2 or 50) / 100] = CreateColor(unpack(cfg.gradientColor2 or { 0.9, 0.6, 0.1 })),
-		[(cfg.gradientThreshold1 or 95) / 100] = CreateColor(unpack(cfg.gradientColor1 or { 0.2, 0.8, 0.2 })),
+		[(cfg.gradientThreshold3)  / 100] = CreateColor(unpack(cfg.gradientColor3)),
+		[(cfg.gradientThreshold2) / 100] = CreateColor(unpack(cfg.gradientColor2)),
+		[(cfg.gradientThreshold1) / 100] = CreateColor(unpack(cfg.gradientColor1)),
 	})
 end
 
