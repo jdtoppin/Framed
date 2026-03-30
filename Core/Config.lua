@@ -12,8 +12,11 @@ local EventBus = F.EventBus
 -- ============================================================
 local accountDefaults = {
 	general = {
-		accentColor = { 0, 0.8, 1 },  -- cyan default
+		accentColor = { 0, 0.8, 1, 1 },  -- cyan default
 		uiScale = 1.0,
+		barTexture = nil,
+		font = nil,
+		roleIconStyle = 2,
 		wizardCompleted = false,
 		tooltipEnabled = true,
 		tooltipHideInCombat = false,
@@ -24,6 +27,8 @@ local accountDefaults = {
 		targetHighlightWidth = 2,
 		mouseoverHighlightColor = { 0.969, 0.925, 1, 0.6 }, -- #f7ecff @ 60%
 		mouseoverHighlightWidth = 2,
+		pinnedCards = {},
+		pinnedAppearanceCards = {},
 	},
 	presets = {},       -- populated by Presets/Defaults.lua
 	raidDebuffs = {
@@ -48,6 +53,9 @@ local charDefaults = {
 		completed = false,
 		lastStep = 0,
 	},
+	lastPanel = nil,
+	lastEditingPreset = nil,
+	lastEditingUnitType = nil,
 }
 
 -- ============================================================
