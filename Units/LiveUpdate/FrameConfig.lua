@@ -912,7 +912,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(show and not frame.Power.text) then
 				-- Create the text FontString on first enable
 				local pc = config.power
-				local text = Widgets.CreateFontString(frame.Power, pc.fontSize or C.Font.sizeSmall, C.Colors.textActive, pc.outline or '', pc.shadow ~= false)
+				local text = Widgets.CreateFontString(frame.Power, pc.fontSize, C.Colors.textActive, pc.outline, pc.shadow ~= false)
 				local ap = pc.textAnchor
 				local anchor = frame.Power._wrapper or frame.Power
 				text:SetPoint(ap, anchor, ap, pc.textAnchorX + 1, pc.textAnchorY)

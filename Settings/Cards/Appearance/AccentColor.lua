@@ -17,7 +17,7 @@ function F.AppearanceCards.AccentColor(parent, width, getConfig, setConfig, fire
 
 	local savedColor = getConfig('accentColor')
 	if(savedColor) then
-		colorPicker:SetColor(savedColor[1], savedColor[2], savedColor[3], savedColor[4] or 1)
+		colorPicker:SetColor(savedColor[1], savedColor[2], savedColor[3], savedColor[4])
 	else
 		colorPicker:SetColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
 	end
