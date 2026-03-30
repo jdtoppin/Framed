@@ -50,34 +50,43 @@ local FRAME_KEYS = {
 EditMode.FRAME_KEYS = FRAME_KEYS
 
 -- ============================================================
--- Position Snapshot (for discard/restore)
+-- Frame State Snapshot (for discard/restore)
 -- ============================================================
 
-local function SaveCurrentPositions()
-	local positions = {}
+local function SaveCurrentFrameState()
+	local state = {}
 	for _, def in next, FRAME_KEYS do
 		local frame = def.getter()
 		if(frame) then
 			local point, relativeTo, relPoint, x, y = frame:GetPoint()
 			if(point) then
 				local relName = relativeTo and relativeTo:GetName() or 'UIParent'
-				positions[def.key] = { point, relName, relPoint, x, y }
+				state[def.key] = {
+					point    = point,
+					relName  = relName,
+					relPoint = relPoint,
+					x        = x,
+					y        = y,
+					width    = frame:GetWidth(),
+					height   = frame:GetHeight(),
+				}
 			end
 		end
 	end
-	EditCache.SavePreEditPositions(positions)
+	EditCache.SavePreEditPositions(state)
 end
 
-local function RestorePositions()
-	local positions = EditCache.GetPreEditPositions()
+local function RestoreFrameState()
+	local state = EditCache.GetPreEditPositions()
 	for _, def in next, FRAME_KEYS do
-		local saved = positions[def.key]
+		local saved = state[def.key]
 		if(saved) then
 			local frame = def.getter()
 			if(frame) then
 				frame:ClearAllPoints()
-				local relFrame = (saved[2] == 'UIParent') and UIParent or _G[saved[2]]
-				frame:SetPoint(saved[1], relFrame, saved[3], saved[4], saved[5])
+				local relFrame = (saved.relName == 'UIParent') and UIParent or _G[saved.relName]
+				Widgets.SetPoint(frame, saved.point, relFrame, saved.relPoint, saved.x, saved.y)
+				Widgets.SetSize(frame, saved.width, saved.height)
 			end
 		end
 	end
@@ -208,7 +217,7 @@ function EditMode.Enter()
 	-- Close sidebar if open
 	F.Settings.Hide()
 
-	SaveCurrentPositions()
+	SaveCurrentFrameState()
 	EditCache.Activate()
 
 	if(not overlay) then
@@ -236,14 +245,31 @@ function EditMode.Save(returnToMenu)
 	end)
 end
 
---- Perform discard: clear cache, restore positions, exit.
+--- Perform discard: clear cache, restore frame state, exit.
 --- @param returnToMenu boolean  If true, reopen sidebar after exit
 function EditMode.Discard(returnToMenu)
 	if(not isActive) then return end
 
+	-- Collect modified frame keys before clearing cache
+	local modifiedKeys = {}
+	for _, def in next, FRAME_KEYS do
+		if(EditCache.HasEdits(def.key)) then
+			modifiedKeys[#modifiedKeys + 1] = def.key
+		end
+	end
+
 	EditCache.Discard()
-	RestorePositions()
+	RestoreFrameState()
 	EditMode.Exit(returnToMenu)
+
+	-- Force LiveUpdate to re-read from real config for all modified frames
+	local presetName = F.Settings.GetEditingPreset()
+	for _, frameKey in next, modifiedKeys do
+		local basePath = 'presets.' .. presetName .. '.unitConfigs.' .. frameKey
+		F.EventBus:Fire('CONFIG_CHANGED', basePath .. '.width')
+		F.EventBus:Fire('CONFIG_CHANGED', basePath .. '.height')
+		F.EventBus:Fire('CONFIG_CHANGED', basePath .. '.position.x')
+	end
 end
 
 --- Exit edit mode (internal, called after save or discard).
@@ -318,20 +344,17 @@ combatFrame:SetScript('OnEvent', function(self, event)
 	if(not isActive) then return end
 
 	if(event == 'PLAYER_REGEN_DISABLED') then
-		-- Stop any active drag
+		-- Restore any in-progress drag to last saved position
 		local selKey = EditMode.GetSelectedFrameKey()
 		if(selKey) then
 			for _, def in next, EditMode.FRAME_KEYS do
 				if(def.key == selKey) then
 					local frame = def.getter()
-					if(frame and frame:IsMovable()) then
-						frame:StopMovingOrSizing()
-						-- Snapshot current position to cache
-						local point, _, relPoint, x, y = frame:GetPoint()
-						if(point and x and y) then
-							EditCache.Set(selKey, 'position.x', x)
-							EditCache.Set(selKey, 'position.y', y)
-						end
+					if(frame) then
+						local x = EditCache.Get(selKey, 'position.x') or 0
+						local y = EditCache.Get(selKey, 'position.y') or 0
+						frame:ClearAllPoints()
+						Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
 					end
 					break
 				end

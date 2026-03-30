@@ -57,7 +57,9 @@ local function BuildTopBar()
 			snapBtn:SetBackdropColor(C.Colors.accentDim[1], C.Colors.accentDim[2], C.Colors.accentDim[3], C.Colors.accentDim[4] or 1)
 			snapBtn:SetBackdropBorderColor(accent[1], accent[2], accent[3], accent[4] or 1)
 			snapBtn._label:SetTextColor(1, 1, 1, 1)
+			snapBtn._groupSelected = true   -- prevent OnLeave from resetting visuals
 		else
+			snapBtn._groupSelected = false
 			local s = snapBtn._scheme
 			snapBtn:SetBackdropColor(s.bg[1], s.bg[2], s.bg[3], s.bg[4] or 1)
 			local bc = s.border
@@ -74,17 +76,6 @@ local function BuildTopBar()
 	end)
 	UpdateSnapButton()
 
-	-- ── Grid Style selector ─────────────────────────────────
-	local gridStyleSwitch = Widgets.CreateSwitch(topBar, 100, BUTTON_HEIGHT, {
-		{ text = 'Lines', value = 'lines' },
-		{ text = 'Dots',  value = 'dots' },
-	})
-	gridStyleSwitch:SetValue('lines')
-	gridStyleSwitch:SetOnSelect(function(value)
-		F.EventBus:Fire('EDIT_MODE_GRID_STYLE_CHANGED', value)
-	end)
-	topBar._gridStyleSwitch = gridStyleSwitch
-
 	-- ── Save button ─────────────────────────────────────────
 	local saveBtn = Widgets.CreateButton(topBar, 'Save', 'accent', 70, BUTTON_HEIGHT)
 	saveBtn:SetOnClick(function()
@@ -98,7 +89,7 @@ local function BuildTopBar()
 	end)
 
 	-- ── Layout: chain items left-to-right, measure, size bar ──
-	local allItems = { presetDD, editLabel, snapBtn, gridStyleSwitch, saveBtn, cancelBtn }
+	local allItems = { presetDD, editLabel, snapBtn, saveBtn, cancelBtn }
 	local totalW = ITEM_GAP  -- left padding
 
 	for _, item in next, allItems do

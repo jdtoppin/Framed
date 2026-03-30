@@ -31,7 +31,7 @@ local function BuildDialog()
 	-- Full-screen dimmer anchored to UIParent
 	local dimmer = CreateFrame('Frame', nil, UIParent)
 	dimmer:SetAllPoints(UIParent)
-	dimmer:SetFrameStrata('FULLSCREEN_DIALOG')
+	dimmer:SetFrameStrata('TOOLTIP')
 	dimmer:SetFrameLevel(1)
 
 	local dimTex = dimmer:CreateTexture(nil, 'BACKGROUND')
@@ -40,7 +40,7 @@ local function BuildDialog()
 
 	-- Dialog box
 	local frame = CreateFrame('Frame', nil, dimmer, 'BackdropTemplate')
-	frame:SetFrameStrata('FULLSCREEN_DIALOG')
+	frame:SetFrameStrata('TOOLTIP')
 	frame:SetFrameLevel(10)
 	Widgets.SetSize(frame, DIALOG_WIDTH_2, 120)   -- height adjusted on show
 	frame:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
