@@ -217,6 +217,13 @@ function EditMode.Enter()
 	-- Close sidebar if open
 	F.Settings.Hide()
 
+	-- Sync editing preset to the actually active preset so EditCache
+	-- reads/writes the same data LiveUpdate used to position frames.
+	-- Clears any stale sidebar selection or prior session override.
+	sessionPresetOverride = nil
+	local activePreset = F.AutoSwitch.GetCurrentPreset()
+	F.Settings.SetEditingPreset(activePreset)
+
 	SaveCurrentFrameState()
 	EditCache.Activate()
 
@@ -250,6 +257,10 @@ end
 function EditMode.Discard(returnToMenu)
 	if(not isActive) then return end
 
+	-- Capture preset name before exit (Exit may reopen Settings which
+	-- could sync editingPreset to a different value)
+	local presetName = F.Settings.GetEditingPreset()
+
 	-- Collect modified frame keys before clearing cache
 	local modifiedKeys = {}
 	for _, def in next, FRAME_KEYS do
@@ -263,7 +274,6 @@ function EditMode.Discard(returnToMenu)
 	EditMode.Exit(returnToMenu)
 
 	-- Force LiveUpdate to re-read from real config for all modified frames
-	local presetName = F.Settings.GetEditingPreset()
 	for _, frameKey in next, modifiedKeys do
 		local basePath = 'presets.' .. presetName .. '.unitConfigs.' .. frameKey
 		F.EventBus:Fire('CONFIG_CHANGED', basePath .. '.width')
@@ -278,6 +288,7 @@ function EditMode.Exit(returnToMenu)
 	isActive = false
 	combatFrame:UnregisterAllEvents()
 	selectedFrameKey = nil
+	sessionPresetOverride = nil
 
 	EditCache.Deactivate()
 
@@ -335,6 +346,44 @@ end
 function EditMode.GetOverlay()
 	return overlay
 end
+
+-- ============================================================
+-- Preset Switch in Edit Mode
+-- ============================================================
+
+--- Reposition all frames to the new preset's saved positions and
+--- update the pre-edit snapshot so discard restores correctly.
+local function ApplyPresetPositions()
+	for _, def in next, FRAME_KEYS do
+		local frame = def.getter()
+		if(frame) then
+			local x = EditCache.Get(def.key, 'position.x') or 0
+			local y = EditCache.Get(def.key, 'position.y') or 0
+			local w = EditCache.Get(def.key, 'width')
+			local h = EditCache.Get(def.key, 'height')
+			frame:ClearAllPoints()
+			if(def.isGroup) then
+				Widgets.SetPoint(frame, 'TOPLEFT', UIParent, 'TOPLEFT', x, y)
+			else
+				Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+			end
+			if(w and h) then
+				Widgets.SetSize(frame, w, h)
+			end
+		end
+	end
+	-- Update pre-edit snapshot so discard restores to these positions
+	SaveCurrentFrameState()
+end
+
+F.EventBus:Register('EDIT_MODE_PRESET_SWITCHED', function(presetName)
+	ApplyPresetPositions()
+	-- Re-select current frame to rebuild InlinePanel with new preset data
+	local selKey = EditMode.GetSelectedFrameKey()
+	if(selKey) then
+		EditMode.SetSelectedFrameKey(selKey)
+	end
+end, 'EditMode.PresetSwitch')
 
 -- ============================================================
 -- Combat Protection

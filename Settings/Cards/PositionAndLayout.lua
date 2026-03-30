@@ -143,6 +143,29 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 
 	cardY = B.PlaceWidget(nudgeFrame, inner, cardY, 50)
 
+	-- ── Live sync from resize handles ────────────────────────
+	local evtTag = 'PositionAndLayout.' .. unitType
+	F.EventBus:Register('EDIT_MODE_FRAME_RESIZED', function(frameKey, newW, newH)
+		if(frameKey ~= unitType) then return end
+		widthSlider:SetValue(Widgets.Round(newW))
+		heightSlider:SetValue(Widgets.Round(newH))
+	end, evtTag .. '.resize')
+
+	-- ── Live sync from drag stop ─────────────────────────────
+	F.EventBus:Register('EDIT_MODE_DRAG_STOPPED', function(frameKey)
+		if(frameKey ~= unitType) then return end
+		local x = F.EditCache.Get(unitType, 'position.x') or 0
+		local y = F.EditCache.Get(unitType, 'position.y') or 0
+		posXSlider:SetValue(Widgets.Round(x))
+		posYSlider:SetValue(Widgets.Round(y))
+	end, evtTag .. '.drag')
+
+	-- Unregister when card is destroyed
+	card:HookScript('OnHide', function()
+		F.EventBus:Unregister('EDIT_MODE_FRAME_RESIZED', evtTag .. '.resize')
+		F.EventBus:Unregister('EDIT_MODE_DRAG_STOPPED', evtTag .. '.drag')
+	end)
+
 	Widgets.EndCard(card, parent, cardY)
 	return card
 end
