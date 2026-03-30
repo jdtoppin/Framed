@@ -9,328 +9,330 @@ F.PresetDefaults = {}
 -- Unit config templates (NO aura fields — those live in preset.auras)
 -- ============================================================
 
-local function playerConfig()
+--- Base config shared by all unit types. Each unit config function calls this
+--- and overrides unit-specific values. Every key that any consumer reads must
+--- exist here or in the unit-specific override.
+local function baseUnitConfig()
 	return {
 		width  = 200,
 		height = 40,
-		position = { x = -200, y = -200 },
+		position = { x = 0, y = 0, anchor = 'CENTER' },
 		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = false,
-			textFormat     = 'none',
-			healPrediction = true,
+			colorMode          = 'class',
+			colorThreat        = false,
+			smooth             = true,
+			customColor        = { 0.2, 0.8, 0.2, 1 },
+			gradientColor1     = { 0.2, 0.8, 0.2, 1 },
+			gradientThreshold1 = 95,
+			gradientColor2     = { 0.9, 0.6, 0.1, 1 },
+			gradientThreshold2 = 50,
+			gradientColor3     = { 0.8, 0.1, 0.1, 1 },
+			gradientThreshold3 = 5,
+			lossColorMode      = 'dark',
+			lossCustomColor    = { 0.15, 0.15, 0.15, 1 },
+			lossGradientColor1     = { 0.1, 0.4, 0.1, 1 },
+			lossGradientThreshold1 = 95,
+			lossGradientColor2     = { 0.4, 0.25, 0.05, 1 },
+			lossGradientThreshold2 = 50,
+			lossGradientColor3     = { 0.4, 0.05, 0.05, 1 },
+			lossGradientThreshold3 = 5,
+			showText           = false,
+			textFormat         = 'percent',
+			textColorMode      = 'white',
+			textCustomColor    = { 1, 1, 1, 1 },
+			fontSize           = C.Font.sizeSmall,
+			textAnchor         = 'CENTER',
+			textAnchorX        = 0,
+			textAnchorY        = 0,
+			outline            = '',
+			shadow             = true,
+			attachedToName     = false,
+			healPrediction     = true,
+			healPredictionMode = 'all',
+			healPredictionColor = { 0.6, 0.6, 0.6, 0.4 },
+			damageAbsorb       = true,
+			damageAbsorbColor  = { 1, 1, 1, 0.6 },
+			healAbsorb         = true,
+			healAbsorbColor    = { 0.7, 0.1, 0.1, 0.5 },
+			overAbsorb         = true,
 		},
-		power = { height = 2, showText = false },
+		power = {
+			height        = 2,
+			position      = 'bottom',
+			showText      = false,
+			textFormat    = 'current',
+			textColorMode = 'white',
+			textCustomColor = { 1, 1, 1, 1 },
+			fontSize      = C.Font.sizeSmall,
+			textAnchor    = 'CENTER',
+			textAnchorX   = 0,
+			textAnchorY   = 0,
+			outline       = '',
+			shadow        = true,
+		},
 		name = {
-			colorMode = 'class',
-			fontSize  = C.Font.sizeNormal,
+			colorMode   = 'class',
+			customColor = { 1, 1, 1, 1 },
+			fontSize    = C.Font.sizeNormal,
+			anchor      = 'CENTER',
+			anchorX     = 0,
+			anchorY     = 0,
+			outline     = '',
+			shadow      = true,
 		},
-		castbar = {
-			height   = 16,
-			showIcon = true,
-			showText = true,
-			showTime = true,
-		},
-		portrait = { type = '2D' },
-		threat   = { aggroBlink = false },
-		range    = { outsideAlpha = 0.4 },
+		range = { outsideAlpha = 0.4 },
 		statusIcons = {
 			role       = true,
+			rolePoint  = 'TOPLEFT',     roleX  = 2,   roleY  = -2, roleSize  = 12,
 			leader     = true,
+			leaderPoint = 'TOPLEFT',    leaderX = 16,  leaderY = -2, leaderSize = 12,
 			readyCheck = true,
+			readyCheckPoint = 'CENTER', readyCheckX = 0, readyCheckY = 0, readyCheckSize = 16,
 			raidIcon   = true,
-			combat     = true,
-			resting    = true,
-			phase      = false,
-			resurrect  = false,
-			summon     = false,
-			raidRole   = false,
+			raidIconPoint = 'TOP',      raidIconX = 0,  raidIconY = -2, raidIconSize = 16,
+			combat     = false,
+			combatPoint = 'TOPRIGHT',   combatX = -2,  combatY = -2, combatSize = 12,
+			resting    = false,
+			restingPoint = 'BOTTOMLEFT', restingX = 2, restingY = 2, restingSize = 12,
+			phase      = true,
+			phasePoint = 'CENTER',      phaseX = 0,    phaseY = 0,  phaseSize = 16,
+			resurrect  = true,
+			resurrectPoint = 'CENTER',  resurrectX = 0, resurrectY = 0, resurrectSize = 16,
+			summon     = true,
+			summonPoint = 'CENTER',     summonX = 0,   summonY = 0, summonSize = 16,
+			raidRole   = true,
+			raidRolePoint = 'BOTTOMRIGHT', raidRoleX = -2, raidRoleY = 2, raidRoleSize = 12,
 			pvp        = false,
+			pvpPoint   = 'BOTTOMLEFT',  pvpX = 2,    pvpY = 2,   pvpSize = 16,
 		},
-		statusText         = { enabled = true },
+		statusText = {
+			enabled  = true,
+			fontSize = C.Font.sizeSmall,
+			outline  = 'OUTLINE',
+			shadow   = false,
+			anchor   = 'CENTER',
+			anchorX  = 0,
+			anchorY  = 0,
+		},
 		targetHighlight    = true,
 		mouseoverHighlight = true,
 	}
+end
+
+local function defaultCastbar(frameWidth)
+	return {
+		height         = 16,
+		sizeMode       = 'attached',
+		width          = frameWidth,
+		backgroundMode = 'always',
+		showIcon       = true,
+		showText       = true,
+		showTime       = true,
+	}
+end
+
+local function defaultPortrait()
+	return { type = '2D' }
+end
+
+local function defaultThreat()
+	return { aggroBlink = false }
+end
+
+local function playerConfig()
+	local c = baseUnitConfig()
+	c.position = { x = -200, y = -200, anchor = 'CENTER' }
+	c.castbar  = defaultCastbar(c.width)
+	c.portrait = defaultPortrait()
+	c.threat   = defaultThreat()
+	c.statusIcons.combat  = true
+	c.statusIcons.resting = true
+	c.statusIcons.phase   = false
+	c.statusIcons.resurrect = false
+	c.statusIcons.summon    = false
+	c.statusIcons.raidRole  = false
+	return c
 end
 
 local function targetConfig()
-	return {
-		width  = 200,
-		height = 40,
-		position = { x = 200, y = -200 },
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = false,
-			textFormat     = 'none',
-			healPrediction = false,
-			damageAbsorb   = false,
-			healAbsorb     = false,
-			overAbsorb     = false,
-		},
-		power = { height = 2, showText = false },
-		name = {
-			colorMode = 'class',
-			fontSize  = C.Font.sizeNormal,
-		},
-		castbar = {
-			height   = 16,
-			showIcon = true,
-			showText = true,
-			showTime = true,
-		},
-		portrait = { type = '2D' },
-		threat   = { aggroBlink = false },
-		range    = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role       = true,
-			leader     = true,
-			readyCheck = true,
-			raidIcon   = true,
-			combat     = false,
-			resting    = false,
-			phase      = true,
-			resurrect  = false,
-			summon     = false,
-			raidRole   = false,
-			pvp        = false,
-		},
-		statusText         = { enabled = true },
-		targetHighlight    = true,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.position = { x = 200, y = -200, anchor = 'CENTER' }
+	c.health.healPrediction = false
+	c.health.damageAbsorb   = false
+	c.health.healAbsorb     = false
+	c.health.overAbsorb     = false
+	c.castbar  = defaultCastbar(c.width)
+	c.portrait = defaultPortrait()
+	c.threat   = defaultThreat()
+	c.statusIcons.combat  = false
+	c.statusIcons.resting = false
+	c.statusIcons.phase   = true
+	c.statusIcons.resurrect = false
+	c.statusIcons.summon    = false
+	c.statusIcons.raidRole  = false
+	return c
 end
 
 local function targettargetConfig()
-	return {
-		width  = 120,
-		height = 24,
-		position = { x = 200, y = -240 },
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = false,
-			textFormat     = 'none',
-			healPrediction = false,
-			damageAbsorb   = false,
-			healAbsorb     = false,
-			overAbsorb     = false,
-		},
-		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
-		range = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role = false, leader = false, readyCheck = false,
-			raidIcon = true, combat = false,
-			resting = false, phase = false, resurrect = false,
-			summon = false, raidRole = false, pvp = false,
-		},
-		statusText         = { enabled = false },
-		targetHighlight    = true,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.width    = 120
+	c.height   = 24
+	c.position = { x = 200, y = -260, anchor = 'CENTER' }
+	c.health.healPrediction = false
+	c.health.damageAbsorb   = false
+	c.health.healAbsorb     = false
+	c.health.overAbsorb     = false
+	c.name.fontSize = C.Font.sizeSmall
+	c.statusIcons.role       = false
+	c.statusIcons.leader     = false
+	c.statusIcons.readyCheck = false
+	c.statusIcons.combat     = false
+	c.statusIcons.resting    = false
+	c.statusIcons.phase      = false
+	c.statusIcons.resurrect  = false
+	c.statusIcons.summon     = false
+	c.statusIcons.raidRole   = false
+	c.statusText.enabled = false
+	return c
 end
 
 local function focusConfig()
-	return {
-		width  = 150,
-		height = 30,
-		position = { x = -300, y = -100 },
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = false,
-			textFormat     = 'none',
-			healPrediction = false,
-			damageAbsorb   = false,
-			healAbsorb     = false,
-			overAbsorb     = false,
-		},
-		power   = { height = 2, showText = false },
-		name    = { colorMode = 'class', fontSize = C.Font.sizeSmall },
-		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
-		range   = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role = false, leader = false, readyCheck = false,
-			raidIcon = true, combat = false,
-			resting = false, phase = false, resurrect = false,
-			summon = false, raidRole = false, pvp = false,
-		},
-		statusText         = { enabled = false },
-		targetHighlight    = true,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.width    = 160
+	c.height   = 30
+	c.position = { x = -300, y = -100, anchor = 'CENTER' }
+	c.health.healPrediction = false
+	c.health.damageAbsorb   = false
+	c.health.healAbsorb     = false
+	c.health.overAbsorb     = false
+	c.name.fontSize = C.Font.sizeSmall
+	c.castbar = defaultCastbar(c.width)
+	c.statusIcons.role       = false
+	c.statusIcons.leader     = false
+	c.statusIcons.readyCheck = false
+	c.statusIcons.combat     = false
+	c.statusIcons.resting    = false
+	c.statusIcons.phase      = false
+	c.statusIcons.resurrect  = false
+	c.statusIcons.summon     = false
+	c.statusIcons.raidRole   = false
+	c.statusText.enabled = false
+	return c
 end
 
 local function petConfig()
-	return {
-		width  = 120,
-		height = 24,
-		position = { x = -200, y = -260 },
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = false,
-			textFormat     = 'none',
-			healPrediction = false,
-			damageAbsorb   = false,
-			healAbsorb     = false,
-			overAbsorb     = false,
-		},
-		power  = { height = 2, showText = false },
-		name   = { colorMode = 'class', fontSize = C.Font.sizeSmall },
-		range  = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role = false, leader = false, readyCheck = false,
-			raidIcon = false, combat = false,
-			resting = false, phase = false, resurrect = false,
-			summon = false, raidRole = false, pvp = false,
-		},
-		statusText         = { enabled = false },
-		targetHighlight    = false,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.width    = 120
+	c.height   = 20
+	c.position = { x = -200, y = -260, anchor = 'CENTER' }
+	c.health.healPrediction = false
+	c.health.damageAbsorb   = false
+	c.health.healAbsorb     = false
+	c.health.overAbsorb     = false
+	c.name.fontSize = C.Font.sizeSmall
+	c.statusIcons.role       = false
+	c.statusIcons.leader     = false
+	c.statusIcons.readyCheck = false
+	c.statusIcons.raidIcon   = false
+	c.statusIcons.combat     = false
+	c.statusIcons.resting    = false
+	c.statusIcons.phase      = false
+	c.statusIcons.resurrect  = false
+	c.statusIcons.summon     = false
+	c.statusIcons.raidRole   = false
+	c.statusText.enabled  = false
+	c.targetHighlight     = false
+	return c
 end
 
 local function bossConfig()
-	return {
-		width  = 150,
-		height = 30,
-		position = { x = 300, y = 0 },
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = true,
-			textFormat     = 'current',
-			healPrediction = false,
-			damageAbsorb   = false,
-			healAbsorb     = false,
-			overAbsorb     = false,
-		},
-		power   = { height = 2, showText = false },
-		name    = { colorMode = 'class', fontSize = C.Font.sizeSmall },
-		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
-		range   = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role = false, leader = false, readyCheck = false,
-			raidIcon = true, combat = false,
-			resting = false, phase = false, resurrect = false,
-			summon = false, raidRole = false, pvp = false,
-		},
-		statusText         = { enabled = false },
-		targetHighlight    = true,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.width    = 160
+	c.height   = 30
+	c.position = { x = 300, y = 100, anchor = 'CENTER' }
+	c.spacing  = 4
+	c.health.showText       = true
+	c.health.textFormat     = 'current'
+	c.health.healPrediction = false
+	c.health.damageAbsorb   = false
+	c.health.healAbsorb     = false
+	c.health.overAbsorb     = false
+	c.name.fontSize = C.Font.sizeSmall
+	c.castbar = defaultCastbar(c.width)
+	c.statusIcons.role       = false
+	c.statusIcons.leader     = false
+	c.statusIcons.readyCheck = false
+	c.statusIcons.combat     = false
+	c.statusIcons.resting    = false
+	c.statusIcons.phase      = false
+	c.statusIcons.resurrect  = false
+	c.statusIcons.summon     = false
+	c.statusIcons.raidRole   = false
+	c.statusText.enabled = false
+	return c
 end
 
 local function partyConfig()
-	return {
-		width  = 120,
-		height = 36,
-		spacing          = 2,
-		orientation      = 'vertical',
-		anchorPoint      = 'TOPLEFT',
-		position         = { x = 20, y = -200 },
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = true,
-			textFormat     = 'percent',
-			healPrediction = true,
-		},
-		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
-		threat = { aggroBlink = false },
-		range  = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role       = true,
-			leader     = true,
-			readyCheck = true,
-			raidIcon   = true,
-			combat     = false,
-			resting    = false,
-			phase      = true,
-			resurrect  = true,
-			summon     = true,
-			raidRole   = true,
-			pvp        = false,
-		},
-		statusText         = { enabled = true },
-		targetHighlight    = true,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.width       = 120
+	c.height      = 36
+	c.spacing     = 2
+	c.orientation = 'vertical'
+	c.anchorPoint = 'TOPLEFT'
+	c.position    = { x = 40, y = -48, anchor = 'TOPLEFT' }
+	c.health.showText   = true
+	c.health.textFormat = 'percent'
+	c.name.fontSize = C.Font.sizeSmall
+	c.threat = defaultThreat()
+	c.statusIcons.combat  = false
+	c.statusIcons.resting = false
+	return c
 end
 
 local function raidConfig()
-	return {
-		width  = 72,
-		height = 36,
-		spacing          = 2,
-		orientation      = 'vertical',
-		anchorPoint      = 'TOPLEFT',
-		position         = { x = 20, y = -200 },
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = true,
-			textFormat     = 'percent',
-			healPrediction = true,
-		},
-		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
-		range = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role       = true,
-			leader     = true,
-			readyCheck = true,
-			raidIcon   = true,
-			combat     = false,
-			resting    = false,
-			phase      = true,
-			resurrect  = true,
-			summon     = true,
-			raidRole   = true,
-			pvp        = false,
-		},
-		statusText         = { enabled = true },
-		targetHighlight    = true,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.width       = 72
+	c.height      = 36
+	c.spacing     = 2
+	c.orientation = 'vertical'
+	c.anchorPoint = 'TOPLEFT'
+	c.position    = { x = 40, y = -48, anchor = 'TOPLEFT' }
+	c.health.showText   = true
+	c.health.textFormat = 'percent'
+	c.name.fontSize = C.Font.sizeSmall
+	c.statusIcons.combat  = false
+	c.statusIcons.resting = false
+	return c
 end
 
 local function arenaConfig()
-	return {
-		width  = 150,
-		height = 30,
-		position = { x = 300, y = 0 },
-		spacing          = 2,
-		orientation      = 'vertical',
-		anchorPoint      = 'TOPLEFT',
-		health = {
-			colorMode      = 'class',
-			smooth         = true,
-			showText       = true,
-			textFormat     = 'current',
-			healPrediction = false,
-			damageAbsorb   = false,
-			healAbsorb     = false,
-			overAbsorb     = false,
-		},
-		power = { height = 2, showText = false },
-		name  = { colorMode = 'class', fontSize = C.Font.sizeSmall },
-		castbar = { height = 14, showIcon = true, showText = true, showTime = true },
-		range   = { outsideAlpha = 0.4 },
-		statusIcons = {
-			role = false, leader = false, readyCheck = false,
-			raidIcon = true, combat = false,
-			resting = false, phase = false, resurrect = false,
-			summon = false, raidRole = false, pvp = true,
-		},
-		statusText         = { enabled = false },
-		targetHighlight    = true,
-		mouseoverHighlight = true,
-	}
+	local c = baseUnitConfig()
+	c.width       = 160
+	c.height      = 30
+	c.position    = { x = 300, y = 100, anchor = 'CENTER' }
+	c.spacing     = 4
+	c.orientation = 'vertical'
+	c.anchorPoint = 'TOPLEFT'
+	c.health.showText       = true
+	c.health.textFormat     = 'current'
+	c.health.healPrediction = false
+	c.health.damageAbsorb   = false
+	c.health.healAbsorb     = false
+	c.health.overAbsorb     = false
+	c.name.fontSize = C.Font.sizeSmall
+	c.castbar = defaultCastbar(c.width)
+	c.statusIcons.role       = false
+	c.statusIcons.leader     = false
+	c.statusIcons.readyCheck = false
+	c.statusIcons.combat     = false
+	c.statusIcons.resting    = false
+	c.statusIcons.phase      = false
+	c.statusIcons.resurrect  = false
+	c.statusIcons.summon     = false
+	c.statusIcons.raidRole   = false
+	c.statusIcons.pvp        = true
+	c.statusText.enabled = false
+	return c
 end
 
 -- ============================================================
