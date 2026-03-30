@@ -14,10 +14,8 @@ function F.AppearanceCards.BarTexture(parent, width, getConfig, setConfig, fireC
 	local barDropdown = Widgets.CreateTextureDropdown(inner, widgetW, 'statusbar')
 	cardY = B.PlaceWidget(barDropdown, inner, cardY, B.DROPDOWN_H)
 
-	local savedBar = getConfig('barTexture')
-	if(savedBar) then
-		barDropdown:SetValue(savedBar)
-	end
+	local savedBar = getConfig('barTexture') or 'Framed Plain'
+	barDropdown:SetValue(savedBar)
 
 	barDropdown:SetOnSelect(function(texturePath, name)
 		setConfig('barTexture', name)

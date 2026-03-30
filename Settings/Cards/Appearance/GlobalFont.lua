@@ -14,10 +14,8 @@ function F.AppearanceCards.GlobalFont(parent, width, getConfig, setConfig, fireC
 	local fontDropdown = Widgets.CreateTextureDropdown(inner, widgetW, 'font')
 	cardY = B.PlaceWidget(fontDropdown, inner, cardY, B.DROPDOWN_H)
 
-	local savedFont = getConfig('font')
-	if(savedFont) then
-		fontDropdown:SetValue(savedFont)
-	end
+	local savedFont = getConfig('font') or 'Expressway'
+	fontDropdown:SetValue(savedFont)
 
 	fontDropdown:SetOnSelect(function(texturePath, name)
 		setConfig('font', name)

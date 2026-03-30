@@ -11,10 +11,17 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
+	local hasCastbar = getConfig('castbar') ~= nil
+
 	local showCastCheck = Widgets.CreateCheckButton(inner, 'Show Cast Bar', function(checked)
 		setConfig('showCastBar', checked)
+		if(checked and not getConfig('castbar')) then
+			-- Create castbar config on first enable
+			local w = getConfig('width') or 200
+			setConfig('castbar', { sizeMode = 'attached', width = w, height = 16, backgroundMode = 'oncast' })
+		end
 	end)
-	showCastCheck:SetChecked(getConfig('showCastBar') ~= false)
+	showCastCheck:SetChecked(hasCastbar and getConfig('showCastBar') ~= false)
 	cardY = B.PlaceWidget(showCastCheck, inner, cardY, B.CHECK_H)
 
 	-- Size mode: attached (syncs width with parent frame) or detached (own dimensions)
@@ -23,21 +30,21 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 		{ text = 'Attached', value = 'attached' },
 		{ text = 'Detached', value = 'detached' },
 	})
-	castSizeSwitch:SetValue(getConfig('castbar.sizeMode'))
+	castSizeSwitch:SetValue(getConfig('castbar.sizeMode') or 'attached')
 	cardY = B.PlaceWidget(castSizeSwitch, inner, cardY, B.SWITCH_H)
 
 	local castSizeSwitchEndY = cardY
 
 	-- Detached width slider
 	local castWidthSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 50, 400, 1)
-	castWidthSlider:SetValue(getConfig('castbar.width'))
+	castWidthSlider:SetValue(getConfig('castbar.width') or getConfig('width') or 200)
 	castWidthSlider:SetAfterValueChanged(function(value)
 		setConfig('castbar.width', value)
 	end)
 
 	-- Height slider (shown in both modes)
 	local castHeightSlider = Widgets.CreateSlider(inner, 'Height', widgetW, 4, 40, 1)
-	castHeightSlider:SetValue(getConfig('castbar.height'))
+	castHeightSlider:SetValue(getConfig('castbar.height') or 16)
 	castHeightSlider:SetAfterValueChanged(function(value)
 		setConfig('castbar.height', value)
 	end)
@@ -48,13 +55,13 @@ function F.SettingsCards.CastBar(parent, width, unitType, getConfig, setConfig, 
 		{ text = 'Always',  value = 'always' },
 		{ text = 'On Cast', value = 'oncast' },
 	})
-	castBgSwitch:SetValue(getConfig('castbar.backgroundMode'))
+	castBgSwitch:SetValue(getConfig('castbar.backgroundMode') or 'oncast')
 	castBgSwitch:SetOnSelect(function(value)
 		setConfig('castbar.backgroundMode', value)
 	end)
 
 	-- Reflow based on size mode
-	local curCastSizeMode = getConfig('castbar.sizeMode')
+	local curCastSizeMode = getConfig('castbar.sizeMode') or 'attached'
 	local initialized = false
 
 	local function reflowCastSize()
