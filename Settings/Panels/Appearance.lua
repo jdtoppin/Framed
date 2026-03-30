@@ -46,15 +46,13 @@ F.Settings.RegisterPanel({
 		grid:AddCard('wizard',      'Setup Wizard',        F.AppearanceCards.SetupWizard,         args)
 
 		-- Load pinned state
-		local pinnedCards = F.Config and F.Config:Get('general.pinnedAppearanceCards') or {}
+		local pinnedCards = F.Config:Get('general.pinnedAppearanceCards')
 		for cardId, isPinned in next, pinnedCards do
 			if(isPinned) then grid:SetPinned(cardId, true) end
 		end
 
 		grid._onPinChanged = function(cardId, pinned)
-			if(F.Config) then
-				F.Config:Set('general.pinnedAppearanceCards.' .. cardId, pinned or nil)
-			end
+			F.Config:Set('general.pinnedAppearanceCards.' .. cardId, pinned or nil)
 		end
 
 		grid:SetTopOffset(C.Spacing.normal)
