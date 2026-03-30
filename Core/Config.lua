@@ -72,6 +72,18 @@ local function mergeDefaults(saved, defaults)
 	end
 end
 
+--- Deep-merge defaults into target, only filling missing keys.
+--- Existing values (including explicit false) are never overwritten.
+function F.DeepMerge(target, defaults)
+	for k, v in next, defaults do
+		if(target[k] == nil) then
+			target[k] = F.DeepCopy(v)
+		elseif(type(v) == 'table' and type(target[k]) == 'table') then
+			F.DeepMerge(target[k], v)
+		end
+	end
+end
+
 -- ============================================================
 -- Initialize (called on ADDON_LOADED)
 -- ============================================================

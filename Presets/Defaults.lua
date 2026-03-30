@@ -517,17 +517,6 @@ function F.PresetDefaults.EnsureDefaults()
 			if(savedUC and defaultUC) then
 				for unitType, defaultConf in next, defaultUC do
 					if(savedUC[unitType]) then
-						-- Backfill statusIcons keys
-						if(defaultConf.statusIcons) then
-							if(not savedUC[unitType].statusIcons) then
-								savedUC[unitType].statusIcons = {}
-							end
-							for key, val in next, defaultConf.statusIcons do
-								if(savedUC[unitType].statusIcons[key] == nil) then
-									savedUC[unitType].statusIcons[key] = val
-								end
-							end
-						end
 						-- Backfill / migrate statusText (was boolean, now table)
 						local saved = savedUC[unitType].statusText
 						if(saved == nil) then
@@ -535,6 +524,7 @@ function F.PresetDefaults.EnsureDefaults()
 						elseif(type(saved) == 'boolean') then
 							savedUC[unitType].statusText = { enabled = saved }
 						end
+						-- statusText detail keys are backfilled by F.DeepMerge below
 						-- Migrate growthDirection → anchorPoint
 						if(savedUC[unitType].growthDirection) then
 							local map = {
@@ -546,6 +536,16 @@ function F.PresetDefaults.EnsureDefaults()
 							savedUC[unitType].anchorPoint = map[savedUC[unitType].growthDirection] or 'TOPLEFT'
 							savedUC[unitType].growthDirection = nil
 						end
+					end
+				end
+				-- General backfill: deep-merge any missing keys from defaults
+				-- into existing unit configs. This handles all new keys added
+				-- by the canonical defaults expansion.
+				for unitType, defaultConf in next, defaultUC do
+					if(savedUC[unitType]) then
+						F.DeepMerge(savedUC[unitType], defaultConf)
+					else
+						savedUC[unitType] = F.DeepCopy(defaultConf)
 					end
 				end
 			end
