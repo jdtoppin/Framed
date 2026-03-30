@@ -750,25 +750,22 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(elementName) then
 				local config = F.StyleBuilder.GetConfig(unitType)
 				local icons = config.statusIcons or {}
-				local defaults = F.StyleBuilder.ICON_DEFAULTS[baseKey]
-				if(defaults) then
-					local pt = icons[baseKey .. 'Point'] or defaults.point
-					local x  = icons[baseKey .. 'X']     or defaults.x
-					local y  = icons[baseKey .. 'Y']     or defaults.y
-					local sz = icons[baseKey .. 'Size']  or defaults.size
-					ForEachFrame(unitType, function(frame)
-						local element = frame[elementName]
-						if(not element) then return end
-						-- PhaseIndicator is a Frame (has SetSize); others are textures
-						if(element.SetSize) then
-							element:SetSize(sz, sz)
-						elseif(element.GetParent and element:IsObjectType('Texture')) then
-							Widgets.SetSize(element, sz, sz)
-						end
-						element:ClearAllPoints()
-						Widgets.SetPoint(element, pt, frame, pt, x, y)
-					end)
-				end
+				local pt = icons[baseKey .. 'Point']
+				local x  = icons[baseKey .. 'X']
+				local y  = icons[baseKey .. 'Y']
+				local sz = icons[baseKey .. 'Size']
+				ForEachFrame(unitType, function(frame)
+					local element = frame[elementName]
+					if(not element) then return end
+					-- PhaseIndicator is a Frame (has SetSize); others are textures
+					if(element.SetSize) then
+						element:SetSize(sz, sz)
+					elseif(element.GetParent and element:IsObjectType('Texture')) then
+						Widgets.SetSize(element, sz, sz)
+					end
+					element:ClearAllPoints()
+					Widgets.SetPoint(element, pt, frame, pt, x, y)
+				end)
 			end
 			return
 		end
@@ -1664,11 +1661,7 @@ local function applyFullConfig(frame, config)
 
 	-- ── Status icons ────────────────────────────────────────
 	local icons = config.statusIcons or {}
-	local ICON_DEFAULTS = F.StyleBuilder.ICON_DEFAULTS
 	for iconKey, elementName in next, STATUS_ELEMENT_MAP do
-		local defaults = ICON_DEFAULTS[iconKey]
-		if(not defaults) then break end
-
 		local enabled = icons[iconKey]
 		if(enabled == nil) then
 			-- Default: role, leader, readyCheck, raidIcon on; others off
@@ -1679,10 +1672,10 @@ local function applyFullConfig(frame, config)
 			frame:EnableElement(elementName)
 			local element = frame[elementName]
 			if(element) then
-				local pt = icons[iconKey .. 'Point'] or defaults.point
-				local x  = icons[iconKey .. 'X']     or defaults.x
-				local y  = icons[iconKey .. 'Y']     or defaults.y
-				local sz = icons[iconKey .. 'Size']  or defaults.size
+				local pt = icons[iconKey .. 'Point']
+				local x  = icons[iconKey .. 'X']
+				local y  = icons[iconKey .. 'Y']
+				local sz = icons[iconKey .. 'Size']
 				if(element.SetSize) then
 					element:SetSize(sz, sz)
 				elseif(element.GetParent and element:IsObjectType('Texture')) then

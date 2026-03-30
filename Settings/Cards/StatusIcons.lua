@@ -33,8 +33,6 @@ local function isIconRelevant(unitType, iconKey)
 end
 
 local function buildIconSection(inner, widgetW, label, iconKey, defaultOn, getConfig, setConfig, reflowRef)
-	local defaults = F.StyleBuilder.ICON_DEFAULTS[iconKey]
-
 	local check = Widgets.CreateCheckButton(inner, label, function(checked)
 		setConfig('statusIcons.' .. iconKey, checked)
 		if(reflowRef[1]) then reflowRef[1]() end
@@ -44,9 +42,9 @@ local function buildIconSection(inner, widgetW, label, iconKey, defaultOn, getCo
 	check:SetChecked(savedVal)
 
 	local picker = Widgets.CreateAnchorPicker(inner, widgetW)
-	local savedPoint = getConfig('statusIcons.' .. iconKey .. 'Point') or defaults.point
-	local savedX     = getConfig('statusIcons.' .. iconKey .. 'X')     or defaults.x
-	local savedY     = getConfig('statusIcons.' .. iconKey .. 'Y')     or defaults.y
+	local savedPoint = getConfig('statusIcons.' .. iconKey .. 'Point')
+	local savedX     = getConfig('statusIcons.' .. iconKey .. 'X')
+	local savedY     = getConfig('statusIcons.' .. iconKey .. 'Y')
 	picker:SetAnchor(savedPoint, savedX, savedY)
 	picker:SetOnChanged(function(point, x, y)
 		setConfig('statusIcons.' .. iconKey .. 'Point', point)
@@ -55,7 +53,7 @@ local function buildIconSection(inner, widgetW, label, iconKey, defaultOn, getCo
 	end)
 
 	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 4, 32, 1)
-	sizeSlider:SetValue(getConfig('statusIcons.' .. iconKey .. 'Size') or defaults.size)
+	sizeSlider:SetValue(getConfig('statusIcons.' .. iconKey .. 'Size'))
 	sizeSlider:SetAfterValueChanged(function(value)
 		setConfig('statusIcons.' .. iconKey .. 'Size', value)
 	end)
