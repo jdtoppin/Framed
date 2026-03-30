@@ -131,9 +131,9 @@ end
 --- @param header Frame  SecureGroupHeader
 --- @param config table  Unit config table
 local function applyGroupLayoutToHeader(header, config)
-	local orient  = config.orientation or 'vertical'
-	local anchor  = config.anchorPoint or 'TOPLEFT'
-	local spacing = config.spacing or 2
+	local orient  = config.orientation
+	local anchor  = config.anchorPoint
+	local spacing = config.spacing
 
 	-- Compute all four attributes before applying any
 	local point, yOff, xOff, colAnchor
@@ -179,8 +179,8 @@ end
 --- position.x/y are always relative to UIParent CENTER.
 local function repositionFrame(frame, config)
 	local pos = config.position
-	local x = (pos and pos.x) or 0
-	local y = (pos and pos.y) or 0
+	local x = pos.x
+	local y = pos.y
 	frame:ClearAllPoints()
 	Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
 end
@@ -265,9 +265,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			-- Group frames: reposition the header
 			local header = getGroupHeader(unitType)
 			if(header) then
-				local pos = config.position or {}
-				local x = pos.x or 0
-				local y = pos.y or 0
+				local pos = config.position
+				local x = pos.x
+				local y = pos.y
 				header:ClearAllPoints()
 				Widgets.SetPoint(header, 'TOPLEFT', UIParent, 'TOPLEFT', x, y)
 			end
@@ -283,7 +283,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	if(key == 'width' or key == 'height') then
 		local config = F.StyleBuilder.GetConfig(unitType)
 		debouncedApply('dimensions.' .. unitType, function()
-			local powerHeight = config.power and config.power.height or 0
+			local powerHeight = config.power.height
 			local healthHeight = config.height - powerHeight
 
 			if(GROUP_TYPES[unitType]) then
@@ -308,7 +308,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					end
 					if(frame.Power and frame.Power._wrapper) then
 						Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
-						local pos = config.power and config.power.position or 'bottom'
+						local pos = config.power.position
 						frame.Power._wrapper:ClearAllPoints()
 						frame.Health._wrapper:ClearAllPoints()
 						if(pos == 'top') then
@@ -323,18 +323,17 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 						end
 					end
 					-- Sync cast bar width in attached mode
-					local cbCfg = config.castbar or {}
-					if(frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
-						local cbHeight = cbCfg.height or 16
-						Widgets.SetSize(frame.Castbar._wrapper, config.width, cbHeight)
+					local cbCfg = config.castbar
+					if(cbCfg and frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
+						Widgets.SetSize(frame.Castbar._wrapper, config.width, cbCfg.height)
 					end
 				end)
 				-- Shift header position to keep resize anchor corner fixed.
 				-- For the stacking axis, the total group size change is
 				-- numFrames * per-frame delta (all children grew).
 				if(header and oldW) then
-					local anchor = config.position and config.position.anchor or 'TOPLEFT'
-					local orient = config.orientation or 'vertical'
+					local anchor = config.position.anchor
+					local orient = config.orientation
 					local dw = config.width  - oldW
 					local dh = config.height - oldH
 					if(orient == 'vertical') then
@@ -365,7 +364,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				end
 			else
 				-- Solo frames: resize + shift position to keep anchor fixed
-				local anchor = config.position and config.position.anchor or 'CENTER'
+				local anchor = config.position.anchor
 				ForEachFrame(unitType, function(frame)
 					local oldW = frame._width or frame:GetWidth() or config.width
 					local oldH = frame._height or frame:GetHeight() or config.height
@@ -374,8 +373,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					if(dw ~= 0 or dh ~= 0) then
 						local dx, dy = resizeShift(anchor, dw, dh)
 						local pos = config.position
-						local curX = (pos and pos.x) or 0
-						local curY = (pos and pos.y) or 0
+						local curX = pos.x
+						local curY = pos.y
 						suppressPositionUpdate = true
 						local presetName = F.AutoSwitch.GetCurrentPreset()
 						local basePath = 'presets.' .. presetName .. '.unitConfigs.' .. unitType .. '.position.'
@@ -390,7 +389,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					end
 					if(frame.Power and frame.Power._wrapper) then
 						Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
-						local pos = config.power and config.power.position or 'bottom'
+						local pos = config.power.position
 						frame.Power._wrapper:ClearAllPoints()
 						frame.Health._wrapper:ClearAllPoints()
 						if(pos == 'top') then
@@ -405,10 +404,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 						end
 					end
 					-- Sync cast bar width in attached mode
-					local cbCfg = config.castbar or {}
-					if(frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
-						local cbHeight = cbCfg.height or 16
-						Widgets.SetSize(frame.Castbar._wrapper, config.width, cbHeight)
+					local cbCfg = config.castbar
+					if(cbCfg and frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
+						Widgets.SetSize(frame.Castbar._wrapper, config.width, cbCfg.height)
 					end
 				end)
 			end
@@ -449,8 +447,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Power bar height or position
 	if(key == 'power.height' or key == 'power.position') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local powerHeight = config.power and config.power.height or 0
-		local pos = config.power and config.power.position or 'bottom'
+		local powerHeight = config.power.height
+		local pos = config.power.position
 		ForEachFrame(unitType, function(frame)
 			local healthH = frame.Health and frame.Health._wrapper and frame.Health._wrapper:GetHeight() or config.height
 			Widgets.SetSize(frame, config.width, healthH + powerHeight)
@@ -526,13 +524,13 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Cast bar size mode, width, height
 	if(key == 'castbar.sizeMode' or key == 'castbar.width' or key == 'castbar.height') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local cbCfg = config.castbar or {}
+		local cbCfg = config.castbar
+		if(not cbCfg) then return end
 		local cbWidth = (cbCfg.sizeMode == 'detached' and cbCfg.width) or config.width
-		local cbHeight = cbCfg.height or 16
 		ForEachFrame(unitType, function(frame)
 			local cb = frame.Castbar
 			if(not cb or not cb._wrapper) then return end
-			Widgets.SetSize(cb._wrapper, cbWidth, cbHeight)
+			Widgets.SetSize(cb._wrapper, cbWidth, cbCfg.height)
 		end)
 		return
 	end
@@ -540,7 +538,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Cast bar background mode (always / oncast)
 	if(key == 'castbar.backgroundMode') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local mode = config.castbar and config.castbar.backgroundMode or 'always'
+		if(not config.castbar) then return end
+		local mode = config.castbar.backgroundMode
 		ForEachFrame(unitType, function(frame)
 			local cb = frame.Castbar
 			if(not cb) then return end
@@ -548,7 +547,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(mode == 'always') then
 				if(cb._bg) then cb._bg:Show() end
 				local bgC = C.Colors.background
-				cb._wrapper:SetBackdropColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+				cb._wrapper:SetBackdropColor(bgC[1], bgC[2], bgC[3], bgC[4])
 			else
 				if(cb._bg) then cb._bg:Hide() end
 				cb._wrapper:SetBackdropColor(0, 0, 0, 0)
@@ -560,7 +559,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health bar color mode
 	if(key == 'health.colorMode') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local mode = config.health and config.health.colorMode or 'class'
+		local mode = config.health.colorMode
 		ForEachFrame(unitType, function(frame)
 			local h = frame.Health
 			if(not h) then return end
@@ -573,7 +572,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 
 			-- Update stored mode and custom color for PostUpdate
 			h._colorMode   = mode
-			h._customColor = config.health and config.health.customColor or { 0.2, 0.8, 0.2 }
+			h._customColor = config.health.customColor
 
 			-- Set flags for new mode
 			if(mode == 'class') then
@@ -588,9 +587,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				local hc = config.health
 				frame.colors.health = oUF:CreateColor(0.2, 0.8, 0.2)
 				frame.colors.health:SetCurve({
-					[(hc.gradientThreshold3 or 5) / 100]  = CreateColor(unpack(hc.gradientColor3 or { 0.8, 0.1, 0.1 })),
-					[(hc.gradientThreshold2 or 50) / 100] = CreateColor(unpack(hc.gradientColor2 or { 0.9, 0.6, 0.1 })),
-					[(hc.gradientThreshold1 or 95) / 100] = CreateColor(unpack(hc.gradientColor1 or { 0.2, 0.8, 0.2 })),
+					[hc.gradientThreshold3 / 100]  = CreateColor(unpack(hc.gradientColor3)),
+					[hc.gradientThreshold2 / 100] = CreateColor(unpack(hc.gradientColor2)),
+					[hc.gradientThreshold1 / 100] = CreateColor(unpack(hc.gradientColor1)),
 				})
 			elseif(mode == 'dark') then
 				-- Override UpdateColor to directly set dark gray
@@ -600,7 +599,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			elseif(mode == 'custom') then
 				-- Override UpdateColor to directly set the custom color
 				h.UpdateColor = function(self)
-					local cc = self.Health._customColor or { 0.2, 0.8, 0.2 }
+					local cc = self.Health._customColor
 					self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
 				end
 			end
@@ -613,7 +612,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health custom color (live picker change)
 	if(key == 'health.customColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local color = config.health and config.health.customColor or { 0.2, 0.8, 0.2 }
+		local color = config.health.customColor
 		ForEachFrame(unitType, function(frame)
 			if(frame.Health) then
 				frame.Health._customColor = color
@@ -629,8 +628,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health loss color mode
 	if(key == 'health.lossColorMode') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local hc = config.health or {}
-		local mode = hc.lossColorMode or 'dark'
+		local hc = config.health
+		local mode = hc.lossColorMode
 		ForEachFrame(unitType, function(frame)
 			local h = frame.Health
 			if(not h or not h._bg) then return end
@@ -638,12 +637,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			-- Build gradient curve if switching to gradient mode
 			if(mode == 'gradient') then
 				local curve = C_CurveUtil.CreateColorCurve()
-				local t1 = (hc.lossGradientThreshold1 or 95) / 100
-				local t2 = (hc.lossGradientThreshold2 or 50) / 100
-				local t3 = (hc.lossGradientThreshold3 or 5) / 100
-				local c1 = hc.lossGradientColor1 or { 0.1, 0.4, 0.1 }
-				local c2 = hc.lossGradientColor2 or { 0.4, 0.25, 0.05 }
-				local c3 = hc.lossGradientColor3 or { 0.4, 0.05, 0.05 }
+				local t1 = hc.lossGradientThreshold1 / 100
+				local t2 = hc.lossGradientThreshold2 / 100
+				local t3 = hc.lossGradientThreshold3 / 100
+				local c1 = hc.lossGradientColor1
+				local c2 = hc.lossGradientColor2
+				local c3 = hc.lossGradientColor3
 				curve:AddPoint(t3, CreateColor(c3[1], c3[2], c3[3]))
 				curve:AddPoint(t2, CreateColor(c2[1], c2[2], c2[3]))
 				curve:AddPoint(t1, CreateColor(c1[1], c1[2], c1[3]))
@@ -655,7 +654,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(mode == 'dark') then
 				h._bg:SetVertexColor(0.15, 0.15, 0.15, 1)
 			elseif(mode == 'custom') then
-				local lc = h._lossCustomColor or { 0.15, 0.15, 0.15 }
+				local lc = h._lossCustomColor
 				h._bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
 			elseif(mode == 'class') then
 				local _, class = UnitClass(frame.unit or 'player')
@@ -674,7 +673,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health loss custom color
 	if(key == 'health.lossCustomColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local color = config.health and config.health.lossCustomColor or { 0.15, 0.15, 0.15 }
+		local color = config.health.lossCustomColor
 		ForEachFrame(unitType, function(frame)
 			local h = frame.Health
 			if(not h) then return end
@@ -689,18 +688,18 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health loss gradient colors/thresholds
 	if(key:match('^health%.lossGradient')) then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local hc = config.health or {}
+		local hc = config.health
 		ForEachFrame(unitType, function(frame)
 			local h = frame.Health
 			if(not h) then return end
 			-- Rebuild the curve with updated colors/thresholds
 			local curve = C_CurveUtil.CreateColorCurve()
-			local t1 = (hc.lossGradientThreshold1 or 95) / 100
-			local t2 = (hc.lossGradientThreshold2 or 50) / 100
-			local t3 = (hc.lossGradientThreshold3 or 5) / 100
-			local c1 = hc.lossGradientColor1 or { 0.1, 0.4, 0.1 }
-			local c2 = hc.lossGradientColor2 or { 0.4, 0.25, 0.05 }
-			local c3 = hc.lossGradientColor3 or { 0.4, 0.05, 0.05 }
+			local t1 = hc.lossGradientThreshold1 / 100
+			local t2 = hc.lossGradientThreshold2 / 100
+			local t3 = hc.lossGradientThreshold3 / 100
+			local c1 = hc.lossGradientColor1
+			local c2 = hc.lossGradientColor2
+			local c3 = hc.lossGradientColor3
 			curve:AddPoint(t3, CreateColor(c3[1], c3[2], c3[3]))
 			curve:AddPoint(t2, CreateColor(c2[1], c2[2], c2[3]))
 			curve:AddPoint(t1, CreateColor(c1[1], c1[2], c1[3]))
@@ -749,7 +748,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			local elementName = STATUS_ELEMENT_MAP[baseKey]
 			if(elementName) then
 				local config = F.StyleBuilder.GetConfig(unitType)
-				local icons = config.statusIcons or {}
+				local icons = config.statusIcons
 				local pt = icons[baseKey .. 'Point']
 				local x  = icons[baseKey .. 'X']
 				local y  = icons[baseKey .. 'Y']
@@ -809,17 +808,17 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					textOverlay:SetFrameLevel(frame:GetFrameLevel() + 5)
 					frame._textOverlay = textOverlay
 				end
-				local hc = config.health or {}
-				local text = Widgets.CreateFontString(textOverlay, hc.fontSize or C.Font.sizeSmall, C.Colors.textActive, hc.outline or '', hc.shadow ~= false)
-				local ap = hc.textAnchor or 'CENTER'
+				local hc = config.health
+				local text = Widgets.CreateFontString(textOverlay, hc.fontSize, C.Colors.textActive, hc.outline, hc.shadow ~= false)
+				local ap = hc.textAnchor
 				local anchor = frame.Health._wrapper or frame.Health
-				text:SetPoint(ap, anchor, ap, (hc.textAnchorX or 0) + 1, hc.textAnchorY or 0)
+				text:SetPoint(ap, anchor, ap, hc.textAnchorX + 1, hc.textAnchorY)
 				text._anchorPoint = ap
-				text._anchorX = hc.textAnchorX or 0
-				text._anchorY = hc.textAnchorY or 0
+				text._anchorX = hc.textAnchorX
+				text._anchorY = hc.textAnchorY
 				frame.Health.text = text
-				frame.Health._textFormat = hc.textFormat or 'percent'
-				frame.Health._textColorMode = hc.textColorMode or 'white'
+				frame.Health._textFormat = hc.textFormat
+				frame.Health._textColorMode = hc.textColorMode
 				frame.Health._textCustomColor = hc.textCustomColor
 				if(frame.Health.ForceUpdate) then frame.Health:ForceUpdate() end
 			elseif(frame.Health.text) then
@@ -833,7 +832,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Attach health text to name toggle
 	if(key == 'health.attachedToName') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local hc = config.health or {}
+		local hc = config.health
 		local attached = hc.attachedToName
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Health) then return end
@@ -848,13 +847,13 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					textOverlay:SetFrameLevel(frame:GetFrameLevel() + 5)
 					frame._textOverlay = textOverlay
 				end
-				local text = Widgets.CreateFontString(textOverlay, hc.fontSize or C.Font.sizeSmall, C.Colors.textActive, hc.outline or '', hc.shadow ~= false)
-				text._anchorPoint = hc.textAnchor or 'CENTER'
-				text._anchorX = hc.textAnchorX or 0
-				text._anchorY = hc.textAnchorY or 0
+				local text = Widgets.CreateFontString(textOverlay, hc.fontSize, C.Colors.textActive, hc.outline, hc.shadow ~= false)
+				text._anchorPoint = hc.textAnchor
+				text._anchorX = hc.textAnchorX
+				text._anchorY = hc.textAnchorY
 				frame.Health.text = text
-				frame.Health._textFormat = hc.textFormat or 'percent'
-				frame.Health._textColorMode = hc.textColorMode or 'white'
+				frame.Health._textFormat = hc.textFormat
+				frame.Health._textColorMode = hc.textColorMode
 				frame.Health._textCustomColor = hc.textCustomColor
 			end
 
@@ -865,10 +864,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				frame.Health.text:Show()
 				frame.Health._lastAttachShift = nil
 			else
-				local ap = frame.Health.text._anchorPoint or hc.textAnchor or 'CENTER'
+				local ap = frame.Health.text._anchorPoint
 				local anchor = frame.Health._wrapper or frame.Health
-				local x = frame.Health.text._anchorX or hc.textAnchorX or 0
-				local y = frame.Health.text._anchorY or hc.textAnchorY or 0
+				local x = frame.Health.text._anchorX
+				local y = frame.Health.text._anchorY
 				frame.Health.text:SetPoint(ap, anchor, ap, x + 1, y)
 				-- If showText is off and we're detaching, hide the text
 				if(not hc.showText) then
@@ -876,12 +875,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				end
 				-- Restore Name to its original (un-shifted) position
 				if(frame.Name) then
-					local nc = config.name or {}
+					local nc = config.name
 					local nap = frame.Name._anchorPoint
 					if(type(nap) == 'table') then nap = nap[1] end
-					nap = nap or nc.anchor or 'CENTER'
-					local nx = frame.Name._anchorX or nc.anchorX or 0
-					local ny = frame.Name._anchorY or nc.anchorY or 0
+					nap = nap or nc.anchor
+					local nx = frame.Name._anchorX
+					local ny = frame.Name._anchorY
 					frame.Name:ClearAllPoints()
 					Widgets.SetPoint(frame.Name, nap, frame.Health._wrapper or frame.Health, nap, nx, ny)
 				end
@@ -912,17 +911,17 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(not frame.Power) then return end
 			if(show and not frame.Power.text) then
 				-- Create the text FontString on first enable
-				local pc = config.power or {}
+				local pc = config.power
 				local text = Widgets.CreateFontString(frame.Power, pc.fontSize or C.Font.sizeSmall, C.Colors.textActive, pc.outline or '', pc.shadow ~= false)
-				local ap = pc.textAnchor or 'CENTER'
+				local ap = pc.textAnchor
 				local anchor = frame.Power._wrapper or frame.Power
-				text:SetPoint(ap, anchor, ap, (pc.textAnchorX or 0) + 1, pc.textAnchorY or 0)
+				text:SetPoint(ap, anchor, ap, pc.textAnchorX + 1, pc.textAnchorY)
 				text._anchorPoint = ap
-				text._anchorX = pc.textAnchorX or 0
-				text._anchorY = pc.textAnchorY or 0
+				text._anchorX = pc.textAnchorX
+				text._anchorY = pc.textAnchorY
 				frame.Power.text = text
-				frame.Power._textFormat = pc.textFormat or 'current'
-				frame.Power._textColorMode = pc.textColorMode or 'white'
+				frame.Power._textFormat = pc.textFormat
+				frame.Power._textColorMode = pc.textColorMode
 				frame.Power._textCustomColor = pc.textCustomColor
 				if(frame.Power.ForceUpdate) then frame.Power:ForceUpdate() end
 			elseif(frame.Power.text) then
@@ -952,7 +951,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health prediction mode (all / player / other)
 	if(key == 'health.healPredictionMode') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local mode = config.health and config.health.healPredictionMode or 'all'
+		local mode = config.health.healPredictionMode
 		ForEachFrame(unitType, function(frame)
 			local h = frame.Health
 			if(not h or not h._healPredBar) then return end
@@ -1041,10 +1040,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Heal prediction color
 	if(key == 'health.healPredictionColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local color = config.health and config.health.healPredictionColor or { 0.6, 0.6, 0.6, 0.4 }
+		local color = config.health.healPredictionColor
 		ForEachFrame(unitType, function(frame)
 			if(frame.Health and frame.Health._healPredBar) then
-				frame.Health._healPredBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 0.4)
+				frame.Health._healPredBar:SetStatusBarColor(color[1], color[2], color[3], color[4])
 			end
 		end)
 		return
@@ -1053,10 +1052,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Damage absorb color
 	if(key == 'health.damageAbsorbColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local color = config.health and config.health.damageAbsorbColor or { 1, 1, 1, 0.6 }
+		local color = config.health.damageAbsorbColor
 		ForEachFrame(unitType, function(frame)
 			if(frame.Health and frame.Health._damageAbsorbBar) then
-				frame.Health._damageAbsorbBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 0.6)
+				frame.Health._damageAbsorbBar:SetStatusBarColor(color[1], color[2], color[3], color[4])
 			end
 		end)
 		return
@@ -1065,10 +1064,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Heal absorb color
 	if(key == 'health.healAbsorbColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local color = config.health and config.health.healAbsorbColor or { 0.7, 0.1, 0.1, 0.5 }
+		local color = config.health.healAbsorbColor
 		ForEachFrame(unitType, function(frame)
 			if(frame.Health and frame.Health._healAbsorbBar) then
-				frame.Health._healAbsorbBar:SetStatusBarColor(color[1], color[2], color[3], color[4] or 0.5)
+				frame.Health._healAbsorbBar:SetStatusBarColor(color[1], color[2], color[3], color[4])
 			end
 		end)
 		return
@@ -1101,12 +1100,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Health text font / outline / shadow ──────────────────
 	if(key == 'health.fontSize' or key == 'health.outline' or key == 'health.shadow') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local hc = config.health or {}
+		local hc = config.health
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Health or not frame.Health.text) then return end
 			local t = frame.Health.text
-			local size = hc.fontSize or C.Font.sizeSmall
-			local flags = hc.outline or ''
+			local size = hc.fontSize
+			local flags = hc.outline
 			t:SetFont(F.Media.GetActiveFont(), size, flags)
 			if(hc.shadow == false) then
 				t:SetShadowOffset(0, 0)
@@ -1120,14 +1119,14 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Health text anchor / offsets ─────────────────────────
 	if(key == 'health.textAnchor' or key == 'health.textAnchorX' or key == 'health.textAnchorY') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local hc = config.health or {}
+		local hc = config.health
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Health or not frame.Health.text) then return end
 			if(frame.Health._attachedToName) then return end
 			local t = frame.Health.text
-			local ap = hc.textAnchor or 'CENTER'
-			local x = hc.textAnchorX or 0
-			local y = hc.textAnchorY or 0
+			local ap = hc.textAnchor
+			local x = hc.textAnchorX
+			local y = hc.textAnchorY
 			t:ClearAllPoints()
 			t:SetPoint(ap, frame.Health._wrapper or frame.Health, ap, x + 1, y)
 			t._anchorPoint = ap
@@ -1140,10 +1139,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Health text color mode / custom color ────────────────
 	if(key == 'health.textColorMode' or key == 'health.textCustomColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local hc = config.health or {}
+		local hc = config.health
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Health) then return end
-			frame.Health._textColorMode = hc.textColorMode or 'white'
+			frame.Health._textColorMode = hc.textColorMode
 			frame.Health._textCustomColor = hc.textCustomColor
 			if(frame.Health.ForceUpdate) then frame.Health:ForceUpdate() end
 		end)
@@ -1153,12 +1152,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Power text font / outline / shadow ──────────────────
 	if(key == 'power.fontSize' or key == 'power.outline' or key == 'power.shadow') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local pc = config.power or {}
+		local pc = config.power
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Power or not frame.Power.text) then return end
 			local t = frame.Power.text
-			local size = pc.fontSize or C.Font.sizeSmall
-			local flags = pc.outline or ''
+			local size = pc.fontSize
+			local flags = pc.outline
 			t:SetFont(F.Media.GetActiveFont(), size, flags)
 			if(pc.shadow == false) then
 				t:SetShadowOffset(0, 0)
@@ -1172,13 +1171,13 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Power text anchor / offsets ─────────────────────────
 	if(key == 'power.textAnchor' or key == 'power.textAnchorX' or key == 'power.textAnchorY') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local pc = config.power or {}
+		local pc = config.power
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Power or not frame.Power.text) then return end
 			local t = frame.Power.text
-			local ap = pc.textAnchor or 'CENTER'
-			local x = pc.textAnchorX or 0
-			local y = pc.textAnchorY or 0
+			local ap = pc.textAnchor
+			local x = pc.textAnchorX
+			local y = pc.textAnchorY
 			t:ClearAllPoints()
 			t:SetPoint(ap, frame.Power._wrapper or frame.Power, ap, x + 1, y)
 			t._anchorPoint = ap
@@ -1191,10 +1190,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Power text color mode / custom color ────────────────
 	if(key == 'power.textColorMode' or key == 'power.textCustomColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local pc = config.power or {}
+		local pc = config.power
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Power) then return end
-			frame.Power._textColorMode = pc.textColorMode or 'white'
+			frame.Power._textColorMode = pc.textColorMode
 			frame.Power._textCustomColor = pc.textCustomColor
 			if(frame.Power.ForceUpdate) then frame.Power:ForceUpdate() end
 		end)
@@ -1204,11 +1203,11 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Name text font / outline / shadow ───────────────────
 	if(key == 'name.fontSize' or key == 'name.outline' or key == 'name.shadow') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local nc = config.name or {}
+		local nc = config.name
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Name) then return end
-			local size = nc.fontSize or C.Font.sizeNormal
-			local flags = nc.outline or ''
+			local size = nc.fontSize
+			local flags = nc.outline
 			frame.Name:SetFont(F.Media.GetActiveFont(), size, flags)
 			if(nc.shadow == false) then
 				frame.Name:SetShadowOffset(0, 0)
@@ -1222,13 +1221,13 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Name text anchor / offsets ──────────────────────────
 	if(key == 'name.anchor' or key == 'name.anchorX' or key == 'name.anchorY') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local nc = config.name or {}
+		local nc = config.name
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Name) then return end
 			local nameAnchor = (frame.Health and frame.Health._wrapper) or frame
-			local ap = nc.anchor or 'CENTER'
-			local x = nc.anchorX or 0
-			local y = nc.anchorY or 0
+			local ap = nc.anchor
+			local x = nc.anchorX
+			local y = nc.anchorY
 			frame.Name:ClearAllPoints()
 			Widgets.SetPoint(frame.Name, ap, nameAnchor, ap, x, y)
 			frame.Name._anchorPoint = ap
@@ -1241,20 +1240,20 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- ── Name text color mode / custom color ─────────────────
 	if(key == 'name.colorMode' or key == 'name.customColor') then
 		local config = F.StyleBuilder.GetConfig(unitType)
-		local nc = config.name or {}
-		local mode = nc.colorMode or 'class'
+		local nc = config.name
+		local mode = nc.colorMode
 		ForEachFrame(unitType, function(frame)
 			if(not frame.Name) then return end
 			frame.Name._config = frame.Name._config or {}
 			frame.Name._config.colorMode = mode
-			frame.Name._config.customColor = nc.customColor or { 1, 1, 1 }
+			frame.Name._config.customColor = nc.customColor
 			if(mode == 'white') then
 				local tc = C.Colors.textActive
-				frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+				frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4])
 			elseif(mode == 'dark') then
 				frame.Name:SetTextColor(0.25, 0.25, 0.25, 1)
 			elseif(mode == 'custom') then
-				local cc = nc.customColor or { 1, 1, 1 }
+				local cc = nc.customColor
 				frame.Name:SetTextColor(cc[1], cc[2], cc[3], 1)
 			elseif(mode == 'class') then
 				local unit = frame.unit or frame:GetAttribute('unit')
@@ -1305,7 +1304,7 @@ local function applyFullConfig(frame, config)
 	end
 
 	-- ── Dimensions ───────────────────────────────────────────
-	local powerHeight = config.power and config.power.height or 0
+	local powerHeight = config.power.height
 	local healthHeight = config.height - powerHeight
 	Widgets.SetSize(frame, config.width, config.height)
 
@@ -1315,7 +1314,7 @@ local function applyFullConfig(frame, config)
 
 	if(frame.Power and frame.Power._wrapper) then
 		Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
-		local pos = config.power and config.power.position or 'bottom'
+		local pos = config.power.position
 		frame.Power._wrapper:ClearAllPoints()
 		frame.Health._wrapper:ClearAllPoints()
 		if(pos == 'top') then
@@ -1345,13 +1344,13 @@ local function applyFullConfig(frame, config)
 	-- ── Health element ───────────────────────────────────────
 	local h = frame.Health
 	if(h) then
-		local hc = config.health or {}
+		local hc = config.health
 
 		-- Text format and color
 		h._textFormat      = hc.textFormat
-		h._textColorMode   = hc.textColorMode or 'white'
+		h._textColorMode   = hc.textColorMode
 		h._textCustomColor = hc.textCustomColor
-		h._attachedToName  = hc.attachedToName or false
+		h._attachedToName  = hc.attachedToName
 
 		-- Show/hide health text
 		if(h.text) then
@@ -1360,7 +1359,7 @@ local function applyFullConfig(frame, config)
 
 		-- Text font / outline / shadow
 		if(h.text) then
-			h.text:SetFont(F.Media.GetActiveFont(), hc.fontSize or C.Font.sizeSmall, hc.outline or '')
+			h.text:SetFont(F.Media.GetActiveFont(), hc.fontSize, hc.outline)
 			if(hc.shadow == false) then
 				h.text:SetShadowOffset(0, 0)
 			else
@@ -1374,12 +1373,12 @@ local function applyFullConfig(frame, config)
 			if(h._attachedToName and frame.Name) then
 				h.text:SetPoint('LEFT', frame.Name, 'RIGHT', 2, 0)
 			else
-				local ap = hc.textAnchor or 'CENTER'
+				local ap = hc.textAnchor
 				local anchor = h._wrapper or h
-				h.text:SetPoint(ap, anchor, ap, (hc.textAnchorX or 0) + 1, hc.textAnchorY or 0)
+				h.text:SetPoint(ap, anchor, ap, hc.textAnchorX + 1, hc.textAnchorY)
 				h.text._anchorPoint = ap
-				h.text._anchorX = hc.textAnchorX or 0
-				h.text._anchorY = hc.textAnchorY or 0
+				h.text._anchorX = hc.textAnchorX
+				h.text._anchorY = hc.textAnchorY
 			end
 		end
 
@@ -1394,7 +1393,7 @@ local function applyFullConfig(frame, config)
 		h.colorReaction = nil
 		h.colorSmooth   = nil
 		h.UpdateColor   = nil
-		local colorMode = hc.colorMode or 'class'
+		local colorMode = hc.colorMode
 		if(colorMode == 'class') then
 			h.colorClass    = true
 			h.colorReaction = true
@@ -1406,7 +1405,7 @@ local function applyFullConfig(frame, config)
 			end
 		elseif(colorMode == 'custom') then
 			h.UpdateColor = function(self)
-				local cc = self.Health._customColor or { 0.2, 0.8, 0.2 }
+				local cc = self.Health._customColor
 				self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
 			end
 		end
@@ -1421,7 +1420,7 @@ local function applyFullConfig(frame, config)
 			h.HealingAll    = nil
 			h.HealingPlayer = nil
 			h.HealingOther  = nil
-			local mode = hc.healPredictionMode or 'all'
+			local mode = hc.healPredictionMode
 			if(mode == 'player') then
 				h.HealingPlayer = h._healPredBar
 			elseif(mode == 'other') then
@@ -1438,8 +1437,8 @@ local function applyFullConfig(frame, config)
 			end
 
 			-- Heal prediction color
-			local hpColor = hc.healPredictionColor or { 0.6, 0.6, 0.6, 0.4 }
-			h._healPredBar:SetStatusBarColor(hpColor[1], hpColor[2], hpColor[3], hpColor[4] or 0.4)
+			local hpColor = hc.healPredictionColor
+			h._healPredBar:SetStatusBarColor(hpColor[1], hpColor[2], hpColor[3], hpColor[4])
 		end
 
 		-- Damage absorb (shields)
@@ -1447,8 +1446,8 @@ local function applyFullConfig(frame, config)
 			if(h._damageAbsorbBar) then
 				h.DamageAbsorb = h._damageAbsorbBar
 				h._damageAbsorbBar:Show()
-				local daColor = hc.damageAbsorbColor or { 1, 1, 1, 0.6 }
-				h._damageAbsorbBar:SetStatusBarColor(daColor[1], daColor[2], daColor[3], daColor[4] or 0.6)
+				local daColor = hc.damageAbsorbColor
+				h._damageAbsorbBar:SetStatusBarColor(daColor[1], daColor[2], daColor[3], daColor[4])
 			end
 		else
 			h.DamageAbsorb = nil
@@ -1460,8 +1459,8 @@ local function applyFullConfig(frame, config)
 			if(h._healAbsorbBar) then
 				h.HealAbsorb = h._healAbsorbBar
 				h._healAbsorbBar:Show()
-				local haColor = hc.healAbsorbColor or { 0.7, 0.1, 0.1, 0.5 }
-				h._healAbsorbBar:SetStatusBarColor(haColor[1], haColor[2], haColor[3], haColor[4] or 0.5)
+				local haColor = hc.healAbsorbColor
+				h._healAbsorbBar:SetStatusBarColor(haColor[1], haColor[2], haColor[3], haColor[4])
 			end
 			if(h._overHealAbsorbIndicator) then
 				h.OverHealAbsorbIndicator = h._overHealAbsorbIndicator
@@ -1489,9 +1488,9 @@ local function applyFullConfig(frame, config)
 	-- ── Power element ────────────────────────────────────────
 	local p = frame.Power
 	if(p) then
-		local pc = config.power or {}
+		local pc = config.power
 		p._textFormat      = pc.textFormat
-		p._textColorMode   = pc.textColorMode or 'white'
+		p._textColorMode   = pc.textColorMode
 		p._textCustomColor = pc.textCustomColor
 		p._customColors    = pc.customColors
 
@@ -1502,7 +1501,7 @@ local function applyFullConfig(frame, config)
 
 		-- Text font / outline / shadow
 		if(p.text) then
-			p.text:SetFont(F.Media.GetActiveFont(), pc.fontSize or C.Font.sizeSmall, pc.outline or '')
+			p.text:SetFont(F.Media.GetActiveFont(), pc.fontSize, pc.outline)
 			if(pc.shadow == false) then
 				p.text:SetShadowOffset(0, 0)
 			else
@@ -1513,12 +1512,12 @@ local function applyFullConfig(frame, config)
 		-- Text anchor
 		if(p.text) then
 			p.text:ClearAllPoints()
-			local ap = pc.textAnchor or 'CENTER'
+			local ap = pc.textAnchor
 			local anchor = p._wrapper or p
-			p.text:SetPoint(ap, anchor, ap, (pc.textAnchorX or 0) + 1, pc.textAnchorY or 0)
+			p.text:SetPoint(ap, anchor, ap, pc.textAnchorX + 1, pc.textAnchorY)
 			p.text._anchorPoint = ap
-			p.text._anchorX = pc.textAnchorX or 0
-			p.text._anchorY = pc.textAnchorY or 0
+			p.text._anchorX = pc.textAnchorX
+			p.text._anchorY = pc.textAnchorY
 		end
 
 		p:ForceUpdate()
@@ -1528,18 +1527,13 @@ local function applyFullConfig(frame, config)
 	if(frame.Name) then
 		frame.Name:SetShown(config.showName ~= false)
 
-		-- Fall back to the frame's existing _config (set by Name.Setup)
-		-- so we don't clobber with hardcoded defaults when the saved
-		-- config doesn't have an explicit name subtable.
-		local nc = config.name or {}
-		local ec = frame.Name._config or {}
+		local nc = config.name
 
 		-- Font / outline / shadow
-		local fontSize = nc.fontSize or ec.fontSize or C.Font.sizeNormal
-		local outline = nc.outline or ec.outline or ''
+		local fontSize = nc.fontSize
+		local outline = nc.outline
 		frame.Name:SetFont(F.Media.GetActiveFont(), fontSize, outline)
 		local shadow = nc.shadow
-		if(shadow == nil) then shadow = ec.shadow end
 		if(shadow == false) then
 			frame.Name:SetShadowOffset(0, 0)
 		else
@@ -1550,16 +1544,10 @@ local function applyFullConfig(frame, config)
 		-- When health text is attached to name, the centering code in
 		-- Health PostUpdate manages Name's position; only store the
 		-- base values here so the centering math has correct inputs.
-		-- ec.anchor from Name.Setup is a table {point, relativeTo, relativePoint, x, y};
-		-- extract just the point string for the fallback chain.
 		local nameAnchor = (frame.Health and frame.Health._wrapper) or frame
-		local ecPt = ec.anchor
-		if(type(ecPt) == 'table') then ecPt = ecPt[1] end
-		local curPt = frame.Name._anchorPoint
-		if(type(curPt) == 'table') then curPt = curPt[1] end
-		local ap = nc.anchor or ecPt or curPt or 'CENTER'
-		local x = nc.anchorX or ec.anchorX or frame.Name._anchorX or 0
-		local y = nc.anchorY or ec.anchorY or frame.Name._anchorY or 0
+		local ap = nc.anchor
+		local x = nc.anchorX
+		local y = nc.anchorY
 		frame.Name._anchorPoint = ap
 		frame.Name._anchorX = x
 		frame.Name._anchorY = y
@@ -1569,14 +1557,14 @@ local function applyFullConfig(frame, config)
 		end
 
 		-- Color mode
-		local mode = nc.colorMode or ec.colorMode or 'class'
-		local customColor = nc.customColor or ec.customColor or { 1, 1, 1 }
+		local mode = nc.colorMode
+		local customColor = nc.customColor
 		frame.Name._config = frame.Name._config or {}
 		frame.Name._config.colorMode = mode
 		frame.Name._config.customColor = customColor
 		if(mode == 'white') then
 			local tc = C.Colors.textActive
-			frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+			frame.Name:SetTextColor(tc[1], tc[2], tc[3], tc[4])
 		elseif(mode == 'dark') then
 			frame.Name:SetTextColor(0.25, 0.25, 0.25, 1)
 		elseif(mode == 'custom') then
@@ -1615,22 +1603,22 @@ local function applyFullConfig(frame, config)
 		end
 
 		if(frame.Castbar._wrapper) then
-			local cbCfg = config.castbar or {}
-			local cbWidth = (cbCfg.sizeMode == 'detached' and cbCfg.width) or config.width
-			local cbHeight = cbCfg.height or 16
-			Widgets.SetSize(frame.Castbar._wrapper, cbWidth, cbHeight)
+			local cbCfg = config.castbar
+			if(cbCfg) then
+				local cbWidth = (cbCfg.sizeMode == 'detached' and cbCfg.width) or config.width
+				Widgets.SetSize(frame.Castbar._wrapper, cbWidth, cbCfg.height)
 
-			local bgMode = cbCfg.backgroundMode or 'always'
-			frame.Castbar._backgroundMode = bgMode
-			if(bgMode == 'always') then
-				if(frame.Castbar._bg) then frame.Castbar._bg:Show() end
-				local bgC = C.Colors.background
-				frame.Castbar._wrapper:SetBackdropColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
-			else
-				if(frame.Castbar._bg) then frame.Castbar._bg:Hide() end
-				frame.Castbar._wrapper:SetBackdropColor(0, 0, 0, 0)
+				local bgMode = cbCfg.backgroundMode
+				frame.Castbar._backgroundMode = bgMode
+				if(bgMode == 'always') then
+					if(frame.Castbar._bg) then frame.Castbar._bg:Show() end
+					local bgC = C.Colors.background
+					frame.Castbar._wrapper:SetBackdropColor(bgC[1], bgC[2], bgC[3], bgC[4])
+				else
+					if(frame.Castbar._bg) then frame.Castbar._bg:Hide() end
+					frame.Castbar._wrapper:SetBackdropColor(0, 0, 0, 0)
+				end
 			end
-		end
 	end
 
 	-- ── Portrait ────────────────────────────────────────────
@@ -1660,7 +1648,7 @@ local function applyFullConfig(frame, config)
 	end
 
 	-- ── Status icons ────────────────────────────────────────
-	local icons = config.statusIcons or {}
+	local icons = config.statusIcons
 	for iconKey, elementName in next, STATUS_ELEMENT_MAP do
 		local enabled = icons[iconKey]
 		if(enabled == nil) then
@@ -1778,8 +1766,8 @@ F.EventBus:Register('PRESET_CHANGED', function(presetName)
 
 		if(enabled and partyConfig) then
 			-- Resize pet frames to match party frame size
-			local w = partyConfig.width or 120
-			local h = partyConfig.height or 36
+			local w = partyConfig.width
+			local h = partyConfig.height
 			ForEachFrame('partypet', function(frame)
 				Widgets.SetSize(frame, w, h)
 				if(frame.Health and frame.Health._wrapper) then
@@ -1819,13 +1807,13 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	-- Health text changes (show, format, fontSize, color, outline, shadow, offsets)
 	if(petKey:match('^healthText') or petKey == 'showHealthText') then
 		local show     = petCfg.showHealthText ~= false
-		local format   = petCfg.healthTextFormat or 'percent'
-		local fontSize = petCfg.healthTextFontSize or C.Font.sizeSmall
-		local outline  = petCfg.healthTextOutline or ''
+		local format   = petCfg.healthTextFormat
+		local fontSize = petCfg.healthTextFontSize
+		local outline  = petCfg.healthTextOutline
 		local shadow   = petCfg.healthTextShadow ~= false
-		local colorMode = petCfg.healthTextColor or 'white'
-		local offX     = petCfg.healthTextOffsetX or 0
-		local offY     = petCfg.healthTextOffsetY or 2
+		local colorMode = petCfg.healthTextColor
+		local offX     = petCfg.healthTextOffsetX
+		local offY     = petCfg.healthTextOffsetY
 
 		ForEachFrame('partypet', function(frame)
 			if(not frame.Health) then return end
