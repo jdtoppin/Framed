@@ -314,11 +314,12 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 	-- Value edit box (uses the standard EditBox widget for
 	-- consistent border + accent highlight on focus)
 	-- --------------------------------------------------------
-	local VALUE_BOX_W = 36
+	local VALUE_BOX_W = 52
 	local VALUE_BOX_H = 16
 	local valueBox = Widgets.CreateEditBox(slider, nil, VALUE_BOX_W, VALUE_BOX_H, 'text')
 	slider._valueText = valueBox
 	valueBox._editbox:SetJustifyH('CENTER')
+	valueBox._editbox:SetFont(F.Media.GetActiveFont(), C.Font.sizeSmall, '')
 	valueBox:SetText(FormatValue(minVal))
 
 	-- Filter non-numeric characters during typing

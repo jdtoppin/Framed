@@ -58,6 +58,7 @@ function EditBoxMixin:SetText(text)
 	self._placeholder_active = false
 	eb:SetTextColor(Widgets.UnpackColor(C.Colors.textActive))
 	eb:SetText(text or '')
+	eb:SetCursorPosition(0)
 end
 
 --- Show gray placeholder text when the box is empty.

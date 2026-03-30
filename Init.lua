@@ -23,6 +23,7 @@ eventFrame:RegisterEvent('ACTIVE_TALENT_GROUP_CHANGED')
 eventFrame:SetScript('OnEvent', function(self, event, arg1)
 	if(event == 'ADDON_LOADED' and arg1 == addonName) then
 		F.Config:Initialize()
+		F.PresetDefaults.EnsureDefaults()
 		self:UnregisterEvent('ADDON_LOADED')
 	elseif(event == 'PLAYER_LOGIN') then
 		-- Post-spawn initialization (runs after oUF:Factory spawns frames)
@@ -31,9 +32,6 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 
 		-- Apply click-cast bindings
 		F.ClickCasting.RefreshAll()
-
-		-- Initialize default presets
-		F.PresetDefaults.EnsureDefaults()
 
 		-- Start auto-switching (detects content type and activates preset)
 		F.AutoSwitch.Check()

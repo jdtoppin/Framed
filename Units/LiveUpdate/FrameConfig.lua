@@ -1619,6 +1619,7 @@ local function applyFullConfig(frame, config)
 					frame.Castbar._wrapper:SetBackdropColor(0, 0, 0, 0)
 				end
 			end
+		end
 	end
 
 	-- ── Portrait ────────────────────────────────────────────
