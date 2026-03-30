@@ -33,7 +33,7 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 		{ text = 'Bottom', value = 'ANCHOR_BOTTOM' },
 		{ text = 'Cursor', value = 'ANCHOR_CURSOR' },
 	})
-	ttAnchor:SetValue(getConfig('tooltipAnchor') or 'ANCHOR_RIGHT')
+	ttAnchor:SetValue(getConfig('tooltipAnchor'))
 	ttAnchor:SetOnSelect(function(value)
 		setConfig('tooltipAnchor', value)
 		fireChange()
@@ -41,7 +41,7 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 	cardY = B.PlaceWidget(ttAnchor, inner, cardY, B.DROPDOWN_H)
 
 	local ttOffX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	ttOffX:SetValue(getConfig('tooltipOffsetX') or 0)
+	ttOffX:SetValue(getConfig('tooltipOffsetX'))
 	ttOffX:SetAfterValueChanged(function(value)
 		setConfig('tooltipOffsetX', value)
 		fireChange()
@@ -49,7 +49,7 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 	cardY = B.PlaceWidget(ttOffX, inner, cardY, B.SLIDER_H)
 
 	local ttOffY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	ttOffY:SetValue(getConfig('tooltipOffsetY') or 0)
+	ttOffY:SetValue(getConfig('tooltipOffsetY'))
 	ttOffY:SetAfterValueChanged(function(value)
 		setConfig('tooltipOffsetY', value)
 		fireChange()

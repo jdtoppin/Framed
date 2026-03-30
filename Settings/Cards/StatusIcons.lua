@@ -223,11 +223,11 @@ function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfi
 		end
 
 		roleStyleDD:SetItems(roleStyleItems)
-		local currentStyle = (F.Config and F.Config:Get('general.roleIconStyle')) or 2
+		local currentStyle = F.Config:Get('general.roleIconStyle')
 		roleStyleDD:SetValue(currentStyle)
 		updateButtonIcons(currentStyle)
 		roleStyleDD:SetOnSelect(function(value)
-			if(F.Config) then F.Config:Set('general.roleIconStyle', value) end
+			F.Config:Set('general.roleIconStyle', value)
 			updateButtonIcons(value)
 			if(oUF and oUF.objects) then
 				for _, frame in next, oUF.objects do

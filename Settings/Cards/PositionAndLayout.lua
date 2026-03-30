@@ -16,7 +16,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 
 	-- Width slider
 	local widthSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 20, 300, 1)
-	widthSlider:SetValue(getConfig('width') or 200)
+	widthSlider:SetValue(getConfig('width'))
 	widthSlider:SetAfterValueChanged(function(value)
 		setConfig('width', value)
 	end)
@@ -24,7 +24,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 
 	-- Height slider
 	local heightSlider = Widgets.CreateSlider(inner, 'Height', widgetW, 16, 100, 1)
-	heightSlider:SetValue(getConfig('height') or 36)
+	heightSlider:SetValue(getConfig('height'))
 	heightSlider:SetAfterValueChanged(function(value)
 		setConfig('height', value)
 	end)
@@ -44,7 +44,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	anchorInfo:SetPoint('LEFT', raHeading, 'RIGHT', 4, 0)
 
 	local anchorPicker = Widgets.CreateAnchorPicker(inner, widgetW)
-	local savedAnchor = getConfig('position.anchor') or 'CENTER'
+	local savedAnchor = getConfig('position.anchor')
 	anchorPicker._xSlider:Hide()
 	anchorPicker._ySlider:Hide()
 	anchorPicker:SetAnchor(savedAnchor, 0, 0)
@@ -57,7 +57,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	if(isGroup) then
 		-- Spacing slider
 		local spacingSlider = Widgets.CreateSlider(inner, 'Spacing', widgetW, 0, 20, 1)
-		spacingSlider:SetValue(getConfig('spacing') or 2)
+		spacingSlider:SetValue(getConfig('spacing'))
 		spacingSlider:SetAfterValueChanged(function(value)
 			setConfig('spacing', value)
 		end)
@@ -69,7 +69,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 			{ text = 'Vertical',   value = 'vertical' },
 			{ text = 'Horizontal', value = 'horizontal' },
 		})
-		orientSwitch:SetValue(getConfig('orientation') or 'vertical')
+		orientSwitch:SetValue(getConfig('orientation'))
 		orientSwitch:SetOnSelect(function(value)
 			setConfig('orientation', value)
 		end)
@@ -84,7 +84,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 			{ text = 'Bottom Left',  value = 'BOTTOMLEFT' },
 			{ text = 'Bottom Right', value = 'BOTTOMRIGHT' },
 		})
-		apDropdown:SetValue(getConfig('anchorPoint') or 'TOPLEFT')
+		apDropdown:SetValue(getConfig('anchorPoint'))
 		apDropdown:SetOnSelect(function(value)
 			setConfig('anchorPoint', value)
 		end)
@@ -92,8 +92,8 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	end
 
 	-- Read the actual frame position from config
-	local actualX = getConfig('position.x') or 0
-	local actualY = getConfig('position.y') or 0
+	local actualX = getConfig('position.x')
+	local actualY = getConfig('position.y')
 
 	-- Frame Position sliders (X / Y)
 	cardY = B.PlaceHeading(inner, 'Frame Position', 4, cardY)
@@ -154,8 +154,8 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	-- ── Live sync from drag stop ─────────────────────────────
 	F.EventBus:Register('EDIT_MODE_DRAG_STOPPED', function(frameKey)
 		if(frameKey ~= unitType) then return end
-		local x = F.EditCache.Get(unitType, 'position.x') or 0
-		local y = F.EditCache.Get(unitType, 'position.y') or 0
+		local x = F.EditCache.Get(unitType, 'position.x')
+		local y = F.EditCache.Get(unitType, 'position.y')
 		posXSlider:SetValue(Widgets.Round(x))
 		posYSlider:SetValue(Widgets.Round(y))
 	end, evtTag .. '.drag')

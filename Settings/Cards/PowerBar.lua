@@ -53,7 +53,7 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 		{ text = 'Top',    value = 'top' },
 		{ text = 'Bottom', value = 'bottom' },
 	})
-	powerPosSwitch:SetValue(getConfig('power.position') or 'bottom')
+	powerPosSwitch:SetValue(getConfig('power.position'))
 	powerPosSwitch:SetOnSelect(function(value)
 		setConfig('power.position', value)
 	end)
@@ -61,7 +61,7 @@ function F.SettingsCards.PowerBar(parent, width, unitType, getConfig, setConfig,
 
 	-- Power bar height slider
 	local powerHeightSlider = Widgets.CreateSlider(inner, 'Power Bar Height', widgetW, 1, 20, 1)
-	powerHeightSlider:SetValue(getConfig('power.height') or 2)
+	powerHeightSlider:SetValue(getConfig('power.height'))
 	powerHeightSlider:SetAfterValueChanged(function(value)
 		setConfig('power.height', value)
 	end)

@@ -42,7 +42,7 @@ function F.SettingsCards.PartyPets(parent, width)
 
 	-- Spacing slider (gap between pet frame and owner frame)
 	local spacingSlider = Widgets.CreateSlider(inner, 'Gap from Owner', widgetW, 0, 20, 1)
-	spacingSlider:SetValue(getPetConfig('spacing') or 2)
+	spacingSlider:SetValue(getPetConfig('spacing'))
 	spacingSlider:SetAfterValueChanged(function(value)
 		setPetConfig('spacing', value)
 	end)
@@ -66,7 +66,7 @@ function F.SettingsCards.PartyPets(parent, width)
 		{ text = 'Current / Max', value = 'currentMax' },
 		{ text = 'Deficit',       value = 'deficit' },
 	})
-	formatDropdown:SetValue(getPetConfig('healthTextFormat') or 'percent')
+	formatDropdown:SetValue(getPetConfig('healthTextFormat'))
 	formatDropdown:SetOnSelect(function(value)
 		setPetConfig('healthTextFormat', value)
 	end)
@@ -74,7 +74,7 @@ function F.SettingsCards.PartyPets(parent, width)
 
 	-- Font size slider
 	local fontSizeSlider = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
-	fontSizeSlider:SetValue(getPetConfig('healthTextFontSize') or C.Font.sizeSmall)
+	fontSizeSlider:SetValue(getPetConfig('healthTextFontSize'))
 	fontSizeSlider:SetAfterValueChanged(function(value)
 		setPetConfig('healthTextFontSize', value)
 	end)
@@ -86,7 +86,7 @@ function F.SettingsCards.PartyPets(parent, width)
 		{ text = 'White', value = 'white' },
 		{ text = 'Class', value = 'class' },
 	})
-	colorDropdown:SetValue(getPetConfig('healthTextColor') or 'white')
+	colorDropdown:SetValue(getPetConfig('healthTextColor'))
 	colorDropdown:SetOnSelect(function(value)
 		setPetConfig('healthTextColor', value)
 	end)
@@ -99,7 +99,7 @@ function F.SettingsCards.PartyPets(parent, width)
 		{ text = 'Outline',    value = 'OUTLINE' },
 		{ text = 'Monochrome', value = 'MONOCHROME' },
 	})
-	outlineDropdown:SetValue(getPetConfig('healthTextOutline') or '')
+	outlineDropdown:SetValue(getPetConfig('healthTextOutline'))
 	outlineDropdown:SetOnSelect(function(value)
 		setPetConfig('healthTextOutline', value)
 	end)
@@ -114,7 +114,7 @@ function F.SettingsCards.PartyPets(parent, width)
 
 	-- X offset slider
 	local xOffSlider = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	xOffSlider:SetValue(getPetConfig('healthTextOffsetX') or 0)
+	xOffSlider:SetValue(getPetConfig('healthTextOffsetX'))
 	xOffSlider:SetAfterValueChanged(function(value)
 		setPetConfig('healthTextOffsetX', value)
 	end)
@@ -122,7 +122,7 @@ function F.SettingsCards.PartyPets(parent, width)
 
 	-- Y offset slider
 	local yOffSlider = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	yOffSlider:SetValue(getPetConfig('healthTextOffsetY') or 2)
+	yOffSlider:SetValue(getPetConfig('healthTextOffsetY'))
 	yOffSlider:SetAfterValueChanged(function(value)
 		setPetConfig('healthTextOffsetY', value)
 	end)

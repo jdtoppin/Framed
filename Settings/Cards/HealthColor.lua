@@ -49,7 +49,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		{ text = 'Gradient', value = 'gradient' },
 		{ text = 'Custom',   value = 'custom' },
 	})
-	healthColorSwitch:SetValue(getConfig('health.colorMode') or 'class')
+	healthColorSwitch:SetValue(getConfig('health.colorMode'))
 
 	-- ── Helper: build a gradient section (3 color pickers + threshold sliders) ──
 	local function buildGradientSection(gradParent, prefix, defaults)
@@ -65,11 +65,11 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 				nil,
 				function(r, g, b) setConfig(colorKey, { r, g, b }) end)
 			picker:SetPoint('TOPLEFT', section, 'TOPLEFT', 0, sY)
-			local saved = getConfig(colorKey) or row.color
+			local saved = getConfig(colorKey)
 			picker:SetColor(saved[1], saved[2], saved[3], 1)
 
 			local pctSlider = Widgets.CreateSlider(section, '% Threshold', widgetW - 30, 0, 100, 5)
-			pctSlider:SetValue(getConfig(thresholdKey) or row.pct)
+			pctSlider:SetValue(getConfig(thresholdKey))
 			pctSlider:SetAfterValueChanged(function(value)
 				setConfig(thresholdKey, value)
 			end)
@@ -101,7 +101,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local customPicker = Widgets.CreateColorPicker(inner, 'Health Bar Color', false,
 		nil,
 		function(r, g, b) setConfig('health.customColor', { r, g, b }) end)
-	local savedCustom = getConfig('health.customColor') or { 0.2, 0.8, 0.2 }
+	local savedCustom = getConfig('health.customColor')
 	customPicker:SetColor(savedCustom[1], savedCustom[2], savedCustom[3], 1)
 	local customPickerH = 22
 
@@ -121,7 +121,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		{ text = 'Gradient', value = 'gradient' },
 		{ text = 'Custom',   value = 'custom' },
 	})
-	lossColorSwitch:SetValue(getConfig('health.lossColorMode') or 'dark')
+	lossColorSwitch:SetValue(getConfig('health.lossColorMode'))
 
 	-- ── Loss gradient section ──
 	local lossGradientSection, lossGradientSectionH = buildGradientSection(inner, 'health.', LOSS_GRADIENT_ROWS)
@@ -130,13 +130,13 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local lossPicker = Widgets.CreateColorPicker(inner, 'Loss Color', false,
 		nil,
 		function(r, g, b) setConfig('health.lossCustomColor', { r, g, b }) end)
-	local savedLoss = getConfig('health.lossCustomColor') or { 0.15, 0.15, 0.15 }
+	local savedLoss = getConfig('health.lossCustomColor')
 	lossPicker:SetColor(savedLoss[1], savedLoss[2], savedLoss[3], 1)
 	local lossPickerH = 22
 
 	-- ── Reflow: position all widgets inside the card based on current modes ──
-	local curHealthMode = getConfig('health.colorMode') or 'class'
-	local curLossMode = getConfig('health.lossColorMode') or 'dark'
+	local curHealthMode = getConfig('health.colorMode')
+	local curLossMode = getConfig('health.lossColorMode')
 	local initialized = false
 
 	local function reflowColorCard()

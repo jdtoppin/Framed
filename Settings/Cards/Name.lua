@@ -25,7 +25,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 		{ text = 'White',  value = 'white' },
 		{ text = 'Custom', value = 'custom' },
 	})
-	nameColorSwitch:SetValue(getConfig('name.colorMode') or 'class')
+	nameColorSwitch:SetValue(getConfig('name.colorMode'))
 	cardY = B.PlaceWidget(nameColorSwitch, inner, cardY, B.SWITCH_H)
 
 	-- Y after the color switch -- reflow starts from here
@@ -35,13 +35,13 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	local nameCustomPicker = Widgets.CreateColorPicker(inner, 'Name Color', false,
 		nil,
 		function(r, g, b) setConfig('name.customColor', { r, g, b }) end)
-	local savedNameColor = getConfig('name.customColor') or { 1, 1, 1 }
+	local savedNameColor = getConfig('name.customColor')
 	nameCustomPicker:SetColor(savedNameColor[1], savedNameColor[2], savedNameColor[3], 1)
 	local nameCustomPickerH = 22
 
 	-- Name font size
 	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
-	nameFontSize:SetValue(getConfig('name.fontSize') or C.Font.sizeNormal)
+	nameFontSize:SetValue(getConfig('name.fontSize'))
 	Widgets.SetTooltip(nameFontSize, 'Name Font Size', 'Override the global font size for name text')
 	nameFontSize:SetAfterValueChanged(function(value)
 		setConfig('name.fontSize', value)
@@ -55,7 +55,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 		{ text = 'Outline',    value = 'OUTLINE' },
 		{ text = 'Monochrome', value = 'MONOCHROME' },
 	})
-	nameOutline:SetValue(getConfig('name.outline') or '')
+	nameOutline:SetValue(getConfig('name.outline'))
 	nameOutline:SetOnSelect(function(value)
 		setConfig('name.outline', value)
 	end)
@@ -69,7 +69,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	-- Name text position anchor (created here, positioned by reflow)
 	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 4)
 	local nameAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
-	local savedNameAnchor = getConfig('name.anchor') or 'CENTER'
+	local savedNameAnchor = getConfig('name.anchor')
 	nameAnchor:SetAnchor(savedNameAnchor, 0, 0)
 	nameAnchor:SetOnChanged(function(point)
 		setConfig('name.anchor', point)
@@ -80,19 +80,19 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	-- Name text offsets (created here, positioned by reflow)
 	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 4)
 	local nameOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	nameOffsetX:SetValue(getConfig('name.anchorX') or 0)
+	nameOffsetX:SetValue(getConfig('name.anchorX'))
 	nameOffsetX:SetAfterValueChanged(function(value)
 		setConfig('name.anchorX', value)
 	end)
 
 	local nameOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	nameOffsetY:SetValue(getConfig('name.anchorY') or 0)
+	nameOffsetY:SetValue(getConfig('name.anchorY'))
 	nameOffsetY:SetAfterValueChanged(function(value)
 		setConfig('name.anchorY', value)
 	end)
 
 	-- Reflow ALL widgets based on color mode
-	local curNameColorMode = getConfig('name.colorMode') or 'class'
+	local curNameColorMode = getConfig('name.colorMode')
 	local initialized = false
 
 	local function reflowNameCard()

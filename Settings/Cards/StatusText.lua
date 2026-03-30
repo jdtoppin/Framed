@@ -20,7 +20,7 @@ function F.SettingsCards.StatusText(parent, width, unitType, getConfig, setConfi
 
 	-- Font size slider
 	local fontSizeSlider = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
-	fontSizeSlider:SetValue(getConfig('statusText.fontSize') or C.Font.sizeSmall)
+	fontSizeSlider:SetValue(getConfig('statusText.fontSize'))
 	fontSizeSlider:SetAfterValueChanged(function(value)
 		setConfig('statusText.fontSize', value)
 	end)
@@ -34,7 +34,7 @@ function F.SettingsCards.StatusText(parent, width, unitType, getConfig, setConfi
 		{ text = 'Outline',    value = 'OUTLINE' },
 		{ text = 'Monochrome', value = 'MONOCHROME' },
 	})
-	outlineDropdown:SetValue(getConfig('statusText.outline') or 'OUTLINE')
+	outlineDropdown:SetValue(getConfig('statusText.outline'))
 	outlineDropdown:SetOnSelect(function(value)
 		setConfig('statusText.outline', value)
 	end)
@@ -44,13 +44,13 @@ function F.SettingsCards.StatusText(parent, width, unitType, getConfig, setConfi
 	local shadowCheck = Widgets.CreateCheckButton(inner, 'Text Shadow', function(checked)
 		setConfig('statusText.shadow', checked)
 	end)
-	shadowCheck:SetChecked(getConfig('statusText.shadow') or false)
+	shadowCheck:SetChecked(getConfig('statusText.shadow'))
 	cardY = B.PlaceWidget(shadowCheck, inner, cardY, B.CHECK_H)
 
 	-- Text position anchor
 	cardY = B.PlaceHeading(inner, 'Text Position', 4, cardY)
 	local anchorPicker = Widgets.CreateAnchorPicker(inner, widgetW)
-	anchorPicker:SetAnchor(getConfig('statusText.anchor') or 'CENTER', 0, 0)
+	anchorPicker:SetAnchor(getConfig('statusText.anchor'), 0, 0)
 	anchorPicker._xSlider:Hide()
 	anchorPicker._ySlider:Hide()
 	anchorPicker:SetOnChanged(function(point)
@@ -61,14 +61,14 @@ function F.SettingsCards.StatusText(parent, width, unitType, getConfig, setConfi
 	-- X / Y offsets
 	cardY = B.PlaceHeading(inner, 'Text Offsets', 4, cardY)
 	local offsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	offsetX:SetValue(getConfig('statusText.anchorX') or 0)
+	offsetX:SetValue(getConfig('statusText.anchorX'))
 	offsetX:SetAfterValueChanged(function(value)
 		setConfig('statusText.anchorX', value)
 	end)
 	cardY = B.PlaceWidget(offsetX, inner, cardY, B.SLIDER_H)
 
 	local offsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	offsetY:SetValue(getConfig('statusText.anchorY') or 0)
+	offsetY:SetValue(getConfig('statusText.anchorY'))
 	offsetY:SetAfterValueChanged(function(value)
 		setConfig('statusText.anchorY', value)
 	end)

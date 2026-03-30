@@ -21,7 +21,7 @@ function F.AppearanceCards.TargetHighlight(parent, width, getConfig, setConfig, 
 
 	local savedThColor = getConfig('targetHighlightColor')
 	if(savedThColor) then
-		thColorPicker:SetColor(savedThColor[1], savedThColor[2], savedThColor[3], savedThColor[4] or 1)
+		thColorPicker:SetColor(savedThColor[1], savedThColor[2], savedThColor[3], savedThColor[4])
 	else
 		thColorPicker:SetColor(0.839, 0, 0.075, 1)  -- #d60013
 	end
@@ -32,7 +32,7 @@ function F.AppearanceCards.TargetHighlight(parent, width, getConfig, setConfig, 
 	cardY = cardY - SWATCH_H - C.Spacing.normal
 
 	local thWidthSlider = Widgets.CreateSlider(inner, 'Border Width', widgetW, 0.5, 2, 0.25)
-	thWidthSlider:SetValue(getConfig('targetHighlightWidth') or 2)
+	thWidthSlider:SetValue(getConfig('targetHighlightWidth'))
 	thWidthSlider:SetAfterValueChanged(function(value)
 		setConfig('targetHighlightWidth', value)
 	end)

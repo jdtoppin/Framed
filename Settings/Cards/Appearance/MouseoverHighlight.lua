@@ -21,7 +21,7 @@ function F.AppearanceCards.MouseoverHighlight(parent, width, getConfig, setConfi
 
 	local savedMoColor = getConfig('mouseoverHighlightColor')
 	if(savedMoColor) then
-		moColorPicker:SetColor(savedMoColor[1], savedMoColor[2], savedMoColor[3], savedMoColor[4] or 0.6)
+		moColorPicker:SetColor(savedMoColor[1], savedMoColor[2], savedMoColor[3], savedMoColor[4])
 	else
 		moColorPicker:SetColor(0.969, 0.925, 1, 0.6)  -- #f7ecff @ 60%
 	end
@@ -32,7 +32,7 @@ function F.AppearanceCards.MouseoverHighlight(parent, width, getConfig, setConfi
 	cardY = cardY - SWATCH_H - C.Spacing.normal
 
 	local moWidthSlider = Widgets.CreateSlider(inner, 'Border Width', widgetW, 0.5, 2, 0.25)
-	moWidthSlider:SetValue(getConfig('mouseoverHighlightWidth') or 2)
+	moWidthSlider:SetValue(getConfig('mouseoverHighlightWidth'))
 	moWidthSlider:SetAfterValueChanged(function(value)
 		setConfig('mouseoverHighlightWidth', value)
 	end)

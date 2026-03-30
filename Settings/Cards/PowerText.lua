@@ -14,7 +14,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	local showPowerTextCheck = Widgets.CreateCheckButton(inner, 'Show Power Text', function(checked)
 		setConfig('power.showText', checked)
 	end)
-	showPowerTextCheck:SetChecked(getConfig('power.showText') or false)
+	showPowerTextCheck:SetChecked(getConfig('power.showText'))
 	cardY = B.PlaceWidget(showPowerTextCheck, inner, cardY, B.CHECK_H)
 
 	-- Power text format dropdown
@@ -24,7 +24,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 		{ text = 'Percentage', value = 'percent' },
 		{ text = 'Current',    value = 'current' },
 	})
-	powerFormatDropdown:SetValue(getConfig('power.textFormat') or 'current')
+	powerFormatDropdown:SetValue(getConfig('power.textFormat'))
 	powerFormatDropdown:SetOnSelect(function(value)
 		setConfig('power.textFormat', value)
 	end)
@@ -32,7 +32,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 
 	-- Power text font size
 	local powerFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
-	powerFontSize:SetValue(getConfig('power.fontSize') or C.Font.sizeSmall)
+	powerFontSize:SetValue(getConfig('power.fontSize'))
 	Widgets.SetTooltip(powerFontSize, 'Power Text Font Size', 'Override the global font size for power text')
 	powerFontSize:SetAfterValueChanged(function(value)
 		setConfig('power.fontSize', value)
@@ -47,7 +47,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 		{ text = 'White',  value = 'white' },
 		{ text = 'Custom', value = 'custom' },
 	})
-	powerColorSwitch:SetValue(getConfig('power.textColorMode') or 'white')
+	powerColorSwitch:SetValue(getConfig('power.textColorMode'))
 	cardY = B.PlaceWidget(powerColorSwitch, inner, cardY, B.SWITCH_H)
 
 	local colorSwitchEndY = cardY
@@ -56,7 +56,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	local powerCustomPicker = Widgets.CreateColorPicker(inner, 'Text Color', false,
 		nil,
 		function(r, g, b) setConfig('power.textCustomColor', { r, g, b }) end)
-	local savedTextColor = getConfig('power.textCustomColor') or { 1, 1, 1 }
+	local savedTextColor = getConfig('power.textCustomColor')
 	powerCustomPicker:SetColor(savedTextColor[1], savedTextColor[2], savedTextColor[3], 1)
 	local colorPickerH = 22
 
@@ -68,7 +68,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 		{ text = 'Outline',    value = 'OUTLINE' },
 		{ text = 'Monochrome', value = 'MONOCHROME' },
 	})
-	powerOutline:SetValue(getConfig('power.outline') or '')
+	powerOutline:SetValue(getConfig('power.outline'))
 	powerOutline:SetOnSelect(function(value)
 		setConfig('power.outline', value)
 	end)
@@ -82,7 +82,7 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	-- Power text position anchor
 	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 4)
 	local powerTextAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
-	local savedPowerAnchor = getConfig('power.textAnchor') or 'CENTER'
+	local savedPowerAnchor = getConfig('power.textAnchor')
 	powerTextAnchor:SetAnchor(savedPowerAnchor, 0, 0)
 	powerTextAnchor:SetOnChanged(function(point)
 		setConfig('power.textAnchor', point)
@@ -93,19 +93,19 @@ function F.SettingsCards.PowerText(parent, width, unitType, getConfig, setConfig
 	-- Power text offsets
 	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 4)
 	local powerOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	powerOffsetX:SetValue(getConfig('power.textAnchorX') or 0)
+	powerOffsetX:SetValue(getConfig('power.textAnchorX'))
 	powerOffsetX:SetAfterValueChanged(function(value)
 		setConfig('power.textAnchorX', value)
 	end)
 
 	local powerOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	powerOffsetY:SetValue(getConfig('power.textAnchorY') or 0)
+	powerOffsetY:SetValue(getConfig('power.textAnchorY'))
 	powerOffsetY:SetAfterValueChanged(function(value)
 		setConfig('power.textAnchorY', value)
 	end)
 
 	-- Reflow from color switch onward
-	local curColorMode = getConfig('power.textColorMode') or 'white'
+	local curColorMode = getConfig('power.textColorMode')
 	local initialized = false
 
 	local function reflowCard()

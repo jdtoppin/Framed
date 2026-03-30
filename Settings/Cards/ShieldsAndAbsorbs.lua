@@ -24,7 +24,7 @@ function F.SettingsCards.ShieldsAndAbsorbs(parent, width, unitType, getConfig, s
 		{ text = 'Player', value = 'player' },
 		{ text = 'Others', value = 'other' },
 	})
-	healPredMode:SetValue(getConfig('health.healPredictionMode') or 'all')
+	healPredMode:SetValue(getConfig('health.healPredictionMode'))
 	healPredMode:SetOnSelect(function(value)
 		setConfig('health.healPredictionMode', value)
 	end)
@@ -33,7 +33,7 @@ function F.SettingsCards.ShieldsAndAbsorbs(parent, width, unitType, getConfig, s
 	local healPredPicker = Widgets.CreateColorPicker(inner, 'Color', true,
 		nil,
 		function(r, g, b, a) setConfig('health.healPredictionColor', { r, g, b, a }) end)
-	local savedHealPred = getConfig('health.healPredictionColor') or { 0.6, 0.6, 0.6, 0.4 }
+	local savedHealPred = getConfig('health.healPredictionColor')
 	healPredPicker:SetColor(savedHealPred[1], savedHealPred[2], savedHealPred[3], savedHealPred[4])
 	cardY = B.PlaceWidget(healPredPicker, inner, cardY, PICKER_ROW_H)
 
@@ -47,7 +47,7 @@ function F.SettingsCards.ShieldsAndAbsorbs(parent, width, unitType, getConfig, s
 	local damageAbsorbPicker = Widgets.CreateColorPicker(inner, 'Color', true,
 		nil,
 		function(r, g, b, a) setConfig('health.damageAbsorbColor', { r, g, b, a }) end)
-	local savedDamageAbsorb = getConfig('health.damageAbsorbColor') or { 1, 1, 1, 0.6 }
+	local savedDamageAbsorb = getConfig('health.damageAbsorbColor')
 	damageAbsorbPicker:SetColor(savedDamageAbsorb[1], savedDamageAbsorb[2], savedDamageAbsorb[3], savedDamageAbsorb[4])
 	cardY = B.PlaceWidget(damageAbsorbPicker, inner, cardY, PICKER_ROW_H)
 
@@ -61,7 +61,7 @@ function F.SettingsCards.ShieldsAndAbsorbs(parent, width, unitType, getConfig, s
 	local healAbsorbPicker = Widgets.CreateColorPicker(inner, 'Color', true,
 		nil,
 		function(r, g, b, a) setConfig('health.healAbsorbColor', { r, g, b, a }) end)
-	local savedHealAbsorb = getConfig('health.healAbsorbColor') or { 0.7, 0.1, 0.1, 0.5 }
+	local savedHealAbsorb = getConfig('health.healAbsorbColor')
 	healAbsorbPicker:SetColor(savedHealAbsorb[1], savedHealAbsorb[2], savedHealAbsorb[3], savedHealAbsorb[4])
 	cardY = B.PlaceWidget(healAbsorbPicker, inner, cardY, PICKER_ROW_H)
 

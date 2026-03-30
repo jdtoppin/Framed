@@ -30,7 +30,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 		end
 	end
 
-	local isAttached = getConfig('health.attachedToName') or false
+	local isAttached = getConfig('health.attachedToName')
 	local attachToNameCheck = Widgets.CreateCheckButton(inner, 'Attach to Name', function(checked)
 		setConfig('health.attachedToName', checked)
 		updateHealthPositionDimming(checked)
@@ -41,7 +41,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text', function(checked)
 		setConfig('health.showText', checked)
 	end)
-	showHealthTextCheck:SetChecked(getConfig('health.showText') or false)
+	showHealthTextCheck:SetChecked(getConfig('health.showText'))
 	cardY = B.PlaceWidget(showHealthTextCheck, inner, cardY, B.CHECK_H)
 
 	-- Health text format dropdown
@@ -53,7 +53,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 		{ text = 'Deficit',      value = 'deficit' },
 		{ text = 'Current-Max',  value = 'currentMax' },
 	})
-	healthFormatDropdown:SetValue(getConfig('health.textFormat') or 'percent')
+	healthFormatDropdown:SetValue(getConfig('health.textFormat'))
 	healthFormatDropdown:SetOnSelect(function(value)
 		setConfig('health.textFormat', value)
 	end)
@@ -61,7 +61,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 
 	-- Health text font size
 	local healthFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
-	healthFontSize:SetValue(getConfig('health.fontSize') or C.Font.sizeSmall)
+	healthFontSize:SetValue(getConfig('health.fontSize'))
 	Widgets.SetTooltip(healthFontSize, 'Health Text Font Size', 'Override the global font size for health text')
 	healthFontSize:SetAfterValueChanged(function(value)
 		setConfig('health.fontSize', value)
@@ -76,7 +76,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 		{ text = 'White',  value = 'white' },
 		{ text = 'Custom', value = 'custom' },
 	})
-	healthColorSwitch:SetValue(getConfig('health.textColorMode') or 'white')
+	healthColorSwitch:SetValue(getConfig('health.textColorMode'))
 	cardY = B.PlaceWidget(healthColorSwitch, inner, cardY, B.SWITCH_H)
 
 	local colorSwitchEndY = cardY
@@ -85,7 +85,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	local healthCustomPicker = Widgets.CreateColorPicker(inner, 'Text Color', false,
 		nil,
 		function(r, g, b) setConfig('health.textCustomColor', { r, g, b }) end)
-	local savedTextColor = getConfig('health.textCustomColor') or { 1, 1, 1 }
+	local savedTextColor = getConfig('health.textCustomColor')
 	healthCustomPicker:SetColor(savedTextColor[1], savedTextColor[2], savedTextColor[3], 1)
 	local colorPickerH = 22
 
@@ -97,7 +97,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 		{ text = 'Outline',    value = 'OUTLINE' },
 		{ text = 'Monochrome', value = 'MONOCHROME' },
 	})
-	healthOutline:SetValue(getConfig('health.outline') or '')
+	healthOutline:SetValue(getConfig('health.outline'))
 	healthOutline:SetOnSelect(function(value)
 		setConfig('health.outline', value)
 	end)
@@ -111,7 +111,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	-- Health text position anchor
 	local posHeading, posHeadingH = Widgets.CreateHeading(inner, 'Text Position', 4)
 	local healthTextAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
-	local savedHealthAnchor = getConfig('health.textAnchor') or 'CENTER'
+	local savedHealthAnchor = getConfig('health.textAnchor')
 	healthTextAnchor:SetAnchor(savedHealthAnchor, 0, 0)
 	healthTextAnchor:SetOnChanged(function(point)
 		setConfig('health.textAnchor', point)
@@ -122,13 +122,13 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	-- Health text offsets
 	local offsetsHeading, offsetsHeadingH = Widgets.CreateHeading(inner, 'Text Offsets', 4)
 	local healthOffsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	healthOffsetX:SetValue(getConfig('health.textAnchorX') or 0)
+	healthOffsetX:SetValue(getConfig('health.textAnchorX'))
 	healthOffsetX:SetAfterValueChanged(function(value)
 		setConfig('health.textAnchorX', value)
 	end)
 
 	local healthOffsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	healthOffsetY:SetValue(getConfig('health.textAnchorY') or 0)
+	healthOffsetY:SetValue(getConfig('health.textAnchorY'))
 	healthOffsetY:SetAfterValueChanged(function(value)
 		setConfig('health.textAnchorY', value)
 	end)
@@ -139,7 +139,7 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 	healthPositionWidgets[3] = healthOffsetY
 
 	-- Reflow from color switch onward
-	local curColorMode = getConfig('health.textColorMode') or 'white'
+	local curColorMode = getConfig('health.textColorMode')
 	local initialized = false
 
 	local function reflowCard()
