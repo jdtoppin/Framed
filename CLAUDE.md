@@ -46,6 +46,14 @@ WoW unit frames and raid frames addon. GPL v3.
 - **Never sanitize** secret values into placeholders. Pass through or degrade gracefully.
 - **Treat potentially-secret auras as always secret** — don't juggle mixed state
 
+## Canonical Defaults
+
+- Every config key that any consumer reads **must** exist in `Presets/Defaults.lua` (`baseUnitConfig()` or unit-specific overrides) or `Core/Config.lua` (`accountDefaults`/`charDefaults`)
+- No hardcoded fallback values (`or 200`, `or 'CENTER'`) in Settings cards, StyleBuilder, LiveUpdate, or Elements — the default lives in one place only
+- Optional sub-tables (`castbar`, `portrait`, `threat`) use `nil` = feature disabled; guard with `if(config.castbar) then` rather than defaulting to empty tables
+- When adding a new feature or config key: add the default in `Presets/Defaults.lua`, and `EnsureDefaults()` will backfill it to existing SavedVariables via `F.DeepMerge`
+- Settings UI controls for optional sub-tables should use `or` fallbacks only for UI display purposes (e.g., showing sensible slider positions when the feature is disabled)
+
 ## No pcall
 
 - No `pcall` for error suppression or feature detection

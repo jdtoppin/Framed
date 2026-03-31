@@ -31,11 +31,14 @@ local function ApplyDefaultVisuals(catcher, def)
 	catcher._dimTex:SetAlpha(DIM_OVERLAY_ALPHA)
 	local tn = C.Colors.textNormal
 	catcher._label:SetTextColor(tn[1], tn[2], tn[3], tn[4] or 1)
+	local ac = C.Colors.accent
+	catcher:SetBackdropBorderColor(ac[1], ac[2], ac[3], 0.6)
 end
 
 local function ApplySelectedVisuals(catcher)
 	catcher._label:SetText('')
 	catcher._dimTex:SetAlpha(0)
+	catcher:SetBackdropBorderColor(0, 0, 0, 0)
 end
 
 -- ── Catcher creation ─────────────────────────────────────────
@@ -45,16 +48,20 @@ local function CreateCatcher(def, overlay)
 	if(not frame) then return end
 
 	local frameKey = def.key
-	local catcher = CreateFrame('Button', nil, overlay)
+	local catcher = CreateFrame('Button', nil, overlay, 'BackdropTemplate')
 	catcher:SetFrameLevel(overlay:GetFrameLevel() + 10)
 	catcher:SetAllPoints(frame)
 	catcher._frameKey = frameKey
 	catcher._isGroup = def.isGroup
 
+	-- 1px accent border so frames stand out against the dim overlay
+	local accent = C.Colors.accent
+	catcher:SetBackdrop({ edgeFile = [[Interface\BUTTONS\WHITE8x8]], edgeSize = 1 })
+	catcher:SetBackdropBorderColor(accent[1], accent[2], accent[3], 0.6)
+
 	-- Dark accent overlay
 	local dimTex = catcher:CreateTexture(nil, 'ARTWORK')
 	dimTex:SetAllPoints(catcher)
-	local accent = C.Colors.accent
 	dimTex:SetColorTexture(accent[1] * 0.15, accent[2] * 0.15, accent[3] * 0.15, DIM_OVERLAY_ALPHA)
 	catcher._dimTex = dimTex
 
@@ -69,12 +76,14 @@ local function CreateCatcher(def, overlay)
 		if(EditMode.GetSelectedFrameKey() == self._frameKey) then return end
 		self._dimTex:SetAlpha(DIM_OVERLAY_ALPHA * 0.5)
 		self._label:SetTextColor(1, 1, 1, 1)
+		self:SetBackdropBorderColor(accent[1], accent[2], accent[3], 1)
 	end)
 	catcher:SetScript('OnLeave', function(self)
 		if(EditMode.GetSelectedFrameKey() == self._frameKey) then return end
 		self._dimTex:SetAlpha(DIM_OVERLAY_ALPHA)
 		local tn = C.Colors.textNormal
 		self._label:SetTextColor(tn[1], tn[2], tn[3], tn[4] or 1)
+		self:SetBackdropBorderColor(accent[1], accent[2], accent[3], 0.6)
 	end)
 
 	-- Click without drag → select
