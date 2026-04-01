@@ -29,12 +29,26 @@ end
 -- BuildFontCard
 -- ============================================================
 
-function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, get, set)
+function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, get, set, opts)
+	opts = opts or {}
 	yOffset = placeHeading(parent, label, yOffset)
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
 	local fontCfg = get(configPrefix) or {}
+
+	-- Anchor picker + offsets (opt-in)
+	if(opts.showAnchor and Widgets.CreateAnchorPicker) then
+		local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 15)
+		anchorPicker:SetAnchor(fontCfg.anchor or 'BOTTOMRIGHT', fontCfg.xOffset or 0, fontCfg.yOffset or 0)
+		anchorPicker:SetOnChanged(function(point, x, y)
+			fontCfg.anchor = point
+			fontCfg.xOffset = x
+			fontCfg.yOffset = y
+			set(configPrefix, fontCfg)
+		end)
+		cy = placeWidget(anchorPicker, inner, cy, anchorPicker._height or 91)
+	end
 
 	-- Font size slider
 	local sizeSlider = Widgets.CreateSlider(inner, 'Size', WIDGET_W, 6, 24, 1)

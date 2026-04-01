@@ -236,7 +236,10 @@ local function Rebuild(element, config)
 	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
 		for i = 1, maxDisplayed do
 			local bi = F.Indicators.BorderIcon.Create(element.__owner, iconSize, {
-				borderColor = borderColor,
+				showCooldown = true,
+				showDuration = config.showDuration ~= false,
+				borderColor  = borderColor,
+				durationFont = config.durationFont,
 			})
 			local offset = (i - 1) * (iconSize + 2)
 			bi:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], (anchor[4] or 0) + offset, anchor[5] or 0)
@@ -314,8 +317,9 @@ function F.Elements.TargetedSpells.Setup(self, config)
 			local biConfig = {
 				showCooldown = true,
 				showStacks   = false,
-				showDuration = false,
+				showDuration = config.showDuration ~= false,
 				borderColor  = borderColor,
+				durationFont = config.durationFont,
 			}
 			if(frameLevel) then
 				biConfig.frameLevel = frameLevel

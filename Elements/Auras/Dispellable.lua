@@ -270,8 +270,10 @@ function F.Elements.Dispellable.Setup(self, config)
 	local borderIcon = F.Indicators.BorderIcon.Create(self, iconSize, {
 		showCooldown = true,
 		showStacks   = true,
-		showDuration = true,
+		showDuration = config.showDuration ~= false,
 		frameLevel   = frameLevel,
+		durationFont = config.durationFont,
+		stackFont    = config.stackFont,
 	})
 
 	-- Apply anchor

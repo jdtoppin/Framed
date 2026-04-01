@@ -111,6 +111,12 @@ function BorderIconMethods:SetAura(...)
 	-- Callers can override direction after SetAura if needed.
 	if(unit and auraInstanceID) then
 		local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
+		-- DEBUG: cooldown state
+		print(('|cff00ff00[BI Cooldown]|r unit=%s aid=%s hasCooldown=%s durationObj=%s hideNumbers=%s'):format(
+			tostring(unit), tostring(auraInstanceID),
+			tostring(self.cooldown ~= nil), tostring(durationObj ~= nil),
+			tostring(self.cooldown and self.cooldown:GetHideCountdownNumbers())
+		))
 		if(durationObj) then
 			if(self.cooldown) then
 				self.cooldown:SetCooldownFromDurationObject(durationObj)
@@ -129,6 +135,30 @@ function BorderIconMethods:SetAura(...)
 			self.cooldown:SetReverse(true)
 		else
 			self.cooldown:Clear()
+		end
+	end
+
+	-- Reparent Blizzard's countdown text to iconFrame (above cooldown).
+	-- Blizzard creates the FontString lazily on first cooldown set.
+	-- Guard ensures we only reparent once per BorderIcon instance.
+	if(self.cooldown and not self._countdownReparented) then
+		local cdText = self.cooldown.GetCountdownFontString and self.cooldown:GetCountdownFontString()
+		if(cdText) then
+			cdText:SetParent(self._iconFrame)
+			cdText:ClearAllPoints()
+			cdText:SetPoint('CENTER', self._iconFrame, 'CENTER', 0, 0)
+			-- Apply our durationFont config (size, outline, shadow)
+			local df = self._durationFont
+			if(df) then
+				local fontFace = F.Media.GetActiveFont()
+				cdText:SetFont(fontFace, df.size, df.outline)
+				if(df.shadow == false) then
+					cdText:SetShadowOffset(0, 0)
+				else
+					cdText:SetShadowOffset(1, -1)
+				end
+			end
+			self._countdownReparented = true
 		end
 	end
 
@@ -276,6 +306,9 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 		cooldown:SetDrawBling(false)
 		cooldown:SetDrawEdge(false)
 		cooldown:SetHideCountdownNumbers(not showDuration)
+		if(showDuration and cooldown.SetCountdownAbbrevThreshold) then
+			cooldown:SetCountdownAbbrevThreshold(60)
+		end
 		-- borderFrame below cooldown, cooldown swipe covers the color
 		borderFrame:SetFrameLevel(cooldown:GetFrameLevel() - 1)
 	end
@@ -292,27 +325,37 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 	icon:SetAllPoints(iconFrame)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
-	-- 4. Stack count text (on icon frame, above cooldown)
+	-- 5. Stack count text (on icon frame, above cooldown)
+	--    Fallbacks needed: factory is called during secure header spawning
+	--    where callers may not pass stackFont (e.g. Dispellable).
 	local stacksText
 	if(showStacks) then
-		local stackFontSize = (config.stackFont and config.stackFont.size) or C.Font.sizeSmall
-		local stackFontColor = (config.stackFont and config.stackFont.color) or C.Colors.textActive
-		stacksText = Widgets.CreateFontString(iconFrame, stackFontSize, stackFontColor)
-		stacksText:SetPoint('BOTTOMRIGHT', iconFrame, 'BOTTOMRIGHT', -1, 1)
+		local sf = config.stackFont or {}
+		stacksText = Widgets.CreateFontString(iconFrame,
+			sf.size or C.Font.sizeSmall,
+			sf.color or C.Colors.textActive,
+			sf.outline, sf.shadow)
+		local anchor  = sf.anchor  or 'BOTTOMRIGHT'
+		local xOffset = sf.xOffset or 0
+		local yOffset = sf.yOffset or 0
+		stacksText:SetPoint(anchor, frame, anchor, xOffset, yOffset)
 		stacksText:Hide()
 	end
 
 	-- Build object
 	local bi = {
 		_frame           = frame,
+		_iconFrame       = iconFrame,
 		_borderBg        = borderBg,
 		_borderThickness = borderThickness,
+		_countdownReparented = false,
 		_unit            = nil,
 		_auraInstanceID  = nil,
 
-		icon     = icon,
-		cooldown = cooldown,
-		stacks   = stacksText,
+		icon          = icon,
+		cooldown      = cooldown,
+		stacks        = stacksText,
+		_durationFont = config.durationFont,
 	}
 
 	-- Apply methods

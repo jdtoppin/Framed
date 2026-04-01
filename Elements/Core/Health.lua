@@ -73,6 +73,10 @@ local function NpcUpdateColor(self, event, unit)
 	end
 end
 
+--- Exposed for LiveUpdate/StyleBuilder to restore on NPC frames
+--- after clearing UpdateColor.
+F.Elements.Health.NpcUpdateColor = NpcUpdateColor
+
 -- ============================================================
 -- Health Element Setup
 -- ============================================================

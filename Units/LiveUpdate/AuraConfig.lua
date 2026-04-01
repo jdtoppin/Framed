@@ -143,7 +143,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 						element._frame:SetPoint(a[1], frame, a[3] or a[1], a[4] or 0, a[5] or 0)
 					end
 				end
-				element:ForceUpdate()
+				if(element.ForceUpdate) then
+						element:ForceUpdate()
+					end
 			end
 		end)
 	end)

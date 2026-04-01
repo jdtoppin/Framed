@@ -697,8 +697,15 @@ F.EventBus:Register('CONFIG_CHANGED', function(path, value)
 
 				if(value == 'class') then
 					health.colorClass = true
+					-- NPC frames need secret-safe UpdateColor
+					if(health._isNpcFrame) then
+						health.UpdateColor = F.Elements.Health.NpcUpdateColor
+					end
 				elseif(value == 'gradient') then
 					health.colorSmooth = true
+					if(health._isNpcFrame) then
+						health.UpdateColor = F.Elements.Health.NpcUpdateColor
+					end
 					-- Rebuild curve from current config
 					local cfg = F.StyleBuilder.GetConfig(unitType)
 					rebuildHealthCurve(frame, cfg.health or {})

@@ -578,8 +578,16 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(mode == 'class') then
 				h.colorClass    = true
 				h.colorReaction = true
+				-- NPC frames need secret-safe UpdateColor for UnitThreatSituation
+				if(h._isNpcFrame) then
+					h.UpdateColor = F.Elements.Health.NpcUpdateColor
+				end
 			elseif(mode == 'gradient') then
 				h.colorSmooth = true
+				-- NPC frames need secret-safe UpdateColor for UnitThreatSituation
+				if(h._isNpcFrame) then
+					h.UpdateColor = F.Elements.Health.NpcUpdateColor
+				end
 				-- Ensure per-frame colors table exists
 				if(not rawget(frame, 'colors')) then
 					frame.colors = setmetatable({}, { __index = oUF.colors })
@@ -1297,6 +1305,12 @@ end, 'LiveUpdate.FrameConfig')
 --- Called on preset switch so frames reflect the correct values after
 --- they were initially spawned with a different preset's config.
 local function applyFullConfig(frame, config)
+	-- Header buttons may exist in oUF.objects before oUF has fully
+	-- initialized them (activeElements not yet set). EnableElement
+	-- would crash. Health is always present after init, so use it
+	-- as a sentinel.
+	if(not frame:IsElementEnabled('Health')) then return end
+
 	local unitType = frame._framedUnitType
 	-- ── Position (solo frames only) ──────────────────────────
 	if(not GROUP_TYPES[unitType]) then
@@ -1397,8 +1411,14 @@ local function applyFullConfig(frame, config)
 		if(colorMode == 'class') then
 			h.colorClass    = true
 			h.colorReaction = true
+			if(h._isNpcFrame) then
+				h.UpdateColor = F.Elements.Health.NpcUpdateColor
+			end
 		elseif(colorMode == 'gradient') then
 			h.colorSmooth = true
+			if(h._isNpcFrame) then
+				h.UpdateColor = F.Elements.Health.NpcUpdateColor
+			end
 		elseif(colorMode == 'dark') then
 			h.UpdateColor = function(self)
 				self.Health:SetStatusBarColor(0.25, 0.25, 0.25)
@@ -1707,7 +1727,7 @@ local AURA_ELEMENTS = {
 
 F.EventBus:Register('PRESET_CHANGED', function(presetName)
 	for _, frame in next, oUF.objects do
-		if(frame._framedUnitType) then
+		if(frame._framedUnitType and frame:IsElementEnabled('Health')) then
 			local unitType = frame._framedUnitType
 
 			-- Pet frames have their own sync block below; skip generic apply

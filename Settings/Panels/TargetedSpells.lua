@@ -9,6 +9,7 @@ local C = F.Constants
 
 local SLIDER_H     = 26
 local DROPDOWN_H   = 22
+local CHECK_H      = 22
 local WIDGET_W     = 220
 
 -- ============================================================
@@ -139,7 +140,24 @@ F.Settings.RegisterPanel({
 			iconCardY = iconCardY - iconAnchorPicker:GetHeight() - C.Spacing.normal
 		end
 
+		-- Show Duration
+		local durCheck = Widgets.CreateCheckButton(iconInner, 'Show Duration', function(checked) set('showDuration', checked) end)
+		durCheck:SetChecked(get('showDuration') ~= false)
+		durCheck:ClearAllPoints()
+		Widgets.SetPoint(durCheck, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
+		iconCardY = iconCardY - CHECK_H - C.Spacing.normal
+
 		yOffset = Widgets.EndCard(iconCard, content, iconCardY)
+
+		-- ── Duration Font ──────────────────────────────────────
+		local fontChildrenBefore = { content:GetChildren() }
+		local fontChildCountBefore = #fontChildrenBefore
+		yOffset = F.Settings.BuildFontCard(content, width, yOffset, 'Duration Text Font', 'durationFont', get, set)
+		local durationFontCards = {}
+		local fontChildrenAfter = { content:GetChildren() }
+		for i = fontChildCountBefore + 1, #fontChildrenAfter do
+			durationFontCards[#durationFontCards + 1] = fontChildrenAfter[i]
+		end
 
 		-- ── Border Glow Settings (shown for BorderGlow or Both) ─
 		local glowHeading, glowHeadingH = Widgets.CreateHeading(content, 'Border Glow Settings', 2)
@@ -172,13 +190,14 @@ F.Settings.RegisterPanel({
 		end
 
 		-- ── Display mode visibility ─────────────────────────────
-		local iconWidgets = { iconHeading, sizeSlider, maxSlider, iconLvlSlider }
+		local iconWidgets = { iconHeading, sizeSlider, maxSlider, iconLvlSlider, durCheck }
 		if(iconAnchorPicker) then iconWidgets[#iconWidgets + 1] = iconAnchorPicker end
 
 		local function updatePaneVisibility(mode)
 			local showIcons = (mode == 'Icons' or mode == 'Both')
 			local showGlow  = (mode == 'BorderGlow' or mode == 'Both')
 			for _, w in next, iconWidgets do w:SetShown(showIcons) end
+			for _, card in next, durationFontCards do card:SetShown(showIcons) end
 			glowHeading:SetShown(showGlow)
 			for _, card in next, glowCards do card:SetShown(showGlow) end
 		end

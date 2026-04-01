@@ -208,7 +208,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	yOffset = F.Settings.BuildPositionCard(parent, width, yOffset, get, set)
 
 	-- ── Stack Font section ──────────────────────────────────
-	yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Count Font', 'stackFont', get, set)
+	yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Stack Count Font', 'stackFont', get, set, { showAnchor = true })
 
 	-- ── Duration Font section ───────────────────────────────
 	yOffset = F.Settings.BuildFontCard(parent, width, yOffset, 'Duration Text Font', 'durationFont', get, set)
