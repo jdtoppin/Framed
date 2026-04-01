@@ -872,11 +872,6 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					end
 				end
 
-				-- Update glow type if changed
-				if(element._glow) then
-					element._glow:SetGlowType(element._glowType)
-				end
-
 				if(element.ForceUpdate) then
 					element:ForceUpdate()
 				end
