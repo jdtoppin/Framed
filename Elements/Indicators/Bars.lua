@@ -31,7 +31,8 @@ function BarsMethods:SetBars(auraList)
 		elseif(defaultColor) then
 			bar:SetColor(defaultColor[1], defaultColor[2], defaultColor[3], defaultColor[4] or 1)
 		end
-		if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+		local hasDuration = F.IsValueNonSecret(aura.duration) and aura.duration > 0
+		if(hasDuration and F.IsValueNonSecret(aura.expirationTime) and aura.expirationTime > 0) then
 			bar:SetDuration(aura.duration, aura.expirationTime)
 		else
 			bar:SetValue(1, 1)

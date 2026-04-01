@@ -122,11 +122,14 @@ local function Update(self, event, unit)
 		if(F.IsValueNonSecret(spellId)) then
 			local dominated = false
 			if(element._hideUnimportantBuffs) then
-				dominated = auraData.duration == 0
-					or auraData.duration > 600
-					or (not auraData.canApplyAura
-						and not auraData.isBossAura
-						and auraData.duration > 120)
+				if(F.IsValueNonSecret(auraData.duration)) then
+					dominated = auraData.duration == 0
+						or auraData.duration > 600
+						or (F.IsValueNonSecret(auraData.canApplyAura) and not auraData.canApplyAura
+							and F.IsValueNonSecret(auraData.isBossAura) and not auraData.isBossAura
+							and auraData.duration > 120)
+				end
+				-- When duration is secret, don't filter — show the buff
 			end
 
 			if(not dominated) then
@@ -141,11 +144,13 @@ local function Update(self, event, unit)
 						if(passesCastByFilter(sourceUnit, ind._castBy)) then
 							if(not auraEntry) then
 								auraEntry = {
+									unit           = unit,
+									auraInstanceID = auraData.auraInstanceID,
 									spellId        = spellId,
 									icon           = auraData.icon,
 									duration       = auraData.duration,
 									expirationTime = auraData.expirationTime,
-									stacks         = auraData.applications or 0,
+									stacks         = auraData.applications,
 									dispelType     = auraData.dispelName,
 								}
 							end
@@ -165,11 +170,13 @@ local function Update(self, event, unit)
 					if(passesCastByFilter(sourceUnit, ind._castBy)) then
 						if(not auraEntry) then
 							auraEntry = {
+								unit           = unit,
+								auraInstanceID = auraData.auraInstanceID,
 								spellId        = spellId,
 								icon           = auraData.icon,
 								duration       = auraData.duration,
 								expirationTime = auraData.expirationTime,
-								stacks         = auraData.applications or 0,
+								stacks         = auraData.applications,
 								dispelType     = auraData.dispelName,
 							}
 						end
@@ -236,7 +243,8 @@ local function Update(self, event, unit)
 				else
 					renderer:SetColor(1, 1, 1, 1)
 				end
-				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+				local hasDuration = F.IsValueNonSecret(aura.duration) and aura.duration > 0
+				if(hasDuration and F.IsValueNonSecret(aura.expirationTime) and aura.expirationTime > 0) then
 					renderer:SetDuration(aura.duration, aura.expirationTime)
 				else
 					renderer:SetValue(1, 1)
@@ -287,7 +295,8 @@ local function Update(self, event, unit)
 						renderer:Start(ind._glowColor, ind._glowType, ind._glowConfig)
 					end
 				end
-				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+				local hasDuration = F.IsValueNonSecret(aura.duration) and aura.duration > 0
+				if(hasDuration and F.IsValueNonSecret(aura.expirationTime) and aura.expirationTime > 0) then
 					renderer:SetCooldown(aura.duration, aura.expirationTime)
 				else
 					renderer:SetCooldown(0, 0)
@@ -301,7 +310,8 @@ local function Update(self, event, unit)
 			if(aura) then
 				local color = ind._color or { 1, 1, 1, 1 }
 				renderer:SetColor(color[1], color[2], color[3], color[4] or 1)
-				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+				local hasDuration = F.IsValueNonSecret(aura.duration) and aura.duration > 0
+				if(hasDuration and F.IsValueNonSecret(aura.expirationTime) and aura.expirationTime > 0) then
 					renderer:SetDuration(aura.duration, aura.expirationTime)
 				else
 					renderer:SetValue(1, 1)
@@ -316,7 +326,8 @@ local function Update(self, event, unit)
 			if(aura) then
 				local color = ind._color
 				if(color) then renderer:SetColor(color[1], color[2], color[3], color[4] or 1) end
-				if(aura.duration and aura.duration > 0 and aura.expirationTime) then
+				local hasDuration = F.IsValueNonSecret(aura.duration) and aura.duration > 0
+				if(hasDuration and F.IsValueNonSecret(aura.expirationTime) and aura.expirationTime > 0) then
 					renderer:SetDuration(aura.duration, aura.expirationTime)
 				else
 					renderer:SetValue(1, 1)
