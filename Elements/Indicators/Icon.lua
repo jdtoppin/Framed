@@ -332,9 +332,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 	local pf = 768.0 / select(2, GetPhysicalScreenSize())
 	local P = pf / scale  -- 1 physical pixel for both edge and content inset
 	frame:SetBackdrop({
-		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
-		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
-		edgeSize = P,
+		bgFile = [[Interface\BUTTONS\WHITE8x8]],
 	})
 	frame:SetBackdropColor(0, 0, 0, 1)
 	frame:SetBackdropBorderColor(0, 0, 0, 1)
