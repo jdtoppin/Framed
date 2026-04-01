@@ -342,12 +342,12 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		end)
 		appY = placeWidget(dtSwitch, appInner, appY, BUTTON_H)
 
-		local wSlider = Widgets.CreateSlider(appInner, 'Width', WIDGET_W, 8, 48, 1)
+		local wSlider = Widgets.CreateSlider(appInner, 'Width', WIDGET_W, 3, 48, 1)
 		wSlider:SetValue(data.iconWidth or 16)
 		wSlider:SetAfterValueChanged(function(v) update('iconWidth', v) end)
 		appY = placeWidget(wSlider, appInner, appY, SLIDER_H)
 
-		local hSlider = Widgets.CreateSlider(appInner, 'Height', WIDGET_W, 8, 48, 1)
+		local hSlider = Widgets.CreateSlider(appInner, 'Height', WIDGET_W, 3, 48, 1)
 		hSlider:SetValue(data.iconHeight or 16)
 		hSlider:SetAfterValueChanged(function(v) update('iconHeight', v) end)
 		appY = placeWidget(hSlider, appInner, appY, SLIDER_H)
