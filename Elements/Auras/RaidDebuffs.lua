@@ -12,7 +12,12 @@ local function raidDebuffSortComparator(a, b)
 	if(a.priority ~= b.priority) then
 		return a.priority > b.priority
 	end
-	return (a.expirationTime or 0) > (b.expirationTime or 0)
+	local aExp = a.expirationTime
+	local bExp = b.expirationTime
+	if(not F.IsValueNonSecret(aExp) or not F.IsValueNonSecret(bExp)) then
+		return false
+	end
+	return (aExp or 0) > (bExp or 0)
 end
 
 -- ============================================================
@@ -70,11 +75,12 @@ local function Update(self, event, unit)
 
 			if(shouldShow and priority >= minPriority) then
 				auraList[#auraList + 1] = {
+					auraInstanceID = auraData.auraInstanceID,
 					spellId        = spellId,
 					icon           = auraData.icon,
 					duration       = auraData.duration,
 					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications or 0,
+					stacks         = auraData.applications,
 					dispelType     = F.IsValueNonSecret(auraData.dispelName) and auraData.dispelName or nil,
 					priority       = priority,
 				}
@@ -134,6 +140,7 @@ local function Update(self, event, unit)
 		end
 
 		bi:SetAura(
+			unit, aura.auraInstanceID,
 			aura.spellId,
 			aura.icon,
 			aura.duration,

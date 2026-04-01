@@ -118,13 +118,14 @@ local function Update(self, event, unit)
 
 	if(not unit or self.unit ~= unit) then return end
 
-	local bestType       = nil
-	local bestPriority   = 999
-	local bestIcon       = nil
-	local bestSpellId    = nil
-	local bestDuration   = nil
-	local bestExpiration = nil
-	local bestStacks     = nil
+	local bestType           = nil
+	local bestPriority       = 999
+	local bestIcon           = nil
+	local bestSpellId        = nil
+	local bestDuration       = nil
+	local bestExpiration     = nil
+	local bestStacks         = nil
+	local bestAuraInstanceID = nil
 
 	local onlyDispellableByMe = element._onlyDispellableByMe
 
@@ -143,13 +144,14 @@ local function Update(self, event, unit)
 				if(DISPEL_PRIORITY[dispelType]) then
 					local priority = DISPEL_PRIORITY[dispelType]
 					if(priority < bestPriority) then
-						bestPriority   = priority
-						bestType       = dispelType
-						bestIcon       = auraData.icon
-						bestSpellId    = spellId
-						bestDuration   = auraData.duration
-						bestExpiration = auraData.expirationTime
-						bestStacks     = auraData.applications or 0
+						bestPriority       = priority
+						bestType           = dispelType
+						bestIcon           = auraData.icon
+						bestSpellId        = spellId
+						bestDuration       = auraData.duration
+						bestExpiration     = auraData.expirationTime
+						bestStacks         = auraData.applications
+						bestAuraInstanceID = auraData.auraInstanceID
 					end
 				end
 			end
@@ -170,13 +172,14 @@ local function Update(self, event, unit)
 				if(dispelSafe and isPhysicalOrBleed(dispelName)) then
 					local priority = DISPEL_PRIORITY.Physical
 					if(priority < bestPriority) then
-						bestPriority   = priority
-						bestType       = 'Physical'
-						bestIcon       = auraData.icon
-						bestSpellId    = spellId
-						bestDuration   = auraData.duration
-						bestExpiration = auraData.expirationTime
-						bestStacks     = auraData.applications or 0
+						bestPriority       = priority
+						bestType           = 'Physical'
+						bestIcon           = auraData.icon
+						bestSpellId        = spellId
+						bestDuration       = auraData.duration
+						bestExpiration     = auraData.expirationTime
+						bestStacks         = auraData.applications
+						bestAuraInstanceID = auraData.auraInstanceID
 					end
 				end
 			end
@@ -186,6 +189,7 @@ local function Update(self, event, unit)
 	if(bestType) then
 		-- Show BorderIcon with the debuff's spell icon
 		element._borderIcon:SetAura(
+			unit, bestAuraInstanceID,
 			bestSpellId,
 			bestIcon,
 			bestDuration,

@@ -52,11 +52,12 @@ local function Update(self, event, unit)
 				-- Skip player-cast auras in "others" mode
 			else
 				auraList[#auraList + 1] = {
+					auraInstanceID = auraData.auraInstanceID,
 					spellId        = spellId,
 					icon           = auraData.icon,
 					duration       = auraData.duration,
 					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications or 0,
+					stacks         = auraData.applications,
 					isPlayerCast   = isPlayerCast,
 				}
 			end
@@ -106,6 +107,7 @@ local function Update(self, event, unit)
 		end
 
 		bi:SetAura(
+			unit, aura.auraInstanceID,
 			aura.spellId,
 			aura.icon,
 			aura.duration,

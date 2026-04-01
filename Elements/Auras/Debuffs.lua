@@ -37,11 +37,12 @@ local function Update(self, event, unit)
 			local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
 
 			auraList[#auraList + 1] = {
+				auraInstanceID = auraData.auraInstanceID,
 				spellId        = spellId,
 				icon           = auraData.icon,
 				duration       = auraData.duration,
 				expirationTime = auraData.expirationTime,
-				stacks         = auraData.applications or 0,
+				stacks         = auraData.applications,
 				dispelType     = dispelSafe and dispelName or nil,
 				isBossAura     = auraData.isBossAura,
 			}
@@ -63,11 +64,12 @@ local function Update(self, event, unit)
 				local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
 				if(dispelSafe and (not dispelName or dispelName == '' or dispelName == 'Physical')) then
 					auraList[#auraList + 1] = {
+						auraInstanceID = auraData.auraInstanceID,
 						spellId        = spellId,
 						icon           = auraData.icon,
 						duration       = auraData.duration,
 						expirationTime = auraData.expirationTime,
-						stacks         = auraData.applications or 0,
+						stacks         = auraData.applications,
 						dispelType     = nil,
 						isBossAura     = auraData.isBossAura,
 					}
@@ -124,6 +126,7 @@ local function Update(self, event, unit)
 		end
 
 		bi:SetAura(
+			unit, aura.auraInstanceID,
 			aura.spellId,
 			aura.icon,
 			aura.duration,
