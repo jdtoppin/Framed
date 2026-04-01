@@ -562,9 +562,13 @@ function F.PresetDefaults.EnsureDefaults()
 						auraSet.buffs.enabled = true
 					end
 					-- Migrate hideUnimportantBuffs → buffFilterMode
-					if(auraSet.buffs and (unitType == 'party' or unitType == 'raid')) then
+					if(auraSet.buffs) then
 						if(not auraSet.buffs.buffFilterMode) then
-							auraSet.buffs.buffFilterMode = (auraSet.buffs.hideUnimportantBuffs ~= false) and 'raidCombat' or 'all'
+							if(unitType == 'party' or unitType == 'raid') then
+								auraSet.buffs.buffFilterMode = (auraSet.buffs.hideUnimportantBuffs ~= false) and 'raidCombat' or 'all'
+							else
+								auraSet.buffs.buffFilterMode = 'raidCombat'
+							end
 						end
 						auraSet.buffs.hideUnimportantBuffs = nil
 					end
