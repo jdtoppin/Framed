@@ -7,6 +7,14 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.Debuffs = {}
 
+local FILTER_MAP = {
+	all          = 'HARMFUL',
+	raid         = 'HARMFUL|RAID',
+	important    = 'HARMFUL|IMPORTANT',
+	dispellable  = 'HARMFUL|RAID_PLAYER_DISPELLABLE',
+	raidCombat   = 'HARMFUL|RAID_IN_COMBAT',
+}
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -19,15 +27,14 @@ local function Update(self, event, unit)
 
 	local cfg = element._config
 	local maxDisplayed = cfg.maxDisplayed or 3
-	local onlyDispellableByMe = cfg.onlyDispellableByMe
 
-	-- Collect auras via new API with server-side sorting
-	local rawAuras
-	if(onlyDispellableByMe) then
-		rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID_PLAYER_DISPELLABLE', nil, Enum.UnitAuraSortRule.Default)
-	else
-		rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL', nil, Enum.UnitAuraSortRule.Default)
+	-- Backward compat: map old boolean to new filterMode
+	local filterMode = cfg.filterMode
+	if(not filterMode and cfg.onlyDispellableByMe) then
+		filterMode = 'dispellable'
 	end
+	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
+	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter, nil, Enum.UnitAuraSortRule.Default)
 
 	local auraList = {}
 	for _, auraData in next, rawAuras do
@@ -49,13 +56,13 @@ local function Update(self, event, unit)
 		end
 	end
 
-	-- When onlyDispellableByMe is on, also include Physical/bleed debuffs
+	-- When filterMode is 'dispellable', also include Physical/bleed debuffs
 	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them).
 	-- Always included here (unlike Dispellable which has a showPhysicalDebuffs toggle)
 	-- because the Debuffs element is a general display and bleeds provide context.
 	-- Supplementary results are appended after the server-sorted dispellable set,
 	-- so they appear lower priority when maxDisplayed truncates.
-	if(onlyDispellableByMe) then
+	if(filterMode == 'dispellable') then
 		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
 		for _, auraData in next, raidAuras do
 			local spellId = auraData.spellId

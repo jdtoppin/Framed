@@ -64,6 +64,11 @@ local function defaultGrowForAnchor(parentPoint)
 	return 'RIGHT'
 end
 
+local BUFF_FILTER_MAP = {
+	all         = 'HELPFUL',
+	raidCombat  = 'HELPFUL|RAID_IN_COMBAT',
+}
+
 -- ============================================================
 -- castBy filter helper
 -- ============================================================
@@ -115,57 +120,19 @@ local function Update(self, event, unit)
 		matched[idx] = false
 	end
 
-	-- Iterate helpful auras
-	local auras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	-- Build filter string from config
+	local buffFilter = BUFF_FILTER_MAP[element._buffFilterMode] or 'HELPFUL'
+	local auras = C_UnitAuras.GetUnitAuras(unit, buffFilter)
 	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
-			local dominated = false
-			if(element._hideUnimportantBuffs) then
-				if(F.IsValueNonSecret(auraData.duration)) then
-					dominated = auraData.duration == 0
-						or auraData.duration > 600
-						or (F.IsValueNonSecret(auraData.canApplyAura) and not auraData.canApplyAura
-							and F.IsValueNonSecret(auraData.isBossAura) and not auraData.isBossAura
-							and auraData.duration > 120)
-				end
-				-- When duration is secret, don't filter — show the buff
-			end
+			local auraEntry
+			local sourceUnit = auraData.sourceUnit
 
-			if(not dominated) then
-				local auraEntry
-				local sourceUnit = auraData.sourceUnit
-
-				-- Check spell-specific indicators
-				local indicatorIndices = spellLookup[spellId]
-				if(indicatorIndices) then
-					for _, idx in next, indicatorIndices do
-						local ind = indicators[idx]
-						if(passesCastByFilter(sourceUnit, ind._castBy)) then
-							if(not auraEntry) then
-								auraEntry = {
-									unit           = unit,
-									auraInstanceID = auraData.auraInstanceID,
-									spellId        = spellId,
-									icon           = auraData.icon,
-									duration       = auraData.duration,
-									expirationTime = auraData.expirationTime,
-									stacks         = auraData.applications,
-									dispelType     = auraData.dispelName,
-								}
-							end
-							if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
-								local list = iconsAuras[idx]
-								list[#list + 1] = auraEntry
-							elseif(not matched[idx]) then
-								matched[idx] = auraEntry
-							end
-						end
-					end
-				end
-
-				-- Check track-all indicators (empty spells list)
-				for _, idx in next, hasTrackAll do
+			-- Check spell-specific indicators
+			local indicatorIndices = spellLookup[spellId]
+			if(indicatorIndices) then
+				for _, idx in next, indicatorIndices do
 					local ind = indicators[idx]
 					if(passesCastByFilter(sourceUnit, ind._castBy)) then
 						if(not auraEntry) then
@@ -186,6 +153,31 @@ local function Update(self, event, unit)
 						elseif(not matched[idx]) then
 							matched[idx] = auraEntry
 						end
+					end
+				end
+			end
+
+			-- Check track-all indicators (empty spells list)
+			for _, idx in next, hasTrackAll do
+				local ind = indicators[idx]
+				if(passesCastByFilter(sourceUnit, ind._castBy)) then
+					if(not auraEntry) then
+						auraEntry = {
+							unit           = unit,
+							auraInstanceID = auraData.auraInstanceID,
+							spellId        = spellId,
+							icon           = auraData.icon,
+							duration       = auraData.duration,
+							expirationTime = auraData.expirationTime,
+							stacks         = auraData.applications,
+							dispelType     = auraData.dispelName,
+						}
+					end
+					if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
+						local list = iconsAuras[idx]
+						list[#list + 1] = auraEntry
+					elseif(not matched[idx]) then
+						matched[idx] = auraEntry
 					end
 				end
 			end
@@ -538,7 +530,7 @@ local function Rebuild(element, config)
 	element._indicators           = {}
 	element._spellLookup          = {}
 	element._hasTrackAll          = {}
-	element._hideUnimportantBuffs = config.hideUnimportantBuffs or false
+	element._buffFilterMode = config.buffFilterMode or (config.hideUnimportantBuffs and 'raidCombat') or 'all'
 
 	local indicators = config.indicators or {}
 	for name, indConfig in next, indicators do
@@ -704,7 +696,7 @@ function F.Elements.Buffs.Setup(self, config)
 		_indicators           = indicators,
 		_spellLookup          = spellLookup,
 		_hasTrackAll          = hasTrackAll,
-		_hideUnimportantBuffs = config.hideUnimportantBuffs or false,
+		_buffFilterMode = config.buffFilterMode or (config.hideUnimportantBuffs and 'raidCombat') or 'all',
 	}
 
 	container.Rebuild = Rebuild

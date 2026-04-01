@@ -68,7 +68,7 @@ local function debuffConfig(iconSize, maxDisplayed)
 		orientation          = 'RIGHT',
 		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
 		frameLevel           = 5,
-		onlyDispellableByMe  = false,
+		filterMode           = 'all',
 		stackFont            = stackFont(),
 		durationFont         = durationFont(),
 	}
@@ -141,7 +141,7 @@ function F.AuraDefaults.Group(sizes)
 	return {
 		buffs = {
 			enabled = true,
-			hideUnimportantBuffs = true,
+			buffFilterMode = 'raidCombat',
 			indicators = { ['My Buffs'] = defaultBuffIndicator() },
 		},
 		debuffs = {
@@ -154,7 +154,7 @@ function F.AuraDefaults.Group(sizes)
 			orientation          = 'RIGHT',
 			anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 1, 4 },
 			frameLevel           = 5,
-			onlyDispellableByMe  = false,
+			filterMode           = 'all',
 			stackFont            = stackFont(),
 			durationFont         = durationFont(),
 		},
@@ -267,7 +267,7 @@ function F.AuraDefaults.Arena()
 			orientation          = 'RIGHT',
 			anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
 			frameLevel           = 5,
-			onlyDispellableByMe  = false,
+			filterMode           = 'all',
 			stackFont            = stackFont(),
 			durationFont         = durationFont(),
 		},
