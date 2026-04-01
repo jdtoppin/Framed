@@ -129,54 +129,46 @@ function BorderIconMethods:SetAura(...)
 		self.icon:SetTexture(tex)
 	end
 
-	-- Border color from dispel type (only when dispelType is non-nil).
-	-- Non-dispellable auras have dispelName = nil (not secret-nil), so
-	-- the truthiness check safely skips them.
-	if(dispelType) then
-		if(unit and auraInstanceID) then
-			-- New path: C-level dispel color via curve (handles secret dispelType)
-			local curve = getDispelColorCurve()
-			if(curve and C_UnitAuras.GetAuraDispelTypeColor) then
-				local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
-				if(color and F.IsValueNonSecret(color)) then
-					self:SetBorderColor(color:GetRGBA())
-				end
+	-- Border color from dispel type
+	if(unit and auraInstanceID) then
+		-- New path: C-level dispel color via curve
+		local curve = getDispelColorCurve()
+		if(curve and C_UnitAuras.GetAuraDispelTypeColor) then
+			local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
+			if(color and F.IsValueNonSecret(color)) then
+				self:SetBorderColor(color:GetRGBA())
 			end
-		elseif(F.IsValueNonSecret(dispelType)) then
-			-- Legacy path: manual color lookup
-			local color = C.Colors.dispel[dispelType]
-			if(color) then
-				self:SetBorderColor(color[1], color[2], color[3], 1)
-			end
+		end
+	elseif(dispelType and F.IsValueNonSecret(dispelType)) then
+		-- Legacy path: manual color lookup
+		local color = C.Colors.dispel[dispelType]
+		if(color) then
+			self:SetBorderColor(color[1], color[2], color[3], 1)
 		end
 	end
 
 	-- Cooldown swipe (fills the border area; icon frame sits above).
 	-- Callers can set cooldown:SetReverse() before SetAura to override direction.
 	if(self.cooldown) then
-		local cooldownSet = false
-
-		-- Preferred: C-level DurationObject (handles secrets, works in tainted combat)
-		if(unit and auraInstanceID and C_UnitAuras.GetAuraDuration) then
+		if(unit and auraInstanceID) then
+			-- New path: DurationObject -> SetCooldownFromDurationObject
+			-- This is the ONLY cooldown API available in tainted combat (12.0.1)
 			local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
 			if(durationObj) then
 				self.cooldown:SetCooldownFromDurationObject(durationObj)
-				cooldownSet = true
+			else
+				self.cooldown:Clear()
 			end
-		end
-
-		-- Fallback: raw SetCooldown
-		if(not cooldownSet and duration and expirationTime) then
-			local dSafe = F.IsValueNonSecret(duration)
-			local eSafe = F.IsValueNonSecret(expirationTime)
-			if(dSafe and eSafe and duration > 0 and expirationTime > 0) then
-				self.cooldown:SetCooldown(expirationTime - duration, duration)
-				cooldownSet = true
+		else
+			-- Legacy path: raw SetCooldown (works in untainted contexts only)
+			local durationSafe = F.IsValueNonSecret(duration)
+			local expirationSafe = F.IsValueNonSecret(expirationTime)
+			if(durationSafe and expirationSafe and duration and duration > 0 and expirationTime and expirationTime > 0) then
+				local startTime = expirationTime - duration
+				self.cooldown:SetCooldown(startTime, duration)
+			else
+				self.cooldown:Clear()
 			end
-		end
-
-		if(not cooldownSet) then
-			self.cooldown:Clear()
 		end
 	end
 
