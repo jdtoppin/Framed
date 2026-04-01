@@ -147,8 +147,9 @@ function BorderIconMethods:SetAura(...)
 		end
 	end
 
-	-- Cooldown swipe
+	-- Cooldown swipe (fills the border area; icon frame sits above)
 	if(self.cooldown) then
+		self.cooldown:SetReverse(true)
 		if(unit and auraInstanceID) then
 			-- New path: DurationObject -> SetCooldownFromDurationObject
 			-- This is the ONLY cooldown API available in tainted combat (12.0.1)
@@ -242,7 +243,10 @@ end
 --- @param a? number
 function BorderIconMethods:SetBorderColor(r, g, b, a)
 	a = a or 1
-	self._frame:SetBackdropBorderColor(r, g, b, a)
+	-- Swipe color = the border color that fills in over the backdrop
+	if(self.cooldown) then
+		self.cooldown:SetSwipeColor(r, g, b, a)
+	end
 end
 
 --- Clear and hide this border icon.
@@ -290,10 +294,8 @@ function BorderIconMethods:SetFrameLevel(level)
 end
 
 function BorderIconMethods:SetSize(size)
-	local borderThickness = self._borderThickness
 	Widgets.SetSize(self._frame, size, size)
-	self.icon:SetPoint('TOPLEFT', self._frame, 'TOPLEFT', borderThickness, -borderThickness)
-	self.icon:SetPoint('BOTTOMRIGHT', self._frame, 'BOTTOMRIGHT', -borderThickness, borderThickness)
+	-- iconFrame is point-anchored with inset; auto-adjusts on resize
 end
 
 --- Tear down the BorderIcon for pool cleanup.
@@ -325,51 +327,60 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 	local showDuration    = config.showDuration  ~= false
 	local frameLevel      = config.frameLevel    or (parent:GetFrameLevel() + 5)
 
-	-- 1. Outer frame with backdrop border
+	-- 1. Outer frame with backdrop background (border color shows as bg)
 	local frame = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
 	Widgets.SetSize(frame, size, size)
 	frame:SetFrameLevel(frameLevel)
 	frame:SetBackdrop({
-		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
-		edgeSize = borderThickness,
+		bgFile = [[Interface\BUTTONS\WHITE8x8]],
 	})
-	-- Default border: dark/black
-	frame:SetBackdropBorderColor(0, 0, 0, 1)
+	-- Default: black background (acts as border color)
+	frame:SetBackdropColor(0, 0, 0, 0.85)
 	frame:Hide()
 
-	-- 2. Inner icon texture (inset by border thickness)
-	local icon = frame:CreateTexture(nil, 'ARTWORK')
-	icon:SetPoint('TOPLEFT', frame, 'TOPLEFT', borderThickness, -borderThickness)
-	icon:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -borderThickness, borderThickness)
-	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-
-	-- 3. Cooldown frame (covers the icon area)
+	-- 2. Cooldown frame covers the FULL frame (including border area).
+	--    The swipe is only visible in the border zone because the icon
+	--    sits in a child frame above the cooldown.
 	local cooldown
 	if(showCooldown) then
-		cooldown = CreateFrame('Cooldown', nil, frame, 'CooldownFrameTemplate')
-		cooldown:SetPoint('TOPLEFT', icon, 'TOPLEFT', 0, 0)
-		cooldown:SetPoint('BOTTOMRIGHT', icon, 'BOTTOMRIGHT', 0, 0)
+		cooldown = CreateFrame('Cooldown', nil, frame)
+		cooldown:SetAllPoints(frame)
+		cooldown:SetSwipeTexture([[Interface\BUTTONS\WHITE8x8]])
+		cooldown:SetSwipeColor(0, 0, 0)
 		cooldown:SetDrawBling(false)
 		cooldown:SetDrawEdge(false)
 		cooldown:SetHideCountdownNumbers(true)
+		cooldown.noCooldownCount = true
 	end
 
-	-- 4. Stack count text (bottom-right, on top of cooldown)
+	-- 3. Icon child frame (above cooldown so swipe only shows in border area)
+	local iconFrame = CreateFrame('Frame', nil, frame)
+	iconFrame:SetPoint('TOPLEFT', frame, 'TOPLEFT', borderThickness, -borderThickness)
+	iconFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -borderThickness, borderThickness)
+	if(cooldown) then
+		iconFrame:SetFrameLevel(cooldown:GetFrameLevel() + 1)
+	end
+
+	local icon = iconFrame:CreateTexture(nil, 'ARTWORK')
+	icon:SetAllPoints(iconFrame)
+	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+	-- 4. Stack count text (on icon frame, above cooldown)
 	local stacksText
 	if(showStacks) then
 		local stackFontSize = (config.stackFont and config.stackFont.size) or C.Font.sizeSmall
 		local stackFontColor = (config.stackFont and config.stackFont.color) or C.Colors.textActive
-		stacksText = Widgets.CreateFontString(frame, stackFontSize, stackFontColor)
-		stacksText:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -1, 1)
+		stacksText = Widgets.CreateFontString(iconFrame, stackFontSize, stackFontColor)
+		stacksText:SetPoint('BOTTOMRIGHT', iconFrame, 'BOTTOMRIGHT', -1, 1)
 		stacksText:Hide()
 	end
 
-	-- 5. Duration text (bottom center)
+	-- 5. Duration text (on icon frame, above cooldown)
 	local durationText
 	if(showDuration) then
 		local durFontSize = (config.durationFont and config.durationFont.size) or C.Font.sizeSmall
-		durationText = Widgets.CreateFontString(frame, durFontSize, C.Colors.textActive)
-		durationText:SetPoint('BOTTOM', frame, 'BOTTOM', 0, 1)
+		durationText = Widgets.CreateFontString(iconFrame, durFontSize, C.Colors.textActive)
+		durationText:SetPoint('BOTTOM', iconFrame, 'BOTTOM', 0, 1)
 	end
 
 	-- Build object
