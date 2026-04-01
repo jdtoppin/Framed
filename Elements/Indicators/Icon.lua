@@ -325,20 +325,24 @@ function F.Indicators.Icon.Create(parent, size, config)
 	Widgets.SetSize(frame, iconWidth, iconHeight)
 	frame:Hide()
 
-	-- 1. Border: edge-only backdrop. Edges render centered on the frame boundary,
-	--    so adjacent frames at spacing 0 overlap their edges (no doubling).
+	-- 1. Border via backdrop bg + edge. The bgFile masks overlapping content
+	--    when icons use negative spacing. Edge is 1 physical pixel; content
+	--    inset is 1 logical pixel (matching how Cell handles block indicators).
 	local scale = parent:GetEffectiveScale()
-	local B = Widgets.GetNearestPixelSize(1, scale, 1)
+	local pf = 768.0 / select(2, GetPhysicalScreenSize())
+	local P = pf / scale  -- 1 physical pixel for both edge and content inset
 	frame:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
 		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
-		edgeSize = B,
+		edgeSize = P,
 	})
+	frame:SetBackdropColor(0, 0, 0, 1)
 	frame:SetBackdropBorderColor(0, 0, 0, 1)
 
-	-- 1a. Icon texture (inset by border so it doesn't render under the edge)
+	-- 1a. Icon texture (inset by 1px so black bg shows as border)
 	local texture = frame:CreateTexture(nil, 'ARTWORK')
-	texture:SetPoint('TOPLEFT', frame, 'TOPLEFT', B, -B)
-	texture:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -B, B)
+	texture:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
+	texture:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
 	-- Trim default icon border
 	texture:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
@@ -346,32 +350,31 @@ function F.Indicators.Icon.Create(parent, size, config)
 		texture:SetTexCoord(0, 1, 0, 1)  -- no trim needed for solid color
 	end
 
-	-- 2. Depletion bar overlay (inset by border; extra pixel on trailing edge
-	--    prevents the fill from visually merging with the border)
+	-- 2. Depletion bar overlay (inset matches icon; extra 1px on trailing edge
+	--    so the fill visibly stops inside the colored area, not at the border)
 	local depletionBar
 	if(showCooldown) then
 		local fillDirection = config.fillDirection or 'topToBottom'
 		depletionBar = CreateFrame('StatusBar', nil, frame)
 
-		-- Inset: B on all sides, plus an extra B on the trailing edge of the fill
 		if(fillDirection == 'topToBottom') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', B, -B)
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -B, B + B)
+			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
+			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P + 1)
 			depletionBar:SetOrientation('VERTICAL')
 			depletionBar:SetReverseFill(true)
 		elseif(fillDirection == 'bottomToTop') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', B, -(B + B))
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -B, B)
+			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -(P + 1))
+			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
 			depletionBar:SetOrientation('VERTICAL')
 			depletionBar:SetReverseFill(false)
 		elseif(fillDirection == 'leftToRight') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', B, -B)
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -(B + B), B)
+			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
+			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -(P + 1), P)
 			depletionBar:SetOrientation('HORIZONTAL')
 			depletionBar:SetReverseFill(false)
 		elseif(fillDirection == 'rightToLeft') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', B + B, -B)
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -B, B)
+			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P + 1, -P)
+			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
 			depletionBar:SetOrientation('HORIZONTAL')
 			depletionBar:SetReverseFill(true)
 		end
@@ -388,19 +391,19 @@ function F.Indicators.Icon.Create(parent, size, config)
 		spark:SetBlendMode('ADD')
 
 		if(fillDirection == 'topToBottom') then
-			spark:SetHeight(1)
+			spark:SetHeight(P)
 			spark:SetPoint('TOPLEFT', barTex, 'BOTTOMLEFT')
 			spark:SetPoint('TOPRIGHT', barTex, 'BOTTOMRIGHT')
 		elseif(fillDirection == 'bottomToTop') then
-			spark:SetHeight(1)
+			spark:SetHeight(P)
 			spark:SetPoint('BOTTOMLEFT', barTex, 'TOPLEFT')
 			spark:SetPoint('BOTTOMRIGHT', barTex, 'TOPRIGHT')
 		elseif(fillDirection == 'leftToRight') then
-			spark:SetWidth(1)
+			spark:SetWidth(P)
 			spark:SetPoint('TOPLEFT', barTex, 'TOPRIGHT')
 			spark:SetPoint('BOTTOMLEFT', barTex, 'BOTTOMRIGHT')
 		elseif(fillDirection == 'rightToLeft') then
-			spark:SetWidth(1)
+			spark:SetWidth(P)
 			spark:SetPoint('TOPRIGHT', barTex, 'TOPLEFT')
 			spark:SetPoint('BOTTOMRIGHT', barTex, 'BOTTOMLEFT')
 		end

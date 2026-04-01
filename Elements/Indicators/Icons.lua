@@ -41,6 +41,7 @@ function IconsMethods:SetIcons(auraList)
 		end
 
 		local icon = self._pool[i]
+		icon:GetFrame():SetFrameLevel(container:GetFrameLevel() + i)
 		icon:ClearAllPoints()
 
 		-- Position based on grow direction + grid
