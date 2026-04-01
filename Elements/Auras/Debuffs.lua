@@ -33,27 +33,27 @@ local function Update(self, event, unit)
 	if(not filterMode and cfg.onlyDispellableByMe) then
 		filterMode = 'dispellable'
 	end
-	local filter = FILTER_MAP[filterMode]
+	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter, nil, Enum.UnitAuraSortRule.Default)
 
+	-- Always include auras regardless of secret status.
+	-- auraInstanceID is NeverSecret; BorderIcon.SetAura uses C-level APIs
+	-- (DurationObject, dispel color curve, etc.) for display when unit +
+	-- auraInstanceID are provided. Lua-level fields (spellId, icon, duration)
+	-- may be secret in instanced content — SetTexture and other C-level frame
+	-- methods accept them directly.
 	local auraList = {}
 	for _, auraData in next, rawAuras do
-		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId)) then
-			local dispelName = auraData.dispelName
-			local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
-
-			auraList[#auraList + 1] = {
-				auraInstanceID = auraData.auraInstanceID,
-				spellId        = spellId,
-				icon           = auraData.icon,
-				duration       = auraData.duration,
-				expirationTime = auraData.expirationTime,
-				stacks         = auraData.applications,
-				dispelType     = dispelSafe and dispelName or nil,
-				isBossAura     = auraData.isBossAura,
-			}
-		end
+		auraList[#auraList + 1] = {
+			auraInstanceID = auraData.auraInstanceID,
+			spellId        = auraData.spellId,
+			icon           = auraData.icon,
+			duration       = auraData.duration,
+			expirationTime = auraData.expirationTime,
+			stacks         = auraData.applications,
+			dispelType     = auraData.dispelName,
+			isBossAura     = auraData.isBossAura,
+		}
 	end
 
 	-- When filterMode is 'dispellable', also include Physical/bleed debuffs
@@ -65,25 +65,31 @@ local function Update(self, event, unit)
 	if(filterMode == 'dispellable') then
 		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
 		for _, auraData in next, raidAuras do
-			local spellId = auraData.spellId
-			if(F.IsValueNonSecret(spellId)) then
-				local dispelName = auraData.dispelName
-				local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
-				if(dispelSafe and (not dispelName or dispelName == '' or dispelName == 'Physical')) then
-					auraList[#auraList + 1] = {
-						auraInstanceID = auraData.auraInstanceID,
-						spellId        = spellId,
-						icon           = auraData.icon,
-						duration       = auraData.duration,
-						expirationTime = auraData.expirationTime,
-						stacks         = auraData.applications,
-						dispelType     = nil,
-						isBossAura     = auraData.isBossAura,
-					}
-				end
+			local dn = auraData.dispelName
+			-- Only non-secret dispelName can be string-compared; if secret, skip
+			-- (secret Physical debuffs are an edge case — the main HARMFUL query
+			-- already captured this aura if it exists)
+			local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
+			if(isPhysical) then
+				auraList[#auraList + 1] = {
+					auraInstanceID = auraData.auraInstanceID,
+					spellId        = auraData.spellId,
+					icon           = auraData.icon,
+					duration       = auraData.duration,
+					expirationTime = auraData.expirationTime,
+					stacks         = auraData.applications,
+					dispelType     = nil,
+					isBossAura     = auraData.isBossAura,
+				}
 			end
 		end
 	end
+
+	-- DEBUG: trace debuff rendering
+	print(('|cffff6600[Debuffs]|r unit=%s filterMode=%s filter=%s rawAuras=%d auraList=%d maxDisplayed=%s iconSize=%s orientation=%s'):format(
+		tostring(unit), tostring(filterMode), tostring(filter),
+		#rawAuras, #auraList, tostring(maxDisplayed), tostring(cfg.iconSize), tostring(cfg.orientation)
+	))
 
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
@@ -91,6 +97,10 @@ local function Update(self, event, unit)
 	local iconSize = cfg.iconSize
 	local bigIconSize = cfg.bigIconSize
 	local orientation = cfg.orientation
+	local anchor = cfg.anchor or { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 }
+	local anchorPoint = anchor[1]
+	local anchorX = anchor[4] or 0
+	local anchorY = anchor[5] or 0
 
 	for idx = 1, count do
 		local aura = auraList[idx]
@@ -109,29 +119,33 @@ local function Update(self, event, unit)
 
 		local bi = pool[idx]
 
-		-- Size: big for boss auras
-		local size = aura.isBossAura and bigIconSize or iconSize
+		-- Size: big for boss auras (isBossAura may be secret in instances)
+		local isBoss = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura
+		local size = isBoss and bigIconSize or iconSize
 
 		bi:ClearAllPoints()
 		bi:SetSize(size)
 
-		-- Position
+		-- Position: anchor directly to the unit frame, offset by prior icons
 		local offset = 0
 		for j = 1, idx - 1 do
-			local prevSize = (auraList[j].isBossAura and bigIconSize or iconSize)
+			local prevBoss = F.IsValueNonSecret(auraList[j].isBossAura) and auraList[j].isBossAura
+			local prevSize = prevBoss and bigIconSize or iconSize
 			offset = offset + prevSize + 2
 		end
 
 		if(orientation == 'RIGHT') then
-			bi:SetPoint('TOPLEFT', element._container, 'TOPLEFT', offset, 0)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX + offset, anchorY)
 		elseif(orientation == 'LEFT') then
-			bi:SetPoint('TOPRIGHT', element._container, 'TOPRIGHT', -offset, 0)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX - offset, anchorY)
 		elseif(orientation == 'DOWN') then
-			bi:SetPoint('TOPLEFT', element._container, 'TOPLEFT', 0, -offset)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY - offset)
 		elseif(orientation == 'UP') then
-			bi:SetPoint('BOTTOMLEFT', element._container, 'BOTTOMLEFT', 0, offset)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY + offset)
 		end
 
+		-- Red border as default for debuffs
+		bi:SetBorderColor(1, 0, 0, 1)
 		bi:SetAura(
 			unit, aura.auraInstanceID,
 			aura.spellId,

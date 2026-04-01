@@ -129,21 +129,26 @@ function BorderIconMethods:SetAura(...)
 		self.icon:SetTexture(tex)
 	end
 
-	-- Border color from dispel type
-	if(unit and auraInstanceID) then
-		-- New path: C-level dispel color via curve
-		local curve = getDispelColorCurve()
-		if(curve and C_UnitAuras.GetAuraDispelTypeColor) then
-			local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
-			if(color and F.IsValueNonSecret(color)) then
-				self:SetBorderColor(color:GetRGBA())
+	-- Border color from dispel type (only when dispelType is non-nil).
+	-- Non-dispellable auras have dispelName = nil (not secret-nil), so
+	-- the truthiness check safely skips them — callers set their own
+	-- default border color before SetAura.
+	if(dispelType) then
+		if(unit and auraInstanceID) then
+			-- New path: C-level dispel color via curve (handles secret dispelType)
+			local curve = getDispelColorCurve()
+			if(curve) then
+				local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
+				if(color and F.IsValueNonSecret(color)) then
+					self:SetBorderColor(color:GetRGBA())
+				end
 			end
-		end
-	elseif(dispelType and F.IsValueNonSecret(dispelType)) then
-		-- Legacy path: manual color lookup
-		local color = C.Colors.dispel[dispelType]
-		if(color) then
-			self:SetBorderColor(color[1], color[2], color[3], 1)
+		elseif(F.IsValueNonSecret(dispelType)) then
+			-- Legacy path: manual color lookup
+			local color = C.Colors.dispel[dispelType]
+			if(color) then
+				self:SetBorderColor(color[1], color[2], color[3], 1)
+			end
 		end
 	end
 
@@ -174,7 +179,7 @@ function BorderIconMethods:SetAura(...)
 
 	-- Stacks
 	if(self.stacks) then
-		if(unit and auraInstanceID and C_UnitAuras.GetAuraApplicationDisplayCount) then
+		if(unit and auraInstanceID) then
 			-- New path: C-level formatted display count
 			local displayCount = C_UnitAuras.GetAuraApplicationDisplayCount(
 				unit, auraInstanceID, 2, 99)
@@ -243,11 +248,17 @@ end
 --- @param a? number
 function BorderIconMethods:SetBorderColor(r, g, b, a)
 	a = a or 1
-	-- Backdrop = static border color (visible when no cooldown active)
 	self._frame:SetBackdropColor(r, g, b, a)
-	-- Swipe = animated border color (fills over backdrop as cooldown progresses)
-	if(self.cooldown) then
-		self.cooldown:SetSwipeColor(r, g, b, a)
+	-- DEBUG
+	if(not self._borderDebug) then
+		self._borderDebug = true
+		local br, bg, bb, ba = self._frame:GetBackdropColor()
+		print(('|cffff00ff[BI Border]|r set=%.1f,%.1f,%.1f,%.1f get=%.1f,%.1f,%.1f,%.1f backdrop=%s bt=%s w=%.0f'):format(
+			r, g, b, a, br or 0, bg or 0, bb or 0, ba or 0,
+			tostring(self._frame:GetBackdrop() ~= nil),
+			tostring(self._borderThickness),
+			self._frame:GetWidth()
+		))
 	end
 end
 
@@ -340,32 +351,26 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 	frame:SetBackdropColor(0, 0, 0, 0.85)
 	frame:Hide()
 
-	-- 2. Cooldown frame covers the FULL frame (including border area).
-	--    The swipe is only visible in the border zone because the icon
-	--    sits in a child frame above the cooldown.
+	-- 2. Icon child frame (inset from outer frame so backdrop shows as border)
+	local iconFrame = CreateFrame('Frame', nil, frame)
+	iconFrame:SetPoint('TOPLEFT', frame, 'TOPLEFT', borderThickness, -borderThickness)
+	iconFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -borderThickness, borderThickness)
+
+	local icon = iconFrame:CreateTexture(nil, 'ARTWORK')
+	icon:SetAllPoints(iconFrame)
+	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+
+	-- 3. Cooldown frame (hidden visually — used only for DurationObject binding)
 	local cooldown
 	if(showCooldown) then
-		cooldown = CreateFrame('Cooldown', nil, frame)
-		cooldown:SetAllPoints(frame)
-		cooldown:SetSwipeTexture([[Interface\BUTTONS\WHITE8x8]])
-		cooldown:SetSwipeColor(0, 0, 0)
+		cooldown = CreateFrame('Cooldown', nil, iconFrame)
+		cooldown:SetAllPoints(iconFrame)
+		cooldown:SetDrawSwipe(false)
 		cooldown:SetDrawBling(false)
 		cooldown:SetDrawEdge(false)
 		cooldown:SetHideCountdownNumbers(true)
 		cooldown.noCooldownCount = true
 	end
-
-	-- 3. Icon child frame (above cooldown so swipe only shows in border area)
-	local iconFrame = CreateFrame('Frame', nil, frame)
-	iconFrame:SetPoint('TOPLEFT', frame, 'TOPLEFT', borderThickness, -borderThickness)
-	iconFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -borderThickness, borderThickness)
-	if(cooldown) then
-		iconFrame:SetFrameLevel(cooldown:GetFrameLevel() + 1)
-	end
-
-	local icon = iconFrame:CreateTexture(nil, 'ARTWORK')
-	icon:SetAllPoints(iconFrame)
-	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 
 	-- 4. Stack count text (on icon frame, above cooldown)
 	local stacksText
