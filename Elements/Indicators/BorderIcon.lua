@@ -13,9 +13,9 @@ F.Indicators.BorderIcon = {}
 local DURATION_UPDATE_INTERVAL = 0.1
 
 --- OnUpdate ticker for duration text display.
---- Uses C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID when
---- unit + auraInstanceID are available (secret-safe path), otherwise
---- falls back to legacy expirationTime - GetTime() calculation.
+--- Uses expirationTime - GetTime() with IsValueNonSecret guard.
+--- In tainted combat, expirationTime is secret → text gracefully hides
+--- while the cooldown swipe still works via SetCooldownFromDurationObject.
 local function DurationOnUpdate(frame, elapsed)
 	local bi = frame._biRef
 	if(not bi) then return end
@@ -24,27 +24,6 @@ local function DurationOnUpdate(frame, elapsed)
 	if(bi._durationElapsed < DURATION_UPDATE_INTERVAL) then return end
 	bi._durationElapsed = 0
 
-	-- New path: C-level remaining duration query
-	if(bi._unit and bi._auraInstanceID) then
-		if(C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID) then
-			local remaining = C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID(bi._unit, bi._auraInstanceID)
-			if(remaining and F.IsValueNonSecret(remaining) and remaining > 0) then
-				bi.duration:SetText(F.FormatDuration(remaining))
-			else
-				bi.duration:SetText('')
-				bi._durationActive = false
-				frame:SetScript('OnUpdate', nil)
-			end
-		else
-			-- Feature not available, clear duration display
-			bi.duration:SetText('')
-			bi._durationActive = false
-			frame:SetScript('OnUpdate', nil)
-		end
-		return
-	end
-
-	-- Legacy path: raw expirationTime calculation
 	local remaining = bi._expirationTime - GetTime()
 	if(remaining <= 0) then
 		bi.duration:SetText('')
@@ -97,8 +76,9 @@ local BorderIconMethods = {}
 ---   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType)
 ---   Legacy:            SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
 --- When unit + auraInstanceID are provided, C-level APIs are used for
---- cooldown, stacks, dispel color, and duration text (secret-safe).
---- Otherwise falls back to legacy behavior with IsValueNonSecret guards.
+--- cooldown (DurationObject), stacks, and dispel color (secret-safe).
+--- Duration text degrades gracefully (hidden when expirationTime is secret).
+--- Without unit + auraInstanceID, falls back to legacy behavior.
 function BorderIconMethods:SetAura(...)
 	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType
 
@@ -197,51 +177,28 @@ function BorderIconMethods:SetAura(...)
 		end
 	end
 
-	-- Duration text
+	-- Duration text — uses expirationTime with IsValueNonSecret guard.
+	-- In tainted combat, expirationTime is secret → text gracefully hides
+	-- while the cooldown swipe still works via SetCooldownFromDurationObject.
 	if(self.duration) then
-		if(unit and auraInstanceID) then
-			-- New path: use C-level remaining duration query via OnUpdate
-			-- Initial display + start ticker
-			if(C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID) then
-				local remaining = C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID(unit, auraInstanceID)
-				if(remaining and F.IsValueNonSecret(remaining) and remaining > 0) then
-					self.duration:SetText(F.FormatDuration(remaining))
-					self._durationActive = true
-					self._durationElapsed = 0
-					self._frame:SetScript('OnUpdate', DurationOnUpdate)
-				else
-					-- nil remaining means no expiration (permanent aura) or expired
-					self.duration:SetText('')
-					self._durationActive = false
-					self._frame:SetScript('OnUpdate', nil)
-				end
-			else
-				-- API not available, no duration text
-				self.duration:SetText('')
-				self._durationActive = false
-				self._frame:SetScript('OnUpdate', nil)
-			end
+		local durationSafe = F.IsValueNonSecret(duration)
+		local expirationSafe = F.IsValueNonSecret(expirationTime)
+		if(not durationSafe or not expirationSafe or duration == 0) then
+			self.duration:SetText('')
+			self._durationActive = false
+			self._frame:SetScript('OnUpdate', nil)
 		else
-			-- Legacy path: raw expirationTime calculation
-			local durationSafe = F.IsValueNonSecret(duration)
-			local expirationSafe = F.IsValueNonSecret(expirationTime)
-			if(not durationSafe or not expirationSafe or duration == 0) then
+			self._expirationTime = expirationTime
+			self._durationActive = true
+			self._durationElapsed = 0
+			local remaining = expirationTime - GetTime()
+			if(remaining > 0) then
+				self.duration:SetText(F.FormatDuration(remaining))
+				self._frame:SetScript('OnUpdate', DurationOnUpdate)
+			else
 				self.duration:SetText('')
 				self._durationActive = false
 				self._frame:SetScript('OnUpdate', nil)
-			else
-				self._expirationTime = expirationTime
-				self._durationActive = true
-				self._durationElapsed = 0
-				local remaining = expirationTime - GetTime()
-				if(remaining > 0) then
-					self.duration:SetText(F.FormatDuration(remaining))
-					self._frame:SetScript('OnUpdate', DurationOnUpdate)
-				else
-					self.duration:SetText('')
-					self._durationActive = false
-					self._frame:SetScript('OnUpdate', nil)
-				end
 			end
 		end
 	end
