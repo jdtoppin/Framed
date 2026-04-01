@@ -12,6 +12,10 @@ F.Indicators.BorderIcon = {}
 
 local DURATION_UPDATE_INTERVAL = 0.1
 
+--- OnUpdate ticker for duration text display.
+--- Uses C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID when
+--- unit + auraInstanceID are available (secret-safe path), otherwise
+--- falls back to legacy expirationTime - GetTime() calculation.
 local function DurationOnUpdate(frame, elapsed)
 	local bi = frame._biRef
 	if(not bi) then return end
@@ -20,6 +24,27 @@ local function DurationOnUpdate(frame, elapsed)
 	if(bi._durationElapsed < DURATION_UPDATE_INTERVAL) then return end
 	bi._durationElapsed = 0
 
+	-- New path: C-level remaining duration query
+	if(bi._unit and bi._auraInstanceID) then
+		if(C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID) then
+			local remaining = C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID(bi._unit, bi._auraInstanceID)
+			if(remaining and F.IsValueNonSecret(remaining) and remaining > 0) then
+				bi.duration:SetText(F.FormatDuration(remaining))
+			else
+				bi.duration:SetText('')
+				bi._durationActive = false
+				frame:SetScript('OnUpdate', nil)
+			end
+		else
+			-- Feature not available, clear duration display
+			bi.duration:SetText('')
+			bi._durationActive = false
+			frame:SetScript('OnUpdate', nil)
+		end
+		return
+	end
+
+	-- Legacy path: raw expirationTime calculation
 	local remaining = bi._expirationTime - GetTime()
 	if(remaining <= 0) then
 		bi.duration:SetText('')
@@ -32,19 +57,64 @@ local function DurationOnUpdate(frame, elapsed)
 end
 
 -- ============================================================
+-- Dispel color curve (lazy-initialized singleton)
+-- ============================================================
+
+local dispelColorCurve
+
+--- Build a dispel color curve from C.Colors.dispel using oUF's
+--- DispelType enum indices. Lazy-initialized on first use.
+local function getDispelColorCurve()
+	if(dispelColorCurve) then return dispelColorCurve end
+	if(not C_CurveUtil or not C_CurveUtil.CreateColorCurve) then return nil end
+
+	local oUF = F.oUF
+	if(not oUF or not oUF.Enum or not oUF.Enum.DispelType) then return nil end
+
+	dispelColorCurve = C_CurveUtil.CreateColorCurve()
+	dispelColorCurve:SetType(Enum.LuaCurveType.Step)
+
+	-- Map our C.Colors.dispel string keys to oUF DispelType numeric indices
+	local dispelTypes = oUF.Enum.DispelType
+	for name, index in next, dispelTypes do
+		local rgb = C.Colors.dispel[name]
+		if(rgb) then
+			dispelColorCurve:AddPoint(index, CreateColor(rgb[1], rgb[2], rgb[3], 1))
+		end
+	end
+
+	return dispelColorCurve
+end
+
+-- ============================================================
 -- BorderIcon methods
 -- ============================================================
 
 local BorderIconMethods = {}
 
 --- Set the displayed aura data on this border icon.
---- @param spellId number
---- @param iconTexture number|string|nil Texture ID or path
---- @param duration number
---- @param expirationTime number
---- @param count number Stack count
---- @param dispelType string|nil Dispel/debuff type
-function BorderIconMethods:SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
+--- Supports two calling conventions:
+---   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType)
+---   Legacy:            SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
+--- When unit + auraInstanceID are provided, C-level APIs are used for
+--- cooldown, stacks, dispel color, and duration text (secret-safe).
+--- Otherwise falls back to legacy behavior with IsValueNonSecret guards.
+function BorderIconMethods:SetAura(...)
+	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType
+
+	local arg1, arg2 = ...
+	-- Detect new vs legacy signature: if first arg is a string (unit token)
+	-- and second arg is a number (auraInstanceID), it's the new signature.
+	if(type(arg1) == 'string' and type(arg2) == 'number') then
+		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+	else
+		spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+	end
+
+	-- Store for OnUpdate and other deferred lookups
+	self._unit = unit
+	self._auraInstanceID = auraInstanceID
+
 	-- Icon texture
 	if(iconTexture) then
 		self.icon:SetTexture(iconTexture)
@@ -61,7 +131,17 @@ function BorderIconMethods:SetAura(spellId, iconTexture, duration, expirationTim
 	end
 
 	-- Border color from dispel type
-	if(dispelType and F.IsValueNonSecret(dispelType)) then
+	if(unit and auraInstanceID) then
+		-- New path: C-level dispel color via curve
+		local curve = getDispelColorCurve()
+		if(curve) then
+			local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
+			if(color and F.IsValueNonSecret(color)) then
+				self:SetBorderColor(color:GetRGBA())
+			end
+		end
+	elseif(dispelType and F.IsValueNonSecret(dispelType)) then
+		-- Legacy path: manual color lookup
 		local color = C.Colors.dispel[dispelType]
 		if(color) then
 			self:SetBorderColor(color[1], color[2], color[3], 1)
@@ -70,47 +150,98 @@ function BorderIconMethods:SetAura(spellId, iconTexture, duration, expirationTim
 
 	-- Cooldown swipe
 	if(self.cooldown) then
-		local durationSafe = F.IsValueNonSecret(duration)
-		local expirationSafe = F.IsValueNonSecret(expirationTime)
-		if(durationSafe and expirationSafe and duration and duration > 0 and expirationTime and expirationTime > 0) then
-			local startTime = expirationTime - duration
-			self.cooldown:SetCooldown(startTime, duration)
+		if(unit and auraInstanceID) then
+			-- New path: DurationObject -> SetCooldownFromDurationObject
+			-- This is the ONLY cooldown API available in tainted combat (12.0.1)
+			local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
+			if(durationObj) then
+				self.cooldown:SetCooldownFromDurationObject(durationObj)
+			else
+				self.cooldown:Clear()
+			end
 		else
-			self.cooldown:Clear()
+			-- Legacy path: raw SetCooldown (works in untainted contexts only)
+			local durationSafe = F.IsValueNonSecret(duration)
+			local expirationSafe = F.IsValueNonSecret(expirationTime)
+			if(durationSafe and expirationSafe and duration and duration > 0 and expirationTime and expirationTime > 0) then
+				local startTime = expirationTime - duration
+				self.cooldown:SetCooldown(startTime, duration)
+			else
+				self.cooldown:Clear()
+			end
 		end
 	end
 
 	-- Stacks
 	if(self.stacks) then
-		if(count and count > 1) then
-			self.stacks:SetText(count)
-			self.stacks:Show()
+		if(unit and auraInstanceID) then
+			-- New path: C-level formatted display count
+			local displayCount = C_UnitAuras.GetAuraApplicationDisplayCount(
+				unit, auraInstanceID, 2, 99)
+			if(displayCount and F.IsValueNonSecret(displayCount)) then
+				self.stacks:SetText(displayCount)
+				self.stacks:SetShown(displayCount ~= '')
+			else
+				self.stacks:SetText('')
+				self.stacks:Hide()
+			end
 		else
-			self.stacks:SetText('')
-			self.stacks:Hide()
+			-- Legacy path
+			if(count and count > 1) then
+				self.stacks:SetText(count)
+				self.stacks:Show()
+			else
+				self.stacks:SetText('')
+				self.stacks:Hide()
+			end
 		end
 	end
 
 	-- Duration text
 	if(self.duration) then
-		local durationSafe = F.IsValueNonSecret(duration)
-		local expirationSafe = F.IsValueNonSecret(expirationTime)
-		if(not durationSafe or not expirationSafe or duration == 0) then
-			self.duration:SetText('')
-			self._durationActive = false
-			self._frame:SetScript('OnUpdate', nil)
-		else
-			self._expirationTime = expirationTime
-			self._durationActive = true
-			self._durationElapsed = 0
-			local remaining = expirationTime - GetTime()
-			if(remaining > 0) then
-				self.duration:SetText(F.FormatDuration(remaining))
-				self._frame:SetScript('OnUpdate', DurationOnUpdate)
+		if(unit and auraInstanceID) then
+			-- New path: use C-level remaining duration query via OnUpdate
+			-- Initial display + start ticker
+			if(C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID) then
+				local remaining = C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID(unit, auraInstanceID)
+				if(remaining and F.IsValueNonSecret(remaining) and remaining > 0) then
+					self.duration:SetText(F.FormatDuration(remaining))
+					self._durationActive = true
+					self._durationElapsed = 0
+					self._frame:SetScript('OnUpdate', DurationOnUpdate)
+				else
+					-- nil remaining means no expiration (permanent aura) or expired
+					self.duration:SetText('')
+					self._durationActive = false
+					self._frame:SetScript('OnUpdate', nil)
+				end
 			else
+				-- API not available, no duration text
 				self.duration:SetText('')
 				self._durationActive = false
 				self._frame:SetScript('OnUpdate', nil)
+			end
+		else
+			-- Legacy path: raw expirationTime calculation
+			local durationSafe = F.IsValueNonSecret(duration)
+			local expirationSafe = F.IsValueNonSecret(expirationTime)
+			if(not durationSafe or not expirationSafe or duration == 0) then
+				self.duration:SetText('')
+				self._durationActive = false
+				self._frame:SetScript('OnUpdate', nil)
+			else
+				self._expirationTime = expirationTime
+				self._durationActive = true
+				self._durationElapsed = 0
+				local remaining = expirationTime - GetTime()
+				if(remaining > 0) then
+					self.duration:SetText(F.FormatDuration(remaining))
+					self._frame:SetScript('OnUpdate', DurationOnUpdate)
+				else
+					self.duration:SetText('')
+					self._durationActive = false
+					self._frame:SetScript('OnUpdate', nil)
+				end
 			end
 		end
 	end
@@ -131,6 +262,8 @@ end
 --- Clear and hide this border icon.
 function BorderIconMethods:Clear()
 	self.icon:SetTexture(nil)
+	self._unit = nil
+	self._auraInstanceID = nil
 	if(self.cooldown) then
 		self.cooldown:Clear()
 	end
@@ -182,6 +315,8 @@ end
 function BorderIconMethods:Destroy()
 	self._frame:SetScript('OnUpdate', nil)
 	self._frame._biRef = nil
+	self._unit = nil
+	self._auraInstanceID = nil
 	self._frame:Hide()
 	self._frame:SetParent(nil)
 end
@@ -258,6 +393,8 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 		_durationActive  = false,
 		_durationElapsed = 0,
 		_expirationTime  = 0,
+		_unit            = nil,
+		_auraInstanceID  = nil,
 
 		icon     = icon,
 		cooldown = cooldown,
