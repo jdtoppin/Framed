@@ -243,7 +243,9 @@ end
 --- @param a? number
 function BorderIconMethods:SetBorderColor(r, g, b, a)
 	a = a or 1
-	-- Swipe color = the border color that fills in over the backdrop
+	-- Backdrop = static border color (visible when no cooldown active)
+	self._frame:SetBackdropColor(r, g, b, a)
+	-- Swipe = animated border color (fills over backdrop as cooldown progresses)
 	if(self.cooldown) then
 		self.cooldown:SetSwipeColor(r, g, b, a)
 	end
