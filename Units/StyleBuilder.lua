@@ -325,7 +325,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	end
 
 	local missingBuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'missingBuffs')
-	if(missingBuffsConfig and next(missingBuffsConfig) and F.Elements.MissingBuffs) then
+	if(missingBuffsConfig and missingBuffsConfig.enabled and F.Elements.MissingBuffs) then
 		F.Elements.MissingBuffs.Setup(self, missingBuffsConfig)
 	end
 
@@ -335,7 +335,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	end
 
 	local privateAurasConfig = F.StyleBuilder.GetAuraConfig(unitType, 'privateAuras')
-	if(privateAurasConfig and next(privateAurasConfig) and F.Elements.PrivateAuras) then
+	if(privateAurasConfig and privateAurasConfig.enabled and F.Elements.PrivateAuras) then
 		F.Elements.PrivateAuras.Setup(self, privateAurasConfig)
 	end
 

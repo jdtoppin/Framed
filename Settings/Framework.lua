@@ -391,7 +391,7 @@ end
 --- Toggle the settings window open or closed.
 function Settings.Toggle()
 	if(InCombatLockdown()) then
-		F.Print('Settings cannot be opened in combat.')
+		print('|cff00ccffFramed|r Settings cannot be opened in combat.')
 		return
 	end
 	if(not Settings._mainFrame) then

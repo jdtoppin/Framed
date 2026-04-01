@@ -30,6 +30,10 @@ local AURA_ELEMENT_MAP = {
 -- Elements whose config changes require structural Rebuild
 local REBUILD_ELEMENTS = {
 	buffs          = true,
+	debuffs        = true,
+	externals      = true,
+	defensives     = true,
+	raidDebuffs    = true,
 	lossOfControl  = true,
 	crowdControl   = true,
 	missingBuffs   = true,
@@ -135,6 +139,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		ForEachFrame(unitType, function(frame)
 			local element = frame[elementName]
 			if(element) then
+				-- Sync config reference (may change when preset is customized)
+				if(element._config) then element._config = config end
 				if(config.iconSize) then element._iconSize = config.iconSize end
 				if(config.anchor) then
 					local a = config.anchor
@@ -144,8 +150,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					end
 				end
 				if(element.ForceUpdate) then
-						element:ForceUpdate()
-					end
+					element:ForceUpdate()
+				end
 			end
 		end)
 	end)

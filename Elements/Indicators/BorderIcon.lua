@@ -24,10 +24,13 @@ local function getDispelColorCurve()
 	dispelColorCurve = C_CurveUtil.CreateColorCurve()
 	dispelColorCurve:SetType(Enum.LuaCurveType.Step)
 
-	-- Map our C.Colors.dispel string keys to oUF DispelType numeric indices
+	-- Map oUF DispelType enum indices to C.Colors.dispel color keys.
+	-- oUF uses 'Bleed' but C.Colors.dispel uses 'Physical' for that type.
+	local COLOR_KEY = { Bleed = 'Physical' }
 	local dispelTypes = oUF.Enum.DispelType
 	for name, index in next, dispelTypes do
-		local rgb = C.Colors.dispel[name]
+		local colorKey = COLOR_KEY[name] or name
+		local rgb = C.Colors.dispel[colorKey]
 		if(rgb) then
 			dispelColorCurve:AddPoint(index, CreateColor(rgb[1], rgb[2], rgb[3], 1))
 		end

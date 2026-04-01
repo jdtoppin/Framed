@@ -195,6 +195,25 @@ local function Disable(self)
 end
 
 -- ============================================================
+-- Rebuild
+-- ============================================================
+
+local function Rebuild(element, config)
+	-- Destroy existing pool entries so they are recreated with new config
+	if(element._pool) then
+		for _, bi in next, element._pool do
+			bi:Clear()
+			if(bi.Destroy) then bi:Destroy() end
+		end
+	end
+
+	element._config = config
+	element._pool   = {}
+
+	element:ForceUpdate()
+end
+
+-- ============================================================
 -- Register with oUF
 -- ============================================================
 
@@ -221,6 +240,7 @@ function F.Elements.Debuffs.Setup(self, config)
 		_container = container,
 		_config    = config,
 		_pool      = {},
+		Rebuild    = Rebuild,
 	}
 
 	local a = config.anchor
