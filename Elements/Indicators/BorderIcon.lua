@@ -147,9 +147,9 @@ function BorderIconMethods:SetAura(...)
 		end
 	end
 
-	-- Cooldown swipe (fills the border area; icon frame sits above)
+	-- Cooldown swipe (fills the border area; icon frame sits above).
+	-- Callers can set cooldown:SetReverse() before SetAura to override direction.
 	if(self.cooldown) then
-		self.cooldown:SetReverse(true)
 		if(unit and auraInstanceID) then
 			-- New path: DurationObject -> SetCooldownFromDurationObject
 			-- This is the ONLY cooldown API available in tainted combat (12.0.1)
