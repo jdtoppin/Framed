@@ -117,13 +117,8 @@ local function showCastsSecret(element, castList, unit)
 				if(bc) then
 					bi:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
 				end
-				-- Set alpha before showing to avoid a 1-frame flash on non-targeted units
-				local targeting = UnitIsUnit(cast.sourceUnit .. 'target', unit)
-				if(F.IsValueNonSecret(targeting)) then
-					bi._frame:SetAlpha(targeting and 1 or 0)
-				else
-					bi._frame:SetAlpha(1)
-				end
+				-- SetAlphaFromBoolean is C-level and accepts secret booleans
+				bi._frame:SetAlphaFromBoolean(UnitIsUnit(cast.sourceUnit .. 'target', unit), 1, 0)
 				bi:Show()
 			end
 		end
