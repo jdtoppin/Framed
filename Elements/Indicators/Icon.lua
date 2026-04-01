@@ -325,9 +325,9 @@ function F.Indicators.Icon.Create(parent, size, config)
 	Widgets.SetSize(frame, iconWidth, iconHeight)
 	frame:Hide()
 
-	-- 1. Border via backdrop bg + edge. The bgFile masks overlapping content
-	--    when icons use negative spacing. Edge is 1 physical pixel; content
-	--    inset is 1 logical pixel (matching how Cell handles block indicators).
+	-- 1. Border via backdrop bg. The bgFile masks overlapping content
+	--    when icons use negative spacing. Content inset by 1 physical pixel
+	--    so the black bg shows as a border (matching how Cell handles block indicators).
 	local scale = parent:GetEffectiveScale()
 	local pf = 768.0 / select(2, GetPhysicalScreenSize())
 	local P = pf / scale  -- 1 physical pixel for both edge and content inset
@@ -335,7 +335,6 @@ function F.Indicators.Icon.Create(parent, size, config)
 		bgFile = [[Interface\BUTTONS\WHITE8x8]],
 	})
 	frame:SetBackdropColor(0, 0, 0, 1)
-	frame:SetBackdropBorderColor(0, 0, 0, 1)
 
 	-- 1a. Icon texture (inset by 1px so black bg shows as border)
 	local texture = frame:CreateTexture(nil, 'ARTWORK')

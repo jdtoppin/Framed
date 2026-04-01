@@ -121,7 +121,7 @@ local function Update(self, event, unit)
 	end
 
 	-- Build filter string from config
-	local buffFilter = BUFF_FILTER_MAP[element._buffFilterMode] or 'HELPFUL'
+	local buffFilter = BUFF_FILTER_MAP[element._buffFilterMode]
 	local auras = C_UnitAuras.GetUnitAuras(unit, buffFilter)
 	for _, auraData in next, auras do
 		local spellId = auraData.spellId
@@ -530,7 +530,7 @@ local function Rebuild(element, config)
 	element._indicators           = {}
 	element._spellLookup          = {}
 	element._hasTrackAll          = {}
-	element._buffFilterMode = config.buffFilterMode or (config.hideUnimportantBuffs and 'raidCombat') or 'all'
+	element._buffFilterMode = config.buffFilterMode
 
 	local indicators = config.indicators or {}
 	for name, indConfig in next, indicators do
@@ -623,9 +623,9 @@ function F.Elements.Buffs.Setup(self, config)
 				enabled       = true,
 				spells        = {},   -- empty = track all helpful auras
 				castBy        = 'anyone',
-				maxIcons      = config.maxIcons      or 6,
+				maxDisplayed  = config.maxIcons      or 6,
 				iconSize      = config.iconSize      or 14,
-				growDirection = config.growDirection or 'RIGHT',
+				orientation   = config.growDirection or 'RIGHT',
 				displayType   = config.displayType   or 'SpellIcon',
 				anchor        = config.anchor        or { 'TOPLEFT', self, 'TOPLEFT', 2, -2 },
 			},
@@ -696,7 +696,7 @@ function F.Elements.Buffs.Setup(self, config)
 		_indicators           = indicators,
 		_spellLookup          = spellLookup,
 		_hasTrackAll          = hasTrackAll,
-		_buffFilterMode = config.buffFilterMode or (config.hideUnimportantBuffs and 'raidCombat') or 'all',
+		_buffFilterMode = config.buffFilterMode,
 	}
 
 	container.Rebuild = Rebuild

@@ -33,7 +33,7 @@ local function Update(self, event, unit)
 	if(not filterMode and cfg.onlyDispellableByMe) then
 		filterMode = 'dispellable'
 	end
-	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
+	local filter = FILTER_MAP[filterMode]
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter, nil, Enum.UnitAuraSortRule.Default)
 
 	local auraList = {}

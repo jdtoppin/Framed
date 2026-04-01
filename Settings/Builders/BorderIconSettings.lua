@@ -40,15 +40,30 @@ end
 function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	local get, set = makeConfigHelpers(opts.unitType, opts.configKey)
 
-	-- ── Only show dispellable by me ─────────────────────────
+	-- ── Filter Mode ─────────────────────────────────────────
 	if(opts.showDispellableByMe) then
-		local dispCheck = Widgets.CreateCheckButton(parent, 'Only show dispellable by me', function(checked)
-			set('onlyDispellableByMe', checked)
-		end)
-		dispCheck:SetChecked(get('onlyDispellableByMe') == true)
-		dispCheck:ClearAllPoints()
-		Widgets.SetPoint(dispCheck, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - CHECK_H - C.Spacing.normal
+		local filterLabel, filterLabelH = Widgets.CreateHeading(parent, 'Filter Mode', 2)
+		filterLabel:ClearAllPoints()
+		Widgets.SetPoint(filterLabel, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - filterLabelH
+
+		local filterCard, filterInner, filterCardY
+		filterCard, filterInner, filterCardY = Widgets.StartCard(parent, width, yOffset)
+
+		local filterDD = Widgets.CreateDropdown(filterInner, WIDGET_W)
+		filterDD:SetItems({
+			{ text = 'All Debuffs',     value = 'all' },
+			{ text = 'Raid-Relevant',   value = 'raid' },
+			{ text = 'Dispellable',     value = 'dispellable' },
+			{ text = 'Raid (In-Combat)', value = 'raidCombat' },
+		})
+		filterDD:SetValue(get('filterMode') or 'all')
+		filterDD:SetOnSelect(function(v) set('filterMode', v) end)
+		filterDD:ClearAllPoints()
+		Widgets.SetPoint(filterDD, 'TOPLEFT', filterInner, 'TOPLEFT', 0, filterCardY)
+		filterCardY = filterCardY - DROPDOWN_H - C.Spacing.normal
+
+		yOffset = Widgets.EndCard(filterCard, parent, filterCardY)
 	end
 
 	-- ── Visibility Mode (Externals / Defensives) ────────────
