@@ -42,9 +42,11 @@ WoW unit frames and raid frames addon. GPL v3.
 - ALWAYS use `F.IsValueNonSecret()` — never bare `issecretvalue()`
 - One wrapper in `Core/SecretValues.lua`, used everywhere. Never create per-file wrappers or polyfills.
 - **Derive from non-secret sources when possible** — e.g., determine `isHarmful` from the filter string, not the secret aura field (this is how oUF handles it)
-- **Pass secrets to C-level APIs** that accept them: `SetValue()`, `SetMinMaxValues()`, `SetStatusBarColor()` — but NOT `SetStatusBarTexture()` or `SetTimerDuration()`
+- **Pass secrets to C-level APIs** that accept them: `SetValue()`, `SetMinMaxValues()`, `SetStatusBarColor()`, `SetVertexColor()`, `SetAlpha()` — but NOT `SetStatusBarTexture()` or `SetTimerDuration()`
 - **Never sanitize** secret values into placeholders. Pass through or degrade gracefully.
 - **Treat potentially-secret auras as always secret** — don't juggle mixed state
+- **Never split code into secret/non-secret paths** — this addon is primarily used in combat where ALL aura values are secret. Always use the secret-safe C-level approach (color curves, `SetVertexColor`, `SetAlpha`, `SetCooldownFromDurationObject`, etc.). Non-secret `IsValueNonSecret` + `CreateColor`/`SetGradient` paths are useless in practice and add dead code.
+- **Color curves for dispel display** — use `C_CurveUtil.CreateColorCurve` + `C_UnitAuras.GetAuraDispelTypeColor` for dispel type colors. Bracket curves (alpha=1 for match, alpha=0 for others) reveal the correct icon via `SetAlpha`. Gradient overlays use a pre-baked gradient texture file + `SetVertexColor` instead of `SetGradient` + `CreateColor`.
 
 ## Canonical Defaults
 

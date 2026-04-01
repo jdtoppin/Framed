@@ -85,11 +85,6 @@ local function Update(self, event, unit)
 		end
 	end
 
-	-- DEBUG: trace debuff rendering
-	print(('|cffff6600[Debuffs]|r unit=%s filterMode=%s filter=%s rawAuras=%d auraList=%d maxDisplayed=%s iconSize=%s orientation=%s'):format(
-		tostring(unit), tostring(filterMode), tostring(filter),
-		#rawAuras, #auraList, tostring(maxDisplayed), tostring(cfg.iconSize), tostring(cfg.orientation)
-	))
 
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)

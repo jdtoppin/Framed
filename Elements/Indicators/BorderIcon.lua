@@ -111,12 +111,6 @@ function BorderIconMethods:SetAura(...)
 	-- Callers can override direction after SetAura if needed.
 	if(unit and auraInstanceID) then
 		local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
-		-- DEBUG: cooldown state
-		print(('|cff00ff00[BI Cooldown]|r unit=%s aid=%s hasCooldown=%s durationObj=%s hideNumbers=%s'):format(
-			tostring(unit), tostring(auraInstanceID),
-			tostring(self.cooldown ~= nil), tostring(durationObj ~= nil),
-			tostring(self.cooldown and self.cooldown:GetHideCountdownNumbers())
-		))
 		if(durationObj) then
 			if(self.cooldown) then
 				self.cooldown:SetCooldownFromDurationObject(durationObj)

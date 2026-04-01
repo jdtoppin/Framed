@@ -136,7 +136,7 @@ function F.AuraDefaults.Group(sizes)
 	local debMax   = s.debuffMax or 3
 	local rdMax    = s.raidDebuffMax or 1
 	local tsIcon   = s.targetedSpellsIcon or 20
-	local dispIcon = s.dispellableIcon or 12
+	local dispIcon = s.dispellableIcon or 10
 
 	return {
 		buffs = {
@@ -195,9 +195,6 @@ function F.AuraDefaults.Group(sizes)
 			onlyDispellableByMe  = false,
 			highlightType        = 'gradient_half',
 			iconSize             = dispIcon,
-			showDuration         = true,
-			durationFont         = durationFont(),
-			stackFont            = stackFont(),
 			anchor               = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', 0, 4 },
 			frameLevel           = 15,
 		},
@@ -282,9 +279,6 @@ function F.AuraDefaults.Arena()
 			onlyDispellableByMe  = false,
 			highlightType        = 'gradient_half',
 			iconSize             = 14,
-			showDuration         = true,
-			durationFont         = durationFont(),
-			stackFont            = stackFont(),
 			anchor               = { 'CENTER', nil, 'CENTER', 0, 0 },
 			frameLevel           = 7,
 		},

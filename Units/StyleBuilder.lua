@@ -835,14 +835,15 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				element._highlightType       = newConfig.highlightType or C.HighlightType.GRADIENT_FULL
 
 				-- Resize icon
-				if(element._borderIcon and newConfig.iconSize) then
-					element._borderIcon:SetSize(newConfig.iconSize)
+				if(element._iconFrame and newConfig.iconSize) then
+					Widgets.SetSize(element._iconFrame, newConfig.iconSize, newConfig.iconSize)
 				end
 
-				-- Reposition icon
-				if(newConfig.anchor and element._borderIcon) then
-					element._borderIcon:ClearAllPoints()
-					element._borderIcon:SetPoint(unpack(newConfig.anchor))
+				-- Reposition icon (explicit destructuring — unpack stops at nil holes)
+				if(newConfig.anchor and element._iconFrame) then
+					element._iconFrame:ClearAllPoints()
+					local a = newConfig.anchor
+					element._iconFrame:SetPoint(a[1], frame, a[3] or a[1], a[4] or 0, a[5] or 0)
 				end
 
 				if(element.ForceUpdate) then

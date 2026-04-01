@@ -8,23 +8,98 @@ F.Elements = F.Elements or {}
 F.Elements.Dispellable = {}
 
 -- ============================================================
--- Dispel type priority
+-- Dispel type definitions
 -- ============================================================
 
--- Priority: Magic(1) > Curse(2) > Disease(3) > Poison(4) > Physical(5)
-local DISPEL_PRIORITY = {
-	Magic    = 1,
-	Curse    = 2,
-	Disease  = 3,
-	Poison   = 4,
-	Physical = 5,
+-- Maps oUF DispelType enum indices to display names and atlas icons.
+-- Order determines icon stacking when bracket curves are used.
+local DISPEL_TYPES = {
+	{ name = 'Magic',   colorKey = 'Magic',    atlas = 'RaidFrame-Icon-DebuffMagic' },
+	{ name = 'Curse',   colorKey = 'Curse',    atlas = 'RaidFrame-Icon-DebuffCurse' },
+	{ name = 'Disease', colorKey = 'Disease',  atlas = 'RaidFrame-Icon-DebuffDisease' },
+	{ name = 'Poison',  colorKey = 'Poison',   atlas = 'RaidFrame-Icon-DebuffPoison' },
+	{ name = 'Bleed',   colorKey = 'Physical', atlas = 'RaidFrame-Icon-DebuffBleed' },
 }
+
+-- Gradient texture for secret-safe overlay. The alpha gradient is baked
+-- into the texture file; color is applied via SetVertexColor (C-level).
+local GRADIENT_TEXTURE = [[Interface\AddOns\Framed\Media\Textures\Gradient_Linear_Bottom]]
+
+-- ============================================================
+-- Curve infrastructure (secret-safe, initialized once)
+-- ============================================================
+
+local curvesReady = false
+local highlightCurve   -- maps dispel type index → display color
+local bracketCurves    -- [typeName] → curve that returns alpha=1 for match, alpha=0 for others
+
+do
+	if(C_CurveUtil and C_CurveUtil.CreateColorCurve
+		and C_UnitAuras and C_UnitAuras.GetAuraDispelTypeColor
+		and Enum and Enum.LuaCurveType and Enum.LuaCurveType.Step) then
+
+		local dt = oUF and oUF.Enum and oUF.Enum.DispelType
+		if(dt) then
+			local stepType = Enum.LuaCurveType.Step
+			local transparent = CreateColor(0, 0, 0, 0)
+
+			-- Highlight curve: each dispel type → its display color
+			highlightCurve = C_CurveUtil.CreateColorCurve()
+			highlightCurve:SetType(stepType)
+			highlightCurve:AddPoint(dt.None, transparent)
+			for _, t in next, DISPEL_TYPES do
+				local idx = dt[t.name]
+				if(idx) then
+					local rgb = C.Colors.dispel[t.colorKey]
+					if(rgb) then
+						highlightCurve:AddPoint(idx, CreateColor(rgb[1], rgb[2], rgb[3], 1))
+					end
+				end
+			end
+			if(dt.Enrage) then
+				highlightCurve:AddPoint(dt.Enrage, transparent)
+			end
+
+			-- Bracket curves: isolate each type.
+			-- For a given type, the curve returns alpha=1 at that type's index
+			-- and alpha=0 at adjacent indices. SetAlpha (C-level) reveals
+			-- the correct icon without knowing the type at the Lua level.
+			bracketCurves = {}
+			local sortedIndices = {}
+			for _, t in next, DISPEL_TYPES do
+				local idx = dt[t.name]
+				if(idx) then
+					sortedIndices[#sortedIndices + 1] = { name = t.name, colorKey = t.colorKey, idx = idx }
+				end
+			end
+			table.sort(sortedIndices, function(a, b) return a.idx < b.idx end)
+
+			for i, entry in next, sortedIndices do
+				local curve = C_CurveUtil.CreateColorCurve()
+				curve:SetType(stepType)
+				curve:AddPoint(0, transparent)
+				local rgb = C.Colors.dispel[entry.colorKey]
+				if(rgb) then
+					curve:AddPoint(entry.idx, CreateColor(rgb[1], rgb[2], rgb[3], 1))
+				end
+				-- Next index closes the bracket (back to transparent)
+				local nextEntry = sortedIndices[i + 1]
+				if(nextEntry) then
+					curve:AddPoint(nextEntry.idx, transparent)
+				end
+				bracketCurves[entry.name] = curve
+			end
+
+			curvesReady = true
+		end
+	end
+end
 
 -- ============================================================
 -- Overlay helpers
 -- ============================================================
 
-local OVERLAY_ALPHA = 0.35
+local OVERLAY_ALPHA = 0.8
 
 local function hideAllOverlays(element)
 	if(element._overlayGradientFull) then element._overlayGradientFull:Hide() end
@@ -40,22 +115,22 @@ local function ensureOverlayPositioned(element)
 	if(element._overlaysPositioned) then return end
 	element._overlaysPositioned = true
 
+	local overlayFrame = element._overlayFrame
+	local healthWrapper = element._healthWrapper
+	if(overlayFrame and healthWrapper) then
+		overlayFrame:SetAllPoints(healthWrapper)
+	end
+
 	local gradFull = element._overlayGradientFull
 	if(gradFull) then
-		-- Position the overlay frame to match the health wrapper
-		local overlayFrame = gradFull._overlayFrame
-		if(overlayFrame) then
-			overlayFrame:SetAllPoints()
-		end
 		gradFull:SetPoint('TOPLEFT', 1, -1)
 		gradFull:SetPoint('BOTTOMRIGHT', -1, 1)
 	end
 
 	local gradHalf = element._overlayGradientHalf
 	if(gradHalf) then
-		gradHalf:SetPoint('TOPLEFT', 1, -1)
-		gradHalf:SetPoint('TOPRIGHT', -1, -1)
-		-- Use parent height since health bar height is known at this point
+		gradHalf:SetPoint('BOTTOMLEFT', 1, 1)
+		gradHalf:SetPoint('BOTTOMRIGHT', -1, 1)
 		local parent = gradHalf:GetParent()
 		if(parent) then
 			gradHalf:SetHeight((parent:GetHeight() or 20) * 0.5)
@@ -74,38 +149,66 @@ local function ensureOverlayPositioned(element)
 	end
 end
 
-local function showOverlay(element, highlightType, r, g, b)
+--- Show the appropriate overlay. Color applied via SetVertexColor
+--- (C-level, accepts secret values). Gradient overlays use a pre-baked
+--- gradient texture so no CreateColor is needed at runtime.
+local function showOverlay(element, highlightType, r, g, b, a)
 	hideAllOverlays(element)
 	ensureOverlayPositioned(element)
 
 	local ht = C.HighlightType
 	if(highlightType == ht.GRADIENT_FULL and element._overlayGradientFull) then
 		local tex = element._overlayGradientFull
-		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
-		tex:SetGradient('VERTICAL', CreateColor(r, g, b, 0), CreateColor(r, g, b, OVERLAY_ALPHA))
+		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
 		tex:Show()
 	elseif(highlightType == ht.GRADIENT_HALF and element._overlayGradientHalf) then
 		local tex = element._overlayGradientHalf
-		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
-		tex:SetGradient('VERTICAL', CreateColor(r, g, b, 0), CreateColor(r, g, b, OVERLAY_ALPHA))
+		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
 		tex:Show()
 	elseif(highlightType == ht.SOLID_CURRENT and element._overlaySolidCurrent) then
 		local tex = element._overlaySolidCurrent
-		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
+		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
 		tex:Show()
 	elseif(highlightType == ht.SOLID_ENTIRE and element._overlaySolidEntire) then
 		local tex = element._overlaySolidEntire
-		tex:SetVertexColor(r, g, b, OVERLAY_ALPHA)
+		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
 		tex:Show()
 	end
 end
 
 -- ============================================================
--- Determine if a debuff is Physical/bleed
+-- Dispel icon helpers
 -- ============================================================
 
-local function isPhysicalOrBleed(dispelName)
-	return (not dispelName) or (dispelName == '') or (dispelName == 'Physical')
+local function hideAllIcons(element)
+	for _, icon in next, element._icons do
+		icon:Hide()
+	end
+	element._iconFrame:Hide()
+end
+
+--- Show dispel type icon via bracket curves. All 5 type icons are
+--- pre-created with their atlas. Each icon's alpha is set via the
+--- bracket curve for that type — C-level SetAlpha reveals the correct
+--- icon (alpha=1) and hides others (alpha=0) without knowing the type.
+local function showDispelIcons(element, unit, auraInstanceID)
+	if(not curvesReady) then return end
+
+	element._iconFrame:Show()
+	for _, entry in next, DISPEL_TYPES do
+		local icon = element._icons[entry.name]
+		local curve = bracketCurves[entry.name]
+		if(icon and curve) then
+			local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
+			if(color) then
+				local _, _, _, a = color:GetRGBA()
+				icon:SetAlpha(a)  -- C-level, accepts secret alpha
+			else
+				icon:SetAlpha(0)
+			end
+			icon:Show()
+		end
+	end
 end
 
 -- ============================================================
@@ -117,94 +220,38 @@ local function Update(self, event, unit)
 	if(not element) then return end
 
 	if(not unit or self.unit ~= unit) then return end
-
-	local bestType           = nil
-	local bestPriority       = 999
-	local bestIcon           = nil
-	local bestSpellId        = nil
-	local bestDuration       = nil
-	local bestExpiration     = nil
-	local bestStacks         = nil
-	local bestAuraInstanceID = nil
+	if(not curvesReady) then return end
 
 	local onlyDispellableByMe = element._onlyDispellableByMe
 
-	-- Choose filter based on onlyDispellableByMe setting
+	-- Find the first dispellable debuff. Non-nil dispelName (may be
+	-- secret) means the aura is dispellable. auraInstanceID is
+	-- NeverSecret — safe to store and pass to curve APIs.
+	local dispelAuraID = nil
 	local primaryFilter = onlyDispellableByMe and 'HARMFUL|RAID_PLAYER_DISPELLABLE' or 'HARMFUL'
-	local dispellableAuras = C_UnitAuras.GetUnitAuras(unit, primaryFilter)
+	local allAuras = C_UnitAuras.GetUnitAuras(unit, primaryFilter)
 
-	for _, auraData in next, dispellableAuras do
-		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId)) then
-			local dispelName = auraData.dispelName
-			local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
-
-			if(dispelSafe) then
-				local dispelType = dispelName or 'Physical'
-				if(DISPEL_PRIORITY[dispelType]) then
-					local priority = DISPEL_PRIORITY[dispelType]
-					if(priority < bestPriority) then
-						bestPriority       = priority
-						bestType           = dispelType
-						bestIcon           = auraData.icon
-						bestSpellId        = spellId
-						bestDuration       = auraData.duration
-						bestExpiration     = auraData.expirationTime
-						bestStacks         = auraData.applications
-						bestAuraInstanceID = auraData.auraInstanceID
-					end
-				end
-			end
+	for _, auraData in next, allAuras do
+		if(auraData.dispelName) then
+			dispelAuraID = auraData.auraInstanceID
+			break
 		end
 	end
 
-	-- Supplementary query: Physical/bleed debuffs (not returned by RAID_PLAYER_DISPELLABLE)
-	-- Only needed when onlyDispellableByMe is true (plain HARMFUL already includes them)
-	local showPhysical = element._showPhysicalDebuffs
-	if(onlyDispellableByMe and showPhysical ~= false) then
-		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
-		for _, auraData in next, raidAuras do
-			local spellId = auraData.spellId
-			if(F.IsValueNonSecret(spellId)) then
-				local dispelName = auraData.dispelName
-				local dispelSafe = (not dispelName) or F.IsValueNonSecret(dispelName)
+	if(dispelAuraID) then
+		-- Show icon via bracket curves (secret-safe)
+		showDispelIcons(element, unit, dispelAuraID)
 
-				if(dispelSafe and isPhysicalOrBleed(dispelName)) then
-					local priority = DISPEL_PRIORITY.Physical
-					if(priority < bestPriority) then
-						bestPriority       = priority
-						bestType           = 'Physical'
-						bestIcon           = auraData.icon
-						bestSpellId        = spellId
-						bestDuration       = auraData.duration
-						bestExpiration     = auraData.expirationTime
-						bestStacks         = auraData.applications
-						bestAuraInstanceID = auraData.auraInstanceID
-					end
-				end
-			end
-		end
-	end
-
-	if(bestType) then
-		-- Show BorderIcon with the debuff's spell icon
-		element._borderIcon:SetAura(
-			unit, bestAuraInstanceID,
-			bestSpellId,
-			bestIcon,
-			bestDuration,
-			bestExpiration,
-			bestStacks,
-			bestType
-		)
-
-		-- Show highlight overlay colored by dispel type
-		local color = C.Colors.dispel[bestType]
-		if(color and element._highlightType) then
-			showOverlay(element, element._highlightType, color[1], color[2], color[3])
+		-- Show overlay via highlight curve (secret-safe).
+		-- Ignore the curve's alpha (1.0) — use our own OVERLAY_ALPHA
+		-- to avoid a bright/washed overlay with ADD blend mode.
+		local hlColor = C_UnitAuras.GetAuraDispelTypeColor(unit, dispelAuraID, highlightCurve)
+		if(hlColor and element._highlightType) then
+			local cr, cg, cb = hlColor:GetRGB()
+			showOverlay(element, element._highlightType, cr, cg, cb)
 		end
 	else
-		element._borderIcon:Clear()
+		hideAllIcons(element)
 		hideAllOverlays(element)
 	end
 end
@@ -237,7 +284,7 @@ local function Disable(self)
 	local element = self.FramedDispellable
 	if(not element) then return end
 
-	element._borderIcon:Clear()
+	hideAllIcons(element)
 	hideAllOverlays(element)
 
 	self:UnregisterEvent('UNIT_AURA', Update)
@@ -254,72 +301,77 @@ oUF:AddElement('FramedDispellable', Update, Enable, Disable)
 -- ============================================================
 
 --- Create a Dispellable element on a unit frame.
---- Shows a BorderIcon with the highest-priority dispellable debuff icon,
---- plus a highlight overlay on the health bar colored by dispel type.
---- Assigns result to self.FramedDispellable, activating the element.
+--- Shows the highest-priority dispel type icon (via bracket curves)
+--- plus a highlight overlay on the health bar (via highlight curve).
+--- All display is secret-safe via C-level APIs.
 --- @param self Frame  The oUF unit frame
 --- @param config? table  { enabled, onlyDispellableByMe, highlightType, iconSize, anchor, frameLevel }
 function F.Elements.Dispellable.Setup(self, config)
 	config = config or {}
-	local iconSize       = config.iconSize       or 20
+	local iconSize       = config.iconSize       or 10
 	local highlightType  = config.highlightType  or C.HighlightType.GRADIENT_FULL
 	local frameLevel     = config.frameLevel     or (self:GetFrameLevel() + 6)
 	local anchor         = config.anchor
 
-	-- 1. Create BorderIcon (always-on icon showing the highest-priority dispellable debuff)
-	local borderIcon = F.Indicators.BorderIcon.Create(self, iconSize, {
-		showCooldown = true,
-		showStacks   = true,
-		showDuration = config.showDuration ~= false,
-		frameLevel   = frameLevel,
-		durationFont = config.durationFont,
-		stackFont    = config.stackFont,
-	})
+	-- 1. Create icon frame with one texture per dispel type.
+	-- All icons are stacked on top of each other; bracket curves
+	-- control alpha to reveal only the matching type.
+	local iconFrame = CreateFrame('Frame', nil, self)
+	Widgets.SetSize(iconFrame, iconSize, iconSize)
+	iconFrame:SetFrameLevel(frameLevel)
+	iconFrame:Hide()
 
-	-- Apply anchor
 	if(anchor) then
-		borderIcon:SetPoint(unpack(anchor))
+		iconFrame:SetPoint(anchor[1], self, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
 	else
-		borderIcon:SetPoint('TOPRIGHT', self, 'TOPRIGHT', -2, -2)
+		iconFrame:SetPoint('BOTTOMRIGHT', self, 'BOTTOMRIGHT', -2, 2)
+	end
+
+	local icons = {}
+	for _, entry in next, DISPEL_TYPES do
+		local tex = iconFrame:CreateTexture(nil, 'ARTWORK')
+		tex:SetAllPoints(iconFrame)
+		tex:SetAtlas(entry.atlas)
+		tex:SetAlpha(0)
+		tex:Hide()
+		icons[entry.name] = tex
 	end
 
 	-- 2. Create overlay textures on the health bar
-	-- All overlays use a simple white texture colored at runtime
 	local healthBar = self.Health
-
-	-- In the restricted secure header, SetPoint cannot reference a
-	-- StatusBar. Use the wrapper Frame (health._wrapper) instead.
 	local healthWrapper = healthBar and healthBar._wrapper
 
-	-- Overlay textures for dispellable debuff highlights.
-	-- IMPORTANT: NO SetPoint/SetAllPoints calls here — this code runs
-	-- inside CallMethod from SecureGroupHeaderTemplate, where ALL
-	-- SetPoint calls fail. Positioning is deferred to showOverlay().
-	local gradientFull
+	-- Overlay frame: parented to self (unit frame) so it stacks above
+	-- the health StatusBar and its child frames (absorb, heal bars).
+	-- IMPORTANT: NO SetPoint/SetAllPoints here — deferred to first use.
+	local overlayFrame
 	if(healthWrapper) then
-		local overlayFrame = CreateFrame('Frame', nil, healthWrapper)
-		overlayFrame:SetFrameLevel(healthBar:GetFrameLevel() + 2)
+		overlayFrame = CreateFrame('Frame', nil, self)
+		overlayFrame:SetFrameLevel(healthBar:GetFrameLevel() + 5)
+	end
 
+	-- Gradient overlays use a pre-baked gradient texture so the gradient
+	-- comes from the texture file. Color is applied via SetVertexColor
+	-- (C-level, secret-safe). No CreateColor needed at runtime.
+	local gradientFull
+	if(overlayFrame) then
 		gradientFull = overlayFrame:CreateTexture(nil, 'OVERLAY')
-		gradientFull:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-		gradientFull:SetBlendMode('ADD')
+		gradientFull:SetTexture(GRADIENT_TEXTURE)
+		gradientFull:SetBlendMode('BLEND')
 		gradientFull:Hide()
-
-		-- Store frame ref for deferred positioning
-		gradientFull._overlayFrame = overlayFrame
 	end
 
 	local gradientHalf
-	if(healthWrapper) then
-		gradientHalf = gradientFull:GetParent():CreateTexture(nil, 'OVERLAY')
-		gradientHalf:SetTexture([[Interface\BUTTONS\WHITE8x8]])
-		gradientHalf:SetBlendMode('ADD')
+	if(overlayFrame) then
+		gradientHalf = overlayFrame:CreateTexture(nil, 'OVERLAY')
+		gradientHalf:SetTexture(GRADIENT_TEXTURE)
+		gradientHalf:SetBlendMode('BLEND')
 		gradientHalf:Hide()
 	end
 
 	local solidCurrent
-	if(healthWrapper) then
-		solidCurrent = gradientFull:GetParent():CreateTexture(nil, 'OVERLAY')
+	if(overlayFrame) then
+		solidCurrent = overlayFrame:CreateTexture(nil, 'OVERLAY')
 		solidCurrent:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 		solidCurrent:SetWidth(1)
 		solidCurrent:SetBlendMode('ADD')
@@ -327,7 +379,6 @@ function F.Elements.Dispellable.Setup(self, config)
 		healthBar._dispelOverlay = solidCurrent
 	end
 
-	-- solid_entire: Solid color covering entire unit frame
 	local solidEntire
 	solidEntire = self:CreateTexture(nil, 'OVERLAY')
 	solidEntire:SetTexture([[Interface\BUTTONS\WHITE8x8]])
@@ -336,10 +387,12 @@ function F.Elements.Dispellable.Setup(self, config)
 
 	-- 3. Build element container
 	local container = {
-		_borderIcon            = borderIcon,
+		_iconFrame             = iconFrame,
+		_icons                 = icons,
+		_overlayFrame          = overlayFrame,
+		_healthWrapper         = healthWrapper,
 		_highlightType         = highlightType,
 		_onlyDispellableByMe   = config.onlyDispellableByMe or false,
-		_showPhysicalDebuffs   = config.showPhysicalDebuffs ~= false,
 		_overlayGradientFull   = gradientFull,
 		_overlayGradientHalf   = gradientHalf,
 		_overlaySolidCurrent   = solidCurrent,
