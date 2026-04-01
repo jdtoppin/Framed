@@ -26,7 +26,7 @@ local function Update(self, event, unit)
 	if(not unit or self.unit ~= unit) then return end
 
 	local cfg = element._config
-	local maxDisplayed = cfg.maxDisplayed or 3
+	local maxDisplayed = cfg.maxDisplayed
 
 	-- Backward compat: map old boolean to new filterMode
 	local filterMode = cfg.filterMode
@@ -88,9 +88,9 @@ local function Update(self, event, unit)
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
 	local pool = element._pool
-	local iconSize = cfg.iconSize or 16
-	local bigIconSize = cfg.bigIconSize or iconSize
-	local orientation = cfg.orientation or 'RIGHT'
+	local iconSize = cfg.iconSize
+	local bigIconSize = cfg.bigIconSize
+	local orientation = cfg.orientation
 
 	for idx = 1, count do
 		local aura = auraList[idx]
@@ -101,7 +101,7 @@ local function Update(self, event, unit)
 				showCooldown = true,
 				showStacks   = cfg.showStacks ~= false,
 				showDuration = cfg.showDuration ~= false,
-				frameLevel   = cfg.frameLevel or 5,
+				frameLevel   = cfg.frameLevel,
 				stackFont    = cfg.stackFont,
 				durationFont = cfg.durationFont,
 			})
