@@ -7,53 +7,6 @@ F.Indicators = F.Indicators or {}
 F.Indicators.BorderIcon = {}
 
 -- ============================================================
--- Duration OnUpdate handler
--- ============================================================
-
-local DURATION_UPDATE_INTERVAL = 0.1
-
---- OnUpdate ticker for duration text display.
---- Prefers GetAuraDurationRemainingByAuraInstanceID (12.0.0) when
---- unit + auraInstanceID are available — returns a plain number that
---- may be secret in tainted combat. Falls back to expirationTime - GetTime().
---- In both paths, IsValueNonSecret guards ensure graceful degradation:
---- duration text hides when secret, cooldown swipe still works via DurationObject.
-local function DurationOnUpdate(frame, elapsed)
-	local bi = frame._biRef
-	if(not bi) then return end
-
-	bi._durationElapsed = (bi._durationElapsed or 0) + elapsed
-	if(bi._durationElapsed < DURATION_UPDATE_INTERVAL) then return end
-	bi._durationElapsed = 0
-
-	local remaining
-
-	-- Preferred: C-level remaining duration query
-	if(bi._unit and bi._auraInstanceID and C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID) then
-		remaining = C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID(bi._unit, bi._auraInstanceID)
-		if(not remaining or not F.IsValueNonSecret(remaining)) then
-			-- Secret or nil → hide text, stop ticker
-			bi.duration:SetText('')
-			bi._durationActive = false
-			frame:SetScript('OnUpdate', nil)
-			return
-		end
-	else
-		-- Fallback: raw expirationTime calculation
-		remaining = bi._expirationTime - GetTime()
-	end
-
-	if(remaining <= 0) then
-		bi.duration:SetText('')
-		bi._durationActive = false
-		frame:SetScript('OnUpdate', nil)
-		return
-	end
-
-	bi.duration:SetText(F.FormatDuration(remaining))
-end
-
--- ============================================================
 -- Dispel color curve (lazy-initialized singleton)
 -- ============================================================
 
@@ -95,8 +48,8 @@ local BorderIconMethods = {}
 ---   Legacy:            SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
 --- When unit + auraInstanceID are provided, C-level APIs are used for
 --- cooldown (DurationObject), stacks, and dispel color (secret-safe).
---- Duration text prefers GetAuraDurationRemainingByAuraInstanceID, falls
---- back to expirationTime; both guard with IsValueNonSecret (hides when secret).
+--- Duration display is handled by Blizzard's built-in cooldown countdown
+--- via SetCooldownFromDurationObject — secret-safe, no Lua math needed.
 --- Without unit + auraInstanceID, falls back to legacy behavior.
 function BorderIconMethods:SetAura(...)
 	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType
@@ -152,40 +105,45 @@ function BorderIconMethods:SetAura(...)
 		end
 	end
 
-	-- Cooldown swipe (fills the border area; icon frame sits above).
-	-- Callers can set cooldown:SetReverse() before SetAura to override direction.
-	if(self.cooldown) then
-		if(unit and auraInstanceID) then
-			-- New path: DurationObject -> SetCooldownFromDurationObject
-			-- This is the ONLY cooldown API available in tainted combat (12.0.1)
-			local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
-			if(durationObj) then
+	-- Cooldown swipe + DurationObject for duration text.
+	-- SetReverse(true) applied after each cooldown API call because
+	-- SetCooldownFromDurationObject/SetCooldown reset the reverse flag.
+	-- Callers can override direction after SetAura if needed.
+	if(unit and auraInstanceID) then
+		local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
+		if(durationObj) then
+			if(self.cooldown) then
 				self.cooldown:SetCooldownFromDurationObject(durationObj)
-			else
-				self.cooldown:Clear()
+				self.cooldown:SetReverse(true)
 			end
+		elseif(self.cooldown) then
+			self.cooldown:Clear()
+		end
+	elseif(self.cooldown) then
+		-- Legacy path: raw SetCooldown (works in untainted contexts only)
+		local durationSafe = F.IsValueNonSecret(duration)
+		local expirationSafe = F.IsValueNonSecret(expirationTime)
+		if(durationSafe and expirationSafe and duration and duration > 0 and expirationTime and expirationTime > 0) then
+			local startTime = expirationTime - duration
+			self.cooldown:SetCooldown(startTime, duration)
+			self.cooldown:SetReverse(true)
 		else
-			-- Legacy path: raw SetCooldown (works in untainted contexts only)
-			local durationSafe = F.IsValueNonSecret(duration)
-			local expirationSafe = F.IsValueNonSecret(expirationTime)
-			if(durationSafe and expirationSafe and duration and duration > 0 and expirationTime and expirationTime > 0) then
-				local startTime = expirationTime - duration
-				self.cooldown:SetCooldown(startTime, duration)
-			else
-				self.cooldown:Clear()
-			end
+			self.cooldown:Clear()
 		end
 	end
 
 	-- Stacks
 	if(self.stacks) then
 		if(unit and auraInstanceID) then
-			-- New path: C-level formatted display count
+			-- New path: C-level formatted display count.
+			-- SetText is a C-level API that accepts secret values, so we
+			-- pass the result directly without IsValueNonSecret. Always
+			-- show when non-nil — an empty secret string is invisible.
 			local displayCount = C_UnitAuras.GetAuraApplicationDisplayCount(
 				unit, auraInstanceID, 2, 99)
-			if(displayCount and F.IsValueNonSecret(displayCount)) then
+			if(displayCount) then
 				self.stacks:SetText(displayCount)
-				self.stacks:SetShown(displayCount ~= '')
+				self.stacks:Show()
 			else
 				self.stacks:SetText('')
 				self.stacks:Hide()
@@ -202,64 +160,19 @@ function BorderIconMethods:SetAura(...)
 		end
 	end
 
-	-- Duration text — prefers GetAuraDurationRemainingByAuraInstanceID (12.0.0),
-	-- falls back to expirationTime - GetTime(). Both paths guard with IsValueNonSecret.
-	-- In tainted combat: text gracefully hides, cooldown swipe still works via DurationObject.
-	if(self.duration) then
-		local remaining
-
-		-- Preferred: C-level remaining duration (may return secret in tainted combat)
-		if(unit and auraInstanceID and C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID) then
-			local val = C_UnitAuras.GetAuraDurationRemainingByAuraInstanceID(unit, auraInstanceID)
-			if(val and F.IsValueNonSecret(val)) then
-				remaining = val
-			end
-		end
-
-		-- Fallback: raw expirationTime calculation
-		if(not remaining) then
-			local durationSafe = F.IsValueNonSecret(duration)
-			local expirationSafe = F.IsValueNonSecret(expirationTime)
-			if(durationSafe and expirationSafe and duration and duration > 0) then
-				remaining = expirationTime - GetTime()
-			end
-		end
-
-		if(remaining and remaining > 0) then
-			self._expirationTime = expirationTime
-			self._durationActive = true
-			self._durationElapsed = 0
-			self.duration:SetText(F.FormatDuration(remaining))
-			self._frame:SetScript('OnUpdate', DurationOnUpdate)
-		else
-			self.duration:SetText('')
-			self._durationActive = false
-			self._frame:SetScript('OnUpdate', nil)
-		end
-	end
-
 	self._frame:Show()
 end
 
---- Set the border color manually (overrides dispel-type auto-color).
+--- Set the border color via the background texture.
+--- The black cooldown swipe depletes over this, revealing the color
+--- as the aura expires.
 --- @param r number
 --- @param g number
 --- @param b number
 --- @param a? number
 function BorderIconMethods:SetBorderColor(r, g, b, a)
 	a = a or 1
-	self._frame:SetBackdropColor(r, g, b, a)
-	-- DEBUG
-	if(not self._borderDebug) then
-		self._borderDebug = true
-		local br, bg, bb, ba = self._frame:GetBackdropColor()
-		print(('|cffff00ff[BI Border]|r set=%.1f,%.1f,%.1f,%.1f get=%.1f,%.1f,%.1f,%.1f backdrop=%s bt=%s w=%.0f'):format(
-			r, g, b, a, br or 0, bg or 0, bb or 0, ba or 0,
-			tostring(self._frame:GetBackdrop() ~= nil),
-			tostring(self._borderThickness),
-			self._frame:GetWidth()
-		))
-	end
+	self._borderBg:SetColorTexture(r, g, b, a)
 end
 
 --- Clear and hide this border icon.
@@ -274,11 +187,6 @@ function BorderIconMethods:Clear()
 		self.stacks:SetText('')
 		self.stacks:Hide()
 	end
-	if(self.duration) then
-		self.duration:SetText('')
-	end
-	self._durationActive = false
-	self._frame:SetScript('OnUpdate', nil)
 	self._frame:Hide()
 end
 
@@ -312,9 +220,8 @@ function BorderIconMethods:SetSize(size)
 end
 
 --- Tear down the BorderIcon for pool cleanup.
---- Removes OnUpdate, clears back-reference, hides, and orphans the frame.
+--- Clears back-reference, hides, and orphans the frame.
 function BorderIconMethods:Destroy()
-	self._frame:SetScript('OnUpdate', nil)
 	self._frame._biRef = nil
 	self._unit = nil
 	self._auraInstanceID = nil
@@ -326,11 +233,11 @@ end
 -- Factory
 -- ============================================================
 
---- Create a BorderIcon indicator: BackdropTemplate frame with colored border,
---- inner icon texture, cooldown swipe, and stack/duration text overlays.
+--- Create a BorderIcon indicator: outer frame with colored border,
+--- inner icon texture, cooldown swipe with Blizzard countdown, and stack text.
 --- @param parent Frame
 --- @param size number Pixel size (width = height)
---- @param config? table { borderThickness, showCooldown, showStacks, showDuration, borderColor, frameLevel, stackFont, durationFont }
+--- @param config? table { borderThickness, showCooldown, showStacks, showDuration, borderColor, frameLevel, stackFont }
 --- @return table borderIcon
 function F.Indicators.BorderIcon.Create(parent, size, config)
 	config = config or {}
@@ -340,37 +247,50 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 	local showDuration    = config.showDuration  ~= false
 	local frameLevel      = config.frameLevel    or (parent:GetFrameLevel() + 5)
 
-	-- 1. Outer frame with backdrop background (border color shows as bg)
-	local frame = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
+	-- 1. Outer frame
+	local frame = CreateFrame('Frame', nil, parent)
 	Widgets.SetSize(frame, size, size)
 	frame:SetFrameLevel(frameLevel)
-	frame:SetBackdrop({
-		bgFile = [[Interface\BUTTONS\WHITE8x8]],
-	})
-	-- Default: black background (acts as border color)
-	frame:SetBackdropColor(0, 0, 0, 0.85)
 	frame:Hide()
 
-	-- 2. Icon child frame (inset from outer frame so backdrop shows as border)
+	-- 2. Static border color — single texture on a dedicated frame.
+	--    Sits below the cooldown so the black swipe covers it initially,
+	--    then reveals the color as the swipe depletes.
+	--    The icon (on iconFrame above) is opaque and covers the inner area.
+	local borderFrame = CreateFrame('Frame', nil, frame)
+	borderFrame:SetAllPoints(frame)
+
+	local borderBg = borderFrame:CreateTexture(nil, 'ARTWORK')
+	borderBg:SetAllPoints(borderFrame)
+	borderBg:SetColorTexture(0, 0, 0, 0.85)
+
+	-- 3. Cooldown frame covers the FULL frame (including border area).
+	--    Black swipe depletes over the colored border edges.
+	--    The icon sits in a child frame above the cooldown.
+	local cooldown
+	if(showCooldown) then
+		cooldown = CreateFrame('Cooldown', nil, frame)
+		cooldown:SetAllPoints(frame)
+		cooldown:SetSwipeTexture([[Interface\BUTTONS\WHITE8x8]])
+		cooldown:SetSwipeColor(0, 0, 0, 1)
+		cooldown:SetDrawBling(false)
+		cooldown:SetDrawEdge(false)
+		cooldown:SetHideCountdownNumbers(not showDuration)
+		-- borderFrame below cooldown, cooldown swipe covers the color
+		borderFrame:SetFrameLevel(cooldown:GetFrameLevel() - 1)
+	end
+
+	-- 4. Icon child frame (above cooldown so swipe only shows in border area)
 	local iconFrame = CreateFrame('Frame', nil, frame)
 	iconFrame:SetPoint('TOPLEFT', frame, 'TOPLEFT', borderThickness, -borderThickness)
 	iconFrame:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -borderThickness, borderThickness)
+	if(cooldown) then
+		iconFrame:SetFrameLevel(cooldown:GetFrameLevel() + 1)
+	end
 
 	local icon = iconFrame:CreateTexture(nil, 'ARTWORK')
 	icon:SetAllPoints(iconFrame)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-
-	-- 3. Cooldown frame (hidden visually — used only for DurationObject binding)
-	local cooldown
-	if(showCooldown) then
-		cooldown = CreateFrame('Cooldown', nil, iconFrame)
-		cooldown:SetAllPoints(iconFrame)
-		cooldown:SetDrawSwipe(false)
-		cooldown:SetDrawBling(false)
-		cooldown:SetDrawEdge(false)
-		cooldown:SetHideCountdownNumbers(true)
-		cooldown.noCooldownCount = true
-	end
 
 	-- 4. Stack count text (on icon frame, above cooldown)
 	local stacksText
@@ -382,28 +302,17 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 		stacksText:Hide()
 	end
 
-	-- 5. Duration text (on icon frame, above cooldown)
-	local durationText
-	if(showDuration) then
-		local durFontSize = (config.durationFont and config.durationFont.size) or C.Font.sizeSmall
-		durationText = Widgets.CreateFontString(iconFrame, durFontSize, C.Colors.textActive)
-		durationText:SetPoint('BOTTOM', iconFrame, 'BOTTOM', 0, 1)
-	end
-
 	-- Build object
 	local bi = {
 		_frame           = frame,
+		_borderBg        = borderBg,
 		_borderThickness = borderThickness,
-		_durationActive  = false,
-		_durationElapsed = 0,
-		_expirationTime  = 0,
 		_unit            = nil,
 		_auraInstanceID  = nil,
 
 		icon     = icon,
 		cooldown = cooldown,
 		stacks   = stacksText,
-		duration = durationText,
 	}
 
 	-- Apply methods

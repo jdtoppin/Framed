@@ -31,13 +31,11 @@ end
 --- @return string
 function F.FormatDuration(seconds)
 	if(seconds >= 3600) then
-		return string.format('%dh', math.floor(seconds / 3600))
+		return string.format('%dh', math.ceil(seconds / 3600))
 	elseif(seconds >= 60) then
-		return string.format('%dm', math.floor(seconds / 60))
-	elseif(seconds >= 1) then
-		return string.format('%d', math.ceil(seconds))
+		return string.format('%dm', math.ceil(seconds / 60))
 	else
-		return string.format('%.1f', seconds)
+		return string.format('%d', math.ceil(seconds))
 	end
 end
 
