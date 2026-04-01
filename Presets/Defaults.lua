@@ -554,15 +554,28 @@ function F.PresetDefaults.EnsureDefaults()
 				FramedDB.presets[name].partyPets = preset.partyPets
 			end
 			-- Backfill buffs.enabled (was missing in earlier versions)
-			-- Backfill hideUnimportantBuffs for group unit types
+			-- Migrate aura config keys
 			local savedAuras = FramedDB.presets[name].auras
 			if(savedAuras) then
 				for unitType, auraSet in next, savedAuras do
 					if(auraSet.buffs and auraSet.buffs.indicators and auraSet.buffs.enabled == nil) then
 						auraSet.buffs.enabled = true
 					end
-					if(auraSet.buffs and (unitType == 'party' or unitType == 'raid') and auraSet.buffs.hideUnimportantBuffs == nil) then
-						auraSet.buffs.hideUnimportantBuffs = true
+					-- Migrate hideUnimportantBuffs → buffFilterMode
+					if(auraSet.buffs and (unitType == 'party' or unitType == 'raid')) then
+						if(not auraSet.buffs.buffFilterMode) then
+							auraSet.buffs.buffFilterMode = (auraSet.buffs.hideUnimportantBuffs ~= false) and 'raidCombat' or 'all'
+						end
+						auraSet.buffs.hideUnimportantBuffs = nil
+					end
+					-- Migrate onlyDispellableByMe → filterMode
+					if(auraSet.debuffs and not auraSet.debuffs.filterMode) then
+						if(auraSet.debuffs.onlyDispellableByMe) then
+							auraSet.debuffs.filterMode = 'dispellable'
+						else
+							auraSet.debuffs.filterMode = 'all'
+						end
+						auraSet.debuffs.onlyDispellableByMe = nil
 					end
 				end
 			end
