@@ -279,7 +279,7 @@ end
 --- @param h number|nil defaults to w
 function IconMethods:SetSize(w, h)
 	Widgets.SetSize(self._frame, w, h or w)
-	self.texture:SetAllPoints(self._frame)
+	-- Texture is point-anchored with inset; re-anchor not needed on resize
 end
 
 --- Start a glow effect on this icon.
@@ -325,32 +325,30 @@ function F.Indicators.Icon.Create(parent, size, config)
 	Widgets.SetSize(frame, iconWidth, iconHeight)
 	frame:Hide()
 
-	-- 1. Icon texture
+	-- 1. Background-as-border: black bg fills the frame, content is inset by 1px
+	local P = 1  -- border thickness in pixels
+	local bg = frame:CreateTexture(nil, 'BACKGROUND')
+	bg:SetAllPoints(frame)
+	bg:SetColorTexture(0, 0, 0, 1)
+
+	-- 1a. Icon texture (inset by border thickness)
 	local texture = frame:CreateTexture(nil, 'ARTWORK')
-	texture:SetAllPoints(frame)
+	texture:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
+	texture:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
 	-- Trim default icon border
 	texture:SetTexCoord(0.07, 0.93, 0.07, 0.93)
-
-	-- 1b. Border overlay
-	local border = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
-	border:SetAllPoints(frame)
-	border:SetBackdrop({
-		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
-		edgeSize = 0.5,
-	})
-	border:SetBackdropBorderColor(0, 0, 0, 1)
-	border:SetFrameLevel(frame:GetFrameLevel() + 1)
 
 	if(displayType == C.IconDisplay.COLORED_SQUARE) then
 		texture:SetTexCoord(0, 1, 0, 1)  -- no trim needed for solid color
 	end
 
-	-- 2. Depletion bar overlay (dark fill for SpellIcon, white fill for ColoredSquare)
+	-- 2. Depletion bar overlay (inset to match icon area)
 	local depletionBar
 	if(showCooldown) then
 		local fillDirection = config.fillDirection or 'topToBottom'
 		depletionBar = CreateFrame('StatusBar', nil, frame)
-		depletionBar:SetAllPoints(frame)
+		depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
+		depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
 
 		-- Orientation and fill direction
 		if(fillDirection == 'topToBottom') then
