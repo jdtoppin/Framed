@@ -320,21 +320,17 @@ function F.Indicators.Icon.Create(parent, size, config)
 	local iconWidth  = config.iconWidth  or size or 14
 	local iconHeight = config.iconHeight or size or 14
 
-	-- Container frame (BackdropTemplate for border)
-	local frame = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
+	-- Container frame
+	local frame = CreateFrame('Frame', nil, parent)
 	Widgets.SetSize(frame, iconWidth, iconHeight)
 	frame:Hide()
 
-	-- 1. Border via BackdropTemplate (1 physical pixel edge, pixel-perfect scaled)
+	-- 1. Background-as-border: black bg fills frame, content is inset by 1 physical pixel
 	local scale = parent:GetEffectiveScale()
 	local B = Widgets.GetNearestPixelSize(1, scale, 1)
-	frame:SetBackdrop({
-		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
-		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
-		edgeSize = B,
-	})
-	frame:SetBackdropColor(0, 0, 0, 1)
-	frame:SetBackdropBorderColor(0, 0, 0, 1)
+	local bg = frame:CreateTexture(nil, 'BACKGROUND')
+	bg:SetAllPoints(frame)
+	bg:SetColorTexture(0, 0, 0, 1)
 
 	-- 1a. Icon texture (inset by border thickness)
 	local texture = frame:CreateTexture(nil, 'ARTWORK')
