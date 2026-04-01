@@ -326,7 +326,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 	frame:Hide()
 
 	-- 1. Border via BackdropTemplate (1 physical pixel edge, pixel-perfect scaled)
-	local scale = frame:GetEffectiveScale()
+	local scale = parent:GetEffectiveScale()
 	local B = Widgets.GetNearestPixelSize(1, scale, 1)
 	frame:SetBackdrop({
 		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
