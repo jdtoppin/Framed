@@ -16,6 +16,11 @@ F.Elements.PrivateAuras = {}
 local PRIVATE_AURAS_SUPPORTED =
 	C_UnitAuras ~= nil and C_UnitAuras.AddPrivateAuraAnchor ~= nil
 
+-- Dispel type display for private auras (TWW 12.0+).
+-- This C-level API tells the anchor to show dispel type info visually.
+local DISPEL_TYPE_SUPPORTED =
+	C_UnitAuras ~= nil and C_UnitAuras.TriggerPrivateAuraShowDispelType ~= nil
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -77,6 +82,10 @@ local function Enable(self, unit)
 	})
 	element._anchorID = anchorID
 
+	if(DISPEL_TYPE_SUPPORTED and element._showDispelType) then
+		C_UnitAuras.TriggerPrivateAuraShowDispelType(true)
+	end
+
 	return true
 end
 
@@ -90,6 +99,10 @@ local function Disable(self)
 		C_UnitAuras.RemovePrivateAuraAnchor(element._anchorID)
 		element._anchorID = nil
 	end
+
+	if(DISPEL_TYPE_SUPPORTED and element._showDispelType) then
+		C_UnitAuras.TriggerPrivateAuraShowDispelType(false)
+	end
 end
 
 -- ============================================================
@@ -102,7 +115,8 @@ local function Rebuild(element, config)
 		element._anchorID = nil
 	end
 
-	element._iconSize = config.iconSize or 20
+	element._iconSize       = config.iconSize or 20
+	element._showDispelType = config.showDispelType
 
 	local anchor = config.anchor or { 'TOP', nil, 'TOP', 0, -3 }
 	element._frame:ClearAllPoints()
@@ -128,6 +142,10 @@ local function Rebuild(element, config)
 			},
 		})
 	end
+
+	if(DISPEL_TYPE_SUPPORTED) then
+		C_UnitAuras.TriggerPrivateAuraShowDispelType(element._showDispelType and true or false)
+	end
 end
 
 -- ============================================================
@@ -145,7 +163,7 @@ oUF:AddElement('FramedPrivateAuras', Update, Enable, Disable)
 --- the unit's highest-priority private aura at the configured position.
 --- Assigns result to self.FramedPrivateAuras, activating the element.
 --- @param self Frame  The oUF unit frame
---- @param config? table  Optional config: iconSize, anchor
+--- @param config? table  Optional config: iconSize, anchor, showDispelType
 function F.Elements.PrivateAuras.Setup(self, config)
 	config = config or {}
 	config.iconSize = config.iconSize or 20
@@ -160,10 +178,11 @@ function F.Elements.PrivateAuras.Setup(self, config)
 	frame:SetPoint(a[1], nil, a[3], a[4] or 0, a[5] or 0)
 
 	local container = {
-		_frame    = frame,
-		_iconSize = config.iconSize,
-		_anchorID = nil,
-		Rebuild   = Rebuild,
+		_frame          = frame,
+		_iconSize       = config.iconSize,
+		_showDispelType = config.showDispelType,
+		_anchorID       = nil,
+		Rebuild         = Rebuild,
 	}
 
 	self.FramedPrivateAuras = container

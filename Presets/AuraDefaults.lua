@@ -231,10 +231,11 @@ function F.AuraDefaults.Group(sizes)
 			glowColor     = { 1, 0.8, 0, 1 },
 		},
 		privateAuras = {
-			enabled  = true,
-			iconSize = s.privateAurasIcon or 16,
-			anchor   = { 'TOP', nil, 'TOP', 0, -3 },
-			frameLevel = 25,
+			enabled        = true,
+			iconSize       = s.privateAurasIcon or 16,
+			showDispelType = true,
+			anchor         = { 'TOP', nil, 'TOP', 0, -3 },
+			frameLevel     = 25,
 		},
 		lossOfControl = {
 			enabled    = false,
