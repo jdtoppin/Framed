@@ -25,52 +25,66 @@ local function Update(self, event, unit)
 	local playerColor    = cfg.playerColor or DEFAULT_PLAYER_COLOR
 	local otherColor     = cfg.otherColor or DEFAULT_OTHER_COLOR
 
-	-- Build filter string based on visibility mode
-	local filter = 'HELPFUL|EXTERNAL_DEFENSIVE'
-	if(visibilityMode == 'player') then
-		filter = 'HELPFUL|EXTERNAL_DEFENSIVE|PLAYER'
-	end
+	-- EXTERNAL_DEFENSIVE is a classification filter, not a query filter —
+	-- GetUnitAuras does not support it. Fetch all helpful auras, then
+	-- classify each one via IsAuraFilteredOutByInstanceID.
+	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 
-	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter)
-
-	-- Collect auras with source classification.
-	-- No IsValueNonSecret gate on spellId — in instanced content all aura
-	-- fields are secret. auraInstanceID is NeverSecret; BorderIcon.SetAura
-	-- passes secrets to C-level APIs (SetTexture, SetCooldownFromDurationObject).
 	local auraList = {}
 	for _, auraData in next, rawAuras do
-		-- Determine if player-cast via |PLAYER filter (avoids secret sourceUnit)
-		local isPlayerCast = false
-		if(visibilityMode == 'player') then
-			-- All results are player-cast (filter already includes |PLAYER)
-			isPlayerCast = true
-		else
-			-- Check via supplementary filter (uses NeverSecret auraInstanceID)
-			isPlayerCast = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
-				unit, auraData.auraInstanceID, 'HELPFUL|EXTERNAL_DEFENSIVE|PLAYER')
+		local id = auraData.auraInstanceID -- NeverSecret
+
+		-- Step 1: EXTERNAL_DEFENSIVE (primary classification)
+		local show = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+			unit, id, 'HELPFUL|EXTERNAL_DEFENSIVE')
+
+		-- Step 2: IMPORTANT fallback — catch spells like PI that aren't
+		-- classified as EXTERNAL_DEFENSIVE. Exclude BIG_DEFENSIVE to avoid
+		-- duplicating spells that already appear in the Defensives element.
+		-- NOTE: IMPORTANT may be removed in 12.0.5 per Blizzard feedback.
+		if(not show) then
+			local isImportant = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+				unit, id, 'HELPFUL|IMPORTANT')
+			if(isImportant) then
+				local isBigDef = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+					unit, id, 'HELPFUL|BIG_DEFENSIVE')
+				show = not isBigDef
+			end
 		end
 
-		-- Apply "others only" filter
-		if(visibilityMode == 'others' and isPlayerCast) then
-			-- Skip player-cast auras in "others" mode
-		else
-			auraList[#auraList + 1] = {
-				auraInstanceID = auraData.auraInstanceID,
-				spellId        = auraData.spellId,
-				icon           = auraData.icon,
-				duration       = auraData.duration,
-				expirationTime = auraData.expirationTime,
-				stacks         = auraData.applications,
-				isPlayerCast   = isPlayerCast,
-			}
+		if(show) then
+			-- Determine if player-cast via |PLAYER filter (avoids secret sourceUnit)
+			local isPlayerCast = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+				unit, id, 'HELPFUL|PLAYER')
+
+			-- Apply visibility mode filter
+			if(visibilityMode == 'player' and not isPlayerCast) then
+				-- Skip non-player auras in "player" mode
+			elseif(visibilityMode == 'others' and isPlayerCast) then
+				-- Skip player-cast auras in "others" mode
+			else
+				auraList[#auraList + 1] = {
+					auraInstanceID = id,
+					spellId        = auraData.spellId,
+					icon           = auraData.icon,
+					duration       = auraData.duration,
+					expirationTime = auraData.expirationTime,
+					stacks         = auraData.applications,
+					isPlayerCast   = isPlayerCast,
+				}
+			end
 		end
 	end
 
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
 	local pool = element._pool
-	local iconSize = cfg.iconSize or 16
+	local iconSize    = cfg.iconSize or 16
 	local orientation = cfg.orientation or 'RIGHT'
+	local anchor      = cfg.anchor or { 'RIGHT', nil, 'RIGHT', 2, 5 }
+	local anchorPoint = anchor[1]
+	local anchorX     = anchor[4] or 0
+	local anchorY     = anchor[5] or 0
 
 	for idx = 1, count do
 		local aura = auraList[idx]
@@ -92,17 +106,17 @@ local function Update(self, event, unit)
 		bi:ClearAllPoints()
 		bi:SetSize(iconSize)
 
-		-- Position
+		-- Position: anchor directly to the unit frame, offset by prior icons
 		local offset = (idx - 1) * (iconSize + 2)
 
 		if(orientation == 'RIGHT') then
-			bi:SetPoint('TOPLEFT', element._container, 'TOPLEFT', offset, 0)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX + offset, anchorY)
 		elseif(orientation == 'LEFT') then
-			bi:SetPoint('TOPRIGHT', element._container, 'TOPRIGHT', -offset, 0)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX - offset, anchorY)
 		elseif(orientation == 'DOWN') then
-			bi:SetPoint('TOPLEFT', element._container, 'TOPLEFT', 0, -offset)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY - offset)
 		elseif(orientation == 'UP') then
-			bi:SetPoint('BOTTOMLEFT', element._container, 'BOTTOMLEFT', 0, offset)
+			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY + offset)
 		end
 
 		-- Set border color based on source
@@ -193,7 +207,8 @@ oUF:AddElement('FramedExternals', Update, Enable, Disable)
 -- ============================================================
 
 --- Create an Externals element on a unit frame.
---- Shows BorderIcons for external defensive buffs (Pain Suppression, Ironbark, etc.).
+--- Shows BorderIcons for external defensive buffs (Pain Suppression, Ironbark, etc.)
+--- and IMPORTANT-flagged buffs not already classified as BIG_DEFENSIVE.
 --- Supports visibility modes: 'all' (default), 'player', 'others'.
 --- Border color differentiates player-cast (green) from other-cast (yellow).
 --- Assigns result to self.FramedExternals, activating the element.
@@ -205,21 +220,11 @@ oUF:AddElement('FramedExternals', Update, Enable, Disable)
 function F.Elements.Externals.Setup(self, config)
 	config = config or {}
 
-	local container = CreateFrame('Frame', nil, self)
-	container:SetAllPoints(self)
-
 	local element = {
-		_container = container,
 		_config    = config,
 		_pool      = {},
 		Rebuild    = Rebuild,
 	}
-
-	local a = config.anchor
-	if(a) then
-		container:ClearAllPoints()
-		Widgets.SetPoint(container, a[1], nil, a[3], a[4] or 0, a[5] or 0)
-	end
 
 	self.FramedExternals = element
 end
