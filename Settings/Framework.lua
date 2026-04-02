@@ -87,6 +87,7 @@ end
 function Settings.SetEditingPreset(presetName)
 	if(editingPreset == presetName) then return end
 	editingPreset = presetName
+	Settings._editingUnitType = nil
 	F.EventBus:Fire('EDITING_PRESET_CHANGED', presetName)
 	-- Update the sub-header preset indicator live
 	if(Settings._headerPresetText and Settings._headerPresetText:IsShown()) then
@@ -219,8 +220,8 @@ Settings._setSidebarSelected = nil   -- function(btn, selected)
 --- Switch to the given panel, building its frame on first visit.
 --- @param panelId string
 function Settings.SetActivePanel(panelId)
-	-- Skip if already on this panel
-	if(panelId == Settings._activePanelId and Settings._activePanelFrame and Settings._activePanelFrame:IsShown()) then
+	-- Skip if already on this panel and its cached frame is still valid
+	if(panelId == Settings._activePanelId and Settings._panelFrames[panelId] and Settings._activePanelFrame and Settings._activePanelFrame:IsShown()) then
 		return
 	end
 
@@ -322,11 +323,22 @@ function Settings.SetActivePanel(panelId)
 
 end
 
--- Refresh active panel when the editing preset changes
+-- Refresh active panel when the editing preset changes.
+-- Invalidate all preset-scoped panels so stale frames are rebuilt
+-- when the user navigates to them.
 F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+	for _, p in next, registeredPanels do
+		if(p.section == 'PRESET_SCOPED' and Settings._panelFrames[p.id]) then
+			Settings._panelFrames[p.id] = nil
+		end
+	end
+	-- Rebuild the active panel immediately if it has no refresh callback
 	local activeId = Settings._activePanelId
-	if(activeId and Settings._panelRefresh[activeId]) then
+	if(not activeId) then return end
+	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
+	else
+		Settings.SetActivePanel(activeId)
 	end
 end, 'Settings.PanelRefresh')
 
@@ -334,8 +346,12 @@ end, 'Settings.PanelRefresh')
 --- Used by CopyToDialog after a copy operation completes.
 function Settings.RefreshActivePanel()
 	local activeId = Settings._activePanelId
-	if(activeId and Settings._panelRefresh[activeId]) then
+	if(not activeId) then return end
+	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
+	else
+		Settings._panelFrames[activeId] = nil
+		Settings.SetActivePanel(activeId)
 	end
 end
 
