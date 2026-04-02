@@ -33,34 +33,35 @@ local function Update(self, event, unit)
 
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter)
 
-	-- Collect auras with source classification
+	-- Collect auras with source classification.
+	-- No IsValueNonSecret gate on spellId — in instanced content all aura
+	-- fields are secret. auraInstanceID is NeverSecret; BorderIcon.SetAura
+	-- passes secrets to C-level APIs (SetTexture, SetCooldownFromDurationObject).
 	local auraList = {}
 	for _, auraData in next, rawAuras do
-		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId)) then
-			-- Determine if player-cast via |PLAYER filter (avoids secret sourceUnit)
-			local isPlayerCast = false
-			if(visibilityMode == 'player') then
-				isPlayerCast = true
-			else
-				isPlayerCast = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
-					unit, auraData.auraInstanceID, 'HELPFUL|BIG_DEFENSIVE|PLAYER')
-			end
+		-- Determine if player-cast via |PLAYER filter (avoids secret sourceUnit)
+		local isPlayerCast = false
+		if(visibilityMode == 'player') then
+			isPlayerCast = true
+		else
+			-- Check via supplementary filter (uses NeverSecret auraInstanceID)
+			isPlayerCast = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+				unit, auraData.auraInstanceID, 'HELPFUL|BIG_DEFENSIVE|PLAYER')
+		end
 
-			-- Apply "others only" filter
-			if(visibilityMode == 'others' and isPlayerCast) then
-				-- Skip player-cast auras in "others" mode
-			else
-				auraList[#auraList + 1] = {
-					auraInstanceID = auraData.auraInstanceID,
-					spellId        = spellId,
-					icon           = auraData.icon,
-					duration       = auraData.duration,
-					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications,
-					isPlayerCast   = isPlayerCast,
-				}
-			end
+		-- Apply "others only" filter
+		if(visibilityMode == 'others' and isPlayerCast) then
+			-- Skip player-cast auras in "others" mode
+		else
+			auraList[#auraList + 1] = {
+				auraInstanceID = auraData.auraInstanceID,
+				spellId        = auraData.spellId,
+				icon           = auraData.icon,
+				duration       = auraData.duration,
+				expirationTime = auraData.expirationTime,
+				stacks         = auraData.applications,
+				isPlayerCast   = isPlayerCast,
+			}
 		end
 	end
 

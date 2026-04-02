@@ -28,16 +28,15 @@ F.Settings.RegisterPanel({
 		descFS:ClearAllPoints()
 		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		descFS:SetWidth(width)
-		descFS:SetText('Debuffs displayed on unit frames using border icons colored by dispel type.')
+		descFS:SetText('Debuff indicators displayed on unit frames. Each indicator has its own server-side filter, position, and icon settings.')
 		descFS:SetWordWrap(true)
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
 
-		-- Shared BorderIcon settings
-		yOffset = F.Settings.Builders.BorderIconSettings(content, width, yOffset, {
-			unitType            = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party',
-			configKey           = 'debuffs',
-			showDispellableByMe = true,
-			showBigIconSize     = true,
+		-- Indicator CRUD
+		yOffset = F.Settings.Builders.DebuffIndicatorCRUD(content, width, yOffset, {
+			unitType = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party',
+			scrollFrame = scroll,
+			contentFrame = content,
 		})
 
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

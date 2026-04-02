@@ -27,7 +27,7 @@ local VERSION_PREFIX = '!FRM1!'
 
 --- Build and encode an export string.
 --- @param data table The data payload to export
---- @param scope string A label describing what was exported ('full'|'layout'|'raidDebuffs')
+--- @param scope string A label describing what was exported ('full'|'layout')
 --- @return string|nil encoded, string|nil err
 function ImportExport.Export(data, scope)
 	if(not LibSerialize) then
@@ -114,7 +114,7 @@ end
 -- Scope helpers — build data tables for export
 -- ============================================================
 
---- Export general settings + all layouts + raidDebuff overrides.
+--- Export general settings + all layouts.
 --- @return string|nil encoded, string|nil err
 function ImportExport.ExportFullProfile()
 	if(not FramedDB) then
@@ -124,7 +124,6 @@ function ImportExport.ExportFullProfile()
 	local data = {
 		general    = F.DeepCopy(FramedDB.general)    or {},
 		presets    = F.DeepCopy(FramedDB.presets)    or {},
-		raidDebuffs = F.DeepCopy(FramedDB.raidDebuffs) or {},
 	}
 
 	return ImportExport.Export(data, 'full')
@@ -152,20 +151,6 @@ function ImportExport.ExportLayout(layoutName)
 	}
 
 	return ImportExport.Export(data, 'layout')
-end
-
---- Export raid debuff overrides only.
---- @return string|nil encoded, string|nil err
-function ImportExport.ExportRaidDebuffs()
-	if(not FramedDB or not FramedDB.raidDebuffs) then
-		return nil, 'SavedVariables not ready'
-	end
-
-	local data = {
-		overrides = F.DeepCopy(FramedDB.raidDebuffs.overrides) or {},
-	}
-
-	return ImportExport.Export(data, 'raidDebuffs')
 end
 
 -- ============================================================
@@ -203,16 +188,12 @@ function ImportExport.ApplyImport(payload, mode)
 		if(mode == 'replace') then
 			if(data.general)     then FramedDB.general     = F.DeepCopy(data.general) end
 			if(data.presets)     then FramedDB.presets     = F.DeepCopy(data.presets) end
-			if(data.raidDebuffs) then FramedDB.raidDebuffs = F.DeepCopy(data.raidDebuffs) end
 		else  -- merge
 			if(data.general and type(data.general) == 'table') then
 				deepMerge(FramedDB.general, data.general)
 			end
 			if(data.presets and type(data.presets) == 'table') then
 				deepMerge(FramedDB.presets, data.presets)
-			end
-			if(data.raidDebuffs and type(data.raidDebuffs) == 'table') then
-				deepMerge(FramedDB.raidDebuffs, data.raidDebuffs)
 			end
 		end
 
@@ -237,15 +218,6 @@ function ImportExport.ApplyImport(payload, mode)
 			F.EventBus:Fire('LAYOUT_CREATED', name)
 		end
 
-	-- ── Raid debuff overrides ─────────────────────────────────
-	elseif(scope == 'raidDebuffs') then
-		if(not data.overrides) then return end
-
-		if(mode == 'replace') then
-			FramedDB.raidDebuffs.overrides = F.DeepCopy(data.overrides)
-		else  -- merge
-			deepMerge(FramedDB.raidDebuffs.overrides, data.overrides)
-		end
 	end
 
 	-- Fire event so UI panels can refresh

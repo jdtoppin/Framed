@@ -133,7 +133,7 @@ end
 --- @param width   number  Available content width
 --- @param yOffset number  Current vertical cursor
 --- @param panelId string  Panel id used for rebuild on change
---- @param configKey? string  Aura config key (e.g., 'buffs', 'raidDebuffs'). nil = hide copy button.
+--- @param configKey? string  Aura config key (e.g., 'buffs', 'debuffs'). nil = hide copy button.
 --- @return number yOffset Updated vertical cursor
 function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId, configKey)
 	-- ── "Configure for:" label ───────────────────────────────

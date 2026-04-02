@@ -1715,7 +1715,6 @@ local AURA_ELEMENTS = {
 	{ key = 'debuffs',        element = 'FramedDebuffs',        setup = 'Debuffs' },
 	{ key = 'externals',      element = 'FramedExternals',      setup = 'Externals' },
 	{ key = 'defensives',     element = 'FramedDefensives',     setup = 'Defensives' },
-	{ key = 'raidDebuffs',    element = 'FramedRaidDebuffs',    setup = 'RaidDebuffs' },
 	{ key = 'dispellable',    element = 'FramedDispellable',    setup = 'Dispellable' },
 	{ key = 'targetedSpells', element = 'FramedTargetedSpells', setup = 'TargetedSpells' },
 	{ key = 'buffs',          element = 'FramedBuffs',          setup = 'Buffs' },

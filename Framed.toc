@@ -90,14 +90,9 @@ Elements/Indicators/Color.lua
 Elements/Indicators/Overlay.lua
 Elements/Indicators/BorderIcon.lua
 
-# Data
-Data/RaidDebuffs/Registry.lua
-Data/RaidDebuffs/Midnight/Dungeons.lua
-
 # Elements - Auras
 Elements/Auras/Buffs.lua
 Elements/Auras/Debuffs.lua
-Elements/Auras/RaidDebuffs.lua
 Elements/Auras/PrivateAuras.lua
 Elements/Auras/Dispellable.lua
 Elements/Auras/MissingBuffs.lua
@@ -175,6 +170,7 @@ Settings/Cards/Appearance/SetupWizard.lua
 Settings/Builders/BorderIconSettings.lua
 Settings/Builders/IndicatorPanels.lua
 Settings/Builders/IndicatorCRUD.lua
+Settings/Builders/DebuffIndicatorCRUD.lua
 Settings/Builders/SharedCards.lua
 Settings/Panels/Appearance.lua
 Settings/Panels/FramePresets.lua
@@ -189,7 +185,6 @@ Settings/Panels/Boss.lua
 Settings/Panels/PartyFrames.lua
 Settings/Panels/Buffs.lua
 Settings/Panels/Debuffs.lua
-Settings/Panels/RaidDebuffs.lua
 Settings/Panels/Externals.lua
 Settings/Panels/Defensives.lua
 Settings/Panels/MissingBuffs.lua

@@ -54,23 +54,37 @@ local function defaultBuffIndicator()
 end
 
 -- ============================================================
--- Debuff config builder
+-- Debuff indicator config builder
 -- ============================================================
 
+local function debuffIndicator(opts)
+	opts = opts or {}
+	return {
+		enabled       = opts.enabled ~= false,
+		filterMode    = opts.filterMode or 'all',
+		iconSize      = opts.iconSize or 14,
+		bigIconSize   = opts.bigIconSize or 18,
+		maxDisplayed  = opts.maxDisplayed or 6,
+		showDuration  = true,
+		showAnimation = true,
+		orientation   = opts.orientation or 'RIGHT',
+		anchor        = opts.anchor or { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+		frameLevel    = opts.frameLevel or 5,
+		stackFont     = stackFont(),
+		durationFont  = durationFont(),
+	}
+end
+
+-- Debuffs config with named indicators
 local function debuffConfig(iconSize, maxDisplayed)
 	return {
-		enabled              = true,
-		iconSize             = iconSize or 14,
-		bigIconSize          = 18,
-		maxDisplayed         = maxDisplayed or 6,
-		showDuration         = true,
-		showAnimation        = true,
-		orientation          = 'RIGHT',
-		anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
-		frameLevel           = 5,
-		filterMode           = 'all',
-		stackFont            = stackFont(),
-		durationFont         = durationFont(),
+		enabled    = true,
+		indicators = {
+			['General Debuffs'] = debuffIndicator({
+				iconSize     = iconSize or 14,
+				maxDisplayed = maxDisplayed or 6,
+			}),
+		},
 	}
 end
 
@@ -125,7 +139,6 @@ end
 -- Group auras (party/raid) — full indicator set
 function F.AuraDefaults.Group(sizes)
 	local s = sizes or {}
-	local icon     = s.iconSize or 14
 	local big      = s.bigIconSize or 18
 	local rd       = s.raidDebuffIcon or 22
 	local rdBig    = s.raidDebuffBigIcon or big
@@ -145,31 +158,23 @@ function F.AuraDefaults.Group(sizes)
 			indicators = { ['My Buffs'] = defaultBuffIndicator() },
 		},
 		debuffs = {
-			enabled              = true,
-			iconSize             = 13,
-			bigIconSize          = big,
-			maxDisplayed         = debMax,
-			showDuration         = true,
-			showAnimation        = true,
-			orientation          = 'RIGHT',
-			anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 1, 4 },
-			frameLevel           = 5,
-			filterMode           = 'all',
-			stackFont            = stackFont(),
-			durationFont         = durationFont(),
-		},
-		raidDebuffs = {
-			enabled        = true,
-			iconSize       = rd,
-			bigIconSize    = rdBig,
-			maxDisplayed   = rdMax,
-			showDuration   = true,
-			showAnimation  = true,
-			orientation    = 'RIGHT',
-			anchor         = { 'CENTER', nil, 'CENTER', 0, 3 },
-			frameLevel     = 20,
-			stackFont      = stackFont(),
-			durationFont   = durationFont(),
+			enabled    = true,
+			indicators = {
+				['General Debuffs'] = debuffIndicator({
+					iconSize     = 13,
+					bigIconSize  = big,
+					maxDisplayed = debMax,
+					anchor       = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 1, 4 },
+				}),
+				['Raid Debuffs'] = debuffIndicator({
+					filterMode   = 'raid',
+					iconSize     = rd,
+					bigIconSize  = rdBig,
+					maxDisplayed = rdMax,
+					anchor       = { 'CENTER', nil, 'CENTER', 0, 3 },
+					frameLevel   = 20,
+				}),
+			},
 		},
 		targetedSpells = {
 			enabled       = true,
@@ -261,18 +266,12 @@ function F.AuraDefaults.Arena()
 	return {
 		buffs = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = {
-			enabled              = true,
-			iconSize             = 14,
-			bigIconSize          = 18,
-			maxDisplayed         = 4,
-			showDuration         = true,
-			showAnimation        = true,
-			orientation          = 'RIGHT',
-			anchor               = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
-			frameLevel           = 5,
-			filterMode           = 'all',
-			stackFont            = stackFont(),
-			durationFont         = durationFont(),
+			enabled    = true,
+			indicators = {
+				['General Debuffs'] = debuffIndicator({
+					maxDisplayed = 4,
+				}),
+			},
 		},
 		dispellable = {
 			enabled              = true,
@@ -299,23 +298,23 @@ function F.AuraDefaults.Arena()
 	}
 end
 
--- Boss auras — buffs + debuffs + raidDebuffs
+-- Boss auras — buffs + debuffs with raid indicator
 function F.AuraDefaults.Boss()
 	return {
-		buffs   = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
-		debuffs = debuffConfig(14, 4),
-		raidDebuffs = {
-			enabled        = true,
-			iconSize       = 14,
-			bigIconSize    = 18,
-			maxDisplayed   = 1,
-			showDuration   = true,
-			showAnimation  = true,
-			orientation    = 'RIGHT',
-			anchor         = { 'CENTER', nil, 'CENTER', 0, 0 },
-			frameLevel     = 6,
-			stackFont      = stackFont(),
-			durationFont   = durationFont(),
+		buffs = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		debuffs = {
+			enabled    = true,
+			indicators = {
+				['General Debuffs'] = debuffIndicator({
+					maxDisplayed = 4,
+				}),
+				['Raid Debuffs'] = debuffIndicator({
+					filterMode   = 'raid',
+					maxDisplayed = 1,
+					anchor       = { 'CENTER', nil, 'CENTER', 0, 0 },
+					frameLevel   = 6,
+				}),
+			},
 		},
 		lossOfControl = {
 			enabled    = false,

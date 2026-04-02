@@ -109,26 +109,6 @@ Constants.PresetOrder = {
 }
 
 -- ============================================================
--- Raid Debuff Priority Levels
--- ============================================================
-Constants.DebuffPriority = {
-	TRIVIAL   = 1,
-	LOW       = 2,
-	NORMAL    = 3,
-	IMPORTANT = 4,
-	CRITICAL  = 5,
-	SURVIVAL  = 6,
-}
-
--- ============================================================
--- Raid Debuff Filter Modes
--- ============================================================
-Constants.DebuffFilterMode = {
-	ENCOUNTER_ONLY = 'EncounterOnly',   -- isBossAura only
-	RAID           = 'Raid',            -- isRaid (includes boss + trash)
-}
-
--- ============================================================
 -- Indicator Rendering Types
 -- ============================================================
 Constants.IndicatorType = {

@@ -23,7 +23,6 @@ local ROW_H        = 28      -- standard row spacing
 -- ── Scope constants ────────────────────────────────────────
 local SCOPE_FULL        = 'full'
 local SCOPE_LAYOUT      = 'layout'
-local SCOPE_RAID_DEBUFF = 'raidDebuffs'
 
 -- ============================================================
 -- Helpers
@@ -102,7 +101,6 @@ F.Settings.RegisterPanel({
 		scopeDropdown:SetItems({
 			{ text = 'Full Profile',            value = SCOPE_FULL },
 			{ text = 'Single Layout',           value = SCOPE_LAYOUT },
-			{ text = 'Raid Debuff Overrides',   value = SCOPE_RAID_DEBUFF },
 		})
 		yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
 
@@ -199,8 +197,6 @@ F.Settings.RegisterPanel({
 					return
 				end
 				encoded, err = ie.ExportLayout(layoutName)
-			elseif(scope == SCOPE_RAID_DEBUFF) then
-				encoded, err = ie.ExportRaidDebuffs()
 			end
 
 			if(encoded) then

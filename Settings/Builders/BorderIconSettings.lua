@@ -52,10 +52,12 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 
 		local filterDD = Widgets.CreateDropdown(filterInner, WIDGET_W)
 		filterDD:SetItems({
-			{ text = 'All Debuffs',     value = 'all' },
-			{ text = 'Raid-Relevant',   value = 'raid' },
-			{ text = 'Dispellable',     value = 'dispellable' },
+			{ text = 'All Debuffs',      value = 'all' },
+			{ text = 'Raid-Relevant',    value = 'raid' },
+			{ text = 'Important',        value = 'important' },
+			{ text = 'Dispellable',      value = 'dispellable' },
 			{ text = 'Raid (In-Combat)', value = 'raidCombat' },
+			{ text = 'Encounter Only',   value = 'encounter' },
 		})
 		filterDD:SetValue(get('filterMode') or 'all')
 		filterDD:SetOnSelect(function(v) set('filterMode', v) end)
@@ -151,7 +153,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	Widgets.SetPoint(sizeSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
 	displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
 
-	-- Big Icon Size (debuffs/raidDebuffs only)
+	-- Big Icon Size (debuffs only)
 	if(opts.showBigIconSize) then
 		local bigSlider = Widgets.CreateSlider(displayInner, 'Big Icon Size', WIDGET_W, 8, 64, 1)
 		bigSlider:SetValue(get('bigIconSize') or 22)

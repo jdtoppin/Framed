@@ -453,7 +453,9 @@ function F.PresetDefaults.GetAll()
 	local arenaAuras = soloUnitAuras()
 	arenaAuras.party = (function()
 		local a = A.Group(PARTY_AURA_SIZES)
-		a.raidDebuffs.enabled = false
+		if(a.debuffs and a.debuffs.indicators and a.debuffs.indicators['Raid Debuffs']) then
+			a.debuffs.indicators['Raid Debuffs'].enabled = false
+		end
 		return a
 	end)()
 	arenaAuras.arena = A.Arena()

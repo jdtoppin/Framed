@@ -55,7 +55,7 @@ end
 -- GetAuraConfig
 -- Returns the effective aura config for a unit type and aura type.
 -- @param unitType  string  e.g. 'player', 'party', 'raid'
--- @param auraType  string  e.g. 'buffs', 'debuffs', 'raidDebuffs'
+-- @param auraType  string  e.g. 'buffs', 'debuffs', 'externals'
 -- ============================================================
 
 function F.StyleBuilder.GetAuraConfig(unitType, auraType)
@@ -312,11 +312,6 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	local debuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'debuffs')
 	if(debuffsConfig and debuffsConfig.enabled and F.Elements.Debuffs) then
 		F.Elements.Debuffs.Setup(self, debuffsConfig)
-	end
-
-	local raidDebuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'raidDebuffs')
-	if(raidDebuffsConfig and raidDebuffsConfig.enabled and F.Elements.RaidDebuffs) then
-		F.Elements.RaidDebuffs.Setup(self, raidDebuffsConfig)
 	end
 
 	local dispellableConfig = F.StyleBuilder.GetAuraConfig(unitType, 'dispellable')
@@ -750,7 +745,6 @@ local AURA_ELEMENT_MAP = {
 	debuffs        = 'FramedDebuffs',
 	externals      = 'FramedExternals',
 	defensives     = 'FramedDefensives',
-	raidDebuffs    = 'FramedRaidDebuffs',
 	dispellable    = 'FramedDispellable',
 	targetedSpells = 'FramedTargetedSpells',
 }
@@ -810,7 +804,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			local element = frame[elementKey]
 			if(not element) then break end
 
-			-- ── _config-based elements (Debuffs, Externals, Defensives, RaidDebuffs) ──
+			-- ── _config-based elements (Debuffs, Externals, Defensives) ──
 			if(element._config) then
 				element._config = newConfig
 

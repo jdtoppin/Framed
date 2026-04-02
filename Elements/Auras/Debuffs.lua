@@ -7,32 +7,45 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.Debuffs = {}
 
+-- ============================================================
+-- Filter map — server-side aura filter strings
+-- ============================================================
+
 local FILTER_MAP = {
 	all          = 'HARMFUL',
 	raid         = 'HARMFUL|RAID',
 	important    = 'HARMFUL|IMPORTANT',
 	dispellable  = 'HARMFUL|RAID_PLAYER_DISPELLABLE',
 	raidCombat   = 'HARMFUL|RAID_IN_COMBAT',
+	encounter    = 'HARMFUL|RAID',
 }
 
 -- ============================================================
--- Update
+-- Per-indicator update
 -- ============================================================
 
-local function Update(self, event, unit)
-	local element = self.FramedDebuffs
-	if(not element) then return end
-
-	if(not unit or self.unit ~= unit) then return end
-
-	local cfg = element._config
-	local maxDisplayed = cfg.maxDisplayed
+local function updateIndicator(self, unit, ind)
+	local cfg = ind._config
+	local maxDisplayed = cfg.maxDisplayed or 3
 
 	-- Backward compat: map old boolean to new filterMode
 	local filterMode = cfg.filterMode
 	if(not filterMode and cfg.onlyDispellableByMe) then
 		filterMode = 'dispellable'
 	end
+
+	-- Encounter mode: only show during active boss encounters
+	if(filterMode == 'encounter') then
+		if(not C_InstanceEncounter or not C_InstanceEncounter.IsEncounterInProgress
+			or not C_InstanceEncounter.IsEncounterInProgress()) then
+			-- Not in an encounter — hide all pool entries and bail
+			for idx = 1, #ind._pool do
+				ind._pool[idx]:Clear()
+			end
+			return
+		end
+	end
+
 	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter, nil, Enum.UnitAuraSortRule.Default)
 
@@ -85,17 +98,16 @@ local function Update(self, event, unit)
 		end
 	end
 
-
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
-	local pool = element._pool
-	local iconSize = cfg.iconSize
-	local bigIconSize = cfg.bigIconSize
-	local orientation = cfg.orientation
-	local anchor = cfg.anchor or { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 }
+	local pool = ind._pool
+	local iconSize    = cfg.iconSize or 14
+	local bigIconSize = cfg.bigIconSize or iconSize
+	local orientation = cfg.orientation or 'RIGHT'
+	local anchor      = cfg.anchor or { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 }
 	local anchorPoint = anchor[1]
-	local anchorX = anchor[4] or 0
-	local anchorY = anchor[5] or 0
+	local anchorX     = anchor[4] or 0
+	local anchorY     = anchor[5] or 0
 
 	for idx = 1, count do
 		local aura = auraList[idx]
@@ -160,6 +172,28 @@ local function Update(self, event, unit)
 end
 
 -- ============================================================
+-- Update — iterates all indicators
+-- ============================================================
+
+local function Update(self, event, unit)
+	local element = self.FramedDebuffs
+	if(not element) then return end
+
+	if(not unit or self.unit ~= unit) then return end
+
+	for _, ind in next, element._indicators do
+		if(ind._config.enabled ~= false) then
+			updateIndicator(self, unit, ind)
+		else
+			-- Disabled indicator — clear its pool
+			for idx = 1, #ind._pool do
+				ind._pool[idx]:Clear()
+			end
+		end
+	end
+end
+
+-- ============================================================
 -- ForceUpdate
 -- ============================================================
 
@@ -187,8 +221,10 @@ local function Disable(self)
 	local element = self.FramedDebuffs
 	if(not element) then return end
 
-	for _, bi in next, element._pool do
-		bi:Clear()
+	for _, ind in next, element._indicators do
+		for _, bi in next, ind._pool do
+			bi:Clear()
+		end
 	end
 
 	self:UnregisterEvent('UNIT_AURA', Update)
@@ -199,16 +235,44 @@ end
 -- ============================================================
 
 local function Rebuild(element, config)
-	-- Destroy existing pool entries so they are recreated with new config
-	if(element._pool) then
-		for _, bi in next, element._pool do
+	local owner = element.__owner
+
+	-- Destroy existing indicator pools
+	for _, ind in next, element._indicators do
+		for _, bi in next, ind._pool do
 			bi:Clear()
 			if(bi.Destroy) then bi:Destroy() end
 		end
+		if(ind._container) then
+			ind._container:Hide()
+		end
 	end
 
-	element._config = config
-	element._pool   = {}
+	-- Rebuild indicators from new config
+	element._config     = config
+	element._indicators = {}
+
+	local indicators = config.indicators or {}
+	local idx = 0
+	for name, indConfig in next, indicators do
+		idx = idx + 1
+
+		local container = CreateFrame('Frame', nil, owner)
+		container:SetAllPoints(owner)
+
+		local a = indConfig.anchor
+		if(a) then
+			container:ClearAllPoints()
+			Widgets.SetPoint(container, a[1], nil, a[3], a[4] or 0, a[5] or 0)
+		end
+
+		element._indicators[idx] = {
+			_name      = name,
+			_config    = indConfig,
+			_pool      = {},
+			_container = container,
+		}
+	end
 
 	element:ForceUpdate()
 end
@@ -223,31 +287,57 @@ oUF:AddElement('FramedDebuffs', Update, Enable, Disable)
 -- Setup
 -- ============================================================
 
+--- Create a Debuffs element on a unit frame.
+--- Supports multiple named indicators, each with its own server-side
+--- filter mode, anchor, icon size, and BorderIcon pool.
+--- @param self Frame  The oUF unit frame
+--- @param config table  { enabled, indicators = { [name] = indicatorConfig, ... } }
 function F.Elements.Debuffs.Setup(self, config)
 	config = config or {}
 
-	-- Backward compatibility: old format had maxIcons/iconSize/growDirection
-	-- New format has maxDisplayed/iconSize/orientation/anchor/etc.
-	if(config.maxIcons and not config.maxDisplayed) then
-		config.maxDisplayed = config.maxIcons
-		config.orientation  = config.growDirection or 'RIGHT'
+	-- Backward compatibility: flat config (no indicators key) → single indicator
+	if(not config.indicators) then
+		local indConfig = {}
+		for k, v in next, config do
+			if(k ~= 'enabled') then
+				indConfig[k] = v
+			end
+		end
+		-- Old format: maxIcons/growDirection → maxDisplayed/orientation
+		if(indConfig.maxIcons and not indConfig.maxDisplayed) then
+			indConfig.maxDisplayed = indConfig.maxIcons
+			indConfig.orientation  = indConfig.growDirection or 'RIGHT'
+		end
+		config.indicators = { ['Debuffs'] = indConfig }
 	end
 
-	local container = CreateFrame('Frame', nil, self)
-	container:SetAllPoints(self)
+	local indicators = {}
+	local idx = 0
+	for name, indConfig in next, config.indicators do
+		idx = idx + 1
+
+		local container = CreateFrame('Frame', nil, self)
+		container:SetAllPoints(self)
+
+		local a = indConfig.anchor
+		if(a) then
+			container:ClearAllPoints()
+			Widgets.SetPoint(container, a[1], nil, a[3], a[4] or 0, a[5] or 0)
+		end
+
+		indicators[idx] = {
+			_name      = name,
+			_config    = indConfig,
+			_pool      = {},
+			_container = container,
+		}
+	end
 
 	local element = {
-		_container = container,
-		_config    = config,
-		_pool      = {},
-		Rebuild    = Rebuild,
+		_config     = config,
+		_indicators = indicators,
+		Rebuild     = Rebuild,
 	}
-
-	local a = config.anchor
-	if(a) then
-		container:ClearAllPoints()
-		Widgets.SetPoint(container, a[1], nil, a[3], a[4] or 0, a[5] or 0)
-	end
 
 	self.FramedDebuffs = element
 end

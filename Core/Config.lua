@@ -31,10 +31,6 @@ local accountDefaults = {
 		pinnedAppearanceCards = {},
 	},
 	presets = {},       -- populated by Presets/Defaults.lua
-	raidDebuffs = {
-		overrides = {},
-		custom = {},
-	},
 	profiles = {},
 }
 
