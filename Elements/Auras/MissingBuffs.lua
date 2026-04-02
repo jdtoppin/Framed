@@ -113,9 +113,26 @@ local function Update(self, event, unit)
 	unit = self.unit
 	if(not unit) then return end
 
+	-- Pets don't receive raid buffs — hide all slots on pet frames
+	if(unit:match('pet')) then
+		for _, slot in next, element._slots do
+			slot.bi:Hide()
+			if(slot.glow:IsActive()) then slot.glow:Stop() end
+		end
+		return
+	end
+
+	local cfg          = element._config
 	local groupClasses = element._groupClasses
-	local slots = element._slots
-	local slotIndex = 0
+	local slots        = element._slots
+	local iconSize     = cfg.iconSize or 12
+	local spacing      = cfg.spacing or 1
+	local growDir      = cfg.growDirection or 'RIGHT'
+	local anchor       = cfg.anchor or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+	local anchorPoint  = anchor[1]
+	local anchorX      = anchor[4] or 0
+	local anchorY      = anchor[5] or 0
+	local visibleIndex = 0
 
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
@@ -123,13 +140,26 @@ local function Update(self, event, unit)
 		if(not slot) then break end
 
 		if(providingClass and groupClasses[providingClass] and not unitHasBuff(unit, spellId)) then
-			-- Missing buff from a class in the group — show with glow
-			slotIndex = slotIndex + 1
+			-- Missing buff from a class in the group — show and reposition
 			slot.bi.icon:SetTexture(iconCache[spellId])
+			slot.bi:ClearAllPoints()
+
+			local offset = visibleIndex * (iconSize + spacing)
+			if(growDir == 'RIGHT') then
+				slot.bi:SetPoint(anchorPoint, self, anchorPoint, anchorX + offset, anchorY)
+			elseif(growDir == 'LEFT') then
+				slot.bi:SetPoint(anchorPoint, self, anchorPoint, anchorX - offset, anchorY)
+			elseif(growDir == 'DOWN') then
+				slot.bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY - offset)
+			elseif(growDir == 'UP') then
+				slot.bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY + offset)
+			end
+
 			slot.bi:Show()
 			if(not slot.glow:IsActive()) then
 				slot.glow:Start()
 			end
+			visibleIndex = visibleIndex + 1
 		else
 			-- Buff present or class not in group — hide
 			slot.bi:Hide()
@@ -192,6 +222,7 @@ end
 -- ============================================================
 
 local function Rebuild(element, config)
+	element._config = config
 	if(element._slots) then
 		for _, slot in next, element._slots do
 			if(slot.bi) then
@@ -209,14 +240,32 @@ local function Rebuild(element, config)
 	local glowColor  = config.glowColor     or { 1, 0.8, 0, 1 }
 	local frameLevel = config.frameLevel    or 5
 
+	local numBuffs = #BUFF_ORDER
+	local container = element._container
+
+	-- Resize container
+	if(growDir == 'RIGHT' or growDir == 'LEFT') then
+		Widgets.SetSize(container, numBuffs * iconSize + math.max(0, numBuffs - 1) * spacing, iconSize)
+	else
+		Widgets.SetSize(container, iconSize, numBuffs * iconSize + math.max(0, numBuffs - 1) * spacing)
+	end
+	container:SetFrameLevel(element.__owner:GetFrameLevel() + frameLevel)
+
 	element._slots = {}
-	for _, spellId in next, BUFF_ORDER do
-		local bi = F.Indicators.BorderIcon.Create(element._container, iconSize, {
-			showCooldown = false,
-			showStacks   = false,
-			showDuration = false,
-			frameLevel   = element.__owner:GetFrameLevel() + frameLevel,
+	for i, spellId in next, BUFF_ORDER do
+		local bi = F.Indicators.BorderIcon.Create(container, iconSize, {
+			borderThickness = 1,
+			borderColor     = { 0.15, 0.15, 0.15, 1 },
+			showCooldown    = false,
+			showStacks      = false,
+			showDuration    = false,
 		})
+
+		-- No cooldown swipe — hide the dark border background so icons are clear
+		bi._borderBg:SetColorTexture(0, 0, 0, 0)
+
+		bi:Hide()
+
 		local glow = F.Indicators.BorderGlow.Create(bi._frame, {
 			borderGlowMode = 'Glow',
 			glowType = glowType,
@@ -226,8 +275,8 @@ local function Rebuild(element, config)
 	end
 
 	local anchor = config.anchor or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
-	element._container:ClearAllPoints()
-	element._container:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+	container:ClearAllPoints()
+	container:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
 
 	element:ForceUpdate()
 end
@@ -275,7 +324,7 @@ function F.Elements.MissingBuffs.Setup(self, config)
 
 	-- Anchor the container (a[2] is always nil — container is parented to self)
 	local a = config.anchor
-	container:SetPoint(a[1], nil, a[3], a[4] or 0, a[5] or 0)
+	container:SetPoint(a[1], self, a[3] or a[1], a[4] or 0, a[5] or 0)
 
 	-- Create one BorderIcon + Glow per tracked buff
 	local slots = {}
@@ -288,17 +337,8 @@ function F.Elements.MissingBuffs.Setup(self, config)
 			showDuration    = false,
 		})
 
-		-- Position within the container
-		local offset = (i - 1) * (iconSize + spacing)
-		if(grow == 'RIGHT') then
-			bi:SetPoint('TOPLEFT', container, 'TOPLEFT', offset, 0)
-		elseif(grow == 'LEFT') then
-			bi:SetPoint('TOPRIGHT', container, 'TOPRIGHT', -offset, 0)
-		elseif(grow == 'DOWN') then
-			bi:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -offset)
-		else -- UP
-			bi:SetPoint('BOTTOMLEFT', container, 'BOTTOMLEFT', 0, offset)
-		end
+		-- No cooldown swipe — hide the dark border background so icons are clear
+		bi._borderBg:SetColorTexture(0, 0, 0, 0)
 
 		bi:Hide()
 
@@ -312,6 +352,7 @@ function F.Elements.MissingBuffs.Setup(self, config)
 	end
 
 	self.FramedMissingBuffs = {
+		_config       = config,
 		_container    = container,
 		_slots        = slots,
 		_groupClasses = {},

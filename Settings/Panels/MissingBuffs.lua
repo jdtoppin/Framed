@@ -9,6 +9,7 @@ local C = F.Constants
 
 local SLIDER_H     = 26
 local DROPDOWN_H   = 22
+local CHECK_H      = 22
 local WIDGET_W     = 220
 
 -- ============================================================
@@ -64,7 +65,7 @@ F.Settings.RegisterPanel({
 		enableCB:SetChecked(get('enabled') or false)
 		enableCB:ClearAllPoints()
 		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 22 - C.Spacing.normal
+		yOffset = yOffset - CHECK_H - C.Spacing.normal
 
 		-- ── Description ────────────────────────────────────────
 		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
@@ -83,11 +84,11 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(reloadInfo, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - reloadInfo:GetHeight() - C.Spacing.normal
 
-		-- ── Icon Settings ─────────────────────────────────────
-		local iconHeading, iconHeadingH = Widgets.CreateHeading(content, 'Icon Settings', 2)
-		iconHeading:ClearAllPoints()
-		Widgets.SetPoint(iconHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - iconHeadingH
+		-- ── Display Settings ──────────────────────────────────
+		local displayHeading, displayHeadingH = Widgets.CreateHeading(content, 'Display Settings', 2)
+		displayHeading:ClearAllPoints()
+		Widgets.SetPoint(displayHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - displayHeadingH
 
 		local card, inner, cardY
 		card, inner, cardY = Widgets.StartCard(content, width, yOffset)
@@ -100,65 +101,38 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(sizeSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		cardY = cardY - SLIDER_H - C.Spacing.normal
 
-		-- Frame Level
-		local levelSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 10, 1)
-		levelSlider:SetValue(get('frameLevel') or 5)
-		levelSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
-		levelSlider:ClearAllPoints()
-		Widgets.SetPoint(levelSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-		cardY = cardY - SLIDER_H - C.Spacing.normal
-
-		-- Anchor Point
-		local anchorPoints = {
-			{ text = 'Top Left',     value = 'TOPLEFT' },
-			{ text = 'Top Right',    value = 'TOPRIGHT' },
-			{ text = 'Bottom Left',  value = 'BOTTOMLEFT' },
-			{ text = 'Bottom Right', value = 'BOTTOMRIGHT' },
-			{ text = 'Center',       value = 'CENTER' },
-		}
-		local anchorDD = Widgets.CreateDropdown(inner, WIDGET_W)
-		anchorDD:SetItems(anchorPoints)
-		local currentAnchor = get('anchor')
-		anchorDD:SetValue(currentAnchor and currentAnchor[1] or 'BOTTOMRIGHT')
-		anchorDD:SetOnSelect(function(v)
-			local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
-			set('anchor', { v, nil, v, a[4] or 0, a[5] or 0 })
-		end)
-		anchorDD:ClearAllPoints()
-		Widgets.SetPoint(anchorDD, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		-- Growth Direction
+		local growDD = Widgets.CreateDropdown(inner, WIDGET_W)
+		growDD:SetItems({
+			{ text = 'Right', value = 'RIGHT' },
+			{ text = 'Left',  value = 'LEFT' },
+			{ text = 'Up',    value = 'UP' },
+			{ text = 'Down',  value = 'DOWN' },
+		})
+		growDD:SetValue(get('growDirection') or 'LEFT')
+		growDD:SetOnSelect(function(v) set('growDirection', v) end)
+		growDD:ClearAllPoints()
+		Widgets.SetPoint(growDD, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		cardY = cardY - DROPDOWN_H - C.Spacing.normal
 
-		-- Anchor X Offset
-		local currentAnchorX = (function()
-			local a = get('anchor')
-			return a and a[4] or -2
-		end)()
-		local xSlider = Widgets.CreateSlider(inner, 'X Offset', WIDGET_W, -20, 20, 1)
-		xSlider:SetValue(currentAnchorX)
-		xSlider:SetAfterValueChanged(function(v)
-			local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
-			set('anchor', { a[1], nil, a[3], v, a[5] })
-		end)
-		xSlider:ClearAllPoints()
-		Widgets.SetPoint(xSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-		cardY = cardY - SLIDER_H - C.Spacing.normal
-
-		-- Anchor Y Offset
-		local currentAnchorY = (function()
-			local a = get('anchor')
-			return a and a[5] or 2
-		end)()
-		local ySlider = Widgets.CreateSlider(inner, 'Y Offset', WIDGET_W, -20, 20, 1)
-		ySlider:SetValue(currentAnchorY)
-		ySlider:SetAfterValueChanged(function(v)
-			local a = get('anchor') or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
-			set('anchor', { a[1], nil, a[3], a[4], v })
-		end)
-		ySlider:ClearAllPoints()
-		Widgets.SetPoint(ySlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-		cardY = cardY - SLIDER_H - C.Spacing.normal
-
 		yOffset = Widgets.EndCard(card, content, cardY)
+
+		-- ── Position & Layer (shared builder) ──────────────────
+		yOffset = F.Settings.BuildPositionCard(content, width, yOffset, get, set)
+
+		-- ── Glow Settings ─────────────────────────────────────
+		local function getGlow(key)
+			if(key == 'glowType') then return get('glowType') end
+			if(key == 'glowColor') then return get('glowColor') end
+			return get(key)
+		end
+		local function setGlow(key, value)
+			if(key == 'glowType') then set('glowType', value); return end
+			if(key == 'glowColor') then set('glowColor', value); return end
+			set(key, value)
+		end
+
+		yOffset = F.Settings.BuildGlowCard(content, width, yOffset, getGlow, setGlow, { allowNone = false })
 
 		-- ── Final height ────────────────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

@@ -232,7 +232,7 @@ function F.AuraDefaults.Group(sizes)
 			iconSize      = s.missingBuffsIcon or 12,
 			frameLevel    = 10,
 			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 16 },
-			growDirection  = 'RIGHT',
+			growDirection  = 'LEFT',
 			spacing       = 1,
 			glowType      = 'Pixel',
 			glowColor     = { 1, 0.8, 0, 1 },
