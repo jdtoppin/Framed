@@ -7,8 +7,9 @@ local C = F.Constants
 -- Widget constants
 -- ============================================================
 
-local SLIDER_H     = 26
-local WIDGET_W     = 220
+local SLIDER_H = 26
+local CHECK_H  = 22
+local WIDGET_W = 220
 
 -- ============================================================
 -- Config helpers
@@ -63,7 +64,7 @@ F.Settings.RegisterPanel({
 		enableCB:SetChecked(get('enabled') or false)
 		enableCB:ClearAllPoints()
 		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 22 - C.Spacing.normal
+		yOffset = yOffset - CHECK_H - C.Spacing.normal
 
 		-- ── Description ────────────────────────────────────────
 		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
@@ -83,47 +84,49 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - reloadInfo:GetHeight() - C.Spacing.normal
 
 		-- ── Display section ────────────────────────────────────
-		local displayHeading, displayHeadingH = Widgets.CreateHeading(content, 'Icon Size', 2)
+		local displayHeading, displayHeadingH = Widgets.CreateHeading(content, 'Display Settings', 2)
 		displayHeading:ClearAllPoints()
 		Widgets.SetPoint(displayHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		yOffset = yOffset - displayHeadingH
 
-		local sizeCard, sizeInner, sizeCardY
-		sizeCard, sizeInner, sizeCardY = Widgets.StartCard(content, width, yOffset)
+		local displayCard, displayInner, displayCardY
+		displayCard, displayInner, displayCardY = Widgets.StartCard(content, width, yOffset)
 
-		-- Icon Size
-		local sizeSlider = Widgets.CreateSlider(sizeInner, 'Icon Size', WIDGET_W, 8, 48, 1)
+		local sizeSlider = Widgets.CreateSlider(displayInner, 'Icon Size', WIDGET_W, 8, 48, 1)
 		sizeSlider:SetValue(get('iconSize') or 20)
 		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 		sizeSlider:ClearAllPoints()
-		Widgets.SetPoint(sizeSlider, 'TOPLEFT', sizeInner, 'TOPLEFT', 0, sizeCardY)
-		sizeCardY = sizeCardY - SLIDER_H - C.Spacing.normal
+		Widgets.SetPoint(sizeSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+		displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
 
-		yOffset = Widgets.EndCard(sizeCard, content, sizeCardY)
+		local maxSlider = Widgets.CreateSlider(displayInner, 'Max Displayed', WIDGET_W, 1, 5, 1)
+		maxSlider:SetValue(get('maxDisplayed') or 3)
+		maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
+		maxSlider:ClearAllPoints()
+		Widgets.SetPoint(maxSlider, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+		displayCardY = displayCardY - SLIDER_H - C.Spacing.normal
 
-		-- ── Position section ───────────────────────────────────
-		local posHeading, posHeadingH = Widgets.CreateHeading(content, 'Icon Position', 2)
-		posHeading:ClearAllPoints()
-		Widgets.SetPoint(posHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - posHeadingH
+		local oriDD = Widgets.CreateDropdown(displayInner, WIDGET_W)
+		oriDD:SetItems({
+			{ text = 'Right',             value = 'RIGHT' },
+			{ text = 'Left',              value = 'LEFT' },
+			{ text = 'Up',                value = 'UP' },
+			{ text = 'Down',              value = 'DOWN' },
+			{ text = 'Center Horizontal', value = 'CENTER_HORIZONTAL' },
+			{ text = 'Center Vertical',   value = 'CENTER_VERTICAL' },
+		})
+		oriDD:SetValue(get('orientation') or 'RIGHT')
+		oriDD:SetOnSelect(function(v) set('orientation', v) end)
+		oriDD:ClearAllPoints()
+		Widgets.SetPoint(oriDD, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
+		displayCardY = displayCardY - 22 - C.Spacing.normal
 
-		local posCard, posInner, posCardY
-		posCard, posInner, posCardY = Widgets.StartCard(content, width, yOffset)
+		yOffset = Widgets.EndCard(displayCard, content, displayCardY)
 
-		-- Anchor picker
-		if(Widgets.CreateAnchorPicker) then
-			local anchor = get('anchor') or { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 }
-			local picker = Widgets.CreateAnchorPicker(posInner, width)
-			picker:SetAnchor(anchor[1], anchor[4] or -2, anchor[5] or -2)
-			picker:ClearAllPoints()
-			Widgets.SetPoint(picker, 'TOPLEFT', posInner, 'TOPLEFT', 0, posCardY)
-			picker:SetOnChanged(function(point, x, y)
-				set('anchor', { point, nil, point, x, y })
-			end)
-			posCardY = posCardY - picker:GetHeight() - C.Spacing.normal
-		end
-
-		yOffset = Widgets.EndCard(posCard, content, posCardY)
+		-- ── Position section (shared builder) ──────────────────
+		yOffset = F.Settings.BuildPositionCard(content, width, yOffset, get, set, {
+			hideFrameLevel = true,
+		})
 
 		-- ── Final height ────────────────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)

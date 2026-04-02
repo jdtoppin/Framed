@@ -120,26 +120,6 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(maxSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
 		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
 
-		local iconLvlSlider = Widgets.CreateSlider(iconInner, 'Frame Level', WIDGET_W, 1, 20, 1)
-		iconLvlSlider:SetValue(get('frameLevel') or 5)
-		iconLvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
-		iconLvlSlider:ClearAllPoints()
-		Widgets.SetPoint(iconLvlSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
-
-		local iconAnchorPicker = nil
-		if(Widgets.CreateAnchorPicker) then
-			local anchorData = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			iconAnchorPicker = Widgets.CreateAnchorPicker(iconInner, width)
-			iconAnchorPicker:SetAnchor(anchorData[1], anchorData[4] or 0, anchorData[5] or 0)
-			iconAnchorPicker:ClearAllPoints()
-			Widgets.SetPoint(iconAnchorPicker, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-			iconAnchorPicker:SetOnChanged(function(point, x, y)
-				set('anchor', { point, nil, point, x, y })
-			end)
-			iconCardY = iconCardY - iconAnchorPicker:GetHeight() - C.Spacing.normal
-		end
-
 		-- Show Duration
 		local durCheck = Widgets.CreateCheckButton(iconInner, 'Show Duration', function(checked) set('showDuration', checked) end)
 		durCheck:SetChecked(get('showDuration') ~= false)
@@ -149,7 +129,18 @@ F.Settings.RegisterPanel({
 
 		yOffset = Widgets.EndCard(iconCard, content, iconCardY)
 
+		-- ── Position & Layer (shared builder) ───────────────────
+		local posChildrenBefore = { content:GetChildren() }
+		local posChildCountBefore = #posChildrenBefore
+		yOffset = F.Settings.BuildPositionCard(content, width, yOffset, get, set)
+		local posCards = {}
+		local posChildrenAfter = { content:GetChildren() }
+		for i = posChildCountBefore + 1, #posChildrenAfter do
+			posCards[#posCards + 1] = posChildrenAfter[i]
+		end
+
 		-- ── Duration Font ──────────────────────────────────────
+		local fontYStart = yOffset
 		local fontChildrenBefore = { content:GetChildren() }
 		local fontChildCountBefore = #fontChildrenBefore
 		yOffset = F.Settings.BuildFontCard(content, width, yOffset, 'Duration Text Font', 'durationFont', get, set)
@@ -176,7 +167,7 @@ F.Settings.RegisterPanel({
 			set('glow.' .. key, value)
 		end
 
-		-- Capture child count before building glow card so we can find the new card frame
+		-- Capture child count before building glow card
 		local childrenBefore = { content:GetChildren() }
 		local childCountBefore = #childrenBefore
 
@@ -190,8 +181,8 @@ F.Settings.RegisterPanel({
 		end
 
 		-- ── Display mode visibility ─────────────────────────────
-		local iconWidgets = { iconHeading, sizeSlider, maxSlider, iconLvlSlider, durCheck }
-		if(iconAnchorPicker) then iconWidgets[#iconWidgets + 1] = iconAnchorPicker end
+		local iconWidgets = { iconHeading, iconCard }
+		for _, card in next, posCards do iconWidgets[#iconWidgets + 1] = card end
 
 		local function updatePaneVisibility(mode)
 			local showIcons = (mode == 'Icons' or mode == 'Both')

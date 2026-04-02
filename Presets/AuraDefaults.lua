@@ -240,6 +240,8 @@ function F.AuraDefaults.Group(sizes)
 		privateAuras = {
 			enabled        = true,
 			iconSize       = s.privateAurasIcon or 16,
+			maxDisplayed   = 3,
+			orientation    = 'RIGHT',
 			showDispelType = true,
 			anchor         = { 'TOP', nil, 'TOP', 0, -3 },
 			frameLevel     = 25,
