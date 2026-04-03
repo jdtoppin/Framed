@@ -58,7 +58,7 @@ end
 --- @param castList table  Sorted casts from CastTracker
 local function showCasts(element, castList)
 	local displayMode = element._displayMode
-	local maxDisplayed = element._maxDisplayed or 1
+	local maxDisplayed = element._maxDisplayed
 	local count = math.min(#castList, maxDisplayed)
 	local pool = element._pool
 
@@ -100,7 +100,7 @@ end
 --- @param unit string  This frame's unit token
 local function showCastsSecret(element, castList, unit)
 	local displayMode = element._displayMode
-	local maxDisplayed = element._maxDisplayed or 1
+	local maxDisplayed = element._maxDisplayed
 	local count = math.min(#castList, maxDisplayed)
 	local pool = element._pool
 
@@ -220,17 +220,17 @@ local function Rebuild(element, config)
 	end
 	if(element._glow) then element._glow:Stop() end
 
-	local displayMode  = config.displayMode  or DisplayMode.BOTH
+	local displayMode  = config.displayMode
 	displayMode = legacyDisplayModeMap[displayMode] or displayMode
-	local iconSize     = config.iconSize     or 16
-	local maxDisplayed = config.maxDisplayed or 1
-	local borderColor  = config.borderColor  or { 1, 0, 0, 1 }
+	local iconSize     = config.iconSize
+	local maxDisplayed = config.maxDisplayed
+	local borderColor  = config.borderColor
 
 	element._displayMode  = displayMode
 	element._maxDisplayed = maxDisplayed
 	element._borderColor  = borderColor
 
-	local anchor = config.anchor or { 'CENTER', nil, 'CENTER', 0, 0 }
+	local anchor = config.anchor
 
 	element._pool = {}
 	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
@@ -248,7 +248,7 @@ local function Rebuild(element, config)
 	end
 
 	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
-		local glowConfig = config.glow or {}
+		local glowConfig = config.glow
 		if(element._glowFrame) then
 			element._glow = F.Indicators.BorderGlow.Create(element._glowFrame, {
 				borderGlowMode = 'Glow',
@@ -285,21 +285,21 @@ function F.Elements.TargetedSpells.Setup(self, config)
 	config = config or {}
 
 	-- Backward compat: map old lowercase display mode strings to new PascalCase values
-	local rawMode = config.displayMode or DisplayMode.BOTH
+	local rawMode = config.displayMode
 	local displayMode = legacyDisplayModeMap[rawMode] or rawMode
 
-	local iconSize     = config.iconSize     or 16
-	local maxDisplayed = config.maxDisplayed  or 1
-	local anchor       = config.anchor       or { 'CENTER', self, 'CENTER', 0, 0 }
-	local frameLevel   = config.frameLevel   or nil
+	local iconSize     = config.iconSize
+	local maxDisplayed = config.maxDisplayed
+	local anchor       = config.anchor
+	local frameLevel   = config.frameLevel
 
 	-- Border color for the BorderIcon border
 	local borderColor = config.borderColor
 
 	-- Glow subtable
-	local glowCfg   = config.glow or {}
-	local glowType  = glowCfg.type  or C.GlowType.PROC
-	local glowColor = glowCfg.color or C.Colors.accent
+	local glowCfg   = config.glow
+	local glowType  = glowCfg.type
+	local glowColor = glowCfg.color
 	local glowConfig = nil
 	if(glowCfg.lines or glowCfg.frequency or glowCfg.length or glowCfg.thickness) then
 		glowConfig = {
@@ -341,7 +341,7 @@ function F.Elements.TargetedSpells.Setup(self, config)
 		-- that wrapper's alpha via SetAlphaFromBoolean.
 		glowFrame = CreateFrame('Frame', nil, self)
 		glowFrame:SetAllPoints(self)
-		glowFrame:SetFrameLevel(self:GetFrameLevel() + (frameLevel or 10))
+		glowFrame:SetFrameLevel(self:GetFrameLevel() + frameLevel)
 		local glowCreateConfig = {
 			borderGlowMode = 'Glow',
 			glowType = glowType,

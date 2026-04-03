@@ -298,16 +298,20 @@ function F.Settings.Builders.DebuffIndicatorCRUD(parent, width, yOffset, opts)
 		if(indicators[name]) then return end
 
 		local newIndicator = {
-			enabled      = true,
-			filterMode   = selectedFilter,
-			iconSize     = 14,
-			bigIconSize  = 18,
-			maxDisplayed = 3,
-			showDuration = true,
+			enabled       = true,
+			filterMode    = selectedFilter,
+			iconSize      = 14,
+			bigIconSize   = 18,
+			maxDisplayed  = 3,
+			showDuration  = true,
 			showAnimation = true,
-			orientation  = 'RIGHT',
-			anchor       = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
-			frameLevel   = 5,
+			orientation   = 'RIGHT',
+			anchor        = { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 },
+			frameLevel    = 5,
+			stackFont     = { size = 10, outline = 'OUTLINE', shadow = false,
+			                  anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+			                  color = { 1, 1, 1, 1 } },
+			durationFont  = { size = 10, outline = 'OUTLINE', shadow = false },
 		}
 
 		setIndicator(name, newIndicator)

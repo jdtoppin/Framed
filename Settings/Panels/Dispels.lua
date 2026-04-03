@@ -129,7 +129,7 @@ F.Settings.RegisterPanel({
 		-- Anchor picker
 		if(Widgets.CreateAnchorPicker) then
 			local anchorData = get('anchor') or { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 }
-			local picker = Widgets.CreateAnchorPicker(iconInner, width)
+			local picker = Widgets.CreateAnchorPicker(iconInner, WIDGET_W)
 			picker:SetAnchor(anchorData[1], anchorData[4] or -2, anchorData[5] or -2)
 			picker:ClearAllPoints()
 			Widgets.SetPoint(picker, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)

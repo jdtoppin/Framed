@@ -75,17 +75,20 @@ local function getGroupClasses()
 end
 
 --- Check whether the unit currently has a buff matching the given spellId.
---- Returns false if aura data is secret (safe fallback: assume missing).
+--- Uses icon texture as proxy to avoid secret value comparison on party
+--- members' auras (spellId is secret for other units).
 --- @param unit string
 --- @param targetSpellId number
 --- @return boolean
 local function unitHasBuff(unit, targetSpellId)
+	local targetIcon = iconCache[targetSpellId]
+	if(not targetIcon) then return false end
+
 	local auras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 	if(not auras) then return false end
 
 	for _, auraData in next, auras do
-		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId) and spellId == targetSpellId) then
+		if(auraData.icon == targetIcon) then
 			return true
 		end
 	end
@@ -100,8 +103,10 @@ local function Update(self, event, unit)
 	local element = self.FramedMissingBuffs
 	if(not element) then return end
 
-	-- Refresh group class cache on roster changes
-	if(event == 'GROUP_ROSTER_UPDATE') then
+	-- Refresh group class cache on roster changes and ForceUpdate
+	-- (GROUP_ROSTER_UPDATE can fire while frames are hidden during zone-in,
+	-- so ForceUpdate from PLAYER_ENTERING_WORLD serves as a fallback)
+	if(event ~= 'UNIT_AURA') then
 		element._groupClasses = getGroupClasses()
 	end
 
@@ -125,10 +130,10 @@ local function Update(self, event, unit)
 	local cfg          = element._config
 	local groupClasses = element._groupClasses
 	local slots        = element._slots
-	local iconSize     = cfg.iconSize or 12
-	local spacing      = cfg.spacing or 1
-	local growDir      = cfg.growDirection or 'RIGHT'
-	local anchor       = cfg.anchor or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+	local iconSize     = cfg.iconSize
+	local spacing      = cfg.spacing
+	local growDir      = cfg.growDirection
+	local anchor       = cfg.anchor
 	local anchorPoint  = anchor[1]
 	local anchorX      = anchor[4] or 0
 	local anchorY      = anchor[5] or 0
@@ -233,12 +238,12 @@ local function Rebuild(element, config)
 		end
 	end
 
-	local iconSize   = config.iconSize     or 12
-	local growDir    = config.growDirection or 'RIGHT'
-	local spacing    = config.spacing       or 1
-	local glowType   = config.glowType      or 'Pixel'
-	local glowColor  = config.glowColor     or { 1, 0.8, 0, 1 }
-	local frameLevel = config.frameLevel    or 5
+	local iconSize   = config.iconSize
+	local growDir    = config.growDirection
+	local spacing    = config.spacing
+	local glowType   = config.glowType
+	local glowColor  = config.glowColor
+	local frameLevel = config.frameLevel
 
 	local numBuffs = #BUFF_ORDER
 	local container = element._container
@@ -274,7 +279,7 @@ local function Rebuild(element, config)
 		element._slots[spellId] = { bi = bi, glow = glow }
 	end
 
-	local anchor = config.anchor or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
+	local anchor = config.anchor
 	container:ClearAllPoints()
 	container:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
 
@@ -298,13 +303,6 @@ oUF:AddElement('FramedMissingBuffs', Update, Enable, Disable)
 --- @param config? table  iconSize, anchor, frameLevel, glowType, glowColor, growDirection, spacing
 function F.Elements.MissingBuffs.Setup(self, config)
 	config = config or {}
-	config.iconSize      = config.iconSize      or 12
-	config.growDirection = config.growDirection or 'RIGHT'
-	config.spacing       = config.spacing       or 1
-	config.frameLevel    = config.frameLevel    or 5
-	config.anchor        = config.anchor        or { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 2 }
-	config.glowType      = config.glowType      or C.GlowType.PIXEL
-	config.glowColor     = config.glowColor     or { 1, 0.8, 0, 1 }
 
 	local iconSize = config.iconSize
 	local spacing  = config.spacing

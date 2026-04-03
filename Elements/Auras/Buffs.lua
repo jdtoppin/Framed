@@ -230,8 +230,8 @@ local function Update(self, event, unit)
 				local sc = ind._spellColors and ind._spellColors[aura.spellId]
 				if(sc) then
 					renderer:SetColor(sc[1], sc[2], sc[3], 1)
-				elseif(ind._defaultColor) then
-					renderer:SetColor(ind._defaultColor[1], ind._defaultColor[2], ind._defaultColor[3], ind._defaultColor[4] or 1)
+				elseif(ind._color) then
+					renderer:SetColor(ind._color[1], ind._color[2], ind._color[3], ind._color[4])
 				else
 					renderer:SetColor(1, 1, 1, 1)
 				end
@@ -278,9 +278,9 @@ local function Update(self, event, unit)
 		elseif(rendererType == C.IndicatorType.BORDER) then
 			local aura = matched[idx]
 			if(aura) then
-				local mode = ind._borderGlowMode or 'Border'
+				local mode = ind._borderGlowMode
 				if(mode == 'Border') then
-					local color = ind._color or { 1, 1, 1, 1 }
+					local color = ind._color
 					renderer:SetColor(color[1], color[2], color[3], color[4])
 				elseif(mode == 'Glow') then
 					if(not renderer:IsActive()) then
@@ -300,8 +300,8 @@ local function Update(self, event, unit)
 		elseif(rendererType == C.IndicatorType.RECTANGLE) then
 			local aura = matched[idx]
 			if(aura) then
-				local color = ind._color or { 1, 1, 1, 1 }
-				renderer:SetColor(color[1], color[2], color[3], color[4] or 1)
+				local color = ind._color
+				renderer:SetColor(color[1], color[2], color[3], color[4])
 				local hasDuration = F.IsValueNonSecret(aura.duration) and aura.duration > 0
 				if(hasDuration and F.IsValueNonSecret(aura.expirationTime) and aura.expirationTime > 0) then
 					renderer:SetDuration(aura.duration, aura.expirationTime)
@@ -317,7 +317,7 @@ local function Update(self, event, unit)
 			local aura = matched[idx]
 			if(aura) then
 				local color = ind._color
-				if(color) then renderer:SetColor(color[1], color[2], color[3], color[4] or 1) end
+				if(color) then renderer:SetColor(color[1], color[2], color[3], color[4]) end
 				local hasDuration = F.IsValueNonSecret(aura.duration) and aura.duration > 0
 				if(hasDuration and F.IsValueNonSecret(aura.expirationTime) and aura.expirationTime > 0) then
 					renderer:SetDuration(aura.duration, aura.expirationTime)
@@ -408,12 +408,12 @@ local function createRenderer(parent, indConfig)
 
 	if(indType == C.IndicatorType.ICON or indType == C.IndicatorType.ICONS) then
 		local iconConfig = {
-			iconWidth    = indConfig.iconWidth or indConfig.iconSize or 14,
-			iconHeight   = indConfig.iconHeight or indConfig.iconSize or 14,
+			iconWidth    = indConfig.iconWidth,
+			iconHeight   = indConfig.iconHeight,
 			displayType  = indConfig.displayType,
 			showCooldown = indConfig.showCooldown,
 			showStacks   = indConfig.showStacks,
-			durationMode = indConfig.durationMode or 'Never',
+			durationMode = indConfig.durationMode,
 			durationFont = indConfig.durationFont,
 			stackFont    = indConfig.stackFont,
 			spellColors  = indConfig.spellColors,
@@ -422,12 +422,12 @@ local function createRenderer(parent, indConfig)
 			glowConfig   = indConfig.glowConfig,
 		}
 		if(indType == C.IndicatorType.ICONS) then
-			local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
-			local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3] or 'TOPLEFT')
-			iconConfig.maxIcons      = indConfig.maxDisplayed or 4
-			iconConfig.numPerLine    = indConfig.numPerLine or 0
-			iconConfig.spacingX      = indConfig.spacingX or 1
-			iconConfig.spacingY      = indConfig.spacingY or 1
+			local anchor = indConfig.anchor
+			local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3])
+			iconConfig.maxIcons      = indConfig.maxDisplayed
+			iconConfig.numPerLine    = indConfig.numPerLine
+			iconConfig.spacingX      = indConfig.spacingX
+			iconConfig.spacingY      = indConfig.spacingY
 			iconConfig.growDirection = growDir
 			return factory.Create(parent, iconConfig)
 		else
@@ -436,9 +436,9 @@ local function createRenderer(parent, indConfig)
 
 	elseif(indType == C.IndicatorType.BAR) then
 		return factory.Create(parent, {
-			barWidth       = indConfig.barWidth or 50,
-			barHeight      = indConfig.barHeight or 4,
-			barOrientation = indConfig.barOrientation or 'Horizontal',
+			barWidth       = indConfig.barWidth,
+			barHeight      = indConfig.barHeight,
+			barOrientation = indConfig.barOrientation,
 			color          = indConfig.color,
 			borderColor    = indConfig.borderColor,
 			bgColor        = indConfig.bgColor,
@@ -452,9 +452,9 @@ local function createRenderer(parent, indConfig)
 
 	elseif(indType == C.IndicatorType.BARS) then
 		return F.Indicators.Bars.Create(parent, {
-			barWidth       = indConfig.barWidth or 50,
-			barHeight      = indConfig.barHeight or 4,
-			barOrientation = indConfig.barOrientation or 'Horizontal',
+			barWidth       = indConfig.barWidth,
+			barHeight      = indConfig.barHeight,
+			barOrientation = indConfig.barOrientation,
 			color          = indConfig.color,
 			borderColor    = indConfig.borderColor,
 			bgColor        = indConfig.bgColor,
@@ -465,16 +465,16 @@ local function createRenderer(parent, indConfig)
 			durationFont   = indConfig.durationFont,
 			stackFont      = indConfig.stackFont,
 			spellColors    = indConfig.spellColors,
-			maxDisplayed   = indConfig.maxDisplayed or 3,
-			numPerLine     = indConfig.numPerLine or 0,
-			spacingX       = indConfig.spacingX or 1,
-			spacingY       = indConfig.spacingY or 1,
-			orientation    = indConfig.orientation or 'DOWN',
+			maxDisplayed   = indConfig.maxDisplayed,
+			numPerLine     = indConfig.numPerLine,
+			spacingX       = indConfig.spacingX,
+			spacingY       = indConfig.spacingY,
+			orientation    = indConfig.orientation,
 		})
 
 	elseif(indType == C.IndicatorType.BORDER) then
 		return factory.Create(parent, {
-			borderGlowMode  = indConfig.borderGlowMode or 'Border',
+			borderGlowMode  = indConfig.borderGlowMode,
 			borderThickness = indConfig.borderThickness,
 			fadeOut          = indConfig.fadeOut,
 			color            = indConfig.color,
@@ -485,8 +485,8 @@ local function createRenderer(parent, indConfig)
 	elseif(indType == C.IndicatorType.RECTANGLE) then
 		return factory.Create(parent, {
 			color         = indConfig.color,
-			rectWidth     = indConfig.rectWidth or 10,
-			rectHeight    = indConfig.rectHeight or 10,
+			rectWidth     = indConfig.rectWidth,
+			rectHeight    = indConfig.rectHeight,
 			borderColor   = indConfig.borderColor,
 			lowTimeColor  = indConfig.lowTimeColor,
 			lowSecsColor  = indConfig.lowSecsColor,
@@ -497,9 +497,9 @@ local function createRenderer(parent, indConfig)
 
 	elseif(indType == C.IndicatorType.OVERLAY) then
 		return F.Indicators.Overlay.Create(parent.Health or parent, {
-			overlayMode    = indConfig.overlayMode or 'DurationOverlay',
+			overlayMode    = indConfig.overlayMode,
 			color          = indConfig.color,
-			barOrientation = indConfig.barOrientation or 'Horizontal',
+			barOrientation = indConfig.barOrientation,
 			smooth         = indConfig.smooth,
 			lowTimeColor   = indConfig.lowTimeColor,
 			lowSecsColor   = indConfig.lowSecsColor,
@@ -532,28 +532,28 @@ local function Rebuild(element, config)
 	element._hasTrackAll          = {}
 	element._buffFilterMode = config.buffFilterMode
 
-	local indicators = config.indicators or {}
+	local indicators = config.indicators
 	for name, indConfig in next, indicators do
 		if(indConfig.enabled ~= false) then
 			local renderer = createRenderer(element.__owner, indConfig)
 			if(renderer) then
-				local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
+				local anchor = indConfig.anchor
 				if(renderer.ClearAllPoints and renderer.SetPoint) then
 					renderer:ClearAllPoints()
 					local containerPoint = anchor[1]
 
 					-- For Icons, derive container point so first icon is at the anchor
 					if(indConfig.type == C.IndicatorType.ICONS) then
-						local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3] or 'TOPLEFT')
-						containerPoint = deriveContainerPoint(anchor[3] or 'TOPLEFT', growDir)
+						local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3])
+						containerPoint = deriveContainerPoint(anchor[3], growDir)
 					end
 
-					renderer:SetPoint(containerPoint, element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+					renderer:SetPoint(containerPoint, element.__owner, anchor[3], anchor[4] or 0, anchor[5] or 0)
 				end
 				if(renderer.GetFrame) then
 					local frame = renderer:GetFrame()
 				if(frame and frame.SetFrameLevel) then
-					frame:SetFrameLevel(indConfig.frameLevel or 10)
+					frame:SetFrameLevel(indConfig.frameLevel)
 				end
 				end
 
@@ -570,9 +570,8 @@ local function Rebuild(element, config)
 				element._indicators[idx] = {
 					_renderer       = renderer,
 					_type           = indConfig.type,
-					_castBy         = indConfig.castBy or 'anyone',
+					_castBy         = indConfig.castBy,
 					_color          = indConfig.color,
-					_defaultColor   = indConfig.color,
 					_spellColors    = indConfig.spellColors,
 					_glowType       = indConfig.glowType,
 					_glowColor      = indConfig.glowColor,
@@ -604,70 +603,46 @@ end
 -- ============================================================
 
 --- Create and configure buff indicators on a unit frame.
---- Reads from config.indicators[] (new format) or falls back to
---- legacy format with maxIcons for backward compatibility.
---- Assigns result to self.FramedBuffs, activating the element.
+--- Reads from config.indicators[] and assigns result to
+--- self.FramedBuffs, activating the element.
 --- @param self Frame The oUF unit frame
---- @param config? table Configuration with indicators[] array or legacy fields
+--- @param config table Configuration with indicators[] array
 function F.Elements.Buffs.Setup(self, config)
-	config = config or {}
-
-	-- Normalize: build indicators array from legacy config if needed
-	local indicatorConfigs = config.indicators
-	if(not indicatorConfigs) then
-		-- Backward compatibility: create a single Icons renderer matching old behavior
-		indicatorConfigs = {
-			{
-				name          = 'Buffs',
-				type          = C.IndicatorType.ICONS,
-				enabled       = true,
-				spells        = {},   -- empty = track all helpful auras
-				castBy        = 'anyone',
-				maxDisplayed  = config.maxIcons      or 6,
-				iconSize      = config.iconSize      or 14,
-				orientation   = config.growDirection or 'RIGHT',
-				displayType   = config.displayType   or 'SpellIcon',
-				anchor        = config.anchor        or { 'TOPLEFT', self, 'TOPLEFT', 2, -2 },
-			},
-		}
-	end
-
 	local indicators = {}
 	local spellLookup = {}   -- spellID → { indicatorIndex, ... }
 	local hasTrackAll = {}   -- indices of indicators that track all spells (empty spells list)
 
-	for idx, indConfig in next, indicatorConfigs do
+	for idx, indConfig in next, config.indicators do
 		if(indConfig.enabled ~= false) then
 			local renderer = createRenderer(self, indConfig)
 			if(renderer) then
 				-- Position renderers that support SetPoint
-				local anchor = indConfig.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
+				local anchor = indConfig.anchor
 				if(renderer.SetPoint) then
 					local anchorParent = anchor[2] or self
 					local containerPoint = anchor[1]
 
 					-- For Icons, derive container point so first icon is at the anchor
 					if(indConfig.type == C.IndicatorType.ICONS) then
-						local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3] or 'TOPLEFT')
-						containerPoint = deriveContainerPoint(anchor[3] or 'TOPLEFT', growDir)
+						local growDir = indConfig.orientation or defaultGrowForAnchor(anchor[3])
+						containerPoint = deriveContainerPoint(anchor[3], growDir)
 					end
 
 					renderer:SetPoint(containerPoint, anchorParent, anchor[3], anchor[4] or 0, anchor[5] or 0)
 				end
 
 				-- Set frame level if supported
-				local fl = indConfig.frameLevel or 10
 				if(renderer.GetFrame) then
 					local frame = renderer:GetFrame()
 					if(frame and frame.SetFrameLevel) then
-						frame:SetFrameLevel(fl)
+						frame:SetFrameLevel(indConfig.frameLevel)
 					end
 				end
 
 				indicators[idx] = {
 					_renderer   = renderer,
 					_type       = indConfig.type,
-					_castBy     = indConfig.castBy or 'anyone',
+					_castBy     = indConfig.castBy,
 					_color      = indConfig.color,
 					_glowType   = indConfig.glowType,
 					_glowConfig = indConfig.glowConfig,

@@ -69,9 +69,9 @@ end
 --- @param owner Frame    The oUF unit frame
 --- @param config table   Element config
 local function LayoutPool(element, owner, config)
-	local iconSize    = config.iconSize or 20
-	local orientation = config.orientation or 'RIGHT'
-	local anchor      = config.anchor or { 'TOP', nil, 'TOP', 0, -3 }
+	local iconSize    = config.iconSize
+	local orientation = config.orientation
+	local anchor      = config.anchor
 	local anchorPoint = anchor[1]
 	local anchorX     = anchor[4] or 0
 	local anchorY     = anchor[5] or 0
@@ -175,11 +175,11 @@ end
 local function Rebuild(element, config)
 	RemoveAnchors(element)
 
-	element._iconSize       = config.iconSize or 20
+	element._iconSize       = config.iconSize
 	element._showDispelType = config.showDispelType
 
 	-- Resize pool if maxDisplayed changed
-	local maxDisplayed = config.maxDisplayed or 3
+	local maxDisplayed = config.maxDisplayed
 	while(#element._pool < maxDisplayed) do
 		local f = CreateFrame('Frame', nil, element.__owner)
 		element._pool[#element._pool + 1] = { frame = f, anchorID = nil }
@@ -215,10 +215,6 @@ oUF:AddElement('FramedPrivateAuras', Update, Enable, Disable)
 ---                       anchor, showDispelType, frameLevel
 function F.Elements.PrivateAuras.Setup(self, config)
 	config = config or {}
-	config.iconSize     = config.iconSize or 20
-	config.maxDisplayed = config.maxDisplayed or 3
-	config.orientation  = config.orientation or 'RIGHT'
-	config.anchor       = config.anchor or { 'CENTER', nil, 'CENTER', 0, 0 }
 
 	-- Create a pool of anchor frames, one per auraIndex slot
 	local pool = {}

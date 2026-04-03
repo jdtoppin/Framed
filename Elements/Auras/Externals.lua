@@ -6,9 +6,6 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.Externals = {}
 
-local DEFAULT_PLAYER_COLOR = { 0, 0.8, 0 }
-local DEFAULT_OTHER_COLOR  = { 1, 0.85, 0 }
-
 -- ============================================================
 -- Update
 -- ============================================================
@@ -20,10 +17,10 @@ local function Update(self, event, unit)
 	if(not unit or self.unit ~= unit) then return end
 
 	local cfg = element._config
-	local maxDisplayed   = cfg.maxDisplayed or 3
-	local visibilityMode = cfg.visibilityMode or 'all'
-	local playerColor    = cfg.playerColor or DEFAULT_PLAYER_COLOR
-	local otherColor     = cfg.otherColor or DEFAULT_OTHER_COLOR
+	local maxDisplayed   = cfg.maxDisplayed
+	local visibilityMode = cfg.visibilityMode
+	local playerColor    = cfg.playerColor
+	local otherColor     = cfg.otherColor
 
 	-- EXTERNAL_DEFENSIVE is a classification filter, not a query filter —
 	-- GetUnitAuras does not support it. Fetch all helpful auras, then
@@ -79,9 +76,9 @@ local function Update(self, event, unit)
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
 	local pool = element._pool
-	local iconSize    = cfg.iconSize or 16
-	local orientation = cfg.orientation or 'RIGHT'
-	local anchor      = cfg.anchor or { 'RIGHT', nil, 'RIGHT', 2, 5 }
+	local iconSize    = cfg.iconSize
+	local orientation = cfg.orientation
+	local anchor      = cfg.anchor
 	local anchorPoint = anchor[1]
 	local anchorX     = anchor[4] or 0
 	local anchorY     = anchor[5] or 0
@@ -95,7 +92,7 @@ local function Update(self, event, unit)
 				showCooldown = true,
 				showStacks   = cfg.showStacks ~= false,
 				showDuration = cfg.showDuration ~= false,
-				frameLevel   = cfg.frameLevel or 5,
+				frameLevel   = cfg.frameLevel,
 				stackFont    = cfg.stackFont,
 				durationFont = cfg.durationFont,
 			})

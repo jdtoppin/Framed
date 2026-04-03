@@ -26,7 +26,7 @@ local FILTER_MAP = {
 
 local function updateIndicator(self, unit, ind)
 	local cfg = ind._config
-	local maxDisplayed = cfg.maxDisplayed or 3
+	local maxDisplayed = cfg.maxDisplayed
 
 	-- Backward compat: map old boolean to new filterMode
 	local filterMode = cfg.filterMode
@@ -101,10 +101,10 @@ local function updateIndicator(self, unit, ind)
 	-- Display up to maxDisplayed using BorderIcon pool
 	local count = math.min(#auraList, maxDisplayed)
 	local pool = ind._pool
-	local iconSize    = cfg.iconSize or 14
-	local bigIconSize = cfg.bigIconSize or iconSize
-	local orientation = cfg.orientation or 'RIGHT'
-	local anchor      = cfg.anchor or { 'BOTTOMLEFT', nil, 'BOTTOMLEFT', 2, 2 }
+	local iconSize    = cfg.iconSize
+	local bigIconSize = cfg.bigIconSize
+	local orientation = cfg.orientation
+	local anchor      = cfg.anchor
 	local anchorPoint = anchor[1]
 	local anchorX     = anchor[4] or 0
 	local anchorY     = anchor[5] or 0
@@ -306,7 +306,7 @@ function F.Elements.Debuffs.Setup(self, config)
 		-- Old format: maxIcons/growDirection → maxDisplayed/orientation
 		if(indConfig.maxIcons and not indConfig.maxDisplayed) then
 			indConfig.maxDisplayed = indConfig.maxIcons
-			indConfig.orientation  = indConfig.growDirection or 'RIGHT'
+			indConfig.orientation  = indConfig.growDirection
 		end
 		config.indicators = { ['Debuffs'] = indConfig }
 	end

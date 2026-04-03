@@ -308,9 +308,9 @@ oUF:AddElement('FramedDispellable', Update, Enable, Disable)
 --- @param config? table  { enabled, onlyDispellableByMe, highlightType, iconSize, anchor, frameLevel }
 function F.Elements.Dispellable.Setup(self, config)
 	config = config or {}
-	local iconSize       = config.iconSize       or 10
-	local highlightType  = config.highlightType  or C.HighlightType.GRADIENT_FULL
-	local frameLevel     = config.frameLevel     or (self:GetFrameLevel() + 6)
+	local iconSize       = config.iconSize
+	local highlightType  = config.highlightType
+	local frameLevel     = config.frameLevel
 	local anchor         = config.anchor
 
 	-- 1. Create icon frame with one texture per dispel type.
