@@ -160,7 +160,7 @@ end
 
 function F.PreviewFrame.Create(parent, config, fakeUnit)
 	local frame = CreateFrame('Frame', nil, parent)
-	frame:SetSize(config.width, config.height)
+	Widgets.SetSize(frame, config.width, config.height)
 
 	-- Dark background (match StyleBuilder)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
