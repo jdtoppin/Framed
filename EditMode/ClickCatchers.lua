@@ -215,8 +215,13 @@ local function CreateAllCatchers()
 	if(not overlay) then return end
 
 	DestroyCatchers()
+	-- Only create catchers for frames that exist in the current preset
+	local presetName = F.Settings.GetEditingPreset()
+	local unitConfigs = F.Config:Get('presets.' .. presetName .. '.unitConfigs')
 	for _, def in next, EditMode.FRAME_KEYS do
-		CreateCatcher(def, overlay)
+		if(unitConfigs and unitConfigs[def.key]) then
+			CreateCatcher(def, overlay)
+		end
 	end
 end
 
