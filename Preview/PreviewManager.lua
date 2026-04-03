@@ -111,12 +111,14 @@ local function showSoloPreview(frameKey)
 	local fakeFn = SOLO_FAKES[frameKey]
 	local fakeUnit = fakeFn and fakeFn() or { name = frameKey, class = 'WARRIOR', healthPct = 0.8, powerPct = 0.5 }
 
-	local pf = F.PreviewFrame.Create(container, config, fakeUnit)
-
-	-- Position centered on the real frame
+	-- Parent preview directly to the real frame for guaranteed size matching
 	local realFrame = getRealFrame(frameKey)
+	local parent = realFrame or container
+	local pf = F.PreviewFrame.Create(parent, config, fakeUnit)
+
 	if(realFrame) then
-		pf:SetPoint('CENTER', realFrame, 'CENTER', 0, 0)
+		pf:SetAllPoints(realFrame)
+		pf:SetFrameStrata('DIALOG')
 	else
 		local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
 		local y = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
