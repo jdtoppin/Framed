@@ -448,11 +448,11 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		if(Widgets.CreateAnchorPicker) then
 			local dfAnchor = fontCfg.anchor or 'BOTTOM'
 			local dfPicker = Widgets.CreateAnchorPicker(cdInner, WIDGET_W, 15)
-			dfPicker:SetAnchor(dfAnchor, fontCfg.offsetX or 0, fontCfg.offsetY or 0)
+			dfPicker:SetAnchor(dfAnchor, fontCfg.xOffset or 0, fontCfg.yOffset or 0)
 			dfPicker:SetOnChanged(function(point, x, y)
 				fontCfg.anchor = point
-				fontCfg.offsetX = x
-				fontCfg.offsetY = y
+				fontCfg.xOffset = x
+				fontCfg.yOffset = y
 				set('durationFont', fontCfg)
 			end)
 			cdY = placeWidget(dfPicker, cdInner, cdY, dfPicker._height or 91)

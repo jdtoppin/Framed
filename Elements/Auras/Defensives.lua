@@ -86,8 +86,8 @@ local function Update(self, event, unit)
 	local orientation = cfg.orientation
 	local anchor      = cfg.anchor
 	local anchorPoint = anchor[1]
-	local anchorX     = anchor[4] or 0
-	local anchorY     = anchor[5] or 0
+	local anchorX     = anchor[4]
+	local anchorY     = anchor[5]
 
 	for idx = 1, count do
 		local aura = auraList[idx]

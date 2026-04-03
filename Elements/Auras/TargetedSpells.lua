@@ -242,7 +242,7 @@ local function Rebuild(element, config)
 				durationFont = config.durationFont,
 			})
 			local offset = (i - 1) * (iconSize + 2)
-			bi:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], (anchor[4] or 0) + offset, anchor[5] or 0)
+			bi:SetPoint(anchor[1], element.__owner, anchor[3], anchor[4] + offset, anchor[5])
 			element._pool[i] = bi
 		end
 	end

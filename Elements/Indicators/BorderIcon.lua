@@ -135,27 +135,29 @@ function BorderIconMethods:SetAura(...)
 		end
 	end
 
-	-- Reparent Blizzard's countdown text to iconFrame (above cooldown).
-	-- Blizzard creates the FontString lazily on first cooldown set.
-	-- Guard ensures we only reparent once per BorderIcon instance.
-	if(self.cooldown and not self._countdownReparented) then
+	-- Reparent and style Blizzard's countdown text once (lazy creation),
+	-- then re-apply anchor after every cooldown set (Blizzard re-centers it).
+	if(self.cooldown) then
 		local cdText = self.cooldown.GetCountdownFontString and self.cooldown:GetCountdownFontString()
 		if(cdText) then
-			cdText:SetParent(self._iconFrame)
-			cdText:ClearAllPoints()
-			cdText:SetPoint('CENTER', self._iconFrame, 'CENTER', 0, 0)
-			-- Apply our durationFont config (size, outline, shadow)
-			local df = self._durationFont
-			if(df) then
-				local fontFace = F.Media.GetActiveFont()
-				cdText:SetFont(fontFace, df.size, df.outline)
-				if(df.shadow == false) then
-					cdText:SetShadowOffset(0, 0)
-				else
-					cdText:SetShadowOffset(1, -1)
+			if(not self._countdownReparented) then
+				cdText:SetParent(self._iconFrame)
+				local df = self._durationFont
+				if(df) then
+					local fontFace = F.Media.GetActiveFont()
+					cdText:SetFont(fontFace, df.size, df.outline)
+					if(df.shadow == false) then
+						cdText:SetShadowOffset(0, 0)
+					else
+						cdText:SetShadowOffset(1, -1)
+					end
 				end
+				self._countdownReparented = true
 			end
-			self._countdownReparented = true
+			-- Re-apply position after every cooldown set (Blizzard resets to CENTER)
+			cdText:ClearAllPoints()
+			local df = self._durationFont
+			cdText:SetPoint(df.anchor, self._iconFrame, df.anchor, df.xOffset, df.yOffset)
 		end
 	end
 

@@ -322,7 +322,7 @@ function F.Elements.Dispellable.Setup(self, config)
 	iconFrame:Hide()
 
 	if(anchor) then
-		iconFrame:SetPoint(anchor[1], self, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+		iconFrame:SetPoint(anchor[1], self, anchor[3], anchor[4], anchor[5])
 	else
 		iconFrame:SetPoint('BOTTOMRIGHT', self, 'BOTTOMRIGHT', -2, 2)
 	end

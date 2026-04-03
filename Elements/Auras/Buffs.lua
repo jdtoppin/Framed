@@ -548,7 +548,7 @@ local function Rebuild(element, config)
 						containerPoint = deriveContainerPoint(anchor[3], growDir)
 					end
 
-					renderer:SetPoint(containerPoint, element.__owner, anchor[3], anchor[4] or 0, anchor[5] or 0)
+					renderer:SetPoint(containerPoint, element.__owner, anchor[3], anchor[4], anchor[5])
 				end
 				if(renderer.GetFrame) then
 					local frame = renderer:GetFrame()
@@ -628,7 +628,7 @@ function F.Elements.Buffs.Setup(self, config)
 						containerPoint = deriveContainerPoint(anchor[3], growDir)
 					end
 
-					renderer:SetPoint(containerPoint, anchorParent, anchor[3], anchor[4] or 0, anchor[5] or 0)
+					renderer:SetPoint(containerPoint, anchorParent, anchor[3], anchor[4], anchor[5])
 				end
 
 				-- Set frame level if supported

@@ -32,16 +32,21 @@ table.sort(BUFF_ORDER)
 -- Helpers
 -- ============================================================
 
---- Cache spell icons at load time (not in combat).
+--- Cache spell icons and names at load time (not in combat).
 local iconCache = {}
-local function cacheSpellIcons()
+local nameCache = {}
+local function cacheSpellData()
 	for _, spellId in next, BUFF_ORDER do
 		if(C_Spell and C_Spell.GetSpellInfo) then
 			local info = C_Spell.GetSpellInfo(spellId)
-			if(info) then iconCache[spellId] = info.iconID end
+			if(info) then
+				iconCache[spellId] = info.iconID
+				nameCache[spellId] = info.name
+			end
 		elseif(GetSpellInfo) then
-			local _, _, icon = GetSpellInfo(spellId)
+			local name, _, icon = GetSpellInfo(spellId)
 			iconCache[spellId] = icon
+			nameCache[spellId] = name
 		end
 	end
 end
@@ -75,24 +80,27 @@ local function getGroupClasses()
 end
 
 --- Check whether the unit currently has a buff matching the given spellId.
---- Uses icon texture as proxy to avoid secret value comparison on party
---- members' auras (spellId is secret for other units).
+--- Uses GetAuraDataBySpellName for targeted lookup — works in tainted combat
+--- because raid buff spellIds are whitelisted as non-secret by Blizzard.
 --- @param unit string
 --- @param targetSpellId number
 --- @return boolean
 local function unitHasBuff(unit, targetSpellId)
-	local targetIcon = iconCache[targetSpellId]
-	if(not targetIcon) then return false end
-
-	local auras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
-	if(not auras) then return false end
-
-	for _, auraData in next, auras do
-		if(auraData.icon == targetIcon) then
-			return true
+	local spellName = nameCache[targetSpellId]
+	if(not spellName) then
+		-- Lazy cache: spell data may not have been available at init
+		if(C_Spell and C_Spell.GetSpellInfo) then
+			local info = C_Spell.GetSpellInfo(targetSpellId)
+			if(info and info.name) then
+				nameCache[targetSpellId] = info.name
+				iconCache[targetSpellId] = info.iconID
+				spellName = info.name
+			end
 		end
+		if(not spellName) then return false end
 	end
-	return false
+	local aura = C_UnitAuras.GetAuraDataBySpellName(unit, spellName, 'HELPFUL')
+	return aura ~= nil
 end
 
 -- ============================================================
@@ -135,8 +143,8 @@ local function Update(self, event, unit)
 	local growDir      = cfg.growDirection
 	local anchor       = cfg.anchor
 	local anchorPoint  = anchor[1]
-	local anchorX      = anchor[4] or 0
-	local anchorY      = anchor[5] or 0
+	local anchorX      = anchor[4]
+	local anchorY      = anchor[5]
 	local visibleIndex = 0
 
 	for _, spellId in next, BUFF_ORDER do
@@ -197,7 +205,7 @@ local function Enable(self, unit)
 
 	-- Cache spell icons on first enable (safe — always outside combat)
 	if(not next(iconCache)) then
-		cacheSpellIcons()
+		cacheSpellData()
 	end
 
 	self:RegisterEvent('UNIT_AURA', Update)
@@ -281,7 +289,7 @@ local function Rebuild(element, config)
 
 	local anchor = config.anchor
 	container:ClearAllPoints()
-	container:SetPoint(anchor[1], element.__owner, anchor[3] or anchor[1], anchor[4] or 0, anchor[5] or 0)
+	container:SetPoint(anchor[1], element.__owner, anchor[3], anchor[4], anchor[5])
 
 	element:ForceUpdate()
 end

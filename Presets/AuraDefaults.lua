@@ -19,7 +19,7 @@ local function stackFont()
 end
 
 local function durationFont()
-	return { size = 10, outline = 'OUTLINE', shadow = false }
+	return { size = 10, outline = 'OUTLINE', shadow = false, anchor = 'CENTER', xOffset = 0, yOffset = 0 }
 end
 
 -- ============================================================

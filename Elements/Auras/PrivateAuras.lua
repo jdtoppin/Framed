@@ -73,8 +73,8 @@ local function LayoutPool(element, owner, config)
 	local orientation = config.orientation
 	local anchor      = config.anchor
 	local anchorPoint = anchor[1]
-	local anchorX     = anchor[4] or 0
-	local anchorY     = anchor[5] or 0
+	local anchorX     = anchor[4]
+	local anchorY     = anchor[5]
 	local spacing     = 2
 	local count       = #element._pool
 
