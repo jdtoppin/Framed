@@ -10,7 +10,7 @@ local function getClassColor(class)
 	local oUF = F.oUF
 	if(oUF and oUF.colors and oUF.colors.class and oUF.colors.class[class]) then
 		local c = oUF.colors.class[class]
-		return c[1], c[2], c[3]
+		return c:GetRGB()
 	end
 	return 0.5, 0.5, 0.5
 end
