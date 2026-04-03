@@ -111,12 +111,15 @@ local function showSoloPreview(frameKey)
 	local fakeFn = SOLO_FAKES[frameKey]
 	local fakeUnit = fakeFn and fakeFn() or { name = frameKey, class = 'WARRIOR', healthPct = 0.8, powerPct = 0.5 }
 
-	local pf = F.PreviewFrame.Create(container, config, fakeUnit)
-
-	-- Match real frame exactly (same approach as ClickCatchers)
+	-- Parent preview directly to the real frame for guaranteed size matching
 	local realFrame = getRealFrame(frameKey)
+	local parent = realFrame or container
+	local pf = F.PreviewFrame.Create(parent, config, fakeUnit)
+
 	if(realFrame) then
 		pf:SetAllPoints(realFrame)
+		-- Raise above the edit mode overlay and catchers
+		pf:SetFrameStrata('DIALOG')
 	else
 		pf:SetSize(config.width, config.height)
 		local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
