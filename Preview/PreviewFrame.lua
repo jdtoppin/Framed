@@ -21,11 +21,13 @@ local POWER_COLOR = { 0.0, 0.44, 0.87, 1 }  -- Match oUF mana override
 -- Health bar builder
 -- ============================================================
 
-local function BuildHealthBar(frame, config, healthHeight)
+local function BuildHealthBar(frame, config)
 	local wrapper = CreateFrame('Frame', nil, frame)
+	-- Points set after power bar is built (health fills remaining space)
 	wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 	wrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
-	wrapper:SetHeight(healthHeight)
+	wrapper:SetPoint('BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
+	wrapper:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
 
 	local bar = CreateFrame('StatusBar', nil, wrapper)
 	bar:SetAllPoints(wrapper)
@@ -59,21 +61,27 @@ end
 -- Power bar builder
 -- ============================================================
 
-local function BuildPowerBar(frame, config, powerHeight)
+local function BuildPowerBar(frame, config)
 	if(config.showPower == false) then return end
 
+	local powerHeight = (config.power and config.power.height) or 8
 	local wrapper = CreateFrame('Frame', nil, frame)
 	wrapper:SetHeight(powerHeight)
 
 	if(config.power and config.power.position == 'top') then
 		wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 		wrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
+		-- Push health below power
 		frame._healthWrapper:ClearAllPoints()
-		frame._healthWrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -powerHeight)
-		frame._healthWrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, -powerHeight)
+		frame._healthWrapper:SetPoint('TOPLEFT', wrapper, 'BOTTOMLEFT', 0, 0)
+		frame._healthWrapper:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
 	else
-		wrapper:SetPoint('TOPLEFT', frame._healthWrapper, 'BOTTOMLEFT', 0, 0)
-		wrapper:SetPoint('TOPRIGHT', frame._healthWrapper, 'BOTTOMRIGHT', 0, 0)
+		wrapper:SetPoint('BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
+		wrapper:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
+		-- Shrink health to stop above power
+		frame._healthWrapper:ClearAllPoints()
+		frame._healthWrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+		frame._healthWrapper:SetPoint('BOTTOMRIGHT', wrapper, 'TOPRIGHT', 0, 0)
 	end
 
 	local bar = CreateFrame('StatusBar', nil, wrapper)
@@ -152,13 +160,9 @@ function F.PreviewFrame.Create(parent, config, fakeUnit)
 	bg:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
 	frame._bg = bg
 
-	-- Calculate bar heights
-	local powerHeight = (config.power and config.power.height) or 8
-	local healthHeight = config.height - powerHeight
-
-	-- Build structural elements
-	BuildHealthBar(frame, config, healthHeight)
-	BuildPowerBar(frame, config, powerHeight)
+	-- Build structural elements (health fills remaining space, power has fixed height)
+	BuildHealthBar(frame, config)
+	BuildPowerBar(frame, config)
 	BuildNameText(frame, config, fakeUnit)
 
 	-- Apply fake unit data
