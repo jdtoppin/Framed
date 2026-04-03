@@ -53,6 +53,7 @@ local function CreateCatcher(def, overlay)
 	catcher:SetAllPoints(frame)
 	catcher._frameKey = frameKey
 	catcher._isGroup = def.isGroup
+	catcher._def = def
 
 	-- 1px accent border so frames stand out against the dim overlay
 	local accent = C.Colors.accent
@@ -232,16 +233,17 @@ F.EventBus:Register('EDIT_MODE_EXITED', function()
 end, 'ClickCatchers')
 
 F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
-	-- Update all catcher visuals based on selection
-	for _, def in next, EditMode.FRAME_KEYS do
-		local catcher = catchers[def.key]
-		if(catcher) then
-			if(def.key == frameKey) then
-				ApplySelectedVisuals(catcher)
-			else
-				ApplyDefaultVisuals(catcher, def)
-			end
-			catcher:Show()
+	local overlay = EditMode.GetOverlay()
+	for _, catcher in next, catchers do
+		if(catcher._frameKey == frameKey) then
+			ApplySelectedVisuals(catcher)
+			-- Lower below preview (preview container is at overlay+8)
+			catcher:SetFrameLevel(overlay:GetFrameLevel() + 6)
+		else
+			ApplyDefaultVisuals(catcher, catcher._def)
+			-- Keep above preview so unselected frames stay clickable
+			catcher:SetFrameLevel(overlay:GetFrameLevel() + 10)
 		end
+		catcher:Show()
 	end
 end, 'ClickCatchers')
