@@ -45,6 +45,8 @@ function EditCache.Set(frameKey, configPath, value)
 		cache[frameKey] = {}
 	end
 	cache[frameKey][configPath] = value
+	-- Notify preview system of live change
+	F.EventBus:Fire('EDIT_CACHE_VALUE_CHANGED', frameKey, configPath, value)
 end
 
 --- Read a value, checking the edit cache first, then falling back to real config.
