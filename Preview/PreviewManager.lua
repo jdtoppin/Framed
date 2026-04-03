@@ -113,11 +113,14 @@ local function showSoloPreview(frameKey)
 
 	local pf = F.PreviewFrame.Create(container, config, fakeUnit)
 
-	-- Anchor directly to the real frame so preview overlays it exactly
+	-- Position and size to match the real frame exactly
 	local realFrame = getRealFrame(frameKey)
 	if(realFrame) then
-		pf:SetAllPoints(realFrame)
+		local w, h = realFrame:GetSize()
+		pf:SetSize(w, h)
+		pf:SetPoint('CENTER', realFrame, 'CENTER', 0, 0)
 	else
+		pf:SetSize(config.width, config.height)
 		local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
 		local y = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
 		pf:SetPoint('CENTER', UIParent, 'CENTER', x, y)
