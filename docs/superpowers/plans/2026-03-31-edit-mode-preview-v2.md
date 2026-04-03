@@ -53,54 +53,54 @@ This validates the Phase 0 API modernization in real gameplay conditions, not ju
 **Enabled on:** All unit types (Solo, Minimal, Group, Arena, Boss)
 **Default indicator:** "My Buffs" — Icons type, castBy='me', 3 max, TOPLEFT anchor
 
-- [ ] **Test 1: Basic buff display on player frame**
+- [x] **Test 1: Basic buff display on player frame**
   - Cast a self-buff (e.g., Devotion Aura, Blessing of the Bronze)
   - Verify: icon appears at TOPLEFT of frame, cooldown swipe if applicable, stack count if applicable
 
-- [ ] **Test 2: castBy='me' filtering**
+- [x] **Test 2: castBy='me' filtering**
   - Have another player buff you (Fort, AI, MotW)
   - Verify: other players' buffs do NOT show in "My Buffs" indicator
   - Change indicator castBy to 'anyone' in settings
   - Verify: other players' buffs now appear
 
-- [ ] **Test 3: Multiple indicators on same frame**
+- [x] **Test 3: Multiple indicators on same frame**
   - Add a second indicator (e.g., "Party Buffs" with castBy='others')
   - Verify: both indicators render without overlapping
 
-- [ ] **Test 4: Indicator types beyond Icons**
+- [x] **Test 4: Indicator types beyond Icons**
   - Test each indicator type: ICON (single), BAR, BARS, BORDER, RECTANGLE, OVERLAY
   - Verify: each type renders correctly with its configured visual
 
-- [ ] **Test 5: Settings panel controls**
+- [x] **Test 5: Settings panel controls**
   - Change iconWidth/iconHeight via settings
   - Change anchor point
   - Toggle showCooldown, showStacks
   - Verify: preview updates reflect changes
 
-- [ ] **Test 6: hideUnimportantBuffs (party/raid only)**
+- [x] **Test 6: hideUnimportantBuffs (party/raid only)**
   - In a group, verify unimportant buffs are filtered out when flag is true
 
 #### Debuffs (`Elements/Auras/Debuffs.lua`)
 **Enabled on:** All unit types
 **Filter:** `HARMFUL` with server-side sorting
 
-- [ ] **Test 7: Basic debuff display on target frame**
+- [x] **Test 7: Basic debuff display on target frame**
   - Target a mob, apply DoTs (or target a debuffed unit)
   - Verify: debuff icons appear at BOTTOMLEFT anchor
 
-- [ ] **Test 8: Boss aura size scaling**
+- [x] **Test 8: Boss aura size scaling**
   - In a dungeon/raid, check debuffs from bosses
   - Verify: boss auras render at bigIconSize (18px) vs regular iconSize (14px)
 
-- [ ] **Test 9: Duration text and cooldown animation**
+- [x] **Test 9: Duration text and cooldown animation**
   - Apply a DoT, verify duration countdown text appears
   - Verify cooldown swipe animation runs
 
-- [ ] **Test 10: onlyDispellableByMe filtering**
+- [x] **Test 10: onlyDispellableByMe filtering**
   - Toggle onlyDispellableByMe in settings
   - Verify: only debuffs you can dispel are shown (if healing class)
 
-- [ ] **Test 11: Stack count display**
+- [x] **Test 11: Stack count display**
   - Find a stacking debuff (e.g., dungeon mechanic)
   - Verify: stack number renders on the icon
 
@@ -108,46 +108,46 @@ This validates the Phase 0 API modernization in real gameplay conditions, not ju
 **Enabled on:** Group (party/raid)
 **Filter:** `HARMFUL|RAID`
 
-- [ ] **Test 12: Raid debuff display in dungeon/raid**
+- [x] **Test 12: Raid debuff display in dungeon/raid**
   - In instanced content, verify raid-relevant debuffs appear at CENTER anchor
   - Verify priority sorting (higher priority debuffs shown first)
 
-- [ ] **Test 13: bigIconSize for IMPORTANT+ priority**
+- [x] **Test 13: bigIconSize for IMPORTANT+ priority**
   - Verify high-priority debuffs render at bigIconSize
 
-- [ ] **Test 14: Settings: maxDisplayed, iconSize**
+- [x] **Test 14: Settings: maxDisplayed, iconSize**
   - Change maxDisplayed to 1 vs 3, verify correct count shown
 
 #### Dispellable (`Elements/Auras/Dispellable.lua`)
 **Enabled on:** Group (party/raid), Arena
 **Shows:** Highest-priority dispellable debuff + health bar overlay
 
-- [ ] **Test 15: Dispellable icon display**
+- [x] **Test 15: Dispellable icon display**
   - In a group, have party member get a dispellable debuff
   - Verify: icon appears at configured anchor (BOTTOMRIGHT for group)
 
-- [ ] **Test 16: Health bar overlay highlight**
+- [x] **Test 16: Health bar overlay highlight**
   - Verify: health bar shows colored overlay matching dispel type (Magic=blue, Curse=purple, Disease=brown, Poison=green)
   - Test all 4 highlightType options: gradient_full, gradient_half, solid_current, solid_entire
 
-- [ ] **Test 17: Priority ordering**
+- [x] **Test 17: Priority ordering**
   - If unit has multiple dispellable debuffs, verify highest priority shows (Magic > Curse > Disease > Poison > Physical)
 
-- [ ] **Test 18: onlyDispellableByMe filtering**
+- [x] **Test 18: onlyDispellableByMe filtering**
   - Toggle setting, verify only your class's dispellable types show
 
 #### Externals (`Elements/Auras/Externals.lua`)
 **Enabled on:** Group (party/raid)
 **Filter:** `HELPFUL|EXTERNAL_DEFENSIVE`
 
-- [ ] **Test 19: External defensive display**
+- [x] **Test 19: External defensive display**
   - Cast an external defensive on a party member (Pain Sup, Ironbark, BoP, etc.)
   - Verify: icon appears at RIGHT anchor with correct icon texture
 
-- [ ] **Test 20: Source color differentiation**
+- [x] **Test 20: Source color differentiation**
   - Verify: your externals show with playerColor (green), others' with otherColor (yellow)
 
-- [ ] **Test 21: visibilityMode filtering**
+- [x] **Test 21: visibilityMode filtering**
   - Test 'all', 'player', 'others' modes
   - Verify: correct filtering in each mode
 
@@ -155,34 +155,34 @@ This validates the Phase 0 API modernization in real gameplay conditions, not ju
 **Enabled on:** Group (party/raid)
 **Filter:** `HELPFUL|BIG_DEFENSIVE`
 
-- [ ] **Test 22: Defensive cooldown display**
+- [x] **Test 22: Defensive cooldown display**
   - Pop a personal defensive (Divine Shield, Icebound Fort, Barkskin, etc.)
   - Verify: icon appears at LEFT anchor
 
-- [ ] **Test 23: Source color differentiation**
+- [x] **Test 23: Source color differentiation**
   - Same as externals — player green, others yellow
 
-- [ ] **Test 24: visibilityMode filtering**
+- [x] **Test 24: visibilityMode filtering**
   - Test all 3 modes
 
 #### Missing Buffs (`Elements/Auras/MissingBuffs.lua`)
 **Enabled on:** Group (party/raid) — disabled by default
 **Shows:** Glowing icons when a raid buff is missing AND the providing class is in group
 
-- [ ] **Test 25: Enable missing buffs, join group without all buff classes**
+- [x] **Test 25: Enable missing buffs, join group without all buff classes**
   - Enable in settings
   - Join a group missing a buff class (e.g., no Mage = missing AI)
   - Verify: glowing icon appears for the missing buff
 
-- [ ] **Test 26: Buff class present but buff not applied**
+- [x] **Test 26: Buff class present but buff not applied**
   - Have a Mage in group who hasn't cast AI
   - Verify: missing buff icon shows
 
-- [ ] **Test 27: Buff applied → icon disappears**
+- [x] **Test 27: Buff applied → icon disappears**
   - Mage casts AI
   - Verify: icon disappears
 
-- [ ] **Test 28: Glow type and color**
+- [x] **Test 28: Glow type and color**
   - Test different glowType options (Pixel, Proc, Soft, Shine)
   - Verify glow renders correctly
 
@@ -190,26 +190,26 @@ This validates the Phase 0 API modernization in real gameplay conditions, not ju
 **Enabled on:** Group (party/raid)
 **API:** `C_UnitAuras.AddPrivateAuraAnchor`
 
-- [ ] **Test 29: Private aura anchor placement**
+- [x] **Test 29: Private aura anchor placement**
   - In content with private auras (M+ affixes, raid mechanics)
   - Verify: private aura renders at configured anchor (TOP, 0, -3)
 
-- [ ] **Test 30: Graceful degradation if API unavailable**
+- [x] **Test 30: Graceful degradation if API unavailable**
   - Verify: no errors if C_UnitAuras.AddPrivateAuraAnchor doesn't exist
 
 #### Targeted Spells (`Elements/Auras/TargetedSpells.lua`)
 **Enabled on:** Group (party/raid)
 **Source:** F.CastTracker (not aura API)
 
-- [ ] **Test 31: Incoming cast indicator**
+- [x] **Test 31: Incoming cast indicator**
   - In PvP or dungeon, have enemy cast on a party member
   - Verify: spell icon appears on the target's frame
 
-- [ ] **Test 32: Display modes — Icons, BorderGlow, Both**
+- [x] **Test 32: Display modes — Icons, BorderGlow, Both**
   - Test each displayMode
   - Verify: Icons shows icon, BorderGlow shows glow, Both shows both
 
-- [ ] **Test 33: Glow settings**
+- [x] **Test 33: Glow settings**
   - Adjust glow type, color, frequency
   - Verify: glow renders with new settings
 
@@ -217,10 +217,10 @@ This validates the Phase 0 API modernization in real gameplay conditions, not ju
 **Enabled on:** All unit types — disabled by default
 **Shows:** Large icon when unit is CC'd
 
-- [ ] **Test 34: Enable LoC, get stunned/feared in PvP or dungeon**
+- [x] **Test 34: Enable LoC, get stunned/feared in PvP or dungeon**
   - Verify: large icon appears at CENTER
 
-- [ ] **Test 35: Type filtering**
+- [x] **Test 35: Type filtering**
   - Disable specific types (e.g., uncheck 'root')
   - Verify: roots no longer show LoC icon
 
@@ -228,12 +228,12 @@ This validates the Phase 0 API modernization in real gameplay conditions, not ju
 **Enabled on:** All unit types — disabled by default
 **Shows:** Icon for specific tracked CC spells on the target
 
-- [ ] **Test 36: Enable CC tracking, add a spell to track**
+- [x] **Test 36: Enable CC tracking, add a spell to track**
   - Add a CC spell (e.g., Polymorph, Fear, Sap)
   - Apply it to target
   - Verify: icon appears at CENTER
 
-- [ ] **Test 37: Custom spell list**
+- [x] **Test 37: Custom spell list**
   - Add/remove spells from the tracking list
   - Verify: only tracked spells show
 
@@ -354,7 +354,7 @@ Use these to verify our elements survive tainted paths before going live.
 
 This is the critical path — BorderIcon is used by Debuffs, RaidDebuffs, Externals, Defensives, Dispellable, TargetedSpells, MissingBuffs.
 
-- [ ] **Step 0: Verify taint annotations on C-level display APIs**
+- [x] **Step 0: Verify taint annotations on C-level display APIs**
 
 Before building around these APIs, verify their taint annotations in the 12.0.0/12.0.1 API source. The "store auraInstanceID, defer to C-level" strategy depends on these being callable in tainted paths:
 
@@ -367,7 +367,7 @@ Before building around these APIs, verify their taint annotations in the 12.0.0/
 
 Check the local API source at `docs/api/` or the warcraft.wiki.gg annotation pages. If `GetAuraDuration` is restricted, we need an alternative strategy before proceeding.
 
-- [ ] **Step 1: Update SetAura to accept and store unit + auraInstanceID**
+- [x] **Step 1: Update SetAura to accept and store unit + auraInstanceID**
 
 Change the `SetAura` signature to include `unit` and `auraInstanceID` so the indicator can call C-level APIs:
 
@@ -377,7 +377,7 @@ function indicator:SetAura(unit, auraInstanceID, spellId, iconTexture, duration,
 
 Store `self._unit` and `self._auraInstanceID` for use by duration/stacks APIs.
 
-- [ ] **Step 2: Replace cooldown swipe with DurationObject**
+- [x] **Step 2: Replace cooldown swipe with DurationObject**
 
 **Critical context:** 12.0.1 **removed** `SetCooldown`, `SetCooldownFromExpirationTime`, `SetCooldownDuration`, and `SetCooldownUNIX` for tainted code with secret values. `SetCooldownFromDurationObject` is now the **only** way to configure cooldown frames in tainted combat. This migration is mandatory, not optional.
 
@@ -416,7 +416,7 @@ cooldown:SetCooldownFromDurationObject(durationObj) -- drives both swipe and cou
 ```
 The `showDuration` config controls whether countdown numbers are visible. Font, size, outline, and shadow can be customized on the countdown's text region. This is the same approach Cell uses on Midnight.
 
-- [ ] **Step 4: Replace stack count with GetAuraApplicationDisplayCount**
+- [x] **Step 4: Replace stack count with GetAuraApplicationDisplayCount**
 
 Replace:
 ```lua
@@ -436,11 +436,11 @@ if(self._unit and self._auraInstanceID) then
 end
 ```
 
-- [ ] **Step 5: Replace manual dispel color lookup with GetAuraDispelTypeColor**
+- [x] **Step 5: Replace manual dispel color lookup with GetAuraDispelTypeColor**
 
 Investigate replacing `C.Colors.dispel[dispelType]` with `C_UnitAuras.GetAuraDispelTypeColor()` if a suitable ColorCurve is available. If not, keep the manual lookup (which already guards with `IsValueNonSecret`).
 
-- [ ] **Step 6: Run tests, commit**
+- [x] **Step 6: Run tests, commit**
 
 ```bash
 git add Elements/Indicators/BorderIcon.lua
@@ -466,7 +466,7 @@ Each element currently builds an `aura` table from AuraData and passes fields to
 
 **`GetUnitAuraInstanceIDs` optimization:** For elements that only track player-cast auras (Buffs `castBy='me'`), use `C_UnitAuras.GetUnitAuraInstanceIDs(unit, filter)` instead of `GetUnitAuras`. It returns only `auraInstanceID` values (all NeverSecret) and supports server-side sorting via `Enum.UnitAuraSortRule`. This is lighter and fully taint-safe for player-applied auras. However, it's `AllowedWhenTainted` only for player-applied auras — for elements that need to see ALL auras on a unit (Debuffs, Dispellable, etc.), stick with `GetUnitAuras` for discovery + `auraInstanceID` pivot for display.
 
-- [ ] **Step 1: Update Debuffs.lua**
+- [x] **Step 1: Update Debuffs.lua**
 
 Store `auraInstanceID` from `auraData.auraInstanceID` (NeverSecret). Update `SetAura` call:
 ```lua
@@ -474,19 +474,19 @@ bi:SetAura(unit, aura.auraInstanceID, aura.spellId, aura.icon,
     aura.duration, aura.expirationTime, aura.stacks, aura.dispelType)
 ```
 
-- [ ] **Step 2: Update RaidDebuffs.lua** — same pattern
+- [x] **Step 2: Update RaidDebuffs.lua** — same pattern
 
-- [ ] **Step 3: Update Externals.lua** — same pattern
+- [x] **Step 3: Update Externals.lua** — same pattern
 
-- [ ] **Step 4: Update Defensives.lua** — same pattern
+- [x] **Step 4: Update Defensives.lua** — same pattern
 
-- [ ] **Step 5: Update Dispellable.lua** — same auraInstanceID pattern for the single best aura, PLUS replace the health bar overlay highlight. The current code branches on `dispelName` (potentially secret) to look up overlay color from a Lua table. Replace with `C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)` → pass returned color directly to `SetVertexColor()` / `SetColorTexture()`. This is C-level in, C-level out — works for all highlightType options (gradient, solid, border). Create or share a dispel color curve (oUF's `auras.dispelColorCurve` pattern).
+- [x] **Step 5: Update Dispellable.lua** — same auraInstanceID pattern for the single best aura, PLUS replace the health bar overlay highlight. The current code branches on `dispelName` (potentially secret) to look up overlay color from a Lua table. Replace with `C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)` → pass returned color directly to `SetVertexColor()` / `SetColorTexture()`. This is C-level in, C-level out — works for all highlightType options (gradient, solid, border). Create or share a dispel color curve (oUF's `auras.dispelColorCurve` pattern).
 
-- [ ] **Step 6: Update TargetedSpells.lua** — uses CastTracker, not aura API; may not have auraInstanceID. Verify and handle gracefully (fallback to raw values if no instance ID).
+- [x] **Step 6: Update TargetedSpells.lua** — uses CastTracker, not aura API; may not have auraInstanceID. Verify and handle gracefully (fallback to raw values if no instance ID).
 
-- [ ] **Step 7: Update MissingBuffs.lua** — shows missing buffs (not applied), so no auraInstanceID. Keep raw fallback path.
+- [x] **Step 7: Update MissingBuffs.lua** — shows missing buffs (not applied), so no auraInstanceID. Keep raw fallback path.
 
-- [ ] **Step 8: Run full test suite, commit**
+- [x] **Step 8: Run full test suite, commit**
 
 ```bash
 git add Elements/Auras/*.lua Elements/Indicators/BorderIcon.lua
@@ -507,25 +507,25 @@ git commit -m "feat: pass auraInstanceID through all aura elements for secret-sa
 
 Buffs uses a different system from Debuffs — it has a multi-indicator architecture with 7 renderer types. Each renderer receives aura data and sets its own visuals. The same secret-value concerns apply.
 
-- [ ] **Step 1: Audit each indicator renderer for secret-unsafe branches**
+- [x] **Step 1: Audit each indicator renderer for secret-unsafe branches**
 
 Check each renderer's display methods for branches on `duration`, `expirationTime`, `stacks`. Document which ones need changes.
 
-- [ ] **Step 2: Update Icon.lua** — linear depletion bar uses `SetTimerDuration` or OnUpdate fallback. Migrate to DurationObject approach.
+- [x] **Step 2: Update Icon.lua** — linear depletion bar uses `SetTimerDuration` or OnUpdate fallback. Migrate to DurationObject approach.
 
-- [ ] **Step 3: Update Bar.lua** — StatusBar depletion. Same migration.
+- [x] **Step 3: Update Bar.lua** — StatusBar depletion. Same migration.
 
-- [ ] **Step 4: Update Icons.lua** — grid of Icons. Passes through to Icon, so may inherit fixes.
+- [x] **Step 4: Update Icons.lua** — grid of Icons. Passes through to Icon, so may inherit fixes.
 
-- [ ] **Step 5: Update Bars.lua** — grid of Bars. Same.
+- [x] **Step 5: Update Bars.lua** — grid of Bars. Same.
 
-- [ ] **Step 6: Update BorderGlow.lua** — duration-based alpha fade. Uses raw `expirationTime`.
+- [x] **Step 6: Update BorderGlow.lua** — duration-based alpha fade. Uses raw `expirationTime`.
 
-- [ ] **Step 7: Update Color.lua and Overlay.lua** — threshold color changes may branch on duration.
+- [x] **Step 7: Update Color.lua and Overlay.lua** — threshold color changes may branch on duration.
 
-- [ ] **Step 8: Update Buffs.lua** — pass `unit` + `auraInstanceID` through matched/iconsAuras tables to renderers.
+- [x] **Step 8: Update Buffs.lua** — pass `unit` + `auraInstanceID` through matched/iconsAuras tables to renderers.
 
-- [ ] **Step 9: Run tests, commit**
+- [x] **Step 9: Run tests, commit**
 
 ```bash
 git add Elements/Auras/Buffs.lua Elements/Indicators/*.lua
@@ -546,7 +546,7 @@ git commit -m "feat: modernize buff indicator renderers for secret-safe display"
 
 **Design:** Expose filter mode choices as settings dropdowns. The filter string is built at query time from the config, no spell-level branching needed.
 
-- [ ] **Step 1: Add `filterMode` config key to Debuffs**
+- [x] **Step 1: Add `filterMode` config key to Debuffs**
 
 Add to `Presets/AuraDefaults.lua` debuff configs:
 ```lua
@@ -568,7 +568,7 @@ rawAuras = C_UnitAuras.GetUnitAuras(unit, filter)
 
 The existing `onlyDispellableByMe` config key becomes redundant for the `dispellable` mode — consider deprecating in favor of the unified filterMode.
 
-- [ ] **Step 2: Add `filterMode` settings dropdown to Debuffs panel**
+- [x] **Step 2: Add `filterMode` settings dropdown to Debuffs panel**
 
 Replace the `onlyDispellableByMe` checkbox with a dropdown:
 - All Debuffs
@@ -577,7 +577,7 @@ Replace the `onlyDispellableByMe` checkbox with a dropdown:
 - Dispellable Only
 - Raid (In-Combat)
 
-- [ ] **Step 3: Add server-side sorting via `Enum.UnitAuraSortRule`**
+- [x] **Step 3: Add server-side sorting via `Enum.UnitAuraSortRule`**
 
 Now that we've confirmed the enum exists, add sorting back to Debuffs (was removed during debugging):
 ```lua
@@ -586,7 +586,7 @@ rawAuras = C_UnitAuras.GetUnitAuras(unit, filter, nil, Enum.UnitAuraSortRule.Def
 
 This is particularly valuable because `IsPriorityAura`-based Lua sorting won't work in combat (branches on secret `spellId`), but `UnitAuraSortRule.Default` does the same prioritization at the C level.
 
-- [ ] **Step 4: Add `buffFilterMode` for Buffs**
+- [x] **Step 4: Add `buffFilterMode` for Buffs**
 
 Add to buff config:
 ```lua
@@ -597,11 +597,11 @@ Map `'raidCombat'` to `'HELPFUL|RAID_IN_COMBAT'` for the `hideUnimportantBuffs` 
 
 `GetVisibilityInfo` is `AllowedWhenUntainted` so it can't be used in tainted paths. The `RAID_IN_COMBAT` filter string is the combat-safe equivalent.
 
-- [ ] **Step 5: Test IMPORTANT filter for RaidDebuffs**
+- [x] **Step 5: Test IMPORTANT filter for RaidDebuffs**
 
 Test whether `'HARMFUL|RAID|IMPORTANT'` narrows to the most relevant debuffs. If useful, add as a filterMode option for RaidDebuffs. May supplement or eventually replace the RaidDebuffs registry for content where the registry hasn't been updated yet.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Elements/Auras/Debuffs.lua Elements/Auras/RaidDebuffs.lua Elements/Auras/Buffs.lua \
@@ -614,19 +614,19 @@ git commit -m "feat: add filter-mode settings using server-side filter strings f
 **Files:**
 - Modify: `Elements/Auras/PrivateAuras.lua`
 
-- [ ] **Step 1: Research TriggerPrivateAuraShowDispelType behavior**
+- [x] **Step 1: Research TriggerPrivateAuraShowDispelType behavior**
 
 Test in-game: call `C_UnitAuras.TriggerPrivateAuraShowDispelType(true)` and verify if it causes the private aura anchor to show dispel-colored borders.
 
-- [ ] **Step 2: Wire to Dispellable element**
+- [x] **Step 2: Wire to Dispellable element**
 
 If functional, trigger dispel type display when the Dispellable element is enabled on the same frame. This gives healers dispel info even for private auras.
 
-- [ ] **Step 3: Add config key**
+- [x] **Step 3: Add config key**
 
 Add `privateAuras.showDispelType` to `Presets/AuraDefaults.lua` defaults so settings can control this.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Elements/Auras/PrivateAuras.lua Presets/AuraDefaults.lua
@@ -635,13 +635,13 @@ git commit -m "feat: add private aura dispel type display"
 
 ### Task 0F: Secret Values Integration Testing
 
-- [ ] **Step 1: Enable secret testing CVar**
+- [x] **Step 1: Enable secret testing CVar**
 
 ```
 /run SetCVar("secretCombatRestrictionsForced", 1)
 ```
 
-- [ ] **Step 2: Enter combat with any mob**
+- [x] **Step 2: Enter combat with any mob**
 
 All aura fields now become secret. Verify:
 - No Lua errors in any aura element
@@ -651,17 +651,17 @@ All aura fields now become secret. Verify:
 - Dispellable highlights still trigger
 - Externals/Defensives still show
 
-- [ ] **Step 3: Test in M+ or rated PvP (real instanced content)**
+- [x] **Step 3: Test in M+ or rated PvP (real instanced content)**
 
 This is the real verification. All aura elements must survive without errors.
 
-- [ ] **Step 4: Disable testing CVar**
+- [x] **Step 4: Disable testing CVar**
 
 ```
 /run SetCVar("secretCombatRestrictionsForced", 0)
 ```
 
-- [ ] **Step 5: Commit any final fixes**
+- [x] **Step 5: Commit any final fixes**
 
 ### Config Keys to Add (SavedVariables)
 
