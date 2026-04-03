@@ -113,11 +113,10 @@ local function showSoloPreview(frameKey)
 
 	local pf = F.PreviewFrame.Create(container, config, fakeUnit)
 
-	-- Anchor to real frame's exact corners (works across parent hierarchies)
+	-- Match real frame exactly (same approach as ClickCatchers)
 	local realFrame = getRealFrame(frameKey)
 	if(realFrame) then
-		pf:SetPoint('TOPLEFT', realFrame, 'TOPLEFT', 0, 0)
-		pf:SetPoint('BOTTOMRIGHT', realFrame, 'BOTTOMRIGHT', 0, 0)
+		pf:SetAllPoints(realFrame)
 	else
 		pf:SetSize(config.width, config.height)
 		local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
