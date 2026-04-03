@@ -91,6 +91,16 @@ end
 -- Solo preview
 -- ============================================================
 
+-- Look up the real frame for a given frameKey
+local function getRealFrame(frameKey)
+	for _, def in next, EditMode.FRAME_KEYS do
+		if(def.key == frameKey) then
+			return def.getter()
+		end
+	end
+	return nil
+end
+
 local function showSoloPreview(frameKey)
 	local container = getPreviewContainer()
 	if(not container) then return end
@@ -103,10 +113,15 @@ local function showSoloPreview(frameKey)
 
 	local pf = F.PreviewFrame.Create(container, config, fakeUnit)
 
-	-- Position at real frame location
-	local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
-	local y = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
-	pf:SetPoint('CENTER', UIParent, 'CENTER', x, y)
+	-- Anchor directly to the real frame so preview overlays it exactly
+	local realFrame = getRealFrame(frameKey)
+	if(realFrame) then
+		pf:SetAllPoints(realFrame)
+	else
+		local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
+		local y = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
+		pf:SetPoint('CENTER', UIParent, 'CENTER', x, y)
+	end
 
 	previewFrames[1] = pf
 	pf:Show()
@@ -158,17 +173,9 @@ end, 'PreviewManager.exited')
 -- Live update from EditCache
 F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
 	if(frameKey ~= activeFrameKey) then return end
-	-- Position changes → reposition only
+	-- Position changes — preview is anchored to the real frame via SetAllPoints,
+	-- so it follows automatically during drag. No rebuild needed.
 	if(configPath == 'position.x' or configPath == 'position.y') then
-		if(previewFrames[1]) then
-			local config = getUnitConfig(frameKey)
-			if(config) then
-				local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
-				local y = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
-				previewFrames[1]:ClearAllPoints()
-				previewFrames[1]:SetPoint('CENTER', UIParent, 'CENTER', x, y)
-			end
-		end
 		return
 	end
 	-- Other changes → rebuild preview
