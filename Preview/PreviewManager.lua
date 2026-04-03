@@ -111,13 +111,11 @@ local function showSoloPreview(frameKey)
 	local fakeFn = SOLO_FAKES[frameKey]
 	local fakeUnit = fakeFn and fakeFn() or { name = frameKey, class = 'WARRIOR', healthPct = 0.8, powerPct = 0.5 }
 
-	local pf = F.PreviewFrame.Create(container, config, fakeUnit)
-
-	-- Position centered on the real frame (size from config via Widgets.SetSize)
 	local realFrame = getRealFrame(frameKey)
-	if(realFrame) then
-		pf:SetPoint('CENTER', realFrame, 'CENTER', 0, 0)
-	else
+	local pf = F.PreviewFrame.Create(container, config, fakeUnit, realFrame)
+
+	-- Position: fallback if no real frame
+	if(not realFrame) then
 		local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
 		local y = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
 		pf:SetPoint('CENTER', UIParent, 'CENTER', x, y)
@@ -173,9 +171,17 @@ end, 'PreviewManager.exited')
 -- Live update from EditCache
 F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
 	if(frameKey ~= activeFrameKey) then return end
-	-- Position changes — preview is anchored to the real frame via SetAllPoints,
-	-- so it follows automatically during drag. No rebuild needed.
+	-- Position changes → reposition only
 	if(configPath == 'position.x' or configPath == 'position.y') then
+		if(previewFrames[1]) then
+			local config = getUnitConfig(frameKey)
+			if(config) then
+				local x = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
+				local y = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
+				previewFrames[1]:ClearAllPoints()
+				previewFrames[1]:SetPoint('CENTER', UIParent, 'CENTER', x, y)
+			end
+		end
 		return
 	end
 	-- Other changes → rebuild preview

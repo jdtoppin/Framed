@@ -42,7 +42,7 @@ local function BuildHealthBar(frame, config)
 	frame._healthWrapper = wrapper
 	frame._healthBar = bar
 
-	-- Health text — use an overlay frame above the StatusBar child
+	-- Health text — overlay frame above the StatusBar child
 	local hc = config.health
 	if(hc and hc.showText ~= false) then
 		local textOverlay = CreateFrame('Frame', nil, wrapper)
@@ -74,14 +74,14 @@ local function BuildPowerBar(frame, config)
 	if(config.power and config.power.position == 'top') then
 		wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 		wrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
-		-- Push health below power
+		-- Shrink health below power
 		frame._healthWrapper:ClearAllPoints()
 		frame._healthWrapper:SetPoint('TOPLEFT', wrapper, 'BOTTOMLEFT', 0, 0)
 		frame._healthWrapper:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
 	else
 		wrapper:SetPoint('BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
 		wrapper:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
-		-- Shrink health to stop above power
+		-- Shrink health above power
 		frame._healthWrapper:ClearAllPoints()
 		frame._healthWrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 		frame._healthWrapper:SetPoint('BOTTOMRIGHT', wrapper, 'TOPRIGHT', 0, 0)
@@ -158,9 +158,21 @@ end
 -- Public: Create preview frame
 -- ============================================================
 
-function F.PreviewFrame.Create(parent, config, fakeUnit)
+function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 	local frame = CreateFrame('Frame', nil, parent)
-	Widgets.SetSize(frame, config.width, config.height)
+
+	-- Size: match real frame if available, else use config
+	if(realFrame) then
+		frame:SetAllPoints(realFrame)
+		-- Match effective scale so fonts render at correct size
+		local realScale = realFrame:GetEffectiveScale()
+		local parentScale = frame:GetParent():GetEffectiveScale()
+		if(parentScale > 0) then
+			frame:SetScale(realScale / parentScale)
+		end
+	else
+		Widgets.SetSize(frame, config.width, config.height)
+	end
 
 	-- Dark background (match StyleBuilder)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
