@@ -122,16 +122,16 @@ local function BuildNameText(frame, config, fakeUnit)
 	local nc = config.name
 	if(not nc) then return end
 
-	local text = Widgets.CreateFontString(frame, nc.fontSize, C.Colors.textActive)
+	local textParent = frame._healthWrapper or frame
+	local text = Widgets.CreateFontString(textParent, nc.fontSize, C.Colors.textActive)
 	text:SetFont(F.Media.GetActiveFont(), nc.fontSize, nc.outline or '')
 	if(nc.shadow ~= false) then
 		text:SetShadowOffset(1, -1)
 		text:SetShadowColor(0, 0, 0, 1)
 	end
 
-	local anchor = frame._healthWrapper or frame
 	local pt = nc.anchor or 'LEFT'
-	text:SetPoint(pt, anchor, pt, nc.anchorX or 0, nc.anchorY or 0)
+	text:SetPoint(pt, textParent, pt, nc.anchorX or 0, nc.anchorY or 0)
 	text:SetText(fakeUnit and fakeUnit.name or 'Unit Name')
 
 	-- Color mode
@@ -151,7 +151,7 @@ end
 
 function F.PreviewFrame.Create(parent, config, fakeUnit)
 	local frame = CreateFrame('Frame', nil, parent)
-	Widgets.SetSize(frame, config.width, config.height)
+	-- Size is set externally by PreviewManager (from real frame dimensions)
 
 	-- Dark background (match StyleBuilder)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
