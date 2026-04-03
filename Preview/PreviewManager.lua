@@ -23,11 +23,11 @@ local function getPlayerClass()
 end
 
 local SOLO_FAKES = {
-	player       = function() return { name = UnitName('player') or 'You', class = getPlayerClass(), healthPct = 1.0,  powerPct = 0.85 } end,
-	target       = function() return { name = 'Target Dummy',  class = 'WARRIOR',  healthPct = 0.72, powerPct = 0.6  } end,
-	targettarget = function() return { name = 'Healbot',       class = 'PRIEST',   healthPct = 0.90, powerPct = 0.8  } end,
-	focus        = function() return { name = 'Focus Target',  class = 'MAGE',     healthPct = 0.55, powerPct = 0.45 } end,
-	pet          = function() return { name = 'Pet',           class = 'HUNTER',   healthPct = 0.80, powerPct = 0.7  } end,
+	player       = function() return { name = UnitName('player') or 'You', class = getPlayerClass(), healthPct = 1.0, powerPct = 1.0 } end,
+	target       = function() return { name = 'Target Dummy',  class = 'WARRIOR',  healthPct = 1.0, powerPct = 1.0 } end,
+	targettarget = function() return { name = 'Healbot',       class = 'PRIEST',   healthPct = 1.0, powerPct = 1.0 } end,
+	focus        = function() return { name = 'Focus Target',  class = 'MAGE',     healthPct = 1.0, powerPct = 1.0 } end,
+	pet          = function() return { name = 'Pet',           class = 'HUNTER',   healthPct = 1.0, powerPct = 1.0 } end,
 }
 
 local GROUP_TYPES = { party = true, raid = true, arena = true, boss = true }
