@@ -42,10 +42,13 @@ local function BuildHealthBar(frame, config)
 	frame._healthWrapper = wrapper
 	frame._healthBar = bar
 
-	-- Health text (pixel-perfect: match StyleBuilder font, anchor, outline, shadow)
+	-- Health text — use an overlay frame above the StatusBar child
 	local hc = config.health
 	if(hc and hc.showText ~= false) then
-		local text = Widgets.CreateFontString(wrapper, hc.fontSize, C.Colors.textActive)
+		local textOverlay = CreateFrame('Frame', nil, wrapper)
+		textOverlay:SetAllPoints(wrapper)
+		textOverlay:SetFrameLevel(bar:GetFrameLevel() + 2)
+		local text = Widgets.CreateFontString(textOverlay, hc.fontSize, C.Colors.textActive)
 		text:SetFont(F.Media.GetActiveFont(), hc.fontSize, hc.outline or '')
 		if(hc.shadow ~= false) then
 			text:SetShadowOffset(1, -1)
@@ -101,7 +104,10 @@ local function BuildPowerBar(frame, config)
 	-- Power text
 	local pc = config.power
 	if(pc and pc.showText) then
-		local text = Widgets.CreateFontString(wrapper, pc.fontSize, C.Colors.textActive)
+		local textOverlay = CreateFrame('Frame', nil, wrapper)
+		textOverlay:SetAllPoints(wrapper)
+		textOverlay:SetFrameLevel(bar:GetFrameLevel() + 2)
+		local text = Widgets.CreateFontString(textOverlay, pc.fontSize, C.Colors.textActive)
 		text:SetFont(F.Media.GetActiveFont(), pc.fontSize, pc.outline or '')
 		if(pc.shadow ~= false) then
 			text:SetShadowOffset(1, -1)
@@ -122,8 +128,11 @@ local function BuildNameText(frame, config, fakeUnit)
 	local nc = config.name
 	if(not nc) then return end
 
-	local textParent = frame._healthWrapper or frame
-	local text = Widgets.CreateFontString(textParent, nc.fontSize, C.Colors.textActive)
+	local anchorParent = frame._healthWrapper or frame
+	local nameOverlay = CreateFrame('Frame', nil, anchorParent)
+	nameOverlay:SetAllPoints(anchorParent)
+	nameOverlay:SetFrameLevel(frame._healthBar:GetFrameLevel() + 3)
+	local text = Widgets.CreateFontString(nameOverlay, nc.fontSize, C.Colors.textActive)
 	text:SetFont(F.Media.GetActiveFont(), nc.fontSize, nc.outline or '')
 	if(nc.shadow ~= false) then
 		text:SetShadowOffset(1, -1)
@@ -131,7 +140,7 @@ local function BuildNameText(frame, config, fakeUnit)
 	end
 
 	local pt = nc.anchor or 'LEFT'
-	text:SetPoint(pt, textParent, pt, nc.anchorX or 0, nc.anchorY or 0)
+	text:SetPoint(pt, anchorParent, pt, nc.anchorX or 0, nc.anchorY or 0)
 	text:SetText(fakeUnit and fakeUnit.name or 'Unit Name')
 
 	-- Color mode
