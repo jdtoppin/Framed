@@ -291,6 +291,58 @@ local function BuildStatusIcons(frame, config)
 end
 
 -- ============================================================
+-- Castbar builder
+-- ============================================================
+
+local function BuildCastbar(frame, config)
+	if(not config.castbar) then return end
+	local cb = config.castbar
+
+	local wrapper = CreateFrame('Frame', nil, frame)
+	local cbWidth = (cb.sizeMode == 'detached' and cb.width) or config.width
+	wrapper:SetSize(cbWidth, cb.height or 16)
+	wrapper:SetPoint('TOPLEFT', frame, 'BOTTOMLEFT', 0, -C.Spacing.base)
+
+	local bgC = C.Colors.background
+	local bgTex = wrapper:CreateTexture(nil, 'BACKGROUND')
+	bgTex:SetAllPoints(wrapper)
+	bgTex:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+
+	local bar = CreateFrame('StatusBar', nil, wrapper)
+	bar:SetAllPoints(wrapper)
+	bar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
+	bar:SetMinMaxValues(0, 1)
+	bar:SetValue(0.6)
+	local ac = C.Colors.accent
+	bar:SetStatusBarColor(ac[1], ac[2], ac[3], 0.8)
+
+	local label = Widgets.CreateFontString(wrapper, C.Font.sizeSmall, C.Colors.textActive)
+	label:SetPoint('LEFT', wrapper, 'LEFT', 4, 0)
+	label:SetText('Casting...')
+
+	frame._castbar = wrapper
+end
+
+-- ============================================================
+-- Highlights builder
+-- ============================================================
+
+local function BuildHighlights(frame, config)
+	if(config.targetHighlight) then
+		local thColor = F.Config and F.Config:Get('general.targetHighlightColor')
+		local thWidth = F.Config and F.Config:Get('general.targetHighlightWidth') or 2
+
+		local hl = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
+		hl:SetPoint('TOPLEFT', frame, 'TOPLEFT', -thWidth, thWidth)
+		hl:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', thWidth, -thWidth)
+		local c = thColor or { 1, 1, 1, 0.8 }
+		hl:SetBackdrop({ edgeFile = [[Interface\BUTTONS\WHITE8x8]], edgeSize = thWidth })
+		hl:SetBackdropBorderColor(c[1], c[2], c[3], c[4] or 0.8)
+		frame._targetHighlight = hl
+	end
+end
+
+-- ============================================================
 -- Public: Create preview frame
 -- ============================================================
 
@@ -321,6 +373,8 @@ function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 	BuildPowerBar(frame, config)
 	BuildNameText(frame, config, fakeUnit)
 	BuildStatusIcons(frame, config)
+	BuildCastbar(frame, config)
+	BuildHighlights(frame, config)
 
 	-- Apply fake unit data with config-aware colors and text formats
 	if(fakeUnit) then
