@@ -261,6 +261,36 @@ local function BuildNameText(frame, config, fakeUnit)
 end
 
 -- ============================================================
+-- Status icons builder
+-- ============================================================
+
+local STATUS_ICON_KEYS = {
+	'role', 'leader', 'readyCheck', 'raidIcon', 'combat',
+	'resting', 'phase', 'resurrect', 'summon', 'raidRole', 'pvp',
+}
+
+local function BuildStatusIcons(frame, config)
+	local icons = config.statusIcons
+	if(not icons) then return end
+
+	frame._statusIcons = {}
+	for _, key in next, STATUS_ICON_KEYS do
+		if(icons[key]) then
+			local pt   = icons[key .. 'Point'] or 'TOPLEFT'
+			local x    = icons[key .. 'X'] or 0
+			local y    = icons[key .. 'Y'] or 0
+			local size = icons[key .. 'Size'] or 14
+
+			local icon = frame:CreateTexture(nil, 'OVERLAY')
+			icon:SetSize(size, size)
+			icon:SetPoint(pt, frame, pt, x, y)
+			icon:SetColorTexture(0.4, 0.4, 0.4, 0.6)
+			frame._statusIcons[key] = icon
+		end
+	end
+end
+
+-- ============================================================
 -- Public: Create preview frame
 -- ============================================================
 
@@ -290,6 +320,7 @@ function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 	BuildHealthBar(frame, config)
 	BuildPowerBar(frame, config)
 	BuildNameText(frame, config, fakeUnit)
+	BuildStatusIcons(frame, config)
 
 	-- Apply fake unit data with config-aware colors and text formats
 	if(fakeUnit) then
