@@ -108,11 +108,9 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 				newH = math.max(16, startH - dy)
 			end
 
-			-- Snap to grid if enabled
-			if(EditMode.IsGridSnapEnabled()) then
-				newW = Widgets.Round(newW / C.Spacing.base) * C.Spacing.base
-				newH = Widgets.Round(newH / C.Spacing.base) * C.Spacing.base
-			end
+			-- Round to nearest pixel (1px step)
+			newW = Widgets.Round(newW)
+			newH = Widgets.Round(newH)
 
 			targetFrame:SetSize(newW, newH)
 
@@ -193,3 +191,29 @@ end, 'ResizeHandles')
 F.EventBus:Register('EDIT_MODE_EXITED', function()
 	DestroyHandles()
 end, 'ResizeHandles')
+
+-- Sync real frame when width/height/position changes via sliders
+F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
+	local isSize = (configPath == 'width' or configPath == 'height')
+	local isPos = (configPath == 'position.x' or configPath == 'position.y')
+	if(not isSize and not isPos) then return end
+
+	for _, def in next, EditMode.FRAME_KEYS do
+		if(def.key == frameKey) then
+			local frame = def.getter()
+			if(not frame) then break end
+
+			if(isSize) then
+				local w = EditCache.Get(frameKey, 'width') or frame:GetWidth()
+				local h = EditCache.Get(frameKey, 'height') or frame:GetHeight()
+				frame:SetSize(w, h)
+			elseif(isPos) then
+				local x = EditCache.Get(frameKey, 'position.x') or 0
+				local y = EditCache.Get(frameKey, 'position.y') or 0
+				frame:ClearAllPoints()
+				Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+			end
+			break
+		end
+	end
+end, 'ResizeHandles.cacheChanged')

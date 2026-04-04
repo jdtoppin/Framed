@@ -17,6 +17,89 @@ end
 
 local POWER_COLOR = { 0.0, 0.44, 0.87, 1 }  -- Match oUF mana override
 
+-- Fake health/power values for text formatting
+local FAKE_HEALTH     = 245000
+local FAKE_HEALTH_MAX = 245000
+local FAKE_POWER      = 180000
+local FAKE_POWER_MAX  = 180000
+
+-- Format text based on textFormat config
+local function formatHealthText(pct, fmt)
+	local cur = math.floor(FAKE_HEALTH * pct)
+	if(fmt == 'percent') then
+		return math.floor(pct * 100) .. '%'
+	elseif(fmt == 'current') then
+		return F.AbbreviateNumber and F.AbbreviateNumber(cur) or tostring(cur)
+	elseif(fmt == 'currentMax') then
+		local abbrev = F.AbbreviateNumber or tostring
+		return abbrev(cur) .. '/' .. abbrev(FAKE_HEALTH_MAX)
+	elseif(fmt == 'deficit') then
+		local missing = FAKE_HEALTH_MAX - cur
+		if(missing == 0) then return '' end
+		return '-' .. (F.AbbreviateNumber and F.AbbreviateNumber(missing) or tostring(missing))
+	elseif(fmt == 'none') then
+		return ''
+	end
+	return math.floor(pct * 100) .. '%'
+end
+
+local function formatPowerText(pct, fmt)
+	local cur = math.floor(FAKE_POWER * pct)
+	if(fmt == 'percent') then
+		return math.floor(pct * 100) .. '%'
+	elseif(fmt == 'current') then
+		return F.AbbreviateNumber and F.AbbreviateNumber(cur) or tostring(cur)
+	elseif(fmt == 'currentMax') then
+		local abbrev = F.AbbreviateNumber or tostring
+		return abbrev(cur) .. '/' .. abbrev(FAKE_POWER_MAX)
+	elseif(fmt == 'none') then
+		return ''
+	end
+	return math.floor(pct * 100) .. '%'
+end
+
+-- Resolve gradient color for a given health percentage
+local function getGradientColor(hc, pct)
+	local p = pct * 100
+	local t1 = hc.gradientThreshold1 or 95
+	local t2 = hc.gradientThreshold2 or 50
+	local t3 = hc.gradientThreshold3 or 5
+	local c1 = hc.gradientColor1 or { 0.2, 0.8, 0.2, 1 }
+	local c2 = hc.gradientColor2 or { 0.9, 0.6, 0.1, 1 }
+	local c3 = hc.gradientColor3 or { 0.8, 0.1, 0.1, 1 }
+	if(p >= t1) then return c1[1], c1[2], c1[3] end
+	if(p >= t2) then
+		local t = (p - t2) / (t1 - t2)
+		return c2[1] + (c1[1] - c2[1]) * t, c2[2] + (c1[2] - c2[2]) * t, c2[3] + (c1[3] - c2[3]) * t
+	end
+	if(p >= t3) then
+		local t = (p - t3) / (t2 - t3)
+		return c3[1] + (c2[1] - c3[1]) * t, c3[2] + (c2[2] - c3[2]) * t, c3[3] + (c2[3] - c3[3]) * t
+	end
+	return c3[1], c3[2], c3[3]
+end
+
+-- Apply health bar color based on config colorMode
+local function applyHealthColor(bar, config, fakeUnit)
+	local hc = config.health
+	local mode = hc and hc.colorMode or 'class'
+	local pct = fakeUnit and fakeUnit.healthPct or 1
+	if(mode == 'class' and fakeUnit) then
+		local r, g, b = getClassColor(fakeUnit.class)
+		bar:SetStatusBarColor(r, g, b, 1)
+	elseif(mode == 'custom' and hc.customColor) then
+		bar:SetStatusBarColor(hc.customColor[1], hc.customColor[2], hc.customColor[3], hc.customColor[4] or 1)
+	elseif(mode == 'dark') then
+		bar:SetStatusBarColor(0.25, 0.25, 0.25, 1)
+	elseif(mode == 'gradient') then
+		local r, g, b = getGradientColor(hc, pct)
+		bar:SetStatusBarColor(r, g, b, 1)
+	elseif(fakeUnit) then
+		local r, g, b = getClassColor(fakeUnit.class)
+		bar:SetStatusBarColor(r, g, b, 1)
+	end
+end
+
 -- ============================================================
 -- Health bar builder
 -- ============================================================
@@ -53,6 +136,15 @@ local function BuildHealthBar(frame, config)
 		if(hc.shadow ~= false) then
 			text:SetShadowOffset(1, -1)
 			text:SetShadowColor(0, 0, 0, 1)
+		end
+		-- Text color mode
+		local tcm = hc.textColorMode or 'white'
+		if(tcm == 'custom' and hc.textCustomColor) then
+			text:SetTextColor(hc.textCustomColor[1], hc.textCustomColor[2], hc.textCustomColor[3], 1)
+		elseif(tcm == 'class') then
+			frame._healthTextClassColor = true
+		elseif(tcm == 'dark') then
+			text:SetTextColor(0.25, 0.25, 0.25, 1)
 		end
 		local anchor = hc.textAnchor or 'RIGHT'
 		text:SetPoint(anchor, wrapper, anchor, (hc.textAnchorX or 0) + 1, hc.textAnchorY or 0)
@@ -113,6 +205,15 @@ local function BuildPowerBar(frame, config)
 			text:SetShadowOffset(1, -1)
 			text:SetShadowColor(0, 0, 0, 1)
 		end
+		-- Text color mode
+		local tcm = pc.textColorMode or 'white'
+		if(tcm == 'custom' and pc.textCustomColor) then
+			text:SetTextColor(pc.textCustomColor[1], pc.textCustomColor[2], pc.textCustomColor[3], 1)
+		elseif(tcm == 'class') then
+			frame._powerTextClassColor = true
+		elseif(tcm == 'dark') then
+			text:SetTextColor(0.25, 0.25, 0.25, 1)
+		end
 		local anchor = pc.textAnchor or 'CENTER'
 		text:SetPoint(anchor, wrapper, anchor, (pc.textAnchorX or 0) + 1, pc.textAnchorY or 0)
 		frame._powerText = text
@@ -144,11 +245,16 @@ local function BuildNameText(frame, config, fakeUnit)
 	text:SetText(fakeUnit and fakeUnit.name or 'Unit Name')
 
 	-- Color mode
-	if(nc.colorMode == 'class' and fakeUnit) then
+	local ncMode = nc.colorMode or 'class'
+	if(ncMode == 'class' and fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
 		text:SetTextColor(r, g, b, 1)
-	elseif(nc.colorMode == 'custom' and nc.customColor) then
+	elseif(ncMode == 'custom' and nc.customColor) then
 		text:SetTextColor(nc.customColor[1], nc.customColor[2], nc.customColor[3], 1)
+	elseif(ncMode == 'dark') then
+		text:SetTextColor(0.25, 0.25, 0.25, 1)
+	elseif(ncMode == 'white') then
+		text:SetTextColor(1, 1, 1, 1)
 	end
 
 	frame._nameText = text
@@ -161,18 +267,17 @@ end
 function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 	local frame = CreateFrame('Frame', nil, parent)
 
-	-- Size: match real frame if available, else use config
+	-- Match real frame's effective scale so config dimensions render at the same
+	-- visual size. Use config width/height (with EditCache overlay) so live
+	-- slider changes are reflected immediately.
 	if(realFrame) then
-		frame:SetAllPoints(realFrame)
-		-- Match effective scale so fonts render at correct size
 		local realScale = realFrame:GetEffectiveScale()
 		local parentScale = frame:GetParent():GetEffectiveScale()
 		if(parentScale > 0) then
 			frame:SetScale(realScale / parentScale)
 		end
-	else
-		Widgets.SetSize(frame, config.width, config.height)
 	end
+	Widgets.SetSize(frame, config.width, config.height)
 
 	-- Dark background (match StyleBuilder)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
@@ -186,19 +291,28 @@ function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 	BuildPowerBar(frame, config)
 	BuildNameText(frame, config, fakeUnit)
 
-	-- Apply fake unit data
+	-- Apply fake unit data with config-aware colors and text formats
 	if(fakeUnit) then
-		local r, g, b = getClassColor(fakeUnit.class)
-		frame._healthBar:SetStatusBarColor(r, g, b, 1)
+		applyHealthColor(frame._healthBar, config, fakeUnit)
 		frame._healthBar:SetValue(fakeUnit.healthPct or 1)
 		if(frame._healthText) then
-			frame._healthText:SetText(math.floor((fakeUnit.healthPct or 1) * 100) .. '%')
+			local hFmt = (config.health and config.health.textFormat) or 'percent'
+			frame._healthText:SetText(formatHealthText(fakeUnit.healthPct or 1, hFmt))
+			if(frame._healthTextClassColor) then
+				local tr, tg, tb = getClassColor(fakeUnit.class)
+				frame._healthText:SetTextColor(tr, tg, tb, 1)
+			end
 		end
 		if(frame._powerBar) then
-			frame._powerBar:SetValue(fakeUnit.powerPct or 0.8)
+			frame._powerBar:SetValue(fakeUnit.powerPct or 1)
 		end
 		if(frame._powerText) then
-			frame._powerText:SetText(math.floor((fakeUnit.powerPct or 0.8) * 100) .. '%')
+			local pFmt = (config.power and config.power.textFormat) or 'percent'
+			frame._powerText:SetText(formatPowerText(fakeUnit.powerPct or 1, pFmt))
+			if(frame._powerTextClassColor) then
+				local tr, tg, tb = getClassColor(fakeUnit.class)
+				frame._powerText:SetTextColor(tr, tg, tb, 1)
+			end
 		end
 	end
 
