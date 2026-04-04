@@ -269,9 +269,44 @@ local STATUS_ICON_KEYS = {
 	'resting', 'phase', 'resurrect', 'summon', 'raidRole', 'pvp',
 }
 
+-- Textures matching the live frame elements (oUF + custom Elements/Status)
+local STATUS_ICON_TEXTURES = {
+	-- RoleIcon: uses our custom RoleIcons strip, healer quadrant as preview
+	role       = { texFn = function()
+		local style = F.Config and F.Config:Get('general.roleIconStyle') or 2
+		return F.Media.GetIcon('RoleIcons' .. style), { 0.25, 0.5, 0, 1 }
+	end },
+	-- LeaderIcon: oUF uses Blizzard atlas
+	leader     = { atlas = 'UI-HUD-UnitFrame-Player-Group-LeaderIcon' },
+	-- ReadyCheck: our Fluent icons
+	readyCheck = { tex = F.Media.GetIcon('Fluent_Color_Yes') },
+	-- RaidTargetIcon: oUF uses Blizzard raid targeting sheet, star coords
+	raidIcon   = { tex = [[Interface\TargetingFrame\UI-RaidTargetingIcons]], coords = { 0, 0.25, 0, 0.25 } },
+	-- CombatIcon: oUF uses Blizzard atlas
+	combat     = { atlas = 'UI-HUD-UnitFrame-Player-CombatIcon' },
+	-- RestingIcon: oUF uses Blizzard StateIcon sheet
+	resting    = { tex = [[Interface\CharacterFrame\UI-StateIcon]], coords = { 0, 0.5, 0, 0.421875 } },
+	-- PhaseIcon: oUF uses Blizzard atlas
+	phase      = { atlas = 'RaidFrame-Icon-Phasing' },
+	-- ResurrectIcon: oUF uses Blizzard atlas
+	resurrect  = { atlas = 'RaidFrame-Icon-Rez' },
+	-- SummonIcon: oUF uses Blizzard atlas
+	summon     = { atlas = 'RaidFrame-Icon-SummonPending' },
+	-- RaidRoleIcon: oUF uses Blizzard atlas (main assist)
+	raidRole   = { atlas = 'RaidFrame-Icon-MainAssist' },
+	-- PvPIcon: our custom Faction2 icons
+	pvp        = { tex = F.Media.GetIcon('Faction2_Alliance') },
+}
+
 local function BuildStatusIcons(frame, config)
 	local icons = config.statusIcons
 	if(not icons) then return end
+
+	-- Overlay frame above health/power bars so icons are visible
+	local iconOverlay = CreateFrame('Frame', nil, frame)
+	iconOverlay:SetAllPoints(frame)
+	iconOverlay:SetFrameLevel(frame._healthBar:GetFrameLevel() + 5)
+	frame._iconOverlay = iconOverlay
 
 	frame._statusIcons = {}
 	for _, key in next, STATUS_ICON_KEYS do
@@ -281,10 +316,30 @@ local function BuildStatusIcons(frame, config)
 			local y    = icons[key .. 'Y'] or 0
 			local size = icons[key .. 'Size'] or 14
 
-			local icon = frame:CreateTexture(nil, 'OVERLAY')
+			local icon = iconOverlay:CreateTexture(nil, 'OVERLAY')
 			icon:SetSize(size, size)
 			icon:SetPoint(pt, frame, pt, x, y)
-			icon:SetColorTexture(0.4, 0.4, 0.4, 0.6)
+
+			local texInfo = STATUS_ICON_TEXTURES[key]
+			if(texInfo) then
+				if(texInfo.texFn) then
+					local tex, coords = texInfo.texFn()
+					icon:SetTexture(tex)
+					if(coords) then
+						icon:SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+					end
+				elseif(texInfo.atlas) then
+					icon:SetAtlas(texInfo.atlas)
+				elseif(texInfo.tex) then
+					icon:SetTexture(texInfo.tex)
+					if(texInfo.coords) then
+						icon:SetTexCoord(texInfo.coords[1], texInfo.coords[2], texInfo.coords[3], texInfo.coords[4])
+					end
+				end
+			else
+				icon:SetColorTexture(0.4, 0.4, 0.4, 0.6)
+			end
+
 			frame._statusIcons[key] = icon
 		end
 	end
@@ -296,12 +351,13 @@ end
 
 local function BuildCastbar(frame, config)
 	if(not config.castbar) then return end
+	if(config.showCastBar == false) then return end
 	local cb = config.castbar
 
 	local wrapper = CreateFrame('Frame', nil, frame)
 	local cbWidth = (cb.sizeMode == 'detached' and cb.width) or config.width
 	wrapper:SetSize(cbWidth, cb.height or 16)
-	wrapper:SetPoint('TOPLEFT', frame, 'BOTTOMLEFT', 0, -C.Spacing.base)
+	wrapper:SetPoint('TOP', frame, 'BOTTOM', 0, -C.Spacing.base)
 
 	local bgC = C.Colors.background
 	local bgTex = wrapper:CreateTexture(nil, 'BACKGROUND')
@@ -404,7 +460,7 @@ local function DestroyChildren(frame)
 	local keys = {
 		'_bg', '_healthWrapper', '_healthBar', '_healthText', '_healthTextClassColor',
 		'_powerWrapper', '_powerBar', '_powerText', '_powerTextClassColor',
-		'_nameText', '_castbar', '_targetHighlight',
+		'_nameText', '_castbar', '_targetHighlight', '_iconOverlay',
 	}
 	for _, key in next, keys do
 		frame[key] = nil
