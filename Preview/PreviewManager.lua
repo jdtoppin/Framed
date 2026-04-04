@@ -32,6 +32,15 @@ local SOLO_FAKES = {
 
 local GROUP_TYPES = { party = true, raid = true, arena = true, boss = true }
 
+local GROUP_FRAME_COUNTS = {
+	party = 5,
+	raid  = 20,
+	arena = 3,
+	boss  = 4,
+}
+
+local GROUP_FAKES = nil  -- Lazy-init from Preview.GetFakeUnits
+
 -- ============================================================
 -- Config reading
 -- ============================================================
@@ -128,6 +137,70 @@ local function showSoloPreview(frameKey)
 end
 
 -- ============================================================
+-- Group preview
+-- ============================================================
+
+local function showGroupPreview(frameKey)
+	local container = getPreviewContainer()
+	if(not container) then return end
+
+	local config = getUnitConfig(frameKey)
+	if(not config) then return end
+
+	if(not GROUP_FAKES) then
+		GROUP_FAKES = F.Preview.GetFakeUnits(5)
+	end
+
+	local count = GROUP_FRAME_COUNTS[frameKey] or 5
+
+	-- Layout params
+	local orientation = config.orientation
+	local anchorPoint = config.anchorPoint
+	local spacing = config.spacing
+	local isVertical = (orientation == 'vertical')
+	local stepX = isVertical and 0 or (config.width + spacing)
+	local stepY = isVertical and -(config.height + spacing) or 0
+
+	if(anchorPoint == 'TOPRIGHT' or anchorPoint == 'BOTTOMRIGHT') then stepX = -stepX end
+	if(anchorPoint == 'BOTTOMLEFT' or anchorPoint == 'BOTTOMRIGHT') then stepY = -stepY end
+
+	local baseX = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
+	local baseY = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
+
+	for i = 1, count do
+		local fakeUnit = GROUP_FAKES[((i - 1) % #GROUP_FAKES) + 1]
+		local varied = {
+			name = fakeUnit.name .. (i > #GROUP_FAKES and (' ' .. i) or ''),
+			class = fakeUnit.class,
+			healthPct = math.max(0.1, (fakeUnit.healthPct or 0.8) - (i * 0.03)),
+			powerPct = fakeUnit.powerPct or 0.5,
+		}
+
+		local pf = F.PreviewFrame.Create(container, config, varied)
+		local offX = (i - 1) * stepX
+		local offY = (i - 1) * stepY
+		pf:SetPoint(anchorPoint, UIParent, 'CENTER', baseX + offX, baseY + offY)
+		previewFrames[i] = pf
+		pf:Show()
+	end
+
+	-- Party pet preview (single frame showing how pets render)
+	if(frameKey == 'party') then
+		local petConfig = getUnitConfig('pet')
+		if(petConfig) then
+			local petFake = { name = 'Party Pet', class = 'HUNTER', healthPct = 0.75, powerPct = 0.6 }
+			local petPf = F.PreviewFrame.Create(container, petConfig, petFake)
+			-- Position after last party frame
+			local petOffX = count * stepX
+			local petOffY = count * stepY
+			petPf:SetPoint(anchorPoint, UIParent, 'CENTER', baseX + petOffX, baseY + petOffY)
+			previewFrames[count + 1] = petPf
+			petPf:Show()
+		end
+	end
+end
+
+-- ============================================================
 -- Public API
 -- ============================================================
 
@@ -136,7 +209,7 @@ function PM.ShowPreview(frameKey)
 	activeFrameKey = frameKey
 
 	if(GROUP_TYPES[frameKey]) then
-		showSoloPreview(frameKey)  -- Placeholder until Phase 3
+		showGroupPreview(frameKey)
 	else
 		showSoloPreview(frameKey)
 	end
@@ -173,11 +246,5 @@ end, 'PreviewManager.exited')
 -- Live update from EditCache
 F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
 	if(frameKey ~= activeFrameKey) then return end
-	-- Position changes — preview is anchored to the real frame via CENTER,
-	-- so it follows automatically during drag. No rebuild needed.
-	if(configPath == 'position.x' or configPath == 'position.y') then
-		return
-	end
-	-- Other changes (width, height, etc.) → rebuild preview
 	PM.ShowPreview(activeFrameKey)
 end, 'PreviewManager.cacheChanged')
