@@ -343,24 +343,10 @@ local function BuildHighlights(frame, config)
 end
 
 -- ============================================================
--- Public: Create preview frame
+-- Shared: build all elements and apply fake data
 -- ============================================================
 
-function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
-	local frame = CreateFrame('Frame', nil, parent)
-
-	-- Match real frame's effective scale so config dimensions render at the same
-	-- visual size. Use config width/height (with EditCache overlay) so live
-	-- slider changes are reflected immediately.
-	if(realFrame) then
-		local realScale = realFrame:GetEffectiveScale()
-		local parentScale = frame:GetParent():GetEffectiveScale()
-		if(parentScale > 0) then
-			frame:SetScale(realScale / parentScale)
-		end
-	end
-	Widgets.SetSize(frame, config.width, config.height)
-
+local function BuildAllElements(frame, config, fakeUnit)
 	-- Dark background (match StyleBuilder)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(frame)
@@ -403,5 +389,64 @@ function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 
 	frame._config = config
 	frame._fakeUnit = fakeUnit
+end
+
+-- ============================================================
+-- Destroy: clean up all child frames and textures for rebuild
+-- ============================================================
+
+local function DestroyChildren(frame)
+	for _, child in next, { frame:GetChildren() } do
+		child:Hide()
+		child:SetParent(nil)
+	end
+	-- Clear references
+	local keys = {
+		'_bg', '_healthWrapper', '_healthBar', '_healthText', '_healthTextClassColor',
+		'_powerWrapper', '_powerBar', '_powerText', '_powerTextClassColor',
+		'_nameText', '_castbar', '_targetHighlight',
+	}
+	for _, key in next, keys do
+		frame[key] = nil
+	end
+	if(frame._statusIcons) then
+		for _, icon in next, frame._statusIcons do
+			icon:Hide()
+		end
+		frame._statusIcons = nil
+	end
+end
+
+-- ============================================================
+-- Public: Create preview frame
+-- ============================================================
+
+function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
+	local frame = CreateFrame('Frame', nil, parent)
+
+	-- Match real frame's effective scale so config dimensions render at the same
+	-- visual size. Use config width/height (with EditCache overlay) so live
+	-- slider changes are reflected immediately.
+	if(realFrame) then
+		local realScale = realFrame:GetEffectiveScale()
+		local parentScale = frame:GetParent():GetEffectiveScale()
+		if(parentScale > 0) then
+			frame:SetScale(realScale / parentScale)
+		end
+	end
+	Widgets.SetSize(frame, config.width, config.height)
+
+	BuildAllElements(frame, config, fakeUnit)
+
 	return frame
+end
+
+-- ============================================================
+-- Public: Rebuild preview in-place with new config
+-- ============================================================
+
+function F.PreviewFrame.UpdateFromConfig(frame, config)
+	DestroyChildren(frame)
+	Widgets.SetSize(frame, config.width, config.height)
+	BuildAllElements(frame, config, frame._fakeUnit)
 end
