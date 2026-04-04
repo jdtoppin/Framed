@@ -106,7 +106,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		F.EventBus:PrintDebug()
 	elseif(cmd == 'edit') then
 		if(F.EditMode.IsActive()) then
-			F.EditMode.Cancel()
+			F.EditMode.RequestCancel()
 		else
 			F.EditMode.Enter()
 		end

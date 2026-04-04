@@ -247,10 +247,12 @@ end
 
 local function bossConfig()
 	local c = baseUnitConfig()
-	c.width    = 160
-	c.height   = 30
-	c.position = { x = 300, y = 100, anchor = 'CENTER' }
-	c.spacing  = 4
+	c.width       = 160
+	c.height      = 30
+	c.position    = { x = 300, y = 100, anchor = 'CENTER' }
+	c.spacing     = 4
+	c.orientation = 'vertical'
+	c.anchorPoint = 'TOPLEFT'
 	c.health.showText       = true
 	c.health.textFormat     = 'current'
 	c.health.healPrediction = false

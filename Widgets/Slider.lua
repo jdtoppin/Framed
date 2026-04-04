@@ -139,6 +139,7 @@ end
 --- Clamps, snaps, updates visuals. Does NOT fire callbacks.
 --- @param val number
 function SliderMixin:SetValue(val)
+	if(val == nil) then val = self._min end
 	self._value = SnapToStep(val, self._min, self._max, self._step)
 	if(self._orientation == 'HORIZONTAL') then
 		UpdateHorizVisuals(self)

@@ -332,7 +332,9 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 			Settings._panelFrames[p.id] = nil
 		end
 	end
-	-- Rebuild the active panel immediately if it has no refresh callback
+	-- Only rebuild if settings is visible — entering edit mode hides settings
+	-- first, so rebuilding a stale panel would reference a missing unit type
+	if(not Settings._mainFrame or not Settings._mainFrame:IsShown()) then return end
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
 	if(Settings._panelRefresh[activeId]) then

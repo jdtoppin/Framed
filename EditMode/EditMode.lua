@@ -394,10 +394,11 @@ combatFrame:SetScript('OnEvent', function(self, event)
 
 	if(event == 'PLAYER_REGEN_DISABLED') then
 		-- Restore any in-progress drag to last saved position
+		-- (solo frames only — group frames aren't directly dragged)
 		local selKey = EditMode.GetSelectedFrameKey()
 		if(selKey) then
 			for _, def in next, EditMode.FRAME_KEYS do
-				if(def.key == selKey) then
+				if(def.key == selKey and not def.isGroup) then
 					local frame = def.getter()
 					if(frame) then
 						local x = EditCache.Get(selKey, 'position.x') or 0

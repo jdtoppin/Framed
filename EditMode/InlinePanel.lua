@@ -96,6 +96,7 @@ local function BuildPanel(frameKey, targetFrame)
 	-- Create panel frame
 	panel = Widgets.CreateBorderedFrame(overlay, PANEL_WIDTH, PANEL_MIN_H, C.Colors.panel, C.Colors.border)
 	panel:SetFrameLevel(overlay:GetFrameLevel() + 30)
+	panel:SetFrameStrata('TOOLTIP')
 	panel:EnableMouse(true)  -- consume clicks so they don't deselect via overlay
 
 	-- Position relative to target frame
@@ -223,12 +224,22 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 		return
 	end
 
-	-- Find the target frame
+	-- Find the target frame — for group frames, use the catcher (which has
+	-- correct size/position) since the real header may be tiny when solo
 	local targetFrame = nil
+	local isGroup = false
 	for _, def in next, EditMode.FRAME_KEYS do
 		if(def.key == frameKey) then
+			isGroup = def.isGroup
 			targetFrame = def.getter()
 			break
+		end
+	end
+
+	if(isGroup) then
+		local catcher = EditMode.GetCatcher(frameKey)
+		if(catcher) then
+			targetFrame = catcher
 		end
 	end
 

@@ -200,6 +200,10 @@ F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, v
 
 	for _, def in next, EditMode.FRAME_KEYS do
 		if(def.key == frameKey) then
+			-- Skip group frames for position — headers use their own anchor
+			-- (TOPLEFT) and aren't directly dragged in edit mode
+			if(def.isGroup and isPos) then break end
+
 			local frame = def.getter()
 			if(not frame) then break end
 

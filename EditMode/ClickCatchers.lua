@@ -41,16 +41,83 @@ local function ApplySelectedVisuals(catcher)
 	catcher:SetBackdropBorderColor(0, 0, 0, 0)
 end
 
+-- ── Group layout helpers ─────────────────────────────────────
+
+local GROUP_FRAME_COUNTS = {
+	party = 5,
+	raid  = 20,
+	arena = 3,
+	boss  = 4,
+}
+
+local UNITS_PER_COLUMN = 5
+
+local function getGroupBounds(config, frameKey)
+	local count = GROUP_FRAME_COUNTS[frameKey]
+	if(not count) then return nil end
+	local isVertical = (config.orientation == 'vertical')
+	local w = config.width
+	local h = config.height
+	local spacing = config.spacing
+	local cols = math.ceil(count / UNITS_PER_COLUMN)
+	local rows = math.min(count, UNITS_PER_COLUMN)
+	if(isVertical) then
+		return cols * w + (cols - 1) * spacing, rows * h + (rows - 1) * spacing
+	else
+		return rows * w + (rows - 1) * spacing, cols * h + (cols - 1) * spacing
+	end
+end
+
 -- ── Catcher creation ─────────────────────────────────────────
 
 local function CreateCatcher(def, overlay)
 	local frame = def.getter()
-	if(not frame) then return end
-
 	local frameKey = def.key
+
+	-- For group frames, read config to calculate layout bounds
+	if(def.isGroup) then
+		local preset = F.Settings.GetEditingPreset()
+		local config = F.Config:Get('presets.' .. preset .. '.unitConfigs.' .. frameKey)
+		if(not config) then return end
+
+		local totalW, totalH = getGroupBounds(config, frameKey)
+		local anchor = config.anchorPoint
+		if(not totalW or not anchor) then
+			-- Missing layout config — fall back to real frame if available
+			if(not frame) then return end
+		end
+	elseif(not frame) then
+		return
+	end
+
 	local catcher = CreateFrame('Button', nil, overlay, 'BackdropTemplate')
 	catcher:SetFrameLevel(overlay:GetFrameLevel() + 10)
-	catcher:SetAllPoints(frame)
+
+	if(def.isGroup) then
+		local preset = F.Settings.GetEditingPreset()
+		local config = F.Config:Get('presets.' .. preset .. '.unitConfigs.' .. frameKey)
+		local totalW, totalH = getGroupBounds(config, frameKey)
+		local anchor = config.anchorPoint
+		if(totalW and anchor) then
+			-- Apply same SetScale as preview frames so position and size
+			-- render in the same coordinate space
+			local targetScale = frame and frame:GetEffectiveScale() or UIParent:GetEffectiveScale()
+			local parentScale = catcher:GetParent():GetEffectiveScale()
+			if(parentScale > 0) then
+				catcher:SetScale(targetScale / parentScale)
+			end
+			catcher:SetSize(totalW, totalH)
+			local posAnchor = (config.position and config.position.anchor) or 'CENTER'
+			local posX = (config.position and config.position.x) or 0
+			local posY = (config.position and config.position.y) or 0
+			catcher:SetPoint(anchor, UIParent, posAnchor, posX, posY)
+		else
+			catcher:SetAllPoints(frame)
+		end
+	else
+		catcher:SetAllPoints(frame)
+	end
+
 	catcher._frameKey = frameKey
 	catcher._isGroup = def.isGroup
 	catcher._def = def
@@ -226,6 +293,14 @@ local function CreateAllCatchers()
 end
 
 -- ============================================================
+-- Public API
+-- ============================================================
+
+function EditMode.GetCatcher(frameKey)
+	return catchers[frameKey]
+end
+
+-- ============================================================
 -- Event Listeners
 -- ============================================================
 
@@ -235,6 +310,10 @@ end, 'ClickCatchers')
 
 F.EventBus:Register('EDIT_MODE_EXITED', function()
 	DestroyCatchers()
+end, 'ClickCatchers')
+
+F.EventBus:Register('EDIT_MODE_PRESET_SWITCHED', function()
+	CreateAllCatchers()
 end, 'ClickCatchers')
 
 F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)

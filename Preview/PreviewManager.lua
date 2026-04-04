@@ -140,6 +140,8 @@ end
 -- Group preview
 -- ============================================================
 
+local UNITS_PER_COLUMN = 5
+
 local function showGroupPreview(frameKey)
 	local container = getPreviewContainer()
 	if(not container) then return end
@@ -153,19 +155,45 @@ local function showGroupPreview(frameKey)
 
 	local count = GROUP_FRAME_COUNTS[frameKey] or 5
 
-	-- Layout params
+	-- Layout params — match the real header's layout logic (Units/Party.lua, Units/Raid.lua)
 	local orientation = config.orientation
 	local anchorPoint = config.anchorPoint
 	local spacing = config.spacing
+	local w = config.width
+	local h = config.height
 	local isVertical = (orientation == 'vertical')
-	local stepX = isVertical and 0 or (config.width + spacing)
-	local stepY = isVertical and -(config.height + spacing) or 0
 
-	if(anchorPoint == 'TOPRIGHT' or anchorPoint == 'BOTTOMRIGHT') then stepX = -stepX end
-	if(anchorPoint == 'BOTTOMLEFT' or anchorPoint == 'BOTTOMRIGHT') then stepY = -stepY end
+	-- Primary axis: direction each unit steps within a column/row
+	local primaryX, primaryY
+	if(isVertical) then
+		local goDown = (anchorPoint == 'TOPLEFT' or anchorPoint == 'TOPRIGHT')
+		primaryX = 0
+		primaryY = goDown and -(h + spacing) or (h + spacing)
+	else
+		local goRight = (anchorPoint == 'TOPLEFT' or anchorPoint == 'BOTTOMLEFT')
+		primaryX = goRight and (w + spacing) or -(w + spacing)
+		primaryY = 0
+	end
 
+	-- Secondary axis: direction columns/rows grow (perpendicular to primary)
+	local colX, colY
+	if(isVertical) then
+		local goRight = (anchorPoint == 'TOPLEFT' or anchorPoint == 'BOTTOMLEFT')
+		colX = goRight and (w + spacing) or -(w + spacing)
+		colY = 0
+	else
+		local goDown = (anchorPoint == 'TOPLEFT' or anchorPoint == 'TOPRIGHT')
+		colX = 0
+		colY = goDown and -(h + spacing) or (h + spacing)
+	end
+
+	-- Position anchor from config (TOPLEFT for party/raid, CENTER for arena/boss)
+	local posAnchor = (config.position and config.position.anchor) or 'CENTER'
 	local baseX = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
 	local baseY = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
+
+	-- Look up real header frame for scale sync
+	local realFrame = getRealFrame(frameKey)
 
 	for i = 1, count do
 		local fakeUnit = GROUP_FAKES[((i - 1) % #GROUP_FAKES) + 1]
@@ -176,24 +204,42 @@ local function showGroupPreview(frameKey)
 			powerPct = fakeUnit.powerPct or 0.5,
 		}
 
-		local pf = F.PreviewFrame.Create(container, config, varied)
-		local offX = (i - 1) * stepX
-		local offY = (i - 1) * stepY
-		pf:SetPoint(anchorPoint, UIParent, 'CENTER', baseX + offX, baseY + offY)
+		-- Column-based layout: 5 units per column, then wrap to next column
+		local idx = i - 1
+		local col = math.floor(idx / UNITS_PER_COLUMN)
+		local row = idx % UNITS_PER_COLUMN
+		local offX = row * primaryX + col * colX
+		local offY = row * primaryY + col * colY
+
+		local pf = F.PreviewFrame.Create(container, config, varied, realFrame)
+		pf:SetPoint(anchorPoint, UIParent, posAnchor, baseX + offX, baseY + offY)
 		previewFrames[i] = pf
 		pf:Show()
 	end
 
-	-- Party pet preview (single frame showing how pets render)
-	if(frameKey == 'party') then
+	-- Party pet preview — anchored beside the first party frame
+	if(frameKey == 'party' and previewFrames[1]) then
 		local petConfig = getUnitConfig('pet')
 		if(petConfig) then
 			local petFake = { name = 'Party Pet', class = 'HUNTER', healthPct = 0.75, powerPct = 0.6 }
-			local petPf = F.PreviewFrame.Create(container, petConfig, petFake)
-			-- Position after last party frame
-			local petOffX = count * stepX
-			local petOffY = count * stepY
-			petPf:SetPoint(anchorPoint, UIParent, 'CENTER', baseX + petOffX, baseY + petOffY)
+			local petPf = F.PreviewFrame.Create(container, petConfig, petFake, realFrame)
+			-- Match real pet anchor: beside owner (right for vertical TOPLEFT, below for horizontal)
+			local gap = 2
+			if(isVertical) then
+				local onLeft = (anchorPoint == 'TOPRIGHT' or anchorPoint == 'BOTTOMRIGHT')
+				if(onLeft) then
+					petPf:SetPoint('TOPRIGHT', previewFrames[1], 'TOPLEFT', -gap, 0)
+				else
+					petPf:SetPoint('TOPLEFT', previewFrames[1], 'TOPRIGHT', gap, 0)
+				end
+			else
+				local above = (anchorPoint == 'BOTTOMLEFT' or anchorPoint == 'BOTTOMRIGHT')
+				if(above) then
+					petPf:SetPoint('BOTTOMLEFT', previewFrames[1], 'TOPLEFT', 0, gap)
+				else
+					petPf:SetPoint('TOPLEFT', previewFrames[1], 'BOTTOMLEFT', 0, -gap)
+				end
+			end
 			previewFrames[count + 1] = petPf
 			petPf:Show()
 		end

@@ -480,15 +480,13 @@ end
 function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 	local frame = CreateFrame('Frame', nil, parent)
 
-	-- Match real frame's effective scale so config dimensions render at the same
-	-- visual size. Use config width/height (with EditCache overlay) so live
-	-- slider changes are reflected immediately.
-	if(realFrame) then
-		local realScale = realFrame:GetEffectiveScale()
-		local parentScale = frame:GetParent():GetEffectiveScale()
-		if(parentScale > 0) then
-			frame:SetScale(realScale / parentScale)
-		end
+	-- Match effective scale so config dimensions render at the correct visual
+	-- size. For solo frames, sync to the real frame's scale. For group frames
+	-- (no realFrame), sync to UIParent's scale since headers anchor to UIParent.
+	local targetScale = realFrame and realFrame:GetEffectiveScale() or UIParent:GetEffectiveScale()
+	local parentScale = frame:GetParent():GetEffectiveScale()
+	if(parentScale > 0) then
+		frame:SetScale(targetScale / parentScale)
 	end
 	Widgets.SetSize(frame, config.width, config.height)
 
