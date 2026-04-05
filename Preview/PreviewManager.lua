@@ -84,6 +84,11 @@ local function getUnitConfig(frameKey)
 	return config
 end
 
+local function getAuraConfig(frameKey)
+	local preset = F.Settings.GetEditingPreset()
+	return F.Config:Get('presets.' .. preset .. '.auras.' .. frameKey)
+end
+
 -- ============================================================
 -- Preview lifecycle
 -- ============================================================
@@ -134,7 +139,8 @@ local function showSoloPreview(frameKey)
 	local fakeUnit = fakeFn and fakeFn() or { name = frameKey, class = 'WARRIOR', healthPct = 0.8, powerPct = 0.5 }
 
 	local realFrame = getRealFrame(frameKey)
-	local pf = F.PreviewFrame.Create(container, config, fakeUnit, realFrame)
+	local auraConfig = getAuraConfig(frameKey)
+	local pf = F.PreviewFrame.Create(container, config, fakeUnit, realFrame, auraConfig)
 
 	-- Position centered on the real frame; size comes from config via Widgets.SetSize
 	if(realFrame) then
@@ -207,6 +213,7 @@ local function showGroupPreview(frameKey)
 
 	-- Look up real header frame for scale sync
 	local realFrame = getRealFrame(frameKey)
+	local auraConfig = getAuraConfig(frameKey)
 
 	for i = 1, count do
 		local fakeUnit = GROUP_FAKES[((i - 1) % #GROUP_FAKES) + 1]
@@ -224,7 +231,7 @@ local function showGroupPreview(frameKey)
 		local offX = row * primaryX + col * colX
 		local offY = row * primaryY + col * colY
 
-		local pf = F.PreviewFrame.Create(container, config, varied, realFrame)
+		local pf = F.PreviewFrame.Create(container, config, varied, realFrame, auraConfig)
 		pf:SetPoint(anchorPoint, UIParent, posAnchor, baseX + offX, baseY + offY)
 		previewFrames[i] = pf
 		pf:Show()
@@ -235,7 +242,8 @@ local function showGroupPreview(frameKey)
 		local petConfig = getUnitConfig('pet')
 		if(petConfig) then
 			local petFake = { name = 'Party Pet', class = 'HUNTER', healthPct = 0.75, powerPct = 0.6 }
-			local petPf = F.PreviewFrame.Create(container, petConfig, petFake, realFrame)
+			local petAuraConfig = getAuraConfig('pet')
+			local petPf = F.PreviewFrame.Create(container, petConfig, petFake, realFrame, petAuraConfig)
 			-- Match real pet anchor: beside owner (right for vertical TOPLEFT, below for horizontal)
 			local gap = 2
 			if(isVertical) then
@@ -307,3 +315,12 @@ F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, v
 	if(frameKey ~= activeFrameKey) then return end
 	PM.ShowPreview(activeFrameKey)
 end, 'PreviewManager.cacheChanged')
+
+F.EventBus:Register('EDIT_MODE_AURA_DIM', function(frameKey, activeGroupId)
+	if(frameKey ~= activeFrameKey) then return end
+	for _, pf in next, previewFrames do
+		if(pf.SetAuraGroupAlpha) then
+			pf:SetAuraGroupAlpha(activeGroupId)
+		end
+	end
+end, 'PreviewManager.auraDim')

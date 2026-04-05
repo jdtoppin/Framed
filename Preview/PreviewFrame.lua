@@ -399,10 +399,187 @@ local function BuildHighlights(frame, config)
 end
 
 -- ============================================================
+-- Aura indicator builders
+-- ============================================================
+
+local PI = F.PreviewIndicators
+
+local BUFF_TYPE_MAP = {
+	[C.IndicatorType.ICON]      = 'Icon',
+	[C.IndicatorType.ICONS]     = 'Icons',
+	[C.IndicatorType.BAR]       = 'Bar',
+	[C.IndicatorType.BARS]      = 'Bars',
+	[C.IndicatorType.BORDER]    = 'BorderGlow',
+	[C.IndicatorType.RECTANGLE] = 'ColorRect',
+	[C.IndicatorType.OVERLAY]   = 'Overlay',
+}
+
+local function BuildBuffIndicators(frame, buffsConfig)
+	if(not buffsConfig or not buffsConfig.enabled) then return nil end
+
+	local groupFrame = CreateFrame('Frame', nil, frame)
+	groupFrame:SetAllPoints(frame)
+	groupFrame._elements = {}
+	local fakeIcons = PI.GetFakeIcons('buffs')
+
+	for name, indCfg in next, buffsConfig.indicators or {} do
+		if(indCfg.enabled ~= false) then
+			local indType = indCfg.type
+			local pt, relFrame, relPt, offX, offY = PI.UnpackAnchor(indCfg.anchor, { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 })
+
+			if(indType == C.IndicatorType.ICON) then
+				local icon = PI.CreateIcon(groupFrame, fakeIcons[1], indCfg.iconWidth, indCfg.iconHeight, indCfg)
+				icon:SetPoint(pt, frame, relPt, offX, offY)
+				groupFrame._elements[#groupFrame._elements + 1] = icon
+
+			elseif(indType == C.IndicatorType.ICONS) then
+				local max = math.min(indCfg.maxDisplayed or 3, 5)
+				local w = indCfg.iconWidth or 14
+				local h = indCfg.iconHeight or 14
+				for i = 1, max do
+					local icon = PI.CreateIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], w, h, indCfg)
+					local dx, dy = PI.OrientOffset(indCfg.orientation or 'RIGHT', i, w, h, indCfg.spacingX, indCfg.spacingY)
+					icon:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
+					groupFrame._elements[#groupFrame._elements + 1] = icon
+				end
+
+			elseif(indType == C.IndicatorType.BAR) then
+				local bar = PI.CreateBar(groupFrame, indCfg)
+				bar:SetPoint(pt, frame, relPt, offX, offY)
+				groupFrame._elements[#groupFrame._elements + 1] = bar
+
+			elseif(indType == C.IndicatorType.BARS) then
+				local max = math.min(indCfg.maxDisplayed or 3, 5)
+				for i = 1, max do
+					local bar = PI.CreateBar(groupFrame, indCfg)
+					local dx, dy = PI.OrientOffset(indCfg.orientation or 'DOWN', i,
+						indCfg.barWidth or 50, indCfg.barHeight or 4, indCfg.spacingX, indCfg.spacingY)
+					bar:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
+					groupFrame._elements[#groupFrame._elements + 1] = bar
+				end
+
+			elseif(indType == C.IndicatorType.BORDER) then
+				local bg = PI.CreateBorderGlow(frame, indCfg)
+				groupFrame._elements[#groupFrame._elements + 1] = bg
+
+			elseif(indType == C.IndicatorType.RECTANGLE) then
+				local rect = PI.CreateColorRect(groupFrame, indCfg)
+				rect:SetPoint(pt, frame, relPt, offX, offY)
+				groupFrame._elements[#groupFrame._elements + 1] = rect
+
+			elseif(indType == C.IndicatorType.OVERLAY) then
+				local overlay = PI.CreateOverlay(frame._healthWrapper, indCfg)
+				if(overlay) then
+					groupFrame._elements[#groupFrame._elements + 1] = overlay
+				end
+			end
+		end
+	end
+
+	return groupFrame
+end
+
+local BORDICON_GROUPS = { 'debuffs', 'raidDebuffs', 'externals', 'defensives' }
+
+local GROUP_DISPEL_TYPES = {
+	debuffs      = { 'Magic', 'Curse', 'Poison' },
+	raidDebuffs  = { 'Magic', 'Magic' },
+	externals    = { nil, nil },
+	defensives   = { nil, nil },
+}
+
+local function BuildBorderIconGroup(frame, groupKey, groupCfg)
+	if(not groupCfg or not groupCfg.enabled) then return nil end
+
+	local groupFrame = CreateFrame('Frame', nil, frame)
+	groupFrame:SetAllPoints(frame)
+	groupFrame._elements = {}
+
+	local pt, _, relPt, offX, offY = PI.UnpackAnchor(groupCfg.anchor)
+	local size = groupCfg.iconSize or 14
+	local max = math.min(groupCfg.maxDisplayed or 3, 5)
+	local orient = groupCfg.orientation or 'RIGHT'
+	local fakeIcons = PI.GetFakeIcons(groupKey)
+	local fakeDispels = GROUP_DISPEL_TYPES[groupKey] or {}
+	local borderThick = groupCfg.borderThickness or 2
+
+	for i = 1, max do
+		local dispel = fakeDispels[((i-1) % math.max(#fakeDispels, 1)) + 1]
+		local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], size, borderThick, dispel, groupCfg)
+		local dx, dy = PI.OrientOffset(orient, i, size, size, 2, 2)
+		bi:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
+		groupFrame._elements[#groupFrame._elements + 1] = bi
+	end
+
+	return groupFrame
+end
+
+local function BuildDispellableGroup(frame, dispCfg)
+	if(not dispCfg or not dispCfg.enabled) then return nil end
+
+	local groupFrame = CreateFrame('Frame', nil, frame)
+	groupFrame:SetAllPoints(frame)
+	groupFrame._elements = {}
+
+	local pt, _, relPt, offX, offY = PI.UnpackAnchor(dispCfg.anchor)
+	local size = dispCfg.iconSize or 14
+	local bi = PI.CreateBorderIcon(groupFrame, PI.GetFakeIcons('dispellable')[1], size, 2, 'Magic', dispCfg)
+	bi:SetPoint(pt, frame, relPt, offX, offY)
+	groupFrame._elements[1] = bi
+
+	-- Health bar overlay (dispel highlight)
+	if(frame._healthWrapper and dispCfg.highlightType) then
+		local hlType = dispCfg.highlightType
+		local hlColor = PI.DISPEL_COLORS.Magic or { 0.2, 0.6, 1.0 }
+		local hl = frame._healthWrapper:CreateTexture(nil, 'OVERLAY')
+		if(hlType == 'gradient_full' or hlType == 'gradient_half') then
+			hl:SetAllPoints(frame._healthWrapper)
+			hl:SetColorTexture(hlColor[1], hlColor[2], hlColor[3], 0.3)
+			if(hlType == 'gradient_half') then
+				hl:ClearAllPoints()
+				hl:SetPoint('TOP', frame._healthWrapper, 'TOP', 0, 0)
+				hl:SetPoint('BOTTOMRIGHT', frame._healthWrapper, 'BOTTOMRIGHT', 0, 0)
+				hl:SetWidth(frame._healthWrapper:GetWidth() * 0.5)
+			end
+		else
+			hl:SetAllPoints(frame._healthWrapper)
+			hl:SetColorTexture(hlColor[1], hlColor[2], hlColor[3], 0.2)
+		end
+		groupFrame._elements[#groupFrame._elements + 1] = hl
+	end
+
+	return groupFrame
+end
+
+local function BuildSimpleIconGroup(frame, groupKey, cfg)
+	if(not cfg or not cfg.enabled) then return nil end
+
+	local groupFrame = CreateFrame('Frame', nil, frame)
+	groupFrame:SetAllPoints(frame)
+	groupFrame._elements = {}
+
+	local pt, _, relPt, offX, offY = PI.UnpackAnchor(cfg.anchor)
+	local size = cfg.iconSize or 16
+	local fakeIcons = PI.GetFakeIcons(groupKey)
+
+	if(groupKey == 'missingBuffs') then
+		local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[1], size, 1, nil, { showCooldown = false, showDuration = false })
+		bi:SetPoint(pt, frame, relPt, offX, offY)
+		groupFrame._elements[1] = bi
+	else
+		local icon = PI.CreateIcon(groupFrame, fakeIcons[1], size, size, { showCooldown = false, durationMode = 'Never', showStacks = false })
+		icon:SetPoint(pt, frame, relPt, offX, offY)
+		groupFrame._elements[1] = icon
+	end
+
+	return groupFrame
+end
+
+-- ============================================================
 -- Shared: build all elements and apply fake data
 -- ============================================================
 
-local function BuildAllElements(frame, config, fakeUnit)
+local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 	-- Dark background (match StyleBuilder)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(frame)
@@ -417,6 +594,32 @@ local function BuildAllElements(frame, config, fakeUnit)
 	BuildStatusIcons(frame, config)
 	BuildCastbar(frame, config)
 	BuildHighlights(frame, config)
+
+	-- Build aura indicators
+	frame._auraGroups = {}
+	if(auraConfig) then
+		frame._auraGroups.buffs = BuildBuffIndicators(frame, auraConfig.buffs)
+		for _, groupKey in next, BORDICON_GROUPS do
+			frame._auraGroups[groupKey] = BuildBorderIconGroup(frame, groupKey, auraConfig[groupKey])
+		end
+		frame._auraGroups.dispellable = BuildDispellableGroup(frame, auraConfig.dispellable)
+		frame._auraGroups.missingBuffs = BuildSimpleIconGroup(frame, 'missingBuffs', auraConfig.missingBuffs)
+		frame._auraGroups.privateAuras = BuildSimpleIconGroup(frame, 'privateAuras', auraConfig.privateAuras)
+		frame._auraGroups.targetedSpells = BuildSimpleIconGroup(frame, 'targetedSpells', auraConfig.targetedSpells)
+		frame._auraGroups.lossOfControl = BuildSimpleIconGroup(frame, 'lossOfControl', auraConfig.lossOfControl)
+		frame._auraGroups.crowdControl = BuildSimpleIconGroup(frame, 'crowdControl', auraConfig.crowdControl)
+	end
+
+	function frame:SetAuraGroupAlpha(activeGroupId)
+		if(not self._auraGroups) then return end
+		for groupId, groupFrame in next, self._auraGroups do
+			if(activeGroupId == nil or groupId == activeGroupId) then
+				groupFrame:SetAlpha(1.0)
+			else
+				groupFrame:SetAlpha(0.2)
+			end
+		end
+	end
 
 	-- Apply fake unit data with config-aware colors and text formats
 	if(fakeUnit) then
@@ -460,7 +663,7 @@ local function DestroyChildren(frame)
 	local keys = {
 		'_bg', '_healthWrapper', '_healthBar', '_healthText', '_healthTextClassColor',
 		'_powerWrapper', '_powerBar', '_powerText', '_powerTextClassColor',
-		'_nameText', '_castbar', '_targetHighlight', '_iconOverlay',
+		'_nameText', '_castbar', '_targetHighlight', '_iconOverlay', '_auraGroups',
 	}
 	for _, key in next, keys do
 		frame[key] = nil
@@ -477,7 +680,7 @@ end
 -- Public: Create preview frame
 -- ============================================================
 
-function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
+function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame, auraConfig)
 	local frame = CreateFrame('Frame', nil, parent)
 
 	-- Match effective scale so config dimensions render at the correct visual
@@ -490,7 +693,7 @@ function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame)
 	end
 	Widgets.SetSize(frame, config.width, config.height)
 
-	BuildAllElements(frame, config, fakeUnit)
+	BuildAllElements(frame, config, fakeUnit, auraConfig)
 
 	return frame
 end
@@ -499,8 +702,8 @@ end
 -- Public: Rebuild preview in-place with new config
 -- ============================================================
 
-function F.PreviewFrame.UpdateFromConfig(frame, config)
+function F.PreviewFrame.UpdateFromConfig(frame, config, auraConfig)
 	DestroyChildren(frame)
 	Widgets.SetSize(frame, config.width, config.height)
-	BuildAllElements(frame, config, frame._fakeUnit)
+	BuildAllElements(frame, config, frame._fakeUnit, auraConfig)
 end
