@@ -29,7 +29,9 @@ local function set(key, value)
 		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.dispellable.' .. key, value)
 	end
 	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	if(F.EventBus) then
+	-- Config:Set already fires CONFIG_CHANGED with the full path;
+	-- fire broad event only for non-enabled keys to avoid double-handling
+	if(key ~= 'enabled' and F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.dispellable')
 	end
 end
@@ -66,6 +68,15 @@ F.Settings.RegisterPanel({
 		descFS:SetText('Highlight units that have dispellable debuffs. Shows an icon and a colored frame highlight.')
 		descFS:SetWordWrap(true)
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
+
+		-- ── Enabled toggle ─────────────────────────────────────
+		local enableCheck = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
+			set('enabled', checked)
+		end)
+		enableCheck:SetChecked(get('enabled'))
+		enableCheck:ClearAllPoints()
+		Widgets.SetPoint(enableCheck, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - CHECK_H - C.Spacing.normal
 
 		-- ── Only show dispellable by me ─────────────────────────
 		local dispCheck = Widgets.CreateCheckButton(content, 'Only show dispellable by me', function(checked)

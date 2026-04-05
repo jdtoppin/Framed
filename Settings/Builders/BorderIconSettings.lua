@@ -25,7 +25,7 @@ local function makeConfigHelpers(unitType, configKey)
 			F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.' .. configKey .. '.' .. key, value)
 		end
 		if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-		if(F.EventBus) then
+		if(key ~= 'enabled' and F.EventBus) then
 			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.' .. configKey)
 		end
 	end
@@ -77,6 +77,15 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 
 		local visCard, visInner, visCardY
 		visCard, visInner, visCardY = Widgets.StartCard(parent, width, yOffset)
+
+		-- Enabled toggle
+		local enableCheck = Widgets.CreateCheckButton(visInner, 'Enabled', function(checked)
+			set('enabled', checked)
+		end)
+		enableCheck:SetChecked(get('enabled'))
+		enableCheck:ClearAllPoints()
+		Widgets.SetPoint(enableCheck, 'TOPLEFT', visInner, 'TOPLEFT', 0, visCardY)
+		visCardY = visCardY - CHECK_H - C.Spacing.normal
 
 		local visDD = Widgets.CreateDropdown(visInner, WIDGET_W)
 		visDD:SetItems({

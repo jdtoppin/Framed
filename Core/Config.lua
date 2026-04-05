@@ -29,6 +29,8 @@ local accountDefaults = {
 		mouseoverHighlightWidth = 2,
 		pinnedCards = {},
 		pinnedAppearanceCards = {},
+		editModeGridSnap = true,
+		editModeAnimate = false,
 	},
 	presets = {},       -- populated by Presets/Defaults.lua
 	profiles = {},

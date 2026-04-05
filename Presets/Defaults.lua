@@ -367,7 +367,7 @@ local function soloUnitAuras()
 	return {
 		player       = A.Solo(14, 6),
 		target       = A.Solo(14, 6),
-		targettarget = A.Minimal(),
+		targettarget = A.Solo(14, 3),
 		focus        = A.Solo(14, 6),
 		pet          = A.Minimal(),
 		boss         = A.Boss(),

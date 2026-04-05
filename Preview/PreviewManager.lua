@@ -305,6 +305,16 @@ function PM.HidePreview()
 	activeDimGroup = nil
 end
 
+function PM.IsAnimationEnabled()
+	return F.Config:Get('general.editModeAnimate')
+end
+
+function PM.SetAnimationEnabled(enabled)
+	if(activeFrameKey) then
+		PM.ShowPreview(activeFrameKey)
+	end
+end
+
 function PM.GetActiveFrameKey()
 	return activeFrameKey
 end

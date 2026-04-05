@@ -92,11 +92,41 @@ end
 -- Aura sets by unit category
 -- ============================================================
 
--- Solo/boss units: buffs + debuffs only
+-- Solo units: buffs + debuffs + defensives/externals (disabled by default)
 function F.AuraDefaults.Solo(debuffSize, debuffMax)
 	return {
 		buffs = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = debuffConfig(debuffSize or 14, debuffMax or 6),
+		externals = {
+			enabled        = false,
+			iconSize       = 14,
+			maxDisplayed   = 2,
+			showDuration   = true,
+			showAnimation  = true,
+			orientation    = 'DOWN',
+			anchor         = { 'RIGHT', nil, 'RIGHT', 2, 5 },
+			frameLevel     = 10,
+			visibilityMode = 'all',
+			playerColor    = { 0, 0.8, 0 },
+			otherColor     = { 1, 0.85, 0 },
+			stackFont      = stackFont(),
+			durationFont   = durationFont(),
+		},
+		defensives = {
+			enabled        = false,
+			iconSize       = 14,
+			maxDisplayed   = 2,
+			showDuration   = true,
+			showAnimation  = true,
+			orientation    = 'DOWN',
+			anchor         = { 'LEFT', nil, 'LEFT', -2, 5 },
+			frameLevel     = 10,
+			visibilityMode = 'all',
+			playerColor    = { 0, 0.8, 0 },
+			otherColor     = { 1, 0.85, 0 },
+			stackFont      = stackFont(),
+			durationFont   = durationFont(),
+		},
 		lossOfControl = {
 			enabled    = false,
 			iconSize   = 22,

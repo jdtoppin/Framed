@@ -267,6 +267,12 @@ local function buildSidebarContent(sidebar, contentParent)
 	-- References for dynamic elements updated by EDITING_PRESET_CHANGED
 	local groupFrameBtn
 
+	-- Aura panels hidden for unit types that lack the config
+	local HIDDEN_AURA_PANELS = {
+		pet = { externals = true, defensives = true },
+	}
+	local hiddenAuraBtns = {}
+
 	for _, sectionId in next, orderedSections do
 		-- Find section definition
 		local sectionLabel = sectionId
@@ -395,6 +401,11 @@ local function buildSidebarContent(sidebar, contentParent)
 						else
 							btn:Hide()
 						end
+					end
+
+					-- Track aura panels that may be hidden per unit type
+					if(panel.id == 'externals' or panel.id == 'defensives') then
+						hiddenAuraBtns[panel.id] = btn
 					end
 
 					childYOffset = childYOffset - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
@@ -572,6 +583,25 @@ local function buildSidebarContent(sidebar, contentParent)
 			end
 		end
 	end, 'Sidebar')
+
+	-- ── EDITING_UNIT_TYPE_CHANGED listener ───────────────────
+	F.EventBus:Register('EDITING_UNIT_TYPE_CHANGED', function(unitType)
+		local hiddenSet = HIDDEN_AURA_PANELS[unitType] or {}
+		local changed = false
+		for panelId, btn in next, hiddenAuraBtns do
+			local shouldHide = hiddenSet[panelId]
+			if(shouldHide and btn:IsShown()) then
+				btn:Hide()
+				changed = true
+			elseif(not shouldHide and not btn:IsShown()) then
+				btn:Show()
+				changed = true
+			end
+		end
+		if(changed and sidebar._aurasContainer and sidebar._aurasContainer._recalc) then
+			sidebar._aurasContainer._recalc(true)
+		end
+	end, 'Sidebar.UnitType')
 
 	-- Deferred highlight fix — button widths aren't final until first layout
 	C_Timer.After(0, function()

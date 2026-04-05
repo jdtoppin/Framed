@@ -66,6 +66,7 @@ end
 --- @param unitType string
 function Settings.SetEditingUnitType(unitType)
 	Settings._editingUnitType = unitType
+	F.EventBus:Fire('EDITING_UNIT_TYPE_CHANGED', unitType)
 end
 
 -- ============================================================

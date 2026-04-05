@@ -46,35 +46,48 @@ local function BuildTopBar()
 	editLabel:SetText('Editing: ' .. EditMode.GetSessionPreset())
 	topBar._editLabel = editLabel
 
-	-- ── Grid Snap toggle ────────────────────────────────────
-	local snapBtn = Widgets.CreateButton(topBar, 'Grid Snap', 'widget', 80, BUTTON_HEIGHT)
-	topBar._snapBtn = snapBtn
-	topBar._gridSnap = true
-
-	local function UpdateSnapButton()
-		if(topBar._gridSnap) then
+	-- ── Helper: toggle button visual state ──────────────────
+	local function ApplyToggleVisuals(btn, active)
+		if(active) then
 			local accent = C.Colors.accent
-			snapBtn:SetBackdropColor(C.Colors.accentDim[1], C.Colors.accentDim[2], C.Colors.accentDim[3], C.Colors.accentDim[4] or 1)
-			snapBtn:SetBackdropBorderColor(accent[1], accent[2], accent[3], accent[4] or 1)
-			snapBtn._label:SetTextColor(1, 1, 1, 1)
-			snapBtn._groupSelected = true   -- prevent OnLeave from resetting visuals
+			btn:SetBackdropColor(C.Colors.accentDim[1], C.Colors.accentDim[2], C.Colors.accentDim[3], C.Colors.accentDim[4] or 1)
+			btn:SetBackdropBorderColor(accent[1], accent[2], accent[3], accent[4] or 1)
+			btn._label:SetTextColor(1, 1, 1, 1)
+			btn._groupSelected = true
 		else
-			snapBtn._groupSelected = false
-			local s = snapBtn._scheme
-			snapBtn:SetBackdropColor(s.bg[1], s.bg[2], s.bg[3], s.bg[4] or 1)
+			btn._groupSelected = false
+			local s = btn._scheme
+			btn:SetBackdropColor(s.bg[1], s.bg[2], s.bg[3], s.bg[4] or 1)
 			local bc = s.border
-			snapBtn:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
+			btn:SetBackdropBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
 			local tc = s.textColor
-			snapBtn._label:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+			btn._label:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
 		end
 	end
 
+	-- ── Grid Snap toggle ────────────────────────────────────
+	local snapBtn = Widgets.CreateButton(topBar, 'Grid Snap', 'widget', 80, BUTTON_HEIGHT)
+	topBar._snapBtn = snapBtn
+
 	snapBtn:SetOnClick(function()
-		topBar._gridSnap = not topBar._gridSnap
-		UpdateSnapButton()
-		F.EventBus:Fire('EDIT_MODE_GRID_SNAP_CHANGED', topBar._gridSnap)
+		local newVal = not F.Config:Get('general.editModeGridSnap')
+		F.Config:Set('general.editModeGridSnap', newVal)
+		ApplyToggleVisuals(snapBtn, newVal)
+		F.EventBus:Fire('EDIT_MODE_GRID_SNAP_CHANGED', newVal)
 	end)
-	UpdateSnapButton()
+	ApplyToggleVisuals(snapBtn, F.Config:Get('general.editModeGridSnap'))
+
+	-- ── Animate toggle ──────────────────────────────────────
+	local animBtn = Widgets.CreateButton(topBar, 'Animate', 'widget', 80, BUTTON_HEIGHT)
+	topBar._animBtn = animBtn
+
+	animBtn:SetOnClick(function()
+		local newVal = not F.Config:Get('general.editModeAnimate')
+		F.Config:Set('general.editModeAnimate', newVal)
+		ApplyToggleVisuals(animBtn, newVal)
+		F.PreviewManager.SetAnimationEnabled(newVal)
+	end)
+	ApplyToggleVisuals(animBtn, F.Config:Get('general.editModeAnimate'))
 
 	-- ── Save button ─────────────────────────────────────────
 	local saveBtn = Widgets.CreateButton(topBar, 'Save', 'accent', 70, BUTTON_HEIGHT)
@@ -89,7 +102,7 @@ local function BuildTopBar()
 	end)
 
 	-- ── Layout: chain items left-to-right, measure, size bar ──
-	local allItems = { presetDD, editLabel, snapBtn, saveBtn, cancelBtn }
+	local allItems = { presetDD, editLabel, snapBtn, animBtn, saveBtn, cancelBtn }
 	local totalW = ITEM_GAP  -- left padding
 
 	for _, item in next, allItems do
@@ -131,7 +144,7 @@ end
 
 --- Get current grid snap state.
 function EditMode.IsGridSnapEnabled()
-	return topBar and topBar._gridSnap or false
+	return F.Config:Get('general.editModeGridSnap')
 end
 
 -- ============================================================

@@ -29,7 +29,7 @@ local function set(key, value)
 		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.targetedSpells.' .. key, value)
 	end
 	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	if(F.EventBus) then
+	if(key ~= 'enabled' and F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.targetedSpells')
 	end
 end
@@ -66,6 +66,15 @@ F.Settings.RegisterPanel({
 		descFS:SetText('Highlight units that are casting targeted spells at the group. Supports icon display, border glow, or both.')
 		descFS:SetWordWrap(true)
 		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.tight
+
+		-- ── Enabled toggle ─────────────────────────────────────
+		local enableCheck = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
+			set('enabled', checked)
+		end)
+		enableCheck:SetChecked(get('enabled'))
+		enableCheck:ClearAllPoints()
+		Widgets.SetPoint(enableCheck, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - CHECK_H - C.Spacing.normal
 
 		-- Reload notice
 		local reloadInfo = Widgets.CreateInfoIcon(content,

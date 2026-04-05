@@ -129,6 +129,9 @@ SlashCmdList['FRAMED'] = function(msg)
 		d._message:SetTextColor(1, 0.2, 0.2)
 		d._btnYes._label:SetText('Yes, Reset Everything')
 		d._btnNo._label:SetText('Cancel')
+		d._activeWidth = 400
+		d:_LayoutButtons('confirm')
+		d:_UpdateHeight()
 	elseif(cmd == 'restore') then
 		if(not FramedBackupDB or not FramedBackupDB.db) then
 			-- Fall back to legacy backup format (pre-timestamped plain table)

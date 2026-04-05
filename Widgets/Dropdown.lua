@@ -4,8 +4,6 @@ local F = Framed
 local Widgets = Framed.Widgets
 local C = Framed.Constants
 
--- print('|cff00ccffDD|r Dropdown.lua loaded')  -- DEBUG: removed
-
 -- ============================================================
 -- Singleton Dropdown List (shared across all dropdowns)
 -- ============================================================
@@ -328,7 +326,6 @@ local function GetOrCreateRow(index)
 	swatch:Hide()
 	row._swatch = swatch
 
-	-- Label
 	local label = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textNormal)
 	label:SetPoint('LEFT',  row, 'LEFT', 4, 0)
 	label:SetPoint('RIGHT', row, 'RIGHT', -4, 0)
@@ -367,23 +364,24 @@ OpenDropdownList = function(owner)
 		showCount = 1
 	end
 
-	local ownerW = owner:GetWidth()
-	local listH  = showCount * ITEM_HEIGHT + LIST_PAD * 2
+	-- Convert owner width from owner-scale to list-scale so the list
+	-- visually matches the button width across different UI scales.
+	local ownerScale = owner:GetEffectiveScale()
+	local listScale  = dropdownList:GetEffectiveScale()
+	local ownerW     = owner:GetWidth() * ownerScale / listScale
+	local listH      = showCount * ITEM_HEIGHT + LIST_PAD * 2
+	local scrollbarW = needsScroll and (SCROLLBAR_W + SCROLLBAR_GAP) or 0
 
-	-- Anchor TOPLEFT only and set explicit size to match the owner width.
-	-- (TOPLEFT+TOPRIGHT with SetClampedToScreen can stretch the list.)
 	dropdownList:ClearAllPoints()
 	dropdownList:SetPoint('TOPLEFT', owner, 'BOTTOMLEFT', 0, -2)
 	dropdownList:SetSize(ownerW, listH)
+	Widgets.ApplyBackdrop(dropdownList, C.Colors.panel, C.Colors.border)
 
-	-- Adjust scroll frame right edge for scrollbar
-	local sfRight = needsScroll and (-LIST_PAD - SCROLLBAR_W - SCROLLBAR_GAP) or -LIST_PAD
-	dropdownList._scrollFrame:SetPoint('BOTTOMRIGHT', dropdownList, 'BOTTOMRIGHT', sfRight, LIST_PAD)
-
-	-- Content width matches the scroll frame inner area
-	local contentW = ownerW - LIST_PAD * 2 - (needsScroll and (SCROLLBAR_W + SCROLLBAR_GAP) or 0)
-	dropdownList._content:SetWidth(contentW)
-
+	local contentW = ownerW - LIST_PAD * 2 - scrollbarW
+	dropdownList._scrollFrame:ClearAllPoints()
+	dropdownList._scrollFrame:SetPoint('TOPLEFT', dropdownList, 'TOPLEFT', LIST_PAD, -LIST_PAD)
+	dropdownList._scrollFrame:SetSize(contentW, listH - LIST_PAD * 2)
+	dropdownList._content:SetSize(contentW, listH - LIST_PAD * 2)
 
 	-- Hide all existing rows first
 	for _, row in next, dropdownList._rows do
@@ -397,7 +395,7 @@ OpenDropdownList = function(owner)
 		local row = GetOrCreateRow(1)
 		row:ClearAllPoints()
 		row:SetPoint('TOPLEFT', dropdownList._content, 'TOPLEFT', 0, 0)
-		row:SetPoint('RIGHT', dropdownList._content, 'RIGHT', 0, 0)
+		row:SetWidth(contentW)
 		row._swatch:Hide()
 		row._label:SetPoint('LEFT', row, 'LEFT', 4, 0)
 		row._label:SetText('(empty)')
@@ -407,7 +405,6 @@ OpenDropdownList = function(owner)
 		row:Show()
 		dropdownList._content:SetHeight(ITEM_HEIGHT)
 	else
-		-- Create ALL rows (not just visible), scroll frame handles clipping
 		for i = 1, totalCount do
 			local item = items[i]
 			if(not item) then break end
@@ -415,7 +412,7 @@ OpenDropdownList = function(owner)
 			local row = GetOrCreateRow(i)
 			row:ClearAllPoints()
 			row:SetPoint('TOPLEFT', dropdownList._content, 'TOPLEFT', 0, -(i - 1) * ITEM_HEIGHT)
-			row:SetPoint('RIGHT', dropdownList._content, 'RIGHT', 0, 0)
+			row:SetWidth(contentW)
 
 			-- Reset any custom decorations from previous use
 			if(row._customDecorations) then
@@ -472,6 +469,37 @@ OpenDropdownList = function(owner)
 		end
 
 		dropdownList._content:SetHeight(totalCount * ITEM_HEIGHT)
+	end
+
+	-- ── Pass 2: measure actual labels, expand if needed ─────
+	-- Use GetUnboundedStringWidth on each label — returns the natural
+	-- text width regardless of anchor constraints or deferred layout.
+	if(totalCount > 0) then
+		local maxRowW = 0
+		for i = 1, totalCount do
+			local row = dropdownList._rows[i]
+			if(not row or not row:IsShown()) then break end
+			local label = row._label
+			local labelLeft = row._swatch:IsShown() and 30 or 4
+			local tw = label:GetUnboundedStringWidth()
+			local rowNeed = tw + labelLeft + 4
+			if(rowNeed > maxRowW) then maxRowW = rowNeed end
+		end
+
+		local listW = math.max(ownerW, maxRowW + LIST_PAD * 2 + scrollbarW)
+		if(listW > ownerW) then
+			contentW = listW - LIST_PAD * 2 - scrollbarW
+			-- Resize list, scroll frame, content, and all rows
+			dropdownList:SetSize(listW, listH)
+			Widgets.ApplyBackdrop(dropdownList, C.Colors.panel, C.Colors.border)
+			dropdownList._scrollFrame:SetSize(contentW, listH - LIST_PAD * 2)
+			dropdownList._content:SetWidth(contentW)
+			for i = 1, totalCount do
+				local row = dropdownList._rows[i]
+				if(not row or not row:IsShown()) then break end
+				row:SetWidth(contentW)
+			end
+		end
 	end
 
 	-- Scroll the selected item into view
