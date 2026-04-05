@@ -167,7 +167,7 @@ local function EnsureDropdownList()
 
 	-- Full-screen invisible blocker behind the list
 	dropdownBlocker = CreateFrame('Frame', 'FramedDropdownBlocker', UIParent)
-	dropdownBlocker:SetFrameStrata('FULLSCREEN_DIALOG')
+	dropdownBlocker:SetFrameStrata('TOOLTIP')
 	dropdownBlocker:SetFrameLevel(90)
 	dropdownBlocker:SetAllPoints(UIParent)
 	dropdownBlocker:EnableMouse(true)
@@ -178,7 +178,7 @@ local function EnsureDropdownList()
 
 	-- The list frame itself
 	dropdownList = CreateFrame('Frame', 'FramedDropdownList', UIParent, 'BackdropTemplate')
-	dropdownList:SetFrameStrata('FULLSCREEN_DIALOG')
+	dropdownList:SetFrameStrata('TOOLTIP')
 	dropdownList:SetFrameLevel(100)
 	dropdownList:SetClampedToScreen(true)
 	dropdownList:Hide()
