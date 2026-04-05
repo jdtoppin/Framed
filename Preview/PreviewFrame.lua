@@ -404,15 +404,16 @@ end
 
 local PI = F.PreviewIndicators
 
-local BUFF_TYPE_MAP = {
-	[C.IndicatorType.ICON]      = 'Icon',
-	[C.IndicatorType.ICONS]     = 'Icons',
-	[C.IndicatorType.BAR]       = 'Bar',
-	[C.IndicatorType.BARS]      = 'Bars',
-	[C.IndicatorType.BORDER]    = 'BorderGlow',
-	[C.IndicatorType.RECTANGLE] = 'ColorRect',
-	[C.IndicatorType.OVERLAY]   = 'Overlay',
-}
+local function setAuraGroupAlpha(self, activeGroupId)
+	if(not self._auraGroups) then return end
+	for groupId, groupFrame in next, self._auraGroups do
+		if(activeGroupId == nil or groupId == activeGroupId) then
+			groupFrame:SetAlpha(1.0)
+		else
+			groupFrame:SetAlpha(0.2)
+		end
+	end
+end
 
 local function BuildBuffIndicators(frame, buffsConfig)
 	if(not buffsConfig or not buffsConfig.enabled) then return nil end
@@ -422,7 +423,7 @@ local function BuildBuffIndicators(frame, buffsConfig)
 	groupFrame._elements = {}
 	local fakeIcons = PI.GetFakeIcons('buffs')
 
-	for name, indCfg in next, buffsConfig.indicators or {} do
+	for _, indCfg in next, buffsConfig.indicators or {} do
 		if(indCfg.enabled ~= false) then
 			local indType = indCfg.type
 			local pt, relFrame, relPt, offX, offY = PI.UnpackAnchor(indCfg.anchor, { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 })
@@ -484,8 +485,8 @@ local BORDICON_GROUPS = { 'debuffs', 'raidDebuffs', 'externals', 'defensives' }
 local GROUP_DISPEL_TYPES = {
 	debuffs      = { 'Magic', 'Curse', 'Poison' },
 	raidDebuffs  = { 'Magic', 'Magic' },
-	externals    = { nil, nil },
-	defensives   = { nil, nil },
+	externals    = {},
+	defensives   = {},
 }
 
 local function BuildBorderIconGroup(frame, groupKey, groupCfg)
@@ -536,10 +537,10 @@ local function BuildDispellableGroup(frame, dispCfg)
 			hl:SetAllPoints(frame._healthWrapper)
 			hl:SetColorTexture(hlColor[1], hlColor[2], hlColor[3], 0.3)
 			if(hlType == 'gradient_half') then
+				-- Anchor right half using CENTER to avoid zero-width before layout
 				hl:ClearAllPoints()
-				hl:SetPoint('TOP', frame._healthWrapper, 'TOP', 0, 0)
+				hl:SetPoint('TOPLEFT', frame._healthWrapper, 'TOP', 0, 0)
 				hl:SetPoint('BOTTOMRIGHT', frame._healthWrapper, 'BOTTOMRIGHT', 0, 0)
-				hl:SetWidth(frame._healthWrapper:GetWidth() * 0.5)
 			end
 		else
 			hl:SetAllPoints(frame._healthWrapper)
@@ -610,16 +611,7 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 		frame._auraGroups.crowdControl = BuildSimpleIconGroup(frame, 'crowdControl', auraConfig.crowdControl)
 	end
 
-	function frame:SetAuraGroupAlpha(activeGroupId)
-		if(not self._auraGroups) then return end
-		for groupId, groupFrame in next, self._auraGroups do
-			if(activeGroupId == nil or groupId == activeGroupId) then
-				groupFrame:SetAlpha(1.0)
-			else
-				groupFrame:SetAlpha(0.2)
-			end
-		end
-	end
+	frame.SetAuraGroupAlpha = setAuraGroupAlpha
 
 	-- Apply fake unit data with config-aware colors and text formats
 	if(fakeUnit) then
