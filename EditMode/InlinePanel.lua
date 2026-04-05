@@ -18,6 +18,9 @@ local panel        = nil
 local currentKey   = nil
 local contentFrame = nil
 local activePanelId = nil  -- 'frame' or an aura group id
+local currentSide  = nil   -- 'RIGHT' or 'LEFT'
+local targetRef    = nil   -- reference to the frame the panel is anchored to
+local dragTicker   = nil   -- hidden frame for OnUpdate during drag
 
 --- All aura group panels in display order.
 local AURA_GROUPS = {
@@ -54,12 +57,18 @@ local function DimNonActiveAuras(frameKey, activeGroup)
 end
 
 local function DestroyPanel()
+	if(dragTicker) then
+		dragTicker:SetScript('OnUpdate', nil)
+		dragTicker:Hide()
+	end
 	if(panel) then
 		panel:Hide()
 		panel:SetParent(EditMode._trashFrame)
 		panel = nil
 		contentFrame = nil
 		currentKey = nil
+		currentSide = nil
+		targetRef = nil
 	end
 end
 
@@ -68,8 +77,13 @@ end
 --- @return string anchorSide  'RIGHT' or 'LEFT'
 local function GetSmartSide(targetFrame)
 	local screenW = GetScreenWidth()
-	local frameRight = targetFrame:GetRight() or 0
-	local frameLeft = targetFrame:GetLeft() or 0
+	-- Normalize frame edges to UIParent coordinate space so comparisons
+	-- with GetScreenWidth() are valid even when the frame has SetScale()
+	local scale = targetFrame:GetEffectiveScale()
+	local uiScale = UIParent:GetEffectiveScale()
+	local ratio = scale / uiScale
+	local frameRight = ((targetFrame:GetRight() or 0) * ratio)
+	local frameLeft = ((targetFrame:GetLeft() or 0) * ratio)
 
 	-- Space available on each side
 	local spaceRight = screenW - frameRight
@@ -80,8 +94,22 @@ local function GetSmartSide(targetFrame)
 	elseif(spaceLeft >= PANEL_WIDTH + EDGE_MARGIN) then
 		return 'LEFT'
 	else
-		-- Default to right, panel will overlap
-		return 'RIGHT'
+		-- Neither side fits — pick whichever has more room
+		return (spaceRight >= spaceLeft) and 'RIGHT' or 'LEFT'
+	end
+end
+
+--- Re-anchor the panel to the opposite side if needed.
+local function UpdatePanelSide()
+	if(not panel or not targetRef) then return end
+	local newSide = GetSmartSide(targetRef)
+	if(newSide == currentSide) then return end
+	currentSide = newSide
+	panel:ClearAllPoints()
+	if(newSide == 'RIGHT') then
+		panel:SetPoint('TOPLEFT', targetRef, 'TOPRIGHT', EDGE_MARGIN, 0)
+	else
+		panel:SetPoint('TOPRIGHT', targetRef, 'TOPLEFT', -EDGE_MARGIN, 0)
 	end
 end
 
@@ -97,12 +125,14 @@ local function BuildPanel(frameKey, targetFrame)
 	panel = Widgets.CreateBorderedFrame(overlay, PANEL_WIDTH, PANEL_MIN_H, C.Colors.panel, C.Colors.border)
 	panel:SetFrameLevel(overlay:GetFrameLevel() + 30)
 	panel:SetFrameStrata('TOOLTIP')
+	panel:SetClampedToScreen(true)
 	panel:EnableMouse(true)  -- consume clicks so they don't deselect via overlay
 
 	-- Position relative to target frame
-	local side = GetSmartSide(targetFrame)
+	targetRef = targetFrame
+	currentSide = GetSmartSide(targetFrame)
 	panel:ClearAllPoints()
-	if(side == 'RIGHT') then
+	if(currentSide == 'RIGHT') then
 		panel:SetPoint('TOPLEFT', targetFrame, 'TOPRIGHT', EDGE_MARGIN, 0)
 	else
 		panel:SetPoint('TOPRIGHT', targetFrame, 'TOPLEFT', -EDGE_MARGIN, 0)
@@ -248,6 +278,12 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 		return
 	end
 
+	-- Already showing for this frame — just update side, don't rebuild
+	if(panel and currentKey == frameKey) then
+		UpdatePanelSide()
+		return
+	end
+
 	-- If switching frames, animate out then build new
 	if(panel and currentKey ~= frameKey) then
 		Widgets.FadeOut(panel, C.Animation.durationFast, function()
@@ -257,6 +293,28 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 		BuildPanel(frameKey, targetFrame)
 	end
 end, 'InlinePanel')
+
+F.EventBus:Register('EDIT_MODE_DRAG_STARTED', function(frameKey)
+	if(not panel or frameKey ~= currentKey) then return end
+	-- Use a separate hidden frame for OnUpdate to avoid clobbering
+	-- the panel's animation OnUpdate (Widgets.FadeIn)
+	if(not dragTicker) then
+		dragTicker = CreateFrame('Frame')
+	end
+	dragTicker:SetScript('OnUpdate', function()
+		UpdatePanelSide()
+	end)
+	dragTicker:Show()
+end, 'InlinePanel.dragStart')
+
+F.EventBus:Register('EDIT_MODE_DRAG_STOPPED', function(frameKey)
+	if(dragTicker) then
+		dragTicker:SetScript('OnUpdate', nil)
+		dragTicker:Hide()
+	end
+	-- Final side check after drag ends
+	UpdatePanelSide()
+end, 'InlinePanel.dragStop')
 
 F.EventBus:Register('EDIT_MODE_EXITED', function()
 	-- Restore aura visibility

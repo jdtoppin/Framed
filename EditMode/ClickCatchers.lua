@@ -53,7 +53,7 @@ local GROUP_FRAME_COUNTS = {
 local UNITS_PER_COLUMN = 5
 
 local function getGroupBounds(config, frameKey)
-	local count = GROUP_FRAME_COUNTS[frameKey]
+	local count = F.PreviewManager.GetGroupPreviewCount(frameKey) or GROUP_FRAME_COUNTS[frameKey]
 	if(not count) then return nil end
 	local isVertical = (config.orientation == 'vertical')
 	local w = config.width
@@ -206,6 +206,11 @@ local function CreateCatcher(def, overlay)
 			local newX = newCX - uiCenterX
 			local newY = newCY - uiCenterY
 
+			-- Live snap: convert to UIParent-space, snap, convert back
+			local snapX, snapY = EditMode.SnapToGrid(newX * scaleRatio, newY * scaleRatio, s._frameW * scaleRatio, s._frameH * scaleRatio)
+			newX = snapX / scaleRatio
+			newY = snapY / scaleRatio
+
 			-- Store last computed position for OnDragStop
 			s._lastX = newX
 			s._lastY = newY
@@ -216,6 +221,9 @@ local function CreateCatcher(def, overlay)
 
 			-- NOTE: Do NOT re-anchor catcher here — WoW's drag system
 			-- fights with SetAllPoints during drag, causing compounding drift.
+
+			-- Live position update for sliders
+			F.EventBus:Fire('EDIT_MODE_DRAGGING', frameKey, Widgets.Round(newX), Widgets.Round(newY))
 
 			-- Update alignment guides (convert frame-space → UIParent-space)
 			local uiHalfW = UIParent:GetWidth() / 2
@@ -239,24 +247,9 @@ local function CreateCatcher(def, overlay)
 		self:SetScript('OnUpdate', nil)
 		self._isDragging = false
 
-		-- _lastX/_lastY are in frame-space (SetPoint offset units).
-		-- SnapToGrid uses UIParent:GetWidth() internally (UIParent-space),
-		-- so convert to UIParent-space for snap, then back to frame-space.
-		local fScale = frame:GetEffectiveScale()
-		local uiScale = UIParent:GetEffectiveScale()
-		local ratio = fScale / uiScale
-		local rawX = self._lastX or 0
-		local rawY = self._lastY or 0
-		local snapX, snapY = EditMode.SnapToGrid(rawX * ratio, rawY * ratio, self._frameW * ratio, self._frameH * ratio)
-		-- Convert back to frame-space
-		local x = snapX / ratio
-		local y = snapY / ratio
-
-		-- Reposition if snap adjusted the values
-		if(x ~= rawX or y ~= rawY) then
-			frame:ClearAllPoints()
-			Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
-		end
+		-- Snap already applied during drag — use final position directly
+		local x = self._lastX or 0
+		local y = self._lastY or 0
 
 		-- Re-anchor catcher to frame (wasn't re-anchored during drag)
 		self:ClearAllPoints()
@@ -315,6 +308,15 @@ end, 'ClickCatchers')
 F.EventBus:Register('EDIT_MODE_PRESET_SWITCHED', function()
 	CreateAllCatchers()
 end, 'ClickCatchers')
+
+F.EventBus:Register('EDIT_MODE_PREVIEW_COUNT_CHANGED', function()
+	CreateAllCatchers()
+	-- Re-apply selected visuals for the current selection
+	local selKey = EditMode.GetSelectedFrameKey()
+	if(selKey) then
+		F.EventBus:Fire('EDIT_MODE_FRAME_SELECTED', selKey)
+	end
+end, 'ClickCatchers.previewCount')
 
 F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 	local overlay = EditMode.GetOverlay()

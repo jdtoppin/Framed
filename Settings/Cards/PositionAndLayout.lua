@@ -75,6 +75,16 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		end)
 		cardY = B.PlaceWidget(orientSwitch, inner, cardY, B.SWITCH_H)
 
+		-- Raid preview count slider (edit mode only)
+		if(unitType == 'raid' and F.EditCache and F.EditCache.IsActive()) then
+			local countSlider = Widgets.CreateSlider(inner, 'Preview Count', widgetW, 10, 40, 5)
+			countSlider:SetValue(F.PreviewManager.GetGroupPreviewCount('raid') or 20)
+			countSlider:SetAfterValueChanged(function(value)
+				F.PreviewManager.SetGroupPreviewCount('raid', value)
+			end)
+			cardY = B.PlaceWidget(countSlider, inner, cardY, B.SLIDER_H)
+		end
+
 		-- Anchor Point dropdown — corner the group grows from
 		cardY = B.PlaceHeading(inner, 'Anchor Point', 4, cardY)
 		local apDropdown = Widgets.CreateDropdown(inner, widgetW)
@@ -160,10 +170,18 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		posYSlider:SetValue(Widgets.Round(y))
 	end, evtTag .. '.drag')
 
+	-- ── Live sync during drag ────────────────────────────────
+	F.EventBus:Register('EDIT_MODE_DRAGGING', function(frameKey, x, y)
+		if(frameKey ~= unitType) then return end
+		posXSlider:SetValue(x)
+		posYSlider:SetValue(y)
+	end, evtTag .. '.dragging')
+
 	-- Unregister when card is destroyed
 	card:HookScript('OnHide', function()
 		F.EventBus:Unregister('EDIT_MODE_FRAME_RESIZED', evtTag .. '.resize')
 		F.EventBus:Unregister('EDIT_MODE_DRAG_STOPPED', evtTag .. '.drag')
+		F.EventBus:Unregister('EDIT_MODE_DRAGGING', evtTag .. '.dragging')
 	end)
 
 	Widgets.EndCard(card, parent, cardY)

@@ -41,6 +41,19 @@ local GROUP_FRAME_COUNTS = {
 
 local GROUP_FAKES = nil  -- Lazy-init from Preview.GetFakeUnits
 
+function PM.GetGroupPreviewCount(frameKey)
+	return GROUP_FRAME_COUNTS[frameKey]
+end
+
+function PM.SetGroupPreviewCount(frameKey, count)
+	GROUP_FRAME_COUNTS[frameKey] = count
+	if(activeFrameKey == frameKey) then
+		PM.ShowPreview(activeFrameKey)
+		-- Rebuild catchers so the overlay resizes to match
+		F.EventBus:Fire('EDIT_MODE_PREVIEW_COUNT_CHANGED', frameKey)
+	end
+end
+
 -- ============================================================
 -- Config reading
 -- ============================================================
