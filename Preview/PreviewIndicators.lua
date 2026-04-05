@@ -1,6 +1,5 @@
 local addonName, Framed = ...
 local F = Framed
-local Widgets = F.Widgets
 local C = F.Constants
 
 F.PreviewIndicators = {}
@@ -24,14 +23,8 @@ local FAKE_ICONS = {
 local FAKE_DEPLETION_PCT = 0.6
 local FAKE_STACKS = 2
 
--- Dispel type colors (also used by Task 13's dispellable builder)
-PI.DISPEL_COLORS = {
-	Magic    = { 0.20, 0.60, 1.00 },
-	Curse    = { 0.60, 0.00, 1.00 },
-	Disease  = { 0.60, 0.40, 0.00 },
-	Poison   = { 0.00, 0.60, 0.00 },
-	Physical = { 0.50, 0.50, 0.00 },
-}
+-- Dispel colors: canonical source is C.Colors.dispel
+PI.DISPEL_COLORS = C.Colors.dispel
 
 ------------------------------------------------------------------------
 -- Public accessors / helpers
@@ -274,10 +267,13 @@ function PI.CreateOverlay(healthWrapper, overlayConfig)
 
 	if(mode == 'Color' or mode == 'Both') then
 		local fill = f:CreateTexture(nil, 'OVERLAY')
-		fill:SetPoint('TOPLEFT',   f, 'TOPLEFT',   0, 0)
+		fill:SetPoint('TOPLEFT', f, 'TOPLEFT', 0, 0)
 		fill:SetPoint('BOTTOMLEFT', f, 'BOTTOMLEFT', 0, 0)
-		fill:SetWidth(f:GetWidth() * FAKE_DEPLETION_PCT)
 		fill:SetColorTexture(c[1], c[2], c[3], c[4] or 0.6)
+		-- Defer SetWidth until the parent has been laid out
+		f:HookScript('OnShow', function()
+			fill:SetWidth(f:GetWidth() * FAKE_DEPLETION_PCT)
+		end)
 	end
 
 	if(mode == 'DurationOverlay' or mode == 'Both') then
