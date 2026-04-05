@@ -141,8 +141,8 @@ EditMode/InlinePanel.lua
 
 # Preview
 Preview/Preview.lua
-Preview/PreviewFrame.lua
 Preview/PreviewIndicators.lua
+Preview/PreviewFrame.lua
 Preview/PreviewManager.lua
 
 # Settings
