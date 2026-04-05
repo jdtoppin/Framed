@@ -58,25 +58,13 @@ local function formatPowerText(pct, fmt)
 	return math.floor(pct * 100) .. '%'
 end
 
--- Resolve gradient color for a given health percentage
-local function getGradientColor(hc, pct)
-	local p = pct * 100
-	local t1 = hc.gradientThreshold1 or 95
-	local t2 = hc.gradientThreshold2 or 50
-	local t3 = hc.gradientThreshold3 or 5
-	local c1 = hc.gradientColor1 or { 0.2, 0.8, 0.2, 1 }
-	local c2 = hc.gradientColor2 or { 0.9, 0.6, 0.1, 1 }
-	local c3 = hc.gradientColor3 or { 0.8, 0.1, 0.1, 1 }
-	if(p >= t1) then return c1[1], c1[2], c1[3] end
-	if(p >= t2) then
-		local t = (p - t2) / (t1 - t2)
-		return c2[1] + (c1[1] - c2[1]) * t, c2[2] + (c1[2] - c2[2]) * t, c2[3] + (c1[3] - c2[3]) * t
-	end
-	if(p >= t3) then
-		local t = (p - t3) / (t2 - t3)
-		return c3[1] + (c2[1] - c3[1]) * t, c3[2] + (c2[2] - c3[2]) * t, c3[3] + (c2[3] - c3[3]) * t
-	end
-	return c3[1], c3[2], c3[3]
+-- Build a C_CurveUtil color curve from 3 color/threshold pairs (matches Health.lua)
+local function buildColorCurve(c1, t1, c2, t2, c3, t3)
+	local curve = C_CurveUtil.CreateColorCurve()
+	curve:AddPoint(t3 / 100, CreateColor(c3[1], c3[2], c3[3]))
+	curve:AddPoint(t2 / 100, CreateColor(c2[1], c2[2], c2[3]))
+	curve:AddPoint(t1 / 100, CreateColor(c1[1], c1[2], c1[3]))
+	return curve
 end
 
 -- Apply health bar color based on config colorMode
@@ -92,11 +80,44 @@ local function applyHealthColor(bar, config, fakeUnit)
 	elseif(mode == 'dark') then
 		bar:SetStatusBarColor(0.25, 0.25, 0.25, 1)
 	elseif(mode == 'gradient') then
-		local r, g, b = getGradientColor(hc, pct)
-		bar:SetStatusBarColor(r, g, b, 1)
+		local curve = buildColorCurve(
+			hc.gradientColor1 or { 0.2, 0.8, 0.2 }, hc.gradientThreshold1 or 95,
+			hc.gradientColor2 or { 0.9, 0.6, 0.1 }, hc.gradientThreshold2 or 50,
+			hc.gradientColor3 or { 0.8, 0.1, 0.1 }, hc.gradientThreshold3 or 5
+		)
+		local color = curve:GetColorAtPosition(pct)
+		if(color) then
+			bar:SetStatusBarColor(color:GetRGBA())
+		end
 	elseif(fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
 		bar:SetStatusBarColor(r, g, b, 1)
+	end
+end
+
+-- Apply health loss color (background behind depleted health)
+local function applyHealthLossColor(bg, config, fakeUnit)
+	local hc = config.health
+	local lossMode = hc and hc.lossColorMode or 'dark'
+	if(lossMode == 'class' and fakeUnit) then
+		local r, g, b = getClassColor(fakeUnit.class)
+		bg:SetVertexColor(r * 0.3, g * 0.3, b * 0.3, 1)
+	elseif(lossMode == 'gradient' and hc) then
+		local pct = fakeUnit and fakeUnit.healthPct or 1
+		local curve = buildColorCurve(
+			hc.lossGradientColor1 or { 0.1, 0.4, 0.1 }, hc.lossGradientThreshold1 or 95,
+			hc.lossGradientColor2 or { 0.4, 0.25, 0.05 }, hc.lossGradientThreshold2 or 50,
+			hc.lossGradientColor3 or { 0.4, 0.05, 0.05 }, hc.lossGradientThreshold3 or 5
+		)
+		local color = curve:GetColorAtPosition(pct)
+		if(color) then
+			bg:SetVertexColor(color:GetRGBA())
+		end
+	elseif(lossMode == 'custom' and hc and hc.lossCustomColor) then
+		local lc = hc.lossCustomColor
+		bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
+	elseif(lossMode == 'dark') then
+		bg:SetVertexColor(0.15, 0.15, 0.15, 1)
 	end
 end
 
@@ -117,10 +138,12 @@ local function BuildHealthBar(frame, config)
 	bar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
 	bar:SetMinMaxValues(0, 1)
 	bar:SetValue(1)
-	local bgC = C.Colors.background
-	bar._bg = wrapper:CreateTexture(nil, 'BACKGROUND')
-	bar._bg:SetAllPoints(wrapper)
-	bar._bg:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+	-- Background texture for health loss color (SetVertexColor for class/gradient modes)
+	local bg = wrapper:CreateTexture(nil, 'BACKGROUND')
+	bg:SetAllPoints(wrapper)
+	bg:SetTexture(F.Media.GetActiveBarTexture())
+	bg:SetVertexColor(0.15, 0.15, 0.15, 1)
+	bar._bg = bg
 
 	frame._healthWrapper = wrapper
 	frame._healthBar = bar
@@ -407,10 +430,12 @@ local PI = F.PreviewIndicators
 local function setAuraGroupAlpha(self, activeGroupId)
 	if(not self._auraGroups) then return end
 	for groupId, groupFrame in next, self._auraGroups do
-		if(activeGroupId == nil or groupId == activeGroupId) then
-			groupFrame:SetAlpha(1.0)
-		else
-			groupFrame:SetAlpha(0.2)
+		local alpha = (activeGroupId == nil or groupId == activeGroupId) and 1.0 or 0.2
+		groupFrame:SetAlpha(alpha)
+		-- Dispel overlay is a child of _healthWrapper (not groupFrame) so
+		-- groupFrame:SetAlpha won't reach it — set alpha explicitly
+		if(groupFrame._healthOverlay) then
+			groupFrame._healthOverlay:SetAlpha(alpha)
 		end
 	end
 end
@@ -429,19 +454,33 @@ local function BuildBuffIndicators(frame, buffsConfig)
 			local pt, relFrame, relPt, offX, offY = PI.UnpackAnchor(indCfg.anchor, { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 })
 
 			if(indType == C.IndicatorType.ICON) then
-				local icon = PI.CreateIcon(groupFrame, fakeIcons[1], indCfg.iconWidth, indCfg.iconHeight, indCfg)
-				icon:SetPoint(pt, frame, relPt, offX, offY)
-				groupFrame._elements[#groupFrame._elements + 1] = icon
+				local w = indCfg.iconWidth or 14
+				local h = indCfg.iconHeight or 14
+				if(indCfg.displayType == C.IconDisplay.COLORED_SQUARE) then
+					local rect = PI.CreateColorRect(groupFrame, { rectWidth = w, rectHeight = h, color = indCfg.color or { 1, 1, 1, 1 } })
+					rect:SetPoint(pt, frame, relPt, offX, offY)
+					groupFrame._elements[#groupFrame._elements + 1] = rect
+				else
+					local icon = PI.CreateIcon(groupFrame, fakeIcons[1], w, h, indCfg)
+					icon:SetPoint(pt, frame, relPt, offX, offY)
+					groupFrame._elements[#groupFrame._elements + 1] = icon
+				end
 
 			elseif(indType == C.IndicatorType.ICONS) then
 				local max = math.min(indCfg.maxDisplayed or 3, 5)
 				local w = indCfg.iconWidth or 14
 				local h = indCfg.iconHeight or 14
+				local isSquare = (indCfg.displayType == C.IconDisplay.COLORED_SQUARE)
 				for i = 1, max do
-					local icon = PI.CreateIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], w, h, indCfg)
+					local elem
+					if(isSquare) then
+						elem = PI.CreateColorRect(groupFrame, { rectWidth = w, rectHeight = h, color = indCfg.color or { 1, 1, 1, 1 } })
+					else
+						elem = PI.CreateIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], w, h, indCfg)
+					end
 					local dx, dy = PI.OrientOffset(indCfg.orientation or 'RIGHT', i, w, h, indCfg.spacingX, indCfg.spacingY)
-					icon:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
-					groupFrame._elements[#groupFrame._elements + 1] = icon
+					elem:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
+					groupFrame._elements[#groupFrame._elements + 1] = elem
 				end
 
 			elseif(indType == C.IndicatorType.BAR) then
@@ -480,14 +519,31 @@ local function BuildBuffIndicators(frame, buffsConfig)
 	return groupFrame
 end
 
-local BORDICON_GROUPS = { 'debuffs', 'raidDebuffs', 'externals', 'defensives' }
+local BORDICON_GROUPS = { 'debuffs', 'externals', 'defensives' }
 
 local GROUP_DISPEL_TYPES = {
 	debuffs      = { 'Magic', 'Curse', 'Poison' },
-	raidDebuffs  = { 'Magic', 'Magic' },
 	externals    = {},
 	defensives   = {},
 }
+
+local function buildBorderIconRow(groupFrame, frame, groupKey, indCfg)
+	local pt, _, relPt, offX, offY = PI.UnpackAnchor(indCfg.anchor)
+	local size = indCfg.iconSize or 14
+	local max = math.min(indCfg.maxDisplayed or 3, 5)
+	local orient = indCfg.orientation or 'RIGHT'
+	local fakeIcons = PI.GetFakeIcons(groupKey)
+	local fakeDispels = GROUP_DISPEL_TYPES[groupKey] or {}
+	local borderThick = indCfg.borderThickness or 2
+
+	for i = 1, max do
+		local dispel = fakeDispels[((i-1) % math.max(#fakeDispels, 1)) + 1]
+		local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], size, borderThick, dispel, indCfg)
+		local dx, dy = PI.OrientOffset(orient, i, size, size, 2, 2)
+		bi:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
+		groupFrame._elements[#groupFrame._elements + 1] = bi
+	end
+end
 
 local function BuildBorderIconGroup(frame, groupKey, groupCfg)
 	if(not groupCfg or not groupCfg.enabled) then return nil end
@@ -496,24 +552,31 @@ local function BuildBorderIconGroup(frame, groupKey, groupCfg)
 	groupFrame:SetAllPoints(frame)
 	groupFrame._elements = {}
 
-	local pt, _, relPt, offX, offY = PI.UnpackAnchor(groupCfg.anchor)
-	local size = groupCfg.iconSize or 14
-	local max = math.min(groupCfg.maxDisplayed or 3, 5)
-	local orient = groupCfg.orientation or 'RIGHT'
-	local fakeIcons = PI.GetFakeIcons(groupKey)
-	local fakeDispels = GROUP_DISPEL_TYPES[groupKey] or {}
-	local borderThick = groupCfg.borderThickness or 2
-
-	for i = 1, max do
-		local dispel = fakeDispels[((i-1) % math.max(#fakeDispels, 1)) + 1]
-		local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], size, borderThick, dispel, groupCfg)
-		local dx, dy = PI.OrientOffset(orient, i, size, size, 2, 2)
-		bi:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
-		groupFrame._elements[#groupFrame._elements + 1] = bi
+	-- Debuffs have named indicators, each with their own anchor/size
+	if(groupCfg.indicators) then
+		for _, indCfg in next, groupCfg.indicators do
+			if(indCfg.enabled ~= false) then
+				buildBorderIconRow(groupFrame, frame, groupKey, indCfg)
+			end
+		end
+	else
+		-- Flat config (externals, defensives)
+		buildBorderIconRow(groupFrame, frame, groupKey, groupCfg)
 	end
 
 	return groupFrame
 end
+
+-- Dispel type atlas icons (matches Elements/Auras/Dispellable.lua)
+local DISPEL_PREVIEW_TYPE = 'Magic'  -- preview always shows Magic as example
+local DISPEL_ATLASES = {
+	Magic   = 'RaidFrame-Icon-DebuffMagic',
+	Curse   = 'RaidFrame-Icon-DebuffCurse',
+	Disease = 'RaidFrame-Icon-DebuffDisease',
+	Poison  = 'RaidFrame-Icon-DebuffPoison',
+	Bleed   = 'RaidFrame-Icon-DebuffBleed',
+}
+local GRADIENT_TEXTURE = [[Interface\AddOns\Framed\Media\Textures\Gradient_Linear_Bottom]]
 
 local function BuildDispellableGroup(frame, dispCfg)
 	if(not dispCfg or not dispCfg.enabled) then return nil end
@@ -522,31 +585,74 @@ local function BuildDispellableGroup(frame, dispCfg)
 	groupFrame:SetAllPoints(frame)
 	groupFrame._elements = {}
 
+	-- 1. Dispel type icon (atlas, not spell texture)
 	local pt, _, relPt, offX, offY = PI.UnpackAnchor(dispCfg.anchor)
 	local size = dispCfg.iconSize or 14
-	local bi = PI.CreateBorderIcon(groupFrame, PI.GetFakeIcons('dispellable')[1], size, 2, 'Magic', dispCfg)
-	bi:SetPoint(pt, frame, relPt, offX, offY)
-	groupFrame._elements[1] = bi
+	local iconFrame = CreateFrame('Frame', nil, groupFrame)
+	iconFrame:SetSize(size, size)
+	iconFrame:SetPoint(pt, frame, relPt, offX, offY)
 
-	-- Health bar overlay (dispel highlight)
-	if(frame._healthWrapper and dispCfg.highlightType) then
-		local hlType = dispCfg.highlightType
-		local hlColor = PI.DISPEL_COLORS.Magic or { 0.2, 0.6, 1.0 }
-		local hl = frame._healthWrapper:CreateTexture(nil, 'OVERLAY')
-		if(hlType == 'gradient_full' or hlType == 'gradient_half') then
-			hl:SetAllPoints(frame._healthWrapper)
-			hl:SetColorTexture(hlColor[1], hlColor[2], hlColor[3], 0.3)
-			if(hlType == 'gradient_half') then
-				-- Anchor right half using CENTER to avoid zero-width before layout
-				hl:ClearAllPoints()
-				hl:SetPoint('TOPLEFT', frame._healthWrapper, 'TOP', 0, 0)
-				hl:SetPoint('BOTTOMRIGHT', frame._healthWrapper, 'BOTTOMRIGHT', 0, 0)
-			end
-		else
-			hl:SetAllPoints(frame._healthWrapper)
-			hl:SetColorTexture(hlColor[1], hlColor[2], hlColor[3], 0.2)
+	local atlas = DISPEL_ATLASES[DISPEL_PREVIEW_TYPE]
+	local tex = iconFrame:CreateTexture(nil, 'ARTWORK')
+	tex:SetAllPoints(iconFrame)
+	tex:SetAtlas(atlas)
+	groupFrame._elements[1] = iconFrame
+
+	-- 2. Health bar overlay matching the user's highlightType setting.
+	-- Child frame of health wrapper with explicit size (from frame._width/_height)
+	-- so it doesn't depend on anchor resolution. SetClipsChildren prevents any
+	-- rendering outside bounds. Tracked via groupFrame._healthOverlay for dim control.
+	local hlType = dispCfg.highlightType
+	if(frame._healthWrapper and frame._healthBar and hlType) then
+		local hlColor = PI.DISPEL_COLORS[DISPEL_PREVIEW_TYPE] or { 0.2, 0.6, 1.0 }
+		local wrapper = frame._healthWrapper
+		local fw = frame._width or 120
+		local fh = frame._height or 36
+		-- Health wrapper height = frame height minus power bar height
+		local pwh = (frame._powerWrapper and frame._powerWrapper:GetHeight()) or 0
+		local wh = fh - pwh
+
+		local overlayFrame = CreateFrame('Frame', nil, wrapper)
+		overlayFrame:SetPoint('TOPLEFT', wrapper, 'TOPLEFT')
+		overlayFrame:SetSize(fw, wh)
+		overlayFrame:SetFrameLevel(frame._healthBar:GetFrameLevel() + 5)
+		overlayFrame:SetClipsChildren(true)
+
+		local hl
+		if(hlType == 'gradient_full') then
+			hl = overlayFrame:CreateTexture(nil, 'OVERLAY')
+			hl:SetPoint('TOPLEFT', 1, -1)
+			hl:SetPoint('BOTTOMRIGHT', -1, 1)
+			hl:SetTexture(GRADIENT_TEXTURE)
+			hl:SetBlendMode('BLEND')
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
+		elseif(hlType == 'gradient_half') then
+			hl = overlayFrame:CreateTexture(nil, 'OVERLAY')
+			hl:SetTexture(GRADIENT_TEXTURE)
+			hl:SetBlendMode('BLEND')
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
+			hl:SetPoint('BOTTOMLEFT', 1, 1)
+			hl:SetPoint('BOTTOMRIGHT', -1, 1)
+			hl:SetHeight(wh * 0.5)
+		elseif(hlType == 'solid_current') then
+			hl = overlayFrame:CreateTexture(nil, 'OVERLAY')
+			hl:SetPoint('TOPLEFT', 1, -1)
+			hl:SetPoint('BOTTOMLEFT', 1, 1)
+			hl:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+			hl:SetBlendMode('ADD')
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
+			hl:SetWidth(1)
+		elseif(hlType == 'solid_entire') then
+			hl = overlayFrame:CreateTexture(nil, 'OVERLAY')
+			hl:SetAllPoints(overlayFrame)
+			hl:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+			hl:SetBlendMode('ADD')
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
 		end
-		groupFrame._elements[#groupFrame._elements + 1] = hl
+
+		if(hl) then
+			groupFrame._healthOverlay = overlayFrame
+		end
 	end
 
 	return groupFrame
@@ -597,6 +703,9 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 	BuildHighlights(frame, config)
 
 	-- Build aura indicators
+	-- Elevate aura groups above all structural elements so they aren't
+	-- covered by later sibling preview frames (same frame level, creation order)
+	local auraLevel = frame:GetFrameLevel() + 20
 	frame._auraGroups = {}
 	if(auraConfig) then
 		frame._auraGroups.buffs = BuildBuffIndicators(frame, auraConfig.buffs)
@@ -609,6 +718,9 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 		frame._auraGroups.targetedSpells = BuildSimpleIconGroup(frame, 'targetedSpells', auraConfig.targetedSpells)
 		frame._auraGroups.lossOfControl = BuildSimpleIconGroup(frame, 'lossOfControl', auraConfig.lossOfControl)
 		frame._auraGroups.crowdControl = BuildSimpleIconGroup(frame, 'crowdControl', auraConfig.crowdControl)
+		for _, groupFrame in next, frame._auraGroups do
+			groupFrame:SetFrameLevel(auraLevel)
+		end
 	end
 
 	frame.SetAuraGroupAlpha = setAuraGroupAlpha
@@ -616,6 +728,7 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 	-- Apply fake unit data with config-aware colors and text formats
 	if(fakeUnit) then
 		applyHealthColor(frame._healthBar, config, fakeUnit)
+		applyHealthLossColor(frame._healthBar._bg, config, fakeUnit)
 		frame._healthBar:SetValue(fakeUnit.healthPct or 1)
 		if(frame._healthText) then
 			local hFmt = (config.health and config.health.textFormat) or 'percent'

@@ -204,7 +204,7 @@ end
 
 local function CreatePickerFrame()
 	local frame, header = Widgets.CreateHeaderedFrame(UIParent, 'Color Picker', 269, 297)
-	frame:SetFrameStrata('DIALOG')
+	frame:SetFrameStrata('TOOLTIP')
 	frame:SetToplevel(true)
 	frame:SetPoint('CENTER')
 	frame:Hide()
@@ -504,7 +504,7 @@ local function ShowColorPicker(owner, callback, onConfirm, hasAlpha, r, g, b, a)
 		CreatePickerFrame()
 	end
 
-	pickerFrame:SetFrameStrata('DIALOG')
+	pickerFrame:SetFrameStrata('TOOLTIP')
 	pickerFrame:SetToplevel(true)
 
 	-- Clear previous slider state

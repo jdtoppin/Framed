@@ -27,7 +27,6 @@ local AURA_GROUPS = {
 	{ id = 'buffs',          label = 'Buffs' },
 	{ id = 'debuffs',        label = 'Debuffs' },
 	{ id = 'externals',      label = 'Externals' },
-	{ id = 'raiddebuffs',    label = 'Raid Debuffs' },
 	{ id = 'defensives',     label = 'Defensives' },
 	{ id = 'targetedspells', label = 'Targeted Spells' },
 	{ id = 'dispels',        label = 'Dispels' },

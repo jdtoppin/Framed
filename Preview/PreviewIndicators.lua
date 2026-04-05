@@ -10,7 +10,6 @@ local FAKE_ICONS = {
 	buffs          = { 135981, 136075, 135932 },   -- Renew, Fort, BoW
 	debuffs        = { 136139, 135813, 136188 },   -- Corruption, Curse of Agony, SW:P
 	externals      = { 135936, 135964 },           -- BoP, BoS
-	raidDebuffs    = { 236216, 132221 },           -- boss debuffs
 	defensives     = { 135919, 135872 },           -- Divine Shield, Ice Block
 	missingBuffs   = { 136075 },                   -- Fort
 	targetedSpells = { 136197 },                   -- Shadow Bolt

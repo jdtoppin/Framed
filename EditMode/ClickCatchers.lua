@@ -107,10 +107,15 @@ local function CreateCatcher(def, overlay)
 				catcher:SetScale(targetScale / parentScale)
 			end
 			catcher:SetSize(totalW, totalH)
-			local posAnchor = (config.position and config.position.anchor) or 'CENTER'
-			local posX = (config.position and config.position.x) or 0
-			local posY = (config.position and config.position.y) or 0
-			catcher:SetPoint(anchor, UIParent, posAnchor, posX, posY)
+			-- Anchor to real frame so catcher follows during drag
+			if(frame) then
+				catcher:SetPoint(anchor, frame, anchor, 0, 0)
+			else
+				local posAnchor = (config.position and config.position.anchor) or 'CENTER'
+				local posX = (config.position and config.position.x) or 0
+				local posY = (config.position and config.position.y) or 0
+				catcher:SetPoint(anchor, UIParent, posAnchor, posX, posY)
+			end
 		else
 			catcher:SetAllPoints(frame)
 		end
@@ -251,9 +256,20 @@ local function CreateCatcher(def, overlay)
 		local x = self._lastX or 0
 		local y = self._lastY or 0
 
-		-- Re-anchor catcher to frame (wasn't re-anchored during drag)
+		-- Re-anchor catcher to frame
 		self:ClearAllPoints()
-		self:SetAllPoints(frame)
+		if(self._isGroup and frame) then
+			-- Keep explicit size for group catchers; just re-anchor the point
+			local cfg = F.Config:Get('presets.' .. F.Settings.GetEditingPreset() .. '.unitConfigs.' .. frameKey)
+			local anchor = cfg and cfg.anchorPoint
+			if(anchor) then
+				self:SetPoint(anchor, frame, anchor, 0, 0)
+			else
+				self:SetAllPoints(frame)
+			end
+		else
+			self:SetAllPoints(frame)
+		end
 
 		-- Save to edit cache (frame-space values, matching Widgets.SetPoint)
 		EditCache.Set(frameKey, 'position.x', x)

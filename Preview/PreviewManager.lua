@@ -13,6 +13,7 @@ local PM = F.PreviewManager
 -- ============================================================
 
 local activeFrameKey = nil
+local activeDimGroup = nil  -- current aura group being highlighted (nil = all visible)
 local previewFrames = {}
 local previewContainer = nil
 
@@ -232,7 +233,12 @@ local function showGroupPreview(frameKey)
 		local offY = row * primaryY + col * colY
 
 		local pf = F.PreviewFrame.Create(container, config, varied, realFrame, auraConfig)
-		pf:SetPoint(anchorPoint, UIParent, posAnchor, baseX + offX, baseY + offY)
+		-- Anchor to real frame so previews follow during drag
+		if(realFrame) then
+			pf:SetPoint(anchorPoint, realFrame, anchorPoint, offX, offY)
+		else
+			pf:SetPoint(anchorPoint, UIParent, posAnchor, baseX + offX, baseY + offY)
+		end
 		previewFrames[i] = pf
 		pf:Show()
 	end
@@ -271,6 +277,15 @@ end
 -- Public API
 -- ============================================================
 
+local function applyDimState()
+	if(not activeDimGroup) then return end
+	for _, pf in next, previewFrames do
+		if(pf.SetAuraGroupAlpha) then
+			pf:SetAuraGroupAlpha(activeDimGroup)
+		end
+	end
+end
+
 function PM.ShowPreview(frameKey)
 	destroyPreviews()
 	activeFrameKey = frameKey
@@ -280,10 +295,14 @@ function PM.ShowPreview(frameKey)
 	else
 		showSoloPreview(frameKey)
 	end
+
+	-- Re-apply aura dimming after rebuild
+	applyDimState()
 end
 
 function PM.HidePreview()
 	destroyPreviews()
+	activeDimGroup = nil
 end
 
 function PM.GetActiveFrameKey()
@@ -316,11 +335,33 @@ F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, v
 	PM.ShowPreview(activeFrameKey)
 end, 'PreviewManager.cacheChanged')
 
+-- Live update from aura config changes (written directly to Config, not EditCache)
+F.EventBus:Register('CONFIG_CHANGED', function(path)
+	if(not activeFrameKey) then return end
+	-- Match aura config paths: presets.<preset>.auras.<unitType>.<rest>
+	local unitType = path:match('^presets%.[^%.]+%.auras%.([^%.]+)')
+	if(unitType and unitType == activeFrameKey) then
+		PM.ShowPreview(activeFrameKey)
+	end
+end, 'PreviewManager.auraConfig')
+
+-- Map inline panel IDs (lowercase) to aura group keys (camelCase/config keys)
+local PANEL_TO_GROUP = {
+	targetedspells = 'targetedSpells',
+	dispels        = 'dispellable',
+	missingbuffs   = 'missingBuffs',
+	privateauras   = 'privateAuras',
+	lossofcontrol  = 'lossOfControl',
+	crowdcontrol   = 'crowdControl',
+}
+
 F.EventBus:Register('EDIT_MODE_AURA_DIM', function(frameKey, activeGroupId)
 	if(frameKey ~= activeFrameKey) then return end
+	local groupKey = activeGroupId and (PANEL_TO_GROUP[activeGroupId] or activeGroupId) or nil
+	activeDimGroup = groupKey
 	for _, pf in next, previewFrames do
 		if(pf.SetAuraGroupAlpha) then
-			pf:SetAuraGroupAlpha(activeGroupId)
+			pf:SetAuraGroupAlpha(groupKey)
 		end
 	end
 end, 'PreviewManager.auraDim')
