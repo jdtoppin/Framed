@@ -1004,7 +1004,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(not h) then return end
 			if(enabled) then
 				if(h._overDamageAbsorbIndicator) then
+					h._overDamageAbsorbIndicator:Show()
+					h._overDamageAbsorbIndicator:SetAlpha(0)
 					h.OverDamageAbsorbIndicator = h._overDamageAbsorbIndicator
+				end
+				if(not h._overShieldCalc and CreateUnitHealPredictionCalculator) then
+					h._overShieldCalc = CreateUnitHealPredictionCalculator()
 				end
 			else
 				h.OverDamageAbsorbIndicator = nil

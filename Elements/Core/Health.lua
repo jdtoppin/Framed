@@ -516,14 +516,18 @@ function F.Elements.Health.Setup(self, width, height, config)
 		absorbBar:SetReverseFill(true)
 		health._damageAbsorbBar = absorbBar
 
-		local overAbsorb = (self._iconOverlay or health._wrapper):CreateTexture(nil, 'OVERLAY')
-		overAbsorb:SetTexture([[Interface\AddOns\Framed\Media\Textures\Gradient_Linear_Left]])
+		local overAbsorbFrame = CreateFrame('Frame', nil, health._wrapper)
+		overAbsorbFrame:SetAllPoints(health._wrapper)
+		overAbsorbFrame:SetFrameLevel(health:GetFrameLevel() + 4)
+		local overAbsorb = overAbsorbFrame:CreateTexture(nil, 'OVERLAY')
+		overAbsorb:SetTexture([[Interface\AddOns\Framed\Media\Textures\OverAbsorbGlow]])
+		overAbsorb:SetTexCoord(1, 0, 0, 1)
+		overAbsorb:SetVertexColor(1, 1, 1, 1)
 		overAbsorb:SetBlendMode('ADD')
-		overAbsorb:SetWidth(8)
 		overAbsorb:SetAlpha(0)
-		overAbsorb:SetPoint('TOP', health)
-		overAbsorb:SetPoint('BOTTOM', health)
-		overAbsorb:SetPoint('LEFT', health, 'RIGHT')
+		overAbsorb:SetWidth(4)
+		overAbsorb:SetPoint('TOPRIGHT', health, 'TOPRIGHT')
+		overAbsorb:SetPoint('BOTTOMRIGHT', health, 'BOTTOMRIGHT')
 		health._overDamageAbsorbIndicator = overAbsorb
 
 		if(config.damageAbsorb) then
