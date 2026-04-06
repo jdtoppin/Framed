@@ -11,7 +11,6 @@ local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
 local LABEL_H      = 16
-local WIDGET_W     = 220
 
 -- Helper: get/set config values scoped to the editing preset + unit type + config key
 local function makeConfigHelpers(unitType, configKey)
@@ -39,6 +38,7 @@ end
 --- @return number yOffset  The final yOffset after all widgets
 function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	local get, set = makeConfigHelpers(opts.unitType, opts.configKey)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- ── Filter Mode ─────────────────────────────────────────
 	if(opts.showDispellableByMe) then
@@ -50,7 +50,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 		local filterCard, filterInner, filterCardY
 		filterCard, filterInner, filterCardY = Widgets.StartCard(parent, width, yOffset)
 
-		local filterDD = Widgets.CreateDropdown(filterInner, WIDGET_W)
+		local filterDD = Widgets.CreateDropdown(filterInner, widgetW)
 		filterDD:SetItems({
 			{ text = 'All Debuffs',      value = 'all' },
 			{ text = 'Raid-Relevant',    value = 'raid' },
@@ -87,7 +87,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 		Widgets.SetPoint(enableCheck, 'TOPLEFT', visInner, 'TOPLEFT', 0, visCardY)
 		visCardY = visCardY - CHECK_H - C.Spacing.normal
 
-		local visDD = Widgets.CreateDropdown(visInner, WIDGET_W)
+		local visDD = Widgets.CreateDropdown(visInner, widgetW)
 		visDD:SetItems({
 			{ text = 'All',          value = 'all' },
 			{ text = 'Player Only',  value = 'player' },
@@ -155,7 +155,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	displayCard, displayInner, displayCardY = Widgets.StartCard(parent, width, yOffset)
 
 	-- Icon Size
-	local sizeSlider = Widgets.CreateSlider(displayInner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	local sizeSlider = Widgets.CreateSlider(displayInner, 'Icon Size', widgetW, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 16)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	sizeSlider:ClearAllPoints()
@@ -164,7 +164,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 
 	-- Big Icon Size (debuffs only)
 	if(opts.showBigIconSize) then
-		local bigSlider = Widgets.CreateSlider(displayInner, 'Big Icon Size', WIDGET_W, 8, 64, 1)
+		local bigSlider = Widgets.CreateSlider(displayInner, 'Big Icon Size', widgetW, 8, 64, 1)
 		bigSlider:SetValue(get('bigIconSize') or 22)
 		bigSlider:SetAfterValueChanged(function(v) set('bigIconSize', v) end)
 		bigSlider:ClearAllPoints()
@@ -173,7 +173,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	end
 
 	-- Max Displayed
-	local maxSlider = Widgets.CreateSlider(displayInner, 'Max Displayed', WIDGET_W, 1, 20, 1)
+	local maxSlider = Widgets.CreateSlider(displayInner, 'Max Displayed', widgetW, 1, 20, 1)
 	maxSlider:SetValue(get('maxDisplayed') or 3)
 	maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
 	maxSlider:ClearAllPoints()
@@ -200,7 +200,7 @@ function F.Settings.Builders.BorderIconSettings(parent, width, yOffset, opts)
 	Widgets.SetPoint(oriLabel, 'TOPLEFT', displayInner, 'TOPLEFT', 0, displayCardY)
 	displayCardY = displayCardY - oriLabelH
 
-	local oriDD = Widgets.CreateDropdown(displayInner, WIDGET_W)
+	local oriDD = Widgets.CreateDropdown(displayInner, widgetW)
 	oriDD:SetItems({
 		{ text = 'Right', value = 'RIGHT' },
 		{ text = 'Left',  value = 'LEFT' },

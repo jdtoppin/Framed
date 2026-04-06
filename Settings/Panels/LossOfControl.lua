@@ -9,7 +9,6 @@ local C = F.Constants
 
 local SLIDER_H   = 26
 local CHECK_H    = 22
-local WIDGET_W   = 220
 
 -- ============================================================
 -- CC type definitions
@@ -40,12 +39,10 @@ local function set(key, value)
 		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.lossOfControl.' .. key, value)
 	end
 	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	if(key == 'enabled') then
-		F.Settings.UpdateAuraPreviewDimming('lossOfControl', nil)
-	end
-	if(F.EventBus) then
+	if(key ~= 'enabled' and F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.lossOfControl')
 	end
+	F.Settings.UpdateAuraPreviewDimming('lossOfControl', nil)
 end
 
 -- ============================================================
@@ -103,13 +100,14 @@ end
 
 local function buildVisualSettingsCard(parent, width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	local alphaSlider = Widgets.CreateSlider(inner, 'Overlay Alpha', WIDGET_W, 0.0, 1.0, 0.05)
+	local alphaSlider = Widgets.CreateSlider(inner, 'Overlay Alpha', widgetW, 0.0, 1.0, 0.05)
 	alphaSlider:SetValue(get('overlayAlpha') or 0.6)
 	alphaSlider:SetAfterValueChanged(function(v) set('overlayAlpha', v) end)
 	cy = placeWidget(alphaSlider, inner, cy, SLIDER_H)
 
-	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 12, 64, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 12, 64, 1)
 	sizeSlider:SetValue(get('iconSize') or 32)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
@@ -146,6 +144,7 @@ F.Settings.RegisterPanel({
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(yOffset))
 
+		grid:AddCard('preview',        'Preview',         F.Settings.AuraPreview.BuildPreviewCard, {})
 		grid:AddCard('overview',       'Overview',        buildOverviewCard,       {})
 		grid:AddCard('ccTypes',        'CC Types',        buildCCTypesCard,        {})
 		grid:AddCard('visualSettings', 'Visual Settings', buildVisualSettingsCard, {})
@@ -190,6 +189,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })

@@ -45,9 +45,11 @@ local function makeConfigHelpers(unitType)
 	end
 
 	local function fireChange()
-		if(not F.EventBus) then return end
-		local presetName = F.Settings.GetEditingPreset()
-		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.buffs')
+		if(F.EventBus) then
+			local presetName = F.Settings.GetEditingPreset()
+			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.buffs')
+		end
+		F.Settings.UpdateAuraPreviewDimming('buffs', nil)
 	end
 
 	local function setIndicator(name, data)
@@ -206,18 +208,25 @@ F.Settings.RegisterPanel({
 		-- ── Unit type dropdown + copy-to ─────────────────────────
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'buffs', 'buffs')
 
-		-- ── Pinned row: Create card + Indicator List card ────────
+		-- ── Pinned row: Preview + Create card + Indicator List card ─
 		local CARD_GAP    = C.Spacing.normal
 		local createCardW = math.floor((width - CARD_GAP) * 0.40)
 		local listCardW   = width - createCardW - CARD_GAP
 		local pinnedRowY  = yOffset
+
+		-- ── Preview card (above create card, same column) ────────
+		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, createCardW)
+		previewCard:ClearAllPoints()
+		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
+		local previewCardH = previewCard:GetHeight()
+		local createStartY = pinnedRowY - previewCardH - CARD_GAP
 
 		-- ── Create card ──────────────────────────────────────────
 		local selectedType = C.IndicatorType.ICONS
 		local selectedDisplayType = C.IconDisplay.SPELL_ICON
 		local selectedBorderGlowMode = 'Border'
 
-		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, pinnedRowY)
+		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, createStartY)
 
 		-- Type dropdown
 		local typeDD = Widgets.CreateDropdown(createInner, createCardW - Widgets.CARD_PADDING * 2)
@@ -341,10 +350,10 @@ F.Settings.RegisterPanel({
 
 		Widgets.EndCard(listCard, content, listY)
 
-		-- Calculate combined pinned row height (tallest of the two cards)
-		local createCardH = createCard:GetHeight()
+		-- Calculate combined pinned row height (tallest of left column vs list)
+		local leftColumnH = previewCardH + CARD_GAP + createCard:GetHeight()
 		local listCardH   = listCard:GetHeight()
-		local pinnedRowH  = math.max(createCardH, listCardH)
+		local pinnedRowH  = math.max(leftColumnH, listCardH)
 		yOffset = pinnedRowY - pinnedRowH - C.Spacing.normal
 
 		-- ── CardGrid for settings cards ──────────────────────────
@@ -604,6 +613,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })

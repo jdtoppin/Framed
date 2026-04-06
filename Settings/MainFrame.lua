@@ -337,12 +337,10 @@ function Settings.CreateMainFrame()
 	end)
 
 	frame:HookScript('OnHide', function()
-		if(Settings._auraPreview) then
-			if(F.Settings.AuraPreview) then
-				F.Settings.AuraPreview.Destroy(Settings._auraPreview)
-			end
-			Settings._auraPreview = nil
-		end
+		-- Just clear the pointer — previews are parented to their panel's
+		-- scroll content and hide with the settings window.  Destroying them
+		-- orphans the frame while _ownedPreview still references it.
+		Settings._auraPreview = nil
 	end)
 
 end

@@ -83,10 +83,10 @@ local function UpdateHorizVisuals(slider)
 		slider._fill:Hide()
 	end
 
-	-- Thumb: centered on fill position, clamped inside track
+	-- Thumb: centered on fill position, clamped so it stays within track bounds
 	local halfThumb = THUMB_W_HORIZ / 2
 	local thumbX = fraction * trackW - halfThumb
-	thumbX = math.max(-halfThumb, math.min(trackW - halfThumb, thumbX))
+	thumbX = math.max(0, math.min(trackW - THUMB_W_HORIZ, thumbX))
 	slider._thumb:ClearAllPoints()
 	slider._thumb:SetPoint('LEFT', slider._track, 'LEFT', thumbX, 0)
 
@@ -408,7 +408,7 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 	else
 		-- Horizontal: container width = size, height = label row + track
 		local labelH = 14  -- approximate label row height
-		Widgets.SetSize(slider, size, labelH + TRACK_THICKNESS + 6)
+		Widgets.SetSize(slider, size, labelH + TRACK_THICKNESS + 12)
 
 		-- Label: top-left
 		labelFS:SetPoint('TOPLEFT', slider, 'TOPLEFT', 0, 0)
@@ -417,9 +417,9 @@ local function createSliderInternal(parent, label, size, minVal, maxVal, step, o
 		-- Value: top-right
 		valueBox:SetPoint('TOPRIGHT', slider, 'TOPRIGHT', 0, 2)
 
-		-- Track: below the label row
+		-- Track: below the label/value row, right edge aligns with right edge of value box
 		Widgets.SetSize(track, size, TRACK_THICKNESS)
-		track:SetPoint('TOPLEFT', slider, 'TOPLEFT', 0, -(labelH + 4))
+		track:SetPoint('TOPLEFT', slider, 'TOPLEFT', 0, -(labelH + 10))
 
 		-- Fill: anchored left, grows right
 		fill:SetPoint('TOPLEFT', track, 'TOPLEFT', 0, 0)

@@ -298,6 +298,19 @@ function Settings.SetActivePanel(panelId)
 		if(Settings._activePanelFrame.ScrollToTop) then
 			Settings._activePanelFrame:ScrollToTop()
 		end
+
+		-- Restore this panel's owned preview (if it has one) and re-render
+		if(Settings._activePanelFrame._ownedPreview) then
+			Settings._auraPreview = Settings._activePanelFrame._ownedPreview
+			Settings._activePreviewGroup = panelId
+			if(F.Settings.AuraPreview) then
+				-- Use the preview's stored unit type (matches "Configure for")
+				local unitType = Settings._auraPreview._unitType
+					or (Settings.GetEditingUnitType and Settings.GetEditingUnitType())
+					or 'player'
+				F.Settings.AuraPreview.Render(Settings._auraPreview, unitType, panelId, nil)
+			end
+		end
 	end
 
 	-- Update sidebar selection
@@ -322,27 +335,12 @@ function Settings.SetActivePanel(panelId)
 		end
 	end
 
-	-- ── Aura preview lifecycle ──────────────────────────────
-	if(Settings._auraPreview) then
-		if(F.Settings.AuraPreview) then
-			F.Settings.AuraPreview.Destroy(Settings._auraPreview)
-		end
+	-- ── Clear preview pointer when switching away from aura panels ─
+	-- Don't destroy — each preview is parented to its panel's scroll content
+	-- and hides naturally. Destroying orphans the frame while _ownedPreview
+	-- still references it, breaking restore on return.
+	if(info.subSection ~= 'auras') then
 		Settings._auraPreview = nil
-	end
-
-	if(info.subSection == 'auras' and Settings._headerPreviewAnchor and F.Settings.AuraPreview) then
-		local preview = F.Settings.AuraPreview.Create(Settings._headerPreviewAnchor)
-		preview:ClearAllPoints()
-		if(Settings._headerPresetText and Settings._headerPresetText:IsShown()) then
-			preview:SetPoint('RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)
-		else
-			preview:SetPoint('RIGHT', Settings._headerPreviewAnchor, 'RIGHT', -C.Spacing.normal, 0)
-		end
-		Settings._auraPreview = preview
-
-		local auraGroupKey = info.id
-		local unitType = Settings.GetEditingUnitType() or 'player'
-		F.Settings.AuraPreview.Render(preview, unitType, auraGroupKey, nil)
 	end
 
 end
@@ -364,10 +362,8 @@ end
 --- @param activeGroupKey string     Panel id (e.g. 'buffs')
 --- @param activeIndicatorName string|nil  Indicator name to highlight, or nil for all
 function Settings.UpdateAuraPreviewDimming(activeGroupKey, activeIndicatorName)
-	if(not Settings._auraPreview) then return end
 	if(not F.Settings.AuraPreview) then return end
-	local unitType = Settings.GetEditingUnitType() or 'player'
-	F.Settings.AuraPreview.Render(Settings._auraPreview, unitType, activeGroupKey, activeIndicatorName)
+	F.Settings.AuraPreview.UpdateDimming(activeGroupKey, activeIndicatorName)
 end
 
 -- Refresh active panel when the editing preset changes.

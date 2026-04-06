@@ -10,7 +10,6 @@ local Widgets = F.Widgets
 local SLIDER_H   = 26
 local CHECK_H    = 22
 local DROPDOWN_H = 22
-local WIDGET_W   = 220
 
 local function placeWidget(widget, content, yOffset, height)
 	widget:ClearAllPoints()
@@ -37,6 +36,7 @@ function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, g
 	end
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local fontCfg = get(configPrefix) or {}
 
@@ -51,7 +51,7 @@ function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, g
 
 	-- Anchor picker + offsets (opt-in)
 	if(opts.showAnchor and Widgets.CreateAnchorPicker) then
-		local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 15)
+		local anchorPicker = Widgets.CreateAnchorPicker(inner, widgetW, 15)
 		anchorPicker:SetAnchor(fontCfg.anchor or 'BOTTOMRIGHT', fontCfg.xOffset or 0, fontCfg.yOffset or 0)
 		anchorPicker:SetOnChanged(function(point, x, y)
 			fontCfg.anchor = point
@@ -63,7 +63,7 @@ function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, g
 	end
 
 	-- Font size slider
-	local sizeSlider = Widgets.CreateSlider(inner, 'Size', WIDGET_W, 6, 24, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Size', widgetW, 6, 24, 1)
 	sizeSlider:SetValue(fontCfg.size or 10)
 	sizeSlider:SetAfterValueChanged(function(val)
 		fontCfg.size = val
@@ -72,7 +72,7 @@ function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, g
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
 	-- Outline dropdown
-	local outlineDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local outlineDD = Widgets.CreateDropdown(inner, widgetW)
 	outlineDD:SetItems({
 		{ text = 'None',    value = '' },
 		{ text = 'Outline', value = 'OUTLINE' },
@@ -93,7 +93,8 @@ function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, g
 	shadowCB:SetChecked(fontCfg.shadow or false)
 	cy = placeWidget(shadowCB, inner, cy, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return cy, card
 end
 
 -- ============================================================
@@ -103,9 +104,12 @@ end
 function F.Settings.BuildGlowCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
 
-	yOffset = placeHeading(parent, 'Glow', yOffset)
+	if(not opts.noHeading) then
+		yOffset = placeHeading(parent, 'Glow', yOffset)
+	end
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Glow type dropdown
 	local typeItems = {}
@@ -123,7 +127,7 @@ function F.Settings.BuildGlowCard(parent, width, yOffset, get, set, opts)
 		typeItems[#typeItems + 1] = { text = 'Shine', value = C.GlowType.SHINE }
 	end
 
-	local typeDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local typeDD = Widgets.CreateDropdown(inner, widgetW)
 	typeDD:SetItems(typeItems)
 	typeDD:SetValue(get('glowType') or (opts.allowNone and 'None' or C.GlowType.PROC))
 	cy = placeWidget(typeDD, inner, cy, DROPDOWN_H)
@@ -147,7 +151,8 @@ function F.Settings.BuildGlowCard(parent, width, yOffset, get, set, opts)
 		end
 	end)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return cy, card
 end
 
 -- ============================================================
@@ -162,12 +167,13 @@ function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 	end
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	if(not opts.hidePosition) then
 		-- Anchor picker (includes its own X/Y offset inputs)
 		if(Widgets.CreateAnchorPicker) then
 			local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 50)
+			local picker = Widgets.CreateAnchorPicker(inner, widgetW, 50)
 			picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
 			picker:SetOnChanged(function(point, x, y)
 				local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
@@ -183,7 +189,7 @@ function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 
 	-- Frame level slider
 	if(not opts.hideFrameLevel) then
-		local flSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 50, 1)
+		local flSlider = Widgets.CreateSlider(inner, 'Frame Level', widgetW, 1, 50, 1)
 		flSlider:SetValue(get('frameLevel') or 5)
 		flSlider:SetAfterValueChanged(function(val)
 			set('frameLevel', val)
@@ -191,7 +197,8 @@ function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 		cy = placeWidget(flSlider, inner, cy, SLIDER_H)
 	end
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return cy, card
 end
 
 -- ============================================================
@@ -201,9 +208,12 @@ end
 function F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
 
-	yOffset = placeHeading(parent, 'Colors', yOffset)
+	if(not opts.noHeading) then
+		yOffset = placeHeading(parent, 'Colors', yOffset)
+	end
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Base color (skip when per-spell colors are used)
 	if(not opts.hideBaseColor) then
@@ -233,7 +243,7 @@ function F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, op
 	ltSwitch:SetChecked(ltc.enabled)
 	cy = placeWidget(ltSwitch, inner, cy, CHECK_H)
 
-	ltSlider = Widgets.CreateSlider(inner, 'Threshold %', WIDGET_W, 5, 75, 5)
+	ltSlider = Widgets.CreateSlider(inner, 'Threshold %', widgetW, 5, 75, 5)
 	ltSlider:SetValue(ltc.threshold or 25)
 	ltSlider:SetAfterValueChanged(function(val)
 		ltc.threshold = val
@@ -269,7 +279,7 @@ function F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, op
 	if(ltc.enabled) then lsSwitch:SetEnabled(false) end
 	if(lsc.enabled) then ltSwitch:SetEnabled(false) end
 
-	lsSlider = Widgets.CreateSlider(inner, 'Threshold (sec)', WIDGET_W, 1, 30, 1)
+	lsSlider = Widgets.CreateSlider(inner, 'Threshold (sec)', widgetW, 1, 30, 1)
 	lsSlider:SetValue(lsc.threshold or 5)
 	lsSlider:SetAfterValueChanged(function(val)
 		lsc.threshold = val
@@ -306,5 +316,6 @@ function F.Settings.BuildThresholdColorCard(parent, width, yOffset, get, set, op
 		cy = placeWidget(bgPicker, inner, cy, DROPDOWN_H)
 	end
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return cy, card
 end

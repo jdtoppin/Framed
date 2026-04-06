@@ -5,7 +5,6 @@ local Widgets = F.Widgets
 local Settings = F.Settings
 
 -- Shared layout constants (match FrameSettingsBuilder.lua)
-local WIDGET_W    = 220
 local DROPDOWN_H  = 22
 local SLIDER_H    = 26
 local CHECK_H     = 14
@@ -38,8 +37,9 @@ F.Settings.IndicatorCardBuilders = Builders
 -- ── Cast By ─────────────────────────────────────────────────
 function Builders.CastBy(parent, width, data, update)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	local castByDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local castByDD = Widgets.CreateDropdown(inner, widgetW)
 	castByDD:SetItems({
 		{ text = 'Me',      value = C.CastFilter.ME },
 		{ text = 'Others',  value = C.CastFilter.OTHERS },
@@ -130,12 +130,13 @@ end
 -- ── Appearance (Icon/Icons) ──────────────────────────────────
 function Builders.Appearance(parent, width, data, update, rebuildPanel)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local dtLabel = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
 	dtLabel:SetText('Display Type')
 	cardY = placeWidget(dtLabel, inner, cardY, C.Font.sizeSmall)
 
-	local dtSwitch = Widgets.CreateSwitch(inner, WIDGET_W, BUTTON_H, {
+	local dtSwitch = Widgets.CreateSwitch(inner, widgetW, BUTTON_H, {
 		{ text = 'Spell Icons',   value = C.IconDisplay.SPELL_ICON },
 		{ text = 'Color Squares', value = C.IconDisplay.COLORED_SQUARE },
 	})
@@ -147,12 +148,12 @@ function Builders.Appearance(parent, width, data, update, rebuildPanel)
 	end)
 	cardY = placeWidget(dtSwitch, inner, cardY, BUTTON_H)
 
-	local wSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 48, 1)
+	local wSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 3, 48, 1)
 	wSlider:SetValue(data.iconWidth)
 	wSlider:SetAfterValueChanged(function(v) update('iconWidth', v) end)
 	cardY = placeWidget(wSlider, inner, cardY, SLIDER_H)
 
-	local hSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 48, 1)
+	local hSlider = Widgets.CreateSlider(inner, 'Height', widgetW, 3, 48, 1)
 	hSlider:SetValue(data.iconHeight)
 	hSlider:SetAfterValueChanged(function(v) update('iconHeight', v) end)
 	cardY = placeWidget(hSlider, inner, cardY, SLIDER_H)
@@ -165,12 +166,13 @@ end
 -- Also used as Position for single-element types (Icon, Bar, Rectangle)
 function Builders.Layout(parent, width, data, update, get, set)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 	local iType = data.type
 
 	-- Anchor picker
 	if(Widgets.CreateAnchorPicker) then
 		local anchor = get('anchor')
-		local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 50)
+		local picker = Widgets.CreateAnchorPicker(inner, widgetW, 50)
 		picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
 		picker:SetOnChanged(function(point, x, y)
 			local a = get('anchor')
@@ -184,7 +186,7 @@ function Builders.Layout(parent, width, data, update, get, set)
 	end
 
 	-- Frame level
-	local flSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 50, 1)
+	local flSlider = Widgets.CreateSlider(inner, 'Frame Level', widgetW, 1, 50, 1)
 	flSlider:SetValue(get('frameLevel'))
 	flSlider:SetAfterValueChanged(function(val) set('frameLevel', val) end)
 	cardY = placeWidget(flSlider, inner, cardY, SLIDER_H)
@@ -208,28 +210,28 @@ function Builders.Layout(parent, width, data, update, get, set)
 			{ text = 'Down',  value = 'DOWN' },
 		}
 
-		local oriDD = Widgets.CreateDropdown(inner, WIDGET_W)
+		local oriDD = Widgets.CreateDropdown(inner, widgetW)
 		oriDD:SetItems(ORIENTATION_ITEMS)
 		oriDD:SetValue(effectiveGrow)
 		oriDD:SetOnSelect(function(v) update('orientation', v) end)
 		cardY = placeWidget(oriDD, inner, cardY, DROPDOWN_H)
 
-		local mxSlider = Widgets.CreateSlider(inner, 'Max Displayed', WIDGET_W, 1, 10, 1)
+		local mxSlider = Widgets.CreateSlider(inner, 'Max Displayed', widgetW, 1, 10, 1)
 		mxSlider:SetValue(data.maxDisplayed)
 		mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
 		cardY = placeWidget(mxSlider, inner, cardY, SLIDER_H)
 
-		local nplSlider = Widgets.CreateSlider(inner, 'Num Per Line', WIDGET_W, 0, 10, 1)
+		local nplSlider = Widgets.CreateSlider(inner, 'Num Per Line', widgetW, 0, 10, 1)
 		nplSlider:SetValue(data.numPerLine)
 		nplSlider:SetAfterValueChanged(function(v) update('numPerLine', v) end)
 		cardY = placeWidget(nplSlider, inner, cardY, SLIDER_H)
 
-		local spxSlider = Widgets.CreateSlider(inner, 'Spacing X', WIDGET_W, -20, 20, 1)
+		local spxSlider = Widgets.CreateSlider(inner, 'Spacing X', widgetW, -20, 20, 1)
 		spxSlider:SetValue(data.spacingX)
 		spxSlider:SetAfterValueChanged(function(v) update('spacingX', v) end)
 		cardY = placeWidget(spxSlider, inner, cardY, SLIDER_H)
 
-		local spySlider = Widgets.CreateSlider(inner, 'Spacing Y', WIDGET_W, -20, 20, 1)
+		local spySlider = Widgets.CreateSlider(inner, 'Spacing Y', widgetW, -20, 20, 1)
 		spySlider:SetValue(data.spacingY)
 		spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
 		cardY = placeWidget(spySlider, inner, cardY, SLIDER_H)
@@ -242,6 +244,7 @@ end
 -- ── Cooldown & Duration (Icon/Icons) ────────────────────────
 function Builders.CooldownDuration(parent, width, data, update, get, set)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local cdSwitch = Widgets.CreateCheckButton(inner, 'Show Cooldown', function(checked)
 		update('showCooldown', checked)
@@ -263,7 +266,7 @@ function Builders.CooldownDuration(parent, width, data, update, get, set)
 		{ text = '< 5s',   value = '<5s' },
 	}
 
-	local durDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local durDD = Widgets.CreateDropdown(inner, widgetW)
 	durDD:SetItems(DURATION_MODE_ITEMS)
 	durDD:SetValue(data.durationMode)
 	durDD:SetOnSelect(function(v) update('durationMode', v) end)
@@ -274,7 +277,7 @@ function Builders.CooldownDuration(parent, width, data, update, get, set)
 
 	if(Widgets.CreateAnchorPicker) then
 		local dfAnchor = fontCfg.anchor or 'BOTTOM'
-		local dfPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 15)
+		local dfPicker = Widgets.CreateAnchorPicker(inner, widgetW, 15)
 		dfPicker:SetAnchor(dfAnchor, fontCfg.xOffset or 0, fontCfg.yOffset or 0)
 		dfPicker:SetOnChanged(function(point, x, y)
 			fontCfg.anchor = point
@@ -285,7 +288,7 @@ function Builders.CooldownDuration(parent, width, data, update, get, set)
 		cardY = placeWidget(dfPicker, inner, cardY, dfPicker._height or 91)
 	end
 
-	local dfSizeSlider = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	local dfSizeSlider = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
 	dfSizeSlider:SetValue(fontCfg.size or C.Font.sizeSmall)
 	dfSizeSlider:SetAfterValueChanged(function(val)
 		fontCfg.size = val
@@ -293,7 +296,7 @@ function Builders.CooldownDuration(parent, width, data, update, get, set)
 	end)
 	cardY = placeWidget(dfSizeSlider, inner, cardY, SLIDER_H)
 
-	local dfOutlineDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local dfOutlineDD = Widgets.CreateDropdown(inner, widgetW)
 	dfOutlineDD:SetItems({
 		{ text = 'None',    value = '' },
 		{ text = 'Outline', value = 'OUTLINE' },
@@ -351,6 +354,7 @@ end
 -- ── Stacks ───────────────────────────────────────────────────
 function Builders.Stacks(parent, width, data, update, get, set)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local stSwitch = Widgets.CreateCheckButton(inner, 'Show Stacks', function(checked)
 		update('showStacks', checked)
@@ -363,7 +367,7 @@ function Builders.Stacks(parent, width, data, update, get, set)
 
 	if(Widgets.CreateAnchorPicker) then
 		local sfAnchor = sfCfg.anchor or 'BOTTOMRIGHT'
-		local sfPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 15)
+		local sfPicker = Widgets.CreateAnchorPicker(inner, widgetW, 15)
 		sfPicker:SetAnchor(sfAnchor, sfCfg.offsetX or 0, sfCfg.offsetY or 0)
 		sfPicker:SetOnChanged(function(point, x, y)
 			sfCfg.anchor = point
@@ -374,7 +378,7 @@ function Builders.Stacks(parent, width, data, update, get, set)
 		cardY = placeWidget(sfPicker, inner, cardY, sfPicker._height or 91)
 	end
 
-	local sfSizeSlider = Widgets.CreateSlider(inner, 'Font Size', WIDGET_W, 6, 24, 1)
+	local sfSizeSlider = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
 	sfSizeSlider:SetValue(sfCfg.size or C.Font.sizeSmall)
 	sfSizeSlider:SetAfterValueChanged(function(val)
 		sfCfg.size = val
@@ -382,7 +386,7 @@ function Builders.Stacks(parent, width, data, update, get, set)
 	end)
 	cardY = placeWidget(sfSizeSlider, inner, cardY, SLIDER_H)
 
-	local sfOutlineDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local sfOutlineDD = Widgets.CreateDropdown(inner, widgetW)
 	sfOutlineDD:SetItems({
 		{ text = 'None',    value = '' },
 		{ text = 'Outline', value = 'OUTLINE' },
@@ -409,6 +413,7 @@ end
 -- ── Size (Bar/Bars/Rectangle) ───────────────────────────────
 function Builders.Size(parent, width, data, update)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 	local iType = data.type
 
 	local BAR_ORIENTATION_ITEMS = {
@@ -417,29 +422,29 @@ function Builders.Size(parent, width, data, update)
 	}
 
 	if(iType == C.IndicatorType.BAR or iType == C.IndicatorType.BARS) then
-		local bwSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 100, 1)
+		local bwSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 3, 100, 1)
 		bwSlider:SetValue(data.barWidth)
 		bwSlider:SetAfterValueChanged(function(v) update('barWidth', v) end)
 		cardY = placeWidget(bwSlider, inner, cardY, SLIDER_H)
 
-		local bhSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 100, 1)
+		local bhSlider = Widgets.CreateSlider(inner, 'Height', widgetW, 3, 100, 1)
 		bhSlider:SetValue(data.barHeight)
 		bhSlider:SetAfterValueChanged(function(v) update('barHeight', v) end)
 		cardY = placeWidget(bhSlider, inner, cardY, SLIDER_H)
 
-		local barOriDD = Widgets.CreateDropdown(inner, WIDGET_W)
+		local barOriDD = Widgets.CreateDropdown(inner, widgetW)
 		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
 		barOriDD:SetValue(data.barOrientation)
 		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
 		cardY = placeWidget(barOriDD, inner, cardY, DROPDOWN_H)
 
 	elseif(iType == C.IndicatorType.RECTANGLE) then
-		local rwSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 500, 1)
+		local rwSlider = Widgets.CreateSlider(inner, 'Width', widgetW, 3, 500, 1)
 		rwSlider:SetValue(data.rectWidth)
 		rwSlider:SetAfterValueChanged(function(v) update('rectWidth', v) end)
 		cardY = placeWidget(rwSlider, inner, cardY, SLIDER_H)
 
-		local rhSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 500, 1)
+		local rhSlider = Widgets.CreateSlider(inner, 'Height', widgetW, 3, 500, 1)
 		rhSlider:SetValue(data.rectHeight)
 		rhSlider:SetAfterValueChanged(function(v) update('rectHeight', v) end)
 		cardY = placeWidget(rhSlider, inner, cardY, SLIDER_H)
@@ -452,8 +457,9 @@ end
 -- ── Mode (Overlay) ──────────────────────────────────────────
 function Builders.Mode(parent, width, data, update, get, set, rebuildPanel)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	local modeDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local modeDD = Widgets.CreateDropdown(inner, widgetW)
 	modeDD:SetItems({
 		{ text = 'Duration Overlay', value = 'DurationOverlay' },
 		{ text = 'Color',            value = 'Color' },
@@ -486,7 +492,7 @@ function Builders.Mode(parent, width, data, update, get, set, rebuildPanel)
 			{ text = 'Horizontal', value = 'Horizontal' },
 			{ text = 'Vertical',   value = 'Vertical' },
 		}
-		local barOriDD = Widgets.CreateDropdown(inner, WIDGET_W)
+		local barOriDD = Widgets.CreateDropdown(inner, widgetW)
 		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
 		barOriDD:SetValue(data.barOrientation)
 		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
@@ -500,6 +506,7 @@ end
 -- ── Duration (Bar/Bars) ─────────────────────────────────────
 function Builders.Duration(parent, width, data, update, get, set)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local DURATION_MODE_ITEMS = {
 		{ text = 'Never',   value = 'Never' },
@@ -511,7 +518,7 @@ function Builders.Duration(parent, width, data, update, get, set)
 		{ text = '< 5s',    value = '<5s' },
 	}
 
-	local durDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local durDD = Widgets.CreateDropdown(inner, widgetW)
 	durDD:SetItems(DURATION_MODE_ITEMS)
 	durDD:SetValue(data.durationMode)
 	durDD:SetOnSelect(function(v) update('durationMode', v) end)
@@ -594,25 +601,17 @@ Builders.CARDS_FOR_TYPE = {
 -- ============================================================
 
 function Builders.SharedGlow(parent, width, data, update, get, set)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildGlowCard(wrapper, width, 0, get, set, { allowNone = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildGlowCard(parent, width, 0, get, set, { allowNone = true, noHeading = true })
+	return card
 end
 
 function Builders.SharedPosition(parent, width, data, update, get, set)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true })
+	return card
 end
 
 function Builders.SharedThresholdColors(parent, width, data, update, get, set, opts)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local tcOpts = {}
+	local tcOpts = { noHeading = true }
 	if(data.type == C.IndicatorType.BAR or data.type == C.IndicatorType.BARS) then
 		tcOpts.showBorderColor = true
 		tcOpts.showBgColor = true
@@ -620,7 +619,6 @@ function Builders.SharedThresholdColors(parent, width, data, update, get, set, o
 	elseif(data.type == C.IndicatorType.RECTANGLE) then
 		tcOpts.showBorderColor = true
 	end
-	local yOff = F.Settings.BuildThresholdColorCard(wrapper, width, 0, get, set, tcOpts)
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildThresholdColorCard(parent, width, 0, get, set, tcOpts)
+	return card
 end

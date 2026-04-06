@@ -14,7 +14,6 @@ local DROPDOWN_H       = 22
 local SLIDER_H         = 26
 local CHECK_H          = 22
 local PAD_H            = 6
-local WIDGET_W         = 220
 
 -- ============================================================
 -- Filter mode items
@@ -48,9 +47,11 @@ local function makeConfigHelpers(unitType)
 	end
 
 	local function fireChange()
-		if(not F.EventBus) then return end
-		local presetName = F.Settings.GetEditingPreset()
-		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.debuffs')
+		if(F.EventBus) then
+			local presetName = F.Settings.GetEditingPreset()
+			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.debuffs')
+		end
+		F.Settings.UpdateAuraPreviewDimming('debuffs', nil)
 	end
 
 	local function setIndicator(name, data)
@@ -156,8 +157,9 @@ end
 
 local function buildFilterModeCard(parent, width, data, update, get, set)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	local filterDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local filterDD = Widgets.CreateDropdown(inner, widgetW)
 	filterDD:SetItems(FILTER_MODE_ITEMS)
 	filterDD:SetValue(get('filterMode') or 'all')
 	filterDD:SetOnSelect(function(v) update('filterMode', v) end)
@@ -169,21 +171,22 @@ end
 
 local function buildDisplaySettingsCard(parent, width, data, update, get, set)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Icon Size
-	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 16)
 	sizeSlider:SetAfterValueChanged(function(v) update('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
 	-- Big Icon Size
-	local bigSlider = Widgets.CreateSlider(inner, 'Big Icon Size', WIDGET_W, 8, 64, 1)
+	local bigSlider = Widgets.CreateSlider(inner, 'Big Icon Size', widgetW, 8, 64, 1)
 	bigSlider:SetValue(get('bigIconSize') or 22)
 	bigSlider:SetAfterValueChanged(function(v) update('bigIconSize', v) end)
 	cy = placeWidget(bigSlider, inner, cy, SLIDER_H)
 
 	-- Max Displayed
-	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', WIDGET_W, 1, 20, 1)
+	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', widgetW, 1, 20, 1)
 	maxSlider:SetValue(get('maxDisplayed') or 3)
 	maxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
 	cy = placeWidget(maxSlider, inner, cy, SLIDER_H)
@@ -195,15 +198,8 @@ local function buildDisplaySettingsCard(parent, width, data, update, get, set)
 	durCheck:SetChecked(get('showDuration') ~= false)
 	cy = placeWidget(durCheck, inner, cy, CHECK_H)
 
-	-- Show Animation
-	local animCheck = Widgets.CreateCheckButton(inner, 'Show Animation', function(checked)
-		update('showAnimation', checked)
-	end)
-	animCheck:SetChecked(get('showAnimation') ~= false)
-	cy = placeWidget(animCheck, inner, cy, CHECK_H)
-
 	-- Orientation
-	local oriDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local oriDD = Widgets.CreateDropdown(inner, widgetW)
 	oriDD:SetItems({
 		{ text = 'Right', value = 'RIGHT' },
 		{ text = 'Left',  value = 'LEFT' },
@@ -219,27 +215,18 @@ local function buildDisplaySettingsCard(parent, width, data, update, get, set)
 end
 
 local function buildPositionCard(parent, width, data, update, get, set)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true })
+	return card
 end
 
 local function buildDurationFontCard(parent, width, data, update, get, set)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, { noHeading = true, showAnchor = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildFontCard(parent, width, 0, 'Duration', 'durationFont', get, set, { noHeading = true, showAnchor = true })
+	return card
 end
 
 local function buildStackFontCard(parent, width, data, update, get, set)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stacks', 'stackFont', get, set, { noHeading = true, showAnchor = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildFontCard(parent, width, 0, 'Stacks', 'stackFont', get, set, { noHeading = true, showAnchor = true })
+	return card
 end
 
 -- ============================================================
@@ -275,10 +262,17 @@ F.Settings.RegisterPanel({
 		local listCardW   = width - createCardW - CARD_GAP
 		local pinnedRowY  = yOffset
 
+		-- ── Preview card (above create card, same column) ────────
+		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, createCardW)
+		previewCard:ClearAllPoints()
+		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
+		local previewCardH = previewCard:GetHeight()
+		local createStartY = pinnedRowY - previewCardH - CARD_GAP
+
 		-- ── Create card ──────────────────────────────────────────
 		local selectedFilter = 'all'
 
-		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, pinnedRowY)
+		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, createStartY)
 
 		-- Filter mode dropdown
 		local filterDD = Widgets.CreateDropdown(createInner, createCardW - Widgets.CARD_PADDING * 2)
@@ -323,10 +317,10 @@ F.Settings.RegisterPanel({
 
 		Widgets.EndCard(listCard, content, listY)
 
-		-- Calculate combined pinned row height (tallest of the two cards)
-		local createCardH = createCard:GetHeight()
+		-- Calculate combined pinned row height (tallest of left column vs list)
+		local leftColumnH = previewCardH + CARD_GAP + createCard:GetHeight()
 		local listCardH   = listCard:GetHeight()
-		local pinnedRowH  = math.max(createCardH, listCardH)
+		local pinnedRowH  = math.max(leftColumnH, listCardH)
 		yOffset = pinnedRowY - pinnedRowH - C.Spacing.normal
 
 		-- ── CardGrid for settings cards ──────────────────────────
@@ -582,6 +576,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })

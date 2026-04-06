@@ -65,11 +65,11 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 				nil,
 				function(r, g, b) setConfig(colorKey, { r, g, b }) end)
 			picker:SetPoint('TOPLEFT', section, 'TOPLEFT', 0, sY)
-			local saved = getConfig(colorKey)
+			local saved = getConfig(colorKey) or row.color
 			picker:SetColor(saved[1], saved[2], saved[3], 1)
 
 			local pctSlider = Widgets.CreateSlider(section, '% Threshold', widgetW - 30, 0, 100, 5)
-			pctSlider:SetValue(getConfig(thresholdKey))
+			pctSlider:SetValue(getConfig(thresholdKey) or row.pct)
 			pctSlider:SetAfterValueChanged(function(value)
 				setConfig(thresholdKey, value)
 			end)
@@ -101,7 +101,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local customPicker = Widgets.CreateColorPicker(inner, 'Health Bar Color', false,
 		nil,
 		function(r, g, b) setConfig('health.customColor', { r, g, b }) end)
-	local savedCustom = getConfig('health.customColor')
+	local savedCustom = getConfig('health.customColor') or { 0.2, 0.8, 0.2 }
 	customPicker:SetColor(savedCustom[1], savedCustom[2], savedCustom[3], 1)
 	local customPickerH = 22
 

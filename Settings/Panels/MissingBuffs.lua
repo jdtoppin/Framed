@@ -9,7 +9,6 @@ local C = F.Constants
 local SLIDER_H   = 26
 local DROPDOWN_H = 22
 local CHECK_H    = 22
-local WIDGET_W   = 220
 
 -- ============================================================
 -- Config helpers
@@ -27,12 +26,10 @@ local function makeHelpers(unitType)
 			F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs.' .. key, value)
 		end
 		if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-		if(key == 'enabled') then
-			F.Settings.UpdateAuraPreviewDimming('missingBuffs', nil)
-		end
-		if(F.EventBus) then
+		if(key ~= 'enabled' and F.EventBus) then
 			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs')
 		end
+		F.Settings.UpdateAuraPreviewDimming('missingBuffs', nil)
 	end
 
 	return get, set
@@ -77,15 +74,16 @@ end
 
 local function buildDisplayCard(parent, width, get, set)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Icon Size
-	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 32, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 8, 32, 1)
 	sizeSlider:SetValue(get('iconSize') or 12)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
 	-- Growth Direction
-	local growDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local growDD = Widgets.CreateDropdown(inner, widgetW)
 	growDD:SetItems({
 		{ text = 'Right', value = 'RIGHT' },
 		{ text = 'Left',  value = 'LEFT' },
@@ -101,19 +99,13 @@ local function buildDisplayCard(parent, width, get, set)
 end
 
 local function buildPositionCard(parent, width, get, set)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true })
+	return card
 end
 
 local function buildGlowCard(parent, width, get, set)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildGlowCard(wrapper, width, 0, get, set, { allowNone = false })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildGlowCard(parent, width, 0, get, set, { allowNone = false, noHeading = true })
+	return card
 end
 
 -- ============================================================
@@ -147,10 +139,11 @@ F.Settings.RegisterPanel({
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(yOffset))
 
+		grid:AddCard('preview',  'Preview',          F.Settings.AuraPreview.BuildPreviewCard, {})
 		grid:AddCard('overview', 'Overview',         buildOverviewCard, { get, set })
 		grid:AddCard('display',  'Display Settings', buildDisplayCard,  { get, set })
 		grid:AddCard('layout',   'Layout',           buildPositionCard, { get, set })
-		grid:AddCard('glow',     nil,                buildGlowCard,     { get, set })
+		grid:AddCard('glow',     'Border Glow',      buildGlowCard,     { get, set })
 
 		grid:Layout(0, parentH)
 		content:SetHeight(grid:GetTotalHeight())
@@ -190,6 +183,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })

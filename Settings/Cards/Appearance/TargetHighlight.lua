@@ -10,7 +10,7 @@ local SWATCH_H     = 20
 
 function F.AppearanceCards.TargetHighlight(parent, width, getConfig, setConfig, fireChange)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, 220)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	cardY = B.PlaceHeading(inner, 'Color', 4, cardY)
 

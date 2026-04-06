@@ -10,7 +10,6 @@ local C = F.Constants
 local SLIDER_H     = 26
 local DROPDOWN_H   = 22
 local CHECK_H      = 22
-local WIDGET_W     = 220
 
 -- ============================================================
 -- Config helpers
@@ -29,11 +28,10 @@ local function set(key, value)
 		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.targetedSpells.' .. key, value)
 	end
 	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	if(key == 'enabled') then
-		F.Settings.UpdateAuraPreviewDimming('targetedSpells', nil)
-	elseif(F.EventBus) then
+	if(key ~= 'enabled' and F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.targetedSpells')
 	end
+	F.Settings.UpdateAuraPreviewDimming('targetedSpells', nil)
 end
 
 -- ============================================================
@@ -71,8 +69,9 @@ end
 
 local function buildDisplayModeCard(parent, width, updateVisibility)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	local modeDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local modeDD = Widgets.CreateDropdown(inner, widgetW)
 	modeDD:SetItems({
 		{ text = 'Icons',       value = 'Icons' },
 		{ text = 'Border Glow', value = 'BorderGlow' },
@@ -91,13 +90,14 @@ end
 
 local function buildIconSettingsCard(parent, width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 16)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
-	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', WIDGET_W, 1, 10, 1)
+	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', widgetW, 1, 10, 1)
 	maxSlider:SetValue(get('maxDisplayed') or 1)
 	maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
 	cy = placeWidget(maxSlider, inner, cy, SLIDER_H)
@@ -107,17 +107,12 @@ local function buildIconSettingsCard(parent, width)
 end
 
 local function buildLayoutCard(parent, width)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true })
+	return card
 end
 
 local function buildDurationFontCard(parent, width)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, {
+	local _, card = F.Settings.BuildFontCard(parent, width, 0, 'Duration', 'durationFont', get, set, {
 		noHeading = true,
 		showToggle = {
 			label = 'Show Duration',
@@ -125,13 +120,10 @@ local function buildDurationFontCard(parent, width)
 			set = function(checked) set('showDuration', checked) end,
 		},
 	})
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	return card
 end
 
 local function buildGlowCard(parent, width)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
 	local function getGlow(key)
 		if(key == 'glowType')  then return get('glow.type') end
 		if(key == 'glowColor') then return get('glow.color') end
@@ -142,9 +134,8 @@ local function buildGlowCard(parent, width)
 		if(key == 'glowColor') then set('glow.color', value); return end
 		set('glow.' .. key, value)
 	end
-	local yOff = F.Settings.BuildGlowCard(wrapper, width, 0, getGlow, setGlow, { allowNone = false })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildGlowCard(parent, width, 0, getGlow, setGlow, { allowNone = false, noHeading = true })
+	return card
 end
 
 -- ============================================================
@@ -213,6 +204,7 @@ F.Settings.RegisterPanel({
 			scroll:UpdateScrollRange()
 		end
 
+		grid:AddCard('preview',      'Preview',      F.Settings.AuraPreview.BuildPreviewCard, {})
 		grid:AddCard('overview',     'Overview',     buildOverviewCard,     {})
 		grid:AddCard('displayMode',  'Display Mode', buildDisplayModeCard,  { updateVisibility })
 
@@ -270,6 +262,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })

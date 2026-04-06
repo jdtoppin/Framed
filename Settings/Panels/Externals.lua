@@ -10,7 +10,6 @@ local C = F.Constants
 local SLIDER_H   = 26
 local CHECK_H    = 22
 local DROPDOWN_H = 22
-local WIDGET_W   = 220
 
 -- ============================================================
 -- Config helpers (assigned per-panel in create; card builders close over these)
@@ -54,9 +53,10 @@ end
 
 local function buildDisplayCard(parent, width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Visibility mode
-	local visDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local visDD = Widgets.CreateDropdown(inner, widgetW)
 	visDD:SetItems({
 		{ text = 'All',         value = 'all' },
 		{ text = 'Player Only', value = 'player' },
@@ -94,26 +94,19 @@ local function buildDisplayCard(parent, width)
 	end
 
 	-- Icon Size
-	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 16)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
 	-- Max Displayed
-	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', WIDGET_W, 1, 20, 1)
+	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', widgetW, 1, 20, 1)
 	maxSlider:SetValue(get('maxDisplayed') or 3)
 	maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
 	cy = placeWidget(maxSlider, inner, cy, SLIDER_H)
 
-	-- Show Animation
-	local animCheck = Widgets.CreateCheckButton(inner, 'Show Animation', function(checked)
-		set('showAnimation', checked)
-	end)
-	animCheck:SetChecked(get('showAnimation') ~= false)
-	cy = placeWidget(animCheck, inner, cy, CHECK_H)
-
 	-- Orientation
-	local oriDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local oriDD = Widgets.CreateDropdown(inner, widgetW)
 	oriDD:SetItems({
 		{ text = 'Right', value = 'RIGHT' },
 		{ text = 'Left',  value = 'LEFT' },
@@ -129,17 +122,12 @@ local function buildDisplayCard(parent, width)
 end
 
 local function buildLayoutCard(parent, width)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true })
+	return card
 end
 
 local function buildDurationFontCard(parent, width)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, {
+	local _, card = F.Settings.BuildFontCard(parent, width, 0, 'Duration', 'durationFont', get, set, {
 		noHeading = true,
 		showAnchor = true,
 		showToggle = {
@@ -148,16 +136,12 @@ local function buildDurationFontCard(parent, width)
 			set = function(checked) set('showDuration', checked) end,
 		},
 	})
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	return card
 end
 
 local function buildStackFontCard(parent, width)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stacks', 'stackFont', get, set, { noHeading = true, showAnchor = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildFontCard(parent, width, 0, 'Stacks', 'stackFont', get, set, { noHeading = true, showAnchor = true })
+	return card
 end
 
 -- ============================================================
@@ -190,11 +174,10 @@ F.Settings.RegisterPanel({
 		set = function(key, value)
 			if(F.Config) then F.Config:Set(basePath .. '.' .. key, value) end
 			if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-			if(key == 'enabled') then
-				F.Settings.UpdateAuraPreviewDimming('externals', nil)
-			elseif(F.EventBus) then
+			if(key ~= 'enabled' and F.EventBus) then
 				F.EventBus:Fire('CONFIG_CHANGED', basePath)
 			end
+			F.Settings.UpdateAuraPreviewDimming('externals', nil)
 		end
 
 		-- Unit type dropdown + copy-to
@@ -204,6 +187,7 @@ F.Settings.RegisterPanel({
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(yOffset))
 
+		grid:AddCard('preview',       'Preview',           F.Settings.AuraPreview.BuildPreviewCard, {})
 		grid:AddCard('overview',      'Overview',          buildOverviewCard,      {})
 		grid:AddCard('display',       'Display',           buildDisplayCard,       {})
 		grid:AddCard('layout',        'Layout',            buildLayoutCard,        {})
@@ -249,6 +233,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })

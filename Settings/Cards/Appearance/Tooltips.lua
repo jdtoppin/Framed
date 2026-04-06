@@ -9,7 +9,7 @@ F.AppearanceCards = F.AppearanceCards or {}
 
 function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireChange)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
-	local widgetW = math.min(width - Widgets.CARD_PADDING * 2, 220)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local ttEnabled = Widgets.CreateCheckButton(inner, 'Show Tooltips', function(checked)
 		setConfig('tooltipEnabled', checked)

@@ -9,7 +9,6 @@ local C = F.Constants
 
 local SLIDER_H   = 26
 local CHECK_H    = 22
-local WIDGET_W   = 220
 
 -- ============================================================
 -- Default player CC spell IDs
@@ -63,12 +62,10 @@ local function set(key, value)
 		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.' .. key, value)
 	end
 	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	if(key == 'enabled') then
-		F.Settings.UpdateAuraPreviewDimming('crowdControl', nil)
-	end
-	if(F.EventBus) then
+	if(key ~= 'enabled' and F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl')
 	end
+	F.Settings.UpdateAuraPreviewDimming('crowdControl', nil)
 end
 
 -- ============================================================
@@ -127,8 +124,9 @@ end
 
 local function buildDisplayCard(parent, width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
-	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 16)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
@@ -144,11 +142,8 @@ local function buildDisplayCard(parent, width)
 end
 
 local function buildPositionCard(parent, width)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
+	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true })
+	return card
 end
 
 -- ============================================================
@@ -180,6 +175,7 @@ F.Settings.RegisterPanel({
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(yOffset))
 
+		grid:AddCard('preview',        'Preview',         F.Settings.AuraPreview.BuildPreviewCard, {})
 		grid:AddCard('overview',       'Overview',        buildOverviewCard,       {})
 		grid:AddCard('trackedSpells',  'Tracked Spells',  buildTrackedSpellsCard,  {})
 		grid:AddCard('display',        'Display',         buildDisplayCard,        {})
@@ -225,6 +221,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })

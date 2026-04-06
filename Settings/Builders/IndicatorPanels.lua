@@ -13,7 +13,6 @@ local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
 local BUTTON_H     = 24
-local WIDGET_W     = 220
 local PAD          = 16
 
 -- ============================================================
@@ -246,12 +245,14 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 	local function get(key) return data[key] end
 	local function set(key, value) update(key, value) end
 
+	local widgetW = width - Widgets.CARD_PADDING * 2
+
 	-- ── Cast By card ─────────────────────────────────────
 	yOffset = placeHeading(parent, 'Cast By', 2, yOffset)
 
 	local cbCard, cbInner, cbY = Widgets.StartCard(parent, width, yOffset)
 
-	local castByDD = Widgets.CreateDropdown(cbInner, WIDGET_W)
+	local castByDD = Widgets.CreateDropdown(cbInner, widgetW)
 	castByDD:SetItems({
 		{ text = 'Me',      value = C.CastFilter.ME },
 		{ text = 'Others',  value = C.CastFilter.OTHERS },
@@ -329,7 +330,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		dtLabel:SetText('Display Type')
 		appY = placeWidget(dtLabel, appInner, appY, C.Font.sizeSmall)
 
-		local dtSwitch = Widgets.CreateSwitch(appInner, WIDGET_W, BUTTON_H, {
+		local dtSwitch = Widgets.CreateSwitch(appInner, widgetW, BUTTON_H, {
 			{ text = 'Spell Icons',    value = C.IconDisplay.SPELL_ICON },
 			{ text = 'Color Squares',  value = C.IconDisplay.COLORED_SQUARE },
 		})
@@ -345,12 +346,12 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		end)
 		appY = placeWidget(dtSwitch, appInner, appY, BUTTON_H)
 
-		local wSlider = Widgets.CreateSlider(appInner, 'Width', WIDGET_W, 3, 48, 1)
+		local wSlider = Widgets.CreateSlider(appInner, 'Width', widgetW, 3, 48, 1)
 		wSlider:SetValue(data.iconWidth or 16)
 		wSlider:SetAfterValueChanged(function(v) update('iconWidth', v) end)
 		appY = placeWidget(wSlider, appInner, appY, SLIDER_H)
 
-		local hSlider = Widgets.CreateSlider(appInner, 'Height', WIDGET_W, 3, 48, 1)
+		local hSlider = Widgets.CreateSlider(appInner, 'Height', widgetW, 3, 48, 1)
 		hSlider:SetValue(data.iconHeight or 16)
 		hSlider:SetAfterValueChanged(function(v) update('iconHeight', v) end)
 		appY = placeWidget(hSlider, appInner, appY, SLIDER_H)
@@ -365,7 +366,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			-- Anchor picker
 			if(Widgets.CreateAnchorPicker) then
 				local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-				local picker = Widgets.CreateAnchorPicker(layInner, WIDGET_W, 50)
+				local picker = Widgets.CreateAnchorPicker(layInner, widgetW, 50)
 				picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
 				picker:SetOnChanged(function(point, x, y)
 					local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
@@ -379,7 +380,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			end
 
 			-- Frame level
-			local flSlider = Widgets.CreateSlider(layInner, 'Frame Level', WIDGET_W, 1, 50, 1)
+			local flSlider = Widgets.CreateSlider(layInner, 'Frame Level', widgetW, 1, 50, 1)
 			flSlider:SetValue(get('frameLevel') or 5)
 			flSlider:SetAfterValueChanged(function(val)
 				set('frameLevel', val)
@@ -396,28 +397,28 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			growLabel:SetText('Grow Direction')
 			layY = placeWidget(growLabel, layInner, layY, C.Font.sizeSmall)
 
-			local oriDD = Widgets.CreateDropdown(layInner, WIDGET_W)
+			local oriDD = Widgets.CreateDropdown(layInner, widgetW)
 			oriDD:SetItems(ORIENTATION_ITEMS)
 			oriDD:SetValue(effectiveGrow)
 			oriDD:SetOnSelect(function(v) update('orientation', v) end)
 			layY = placeWidget(oriDD, layInner, layY, DROPDOWN_H)
 
-			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
+			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', widgetW, 1, 10, 1)
 			mxSlider:SetValue(data.maxDisplayed or 3)
 			mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
 			layY = placeWidget(mxSlider, layInner, layY, SLIDER_H)
 
-			local nplSlider = Widgets.CreateSlider(layInner, 'Num Per Line', WIDGET_W, 0, 10, 1)
+			local nplSlider = Widgets.CreateSlider(layInner, 'Num Per Line', widgetW, 0, 10, 1)
 			nplSlider:SetValue(data.numPerLine or 0)
 			nplSlider:SetAfterValueChanged(function(v) update('numPerLine', v) end)
 			layY = placeWidget(nplSlider, layInner, layY, SLIDER_H)
 
-			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', WIDGET_W, -20, 20, 1)
+			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', widgetW, -20, 20, 1)
 			spxSlider:SetValue(data.spacingX or 2)
 			spxSlider:SetAfterValueChanged(function(v) update('spacingX', v) end)
 			layY = placeWidget(spxSlider, layInner, layY, SLIDER_H)
 
-			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', WIDGET_W, -20, 20, 1)
+			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', widgetW, -20, 20, 1)
 			spySlider:SetValue(data.spacingY or 2)
 			spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
 			layY = placeWidget(spySlider, layInner, layY, SLIDER_H)
@@ -439,7 +440,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		durModeLabel:SetText('Duration Text')
 		cdY = placeWidget(durModeLabel, cdInner, cdY, C.Font.sizeSmall)
 
-		local durDD = Widgets.CreateDropdown(cdInner, WIDGET_W)
+		local durDD = Widgets.CreateDropdown(cdInner, widgetW)
 		durDD:SetItems(DURATION_MODE_ITEMS)
 		durDD:SetValue(data.durationMode or 'Never')
 		durDD:SetOnSelect(function(v) update('durationMode', v) end)
@@ -450,7 +451,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 
 		if(Widgets.CreateAnchorPicker) then
 			local dfAnchor = fontCfg.anchor or 'BOTTOM'
-			local dfPicker = Widgets.CreateAnchorPicker(cdInner, WIDGET_W, 15)
+			local dfPicker = Widgets.CreateAnchorPicker(cdInner, widgetW, 15)
 			dfPicker:SetAnchor(dfAnchor, fontCfg.xOffset or 0, fontCfg.yOffset or 0)
 			dfPicker:SetOnChanged(function(point, x, y)
 				fontCfg.anchor = point
@@ -461,7 +462,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			cdY = placeWidget(dfPicker, cdInner, cdY, dfPicker._height or 91)
 		end
 
-		local dfSizeSlider = Widgets.CreateSlider(cdInner, 'Font Size', WIDGET_W, 6, 24, 1)
+		local dfSizeSlider = Widgets.CreateSlider(cdInner, 'Font Size', widgetW, 6, 24, 1)
 		dfSizeSlider:SetValue(fontCfg.size or C.Font.sizeSmall)
 		dfSizeSlider:SetAfterValueChanged(function(val)
 			fontCfg.size = val
@@ -469,7 +470,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		end)
 		cdY = placeWidget(dfSizeSlider, cdInner, cdY, SLIDER_H)
 
-		local dfOutlineDD = Widgets.CreateDropdown(cdInner, WIDGET_W)
+		local dfOutlineDD = Widgets.CreateDropdown(cdInner, widgetW)
 		dfOutlineDD:SetItems({
 			{ text = 'None',    value = '' },
 			{ text = 'Outline', value = 'OUTLINE' },
@@ -537,7 +538,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 
 		if(Widgets.CreateAnchorPicker) then
 			local sfAnchor = sfCfg.anchor or 'BOTTOMRIGHT'
-			local sfPicker = Widgets.CreateAnchorPicker(stInner, WIDGET_W, 15)
+			local sfPicker = Widgets.CreateAnchorPicker(stInner, widgetW, 15)
 			sfPicker:SetAnchor(sfAnchor, sfCfg.offsetX or 0, sfCfg.offsetY or 0)
 			sfPicker:SetOnChanged(function(point, x, y)
 				sfCfg.anchor = point
@@ -548,7 +549,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			stY = placeWidget(sfPicker, stInner, stY, sfPicker._height or 91)
 		end
 
-		local sfSizeSlider = Widgets.CreateSlider(stInner, 'Font Size', WIDGET_W, 6, 24, 1)
+		local sfSizeSlider = Widgets.CreateSlider(stInner, 'Font Size', widgetW, 6, 24, 1)
 		sfSizeSlider:SetValue(sfCfg.size or C.Font.sizeSmall)
 		sfSizeSlider:SetAfterValueChanged(function(val)
 			sfCfg.size = val
@@ -556,7 +557,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		end)
 		stY = placeWidget(sfSizeSlider, stInner, stY, SLIDER_H)
 
-		local sfOutlineDD = Widgets.CreateDropdown(stInner, WIDGET_W)
+		local sfOutlineDD = Widgets.CreateDropdown(stInner, widgetW)
 		sfOutlineDD:SetItems({
 			{ text = 'None',    value = '' },
 			{ text = 'Outline', value = 'OUTLINE' },
@@ -591,17 +592,17 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = placeHeading(parent, 'Size', 2, yOffset)
 		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
 
-		local bwSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 3, 100, 1)
+		local bwSlider = Widgets.CreateSlider(szInner, 'Width', widgetW, 3, 100, 1)
 		bwSlider:SetValue(data.barWidth or 100)
 		bwSlider:SetAfterValueChanged(function(v) update('barWidth', v) end)
 		szY = placeWidget(bwSlider, szInner, szY, SLIDER_H)
 
-		local bhSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 3, 100, 1)
+		local bhSlider = Widgets.CreateSlider(szInner, 'Height', widgetW, 3, 100, 1)
 		bhSlider:SetValue(data.barHeight or 4)
 		bhSlider:SetAfterValueChanged(function(v) update('barHeight', v) end)
 		szY = placeWidget(bhSlider, szInner, szY, SLIDER_H)
 
-		local barOriDD = Widgets.CreateDropdown(szInner, WIDGET_W)
+		local barOriDD = Widgets.CreateDropdown(szInner, widgetW)
 		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
 		barOriDD:SetValue(data.barOrientation or 'Horizontal')
 		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
@@ -614,27 +615,27 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		local layCard, layInner, layY = Widgets.StartCard(parent, width, yOffset)
 
 		if(iType == C.IndicatorType.BARS) then
-			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
+			local mxSlider = Widgets.CreateSlider(layInner, 'Max Displayed', widgetW, 1, 10, 1)
 			mxSlider:SetValue(data.maxDisplayed or 3)
 			mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
 			layY = placeWidget(mxSlider, layInner, layY, SLIDER_H)
 
-			local nplSlider = Widgets.CreateSlider(layInner, 'Num Per Line', WIDGET_W, 0, 10, 1)
+			local nplSlider = Widgets.CreateSlider(layInner, 'Num Per Line', widgetW, 0, 10, 1)
 			nplSlider:SetValue(data.numPerLine or 0)
 			nplSlider:SetAfterValueChanged(function(v) update('numPerLine', v) end)
 			layY = placeWidget(nplSlider, layInner, layY, SLIDER_H)
 
-			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', WIDGET_W, -1, 50, 1)
+			local spxSlider = Widgets.CreateSlider(layInner, 'Spacing X', widgetW, -1, 50, 1)
 			spxSlider:SetValue(data.spacingX or 2)
 			spxSlider:SetAfterValueChanged(function(v) update('spacingX', v) end)
 			layY = placeWidget(spxSlider, layInner, layY, SLIDER_H)
 
-			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', WIDGET_W, -1, 50, 1)
+			local spySlider = Widgets.CreateSlider(layInner, 'Spacing Y', widgetW, -1, 50, 1)
 			spySlider:SetValue(data.spacingY or 2)
 			spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
 			layY = placeWidget(spySlider, layInner, layY, SLIDER_H)
 
-			local dirDD = Widgets.CreateDropdown(layInner, WIDGET_W)
+			local dirDD = Widgets.CreateDropdown(layInner, widgetW)
 			dirDD:SetItems(ORIENTATION_ITEMS)
 			dirDD:SetValue(data.orientation or 'DOWN')
 			dirDD:SetOnSelect(function(v) update('orientation', v) end)
@@ -644,7 +645,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		-- Position (anchor picker)
 		if(Widgets.CreateAnchorPicker) then
 			local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
-			local picker = Widgets.CreateAnchorPicker(layInner, WIDGET_W, 50)
+			local picker = Widgets.CreateAnchorPicker(layInner, widgetW, 50)
 			picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
 			picker:SetOnChanged(function(point, x, y)
 				local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
@@ -658,7 +659,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		end
 
 		-- Frame level
-		local flSlider = Widgets.CreateSlider(layInner, 'Frame Level', WIDGET_W, 1, 50, 1)
+		local flSlider = Widgets.CreateSlider(layInner, 'Frame Level', widgetW, 1, 50, 1)
 		flSlider:SetValue(get('frameLevel') or 5)
 		flSlider:SetAfterValueChanged(function(val)
 			set('frameLevel', val)
@@ -674,7 +675,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = placeHeading(parent, 'Duration', 2, yOffset)
 		local durCard, durInner, durY = Widgets.StartCard(parent, width, yOffset)
 
-		local durDD = Widgets.CreateDropdown(durInner, WIDGET_W)
+		local durDD = Widgets.CreateDropdown(durInner, widgetW)
 		durDD:SetItems(DURATION_MODE_ITEMS)
 		durDD:SetValue(data.durationMode or 'Never')
 		durDD:SetOnSelect(function(v) update('durationMode', v) end)
@@ -710,12 +711,12 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = placeHeading(parent, 'Size', 2, yOffset)
 		local szCard, szInner, szY = Widgets.StartCard(parent, width, yOffset)
 
-		local rwSlider = Widgets.CreateSlider(szInner, 'Width', WIDGET_W, 3, 500, 1)
+		local rwSlider = Widgets.CreateSlider(szInner, 'Width', widgetW, 3, 500, 1)
 		rwSlider:SetValue(data.rectWidth or 10)
 		rwSlider:SetAfterValueChanged(function(v) update('rectWidth', v) end)
 		szY = placeWidget(rwSlider, szInner, szY, SLIDER_H)
 
-		local rhSlider = Widgets.CreateSlider(szInner, 'Height', WIDGET_W, 3, 500, 1)
+		local rhSlider = Widgets.CreateSlider(szInner, 'Height', widgetW, 3, 500, 1)
 		rhSlider:SetValue(data.rectHeight or 10)
 		rhSlider:SetAfterValueChanged(function(v) update('rectHeight', v) end)
 		szY = placeWidget(rhSlider, szInner, szY, SLIDER_H)
@@ -750,7 +751,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = placeHeading(parent, 'Mode', 2, yOffset)
 		local modeCard, modeInner, modeY = Widgets.StartCard(parent, width, yOffset)
 
-		local modeDD = Widgets.CreateDropdown(modeInner, WIDGET_W)
+		local modeDD = Widgets.CreateDropdown(modeInner, widgetW)
 		modeDD:SetItems({
 			{ text = 'Duration Overlay', value = 'DurationOverlay' },
 			{ text = 'Color',            value = 'Color' },
@@ -783,7 +784,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			smoothSwitch:SetChecked(data.smooth ~= false)
 			animY = placeWidget(smoothSwitch, animInner, animY, CHECK_H)
 
-			local barOriDD = Widgets.CreateDropdown(animInner, WIDGET_W)
+			local barOriDD = Widgets.CreateDropdown(animInner, widgetW)
 			barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
 			barOriDD:SetValue(data.barOrientation or 'Horizontal')
 			barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
@@ -800,7 +801,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = placeHeading(parent, 'Mode', 2, yOffset)
 		local modeCard, modeInner, modeY = Widgets.StartCard(parent, width, yOffset)
 
-		local modeSwitch = Widgets.CreateSwitch(modeInner, WIDGET_W, BUTTON_H, {
+		local modeSwitch = Widgets.CreateSwitch(modeInner, widgetW, BUTTON_H, {
 			{ text = 'Border', value = 'Border' },
 			{ text = 'Glow',   value = 'Glow' },
 		})
@@ -820,7 +821,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 			yOffset = placeHeading(parent, 'Border Settings', 2, yOffset)
 			local borCard, borInner, borY = Widgets.StartCard(parent, width, yOffset)
 
-			local thkSlider = Widgets.CreateSlider(borInner, 'Thickness', WIDGET_W, 1, 15, 1)
+			local thkSlider = Widgets.CreateSlider(borInner, 'Thickness', widgetW, 1, 15, 1)
 			thkSlider:SetValue(data.borderThickness or 2)
 			thkSlider:SetAfterValueChanged(function(v) update('borderThickness', v) end)
 			borY = placeWidget(thkSlider, borInner, borY, SLIDER_H)

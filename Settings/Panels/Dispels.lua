@@ -10,7 +10,6 @@ local C = F.Constants
 local SLIDER_H   = 26
 local CHECK_H    = 22
 local DROPDOWN_H = 22
-local WIDGET_W   = 220
 
 -- ============================================================
 -- Config helpers (assigned per-panel in create; card builders close over these)
@@ -64,9 +63,10 @@ end
 
 local function buildHighlightCard(parent, width, get, set)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local ht = C.HighlightType
-	local highlightDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	local highlightDD = Widgets.CreateDropdown(inner, widgetW)
 	highlightDD:SetItems({
 		{ text = 'Gradient - Health Bar (Full)', value = ht.GRADIENT_FULL },
 		{ text = 'Gradient - Health Bar (Half)', value = ht.GRADIENT_HALF },
@@ -78,7 +78,7 @@ local function buildHighlightCard(parent, width, get, set)
 	cy = placeWidget(highlightDD, inner, cy, DROPDOWN_H)
 
 	-- Highlight Alpha (new setting — stored as 0-1, displayed as 0-100)
-	local alphaSlider = Widgets.CreateSlider(inner, 'Highlight Alpha', WIDGET_W, 0, 100, 1)
+	local alphaSlider = Widgets.CreateSlider(inner, 'Highlight Alpha', widgetW, 0, 100, 1)
 	alphaSlider:SetValue((get('highlightAlpha') or 0.8) * 100)
 	alphaSlider:SetAfterValueChanged(function(v) set('highlightAlpha', v / 100) end)
 	cy = placeWidget(alphaSlider, inner, cy, SLIDER_H)
@@ -89,15 +89,16 @@ end
 
 local function buildIconCard(parent, width, get, set)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Icon Size
-	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 20)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
 	-- Frame Level
-	local lvlSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 20, 1)
+	local lvlSlider = Widgets.CreateSlider(inner, 'Frame Level', widgetW, 1, 20, 1)
 	lvlSlider:SetValue(get('frameLevel') or 5)
 	lvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
 	cy = placeWidget(lvlSlider, inner, cy, SLIDER_H)
@@ -105,7 +106,7 @@ local function buildIconCard(parent, width, get, set)
 	-- Anchor picker
 	if(Widgets.CreateAnchorPicker) then
 		local anchorData = get('anchor') or { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 }
-		local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+		local picker = Widgets.CreateAnchorPicker(inner, widgetW)
 		picker:SetAnchor(anchorData[1], anchorData[4] or -2, anchorData[5] or -2)
 		picker:SetOnChanged(function(point, x, y)
 			set('anchor', { point, nil, point, x, y })
@@ -147,11 +148,10 @@ F.Settings.RegisterPanel({
 		set = function(key, value)
 			if(F.Config) then F.Config:Set(basePath .. '.' .. key, value) end
 			if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-			if(key == 'enabled') then
-				F.Settings.UpdateAuraPreviewDimming('dispellable', nil)
-			elseif(F.EventBus) then
+			if(key ~= 'enabled' and F.EventBus) then
 				F.EventBus:Fire('CONFIG_CHANGED', basePath)
 			end
+			F.Settings.UpdateAuraPreviewDimming('dispellable', nil)
 		end
 
 		-- ── Unit type dropdown + copy-to ─────────────────────────
@@ -161,6 +161,7 @@ F.Settings.RegisterPanel({
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(yOffset))
 
+		grid:AddCard('preview',   'Preview',   F.Settings.AuraPreview.BuildPreviewCard, {})
 		grid:AddCard('overview',  'Overview',  buildOverviewCard,  { get, set })
 		grid:AddCard('highlight', 'Highlight', buildHighlightCard, { get, set })
 		grid:AddCard('icon',      'Icon',      buildIconCard,      { get, set })
@@ -205,6 +206,7 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end)
 
+		scroll._ownedPreview = F.Settings._auraPreview
 		return scroll
 	end,
 })
