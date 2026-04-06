@@ -114,8 +114,8 @@ local function unitHasBuff(unit, targetSpellId)
 	for i = 2, #slots do
 		local data = C_UnitAuras.GetAuraDataBySlot(unit, slots[i])
 		if(data) then
-			if(data.spellId == targetSpellId) then return true end
-			if(data.name == name) then return true end
+			if(F.IsValueNonSecret(data.spellId) and data.spellId == targetSpellId) then return true end
+			if(F.IsValueNonSecret(data.name) and data.name == name) then return true end
 		end
 	end
 	return false
