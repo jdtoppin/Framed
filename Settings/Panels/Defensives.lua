@@ -48,6 +48,13 @@ local function buildOverviewCard(parent, width)
 	descFS:SetText('Major personal defensive cooldowns. Supports visibility modes: show all, player-cast only, or other-cast only. Border color differentiates source.')
 	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
 
+	Widgets.EndCard(card, parent, cy)
+	return card
+end
+
+local function buildDisplayCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
 	-- Visibility mode
 	local visDD = Widgets.CreateDropdown(inner, WIDGET_W)
 	visDD:SetItems({
@@ -86,13 +93,6 @@ local function buildOverviewCard(parent, width)
 		cy = placeWidget(otherCP, inner, cy, otherCP:GetHeight())
 	end
 
-	Widgets.EndCard(card, parent, cy)
-	return card
-end
-
-local function buildDisplayCard(parent, width)
-	local card, inner, cy = Widgets.StartCard(parent, width, 0)
-
 	-- Icon Size
 	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
 	sizeSlider:SetValue(get('iconSize') or 16)
@@ -104,13 +104,6 @@ local function buildDisplayCard(parent, width)
 	maxSlider:SetValue(get('maxDisplayed') or 3)
 	maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
 	cy = placeWidget(maxSlider, inner, cy, SLIDER_H)
-
-	-- Show Duration
-	local durCheck = Widgets.CreateCheckButton(inner, 'Show Duration', function(checked)
-		set('showDuration', checked)
-	end)
-	durCheck:SetChecked(get('showDuration') ~= false)
-	cy = placeWidget(durCheck, inner, cy, CHECK_H)
 
 	-- Show Animation
 	local animCheck = Widgets.CreateCheckButton(inner, 'Show Animation', function(checked)
@@ -135,10 +128,10 @@ local function buildDisplayCard(parent, width)
 	return card
 end
 
-local function buildPositionCard(parent, width)
+local function buildLayoutCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { heading = 'Layout' })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -146,7 +139,14 @@ end
 local function buildDurationFontCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration Text Font', 'durationFont', get, set, { showAnchor = true })
+	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, {
+		showAnchor = true,
+		showToggle = {
+			label = 'Show Duration',
+			get = function() return get('showDuration') ~= false end,
+			set = function(checked) set('showDuration', checked) end,
+		},
+	})
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -154,7 +154,7 @@ end
 local function buildStackFontCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stack Count Font', 'stackFont', get, set, { showAnchor = true })
+	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stacks', 'stackFont', get, set, { showAnchor = true })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -205,7 +205,7 @@ F.Settings.RegisterPanel({
 
 		grid:AddCard('overview',     'Overview',         buildOverviewCard,     {})
 		grid:AddCard('display',      'Display',          buildDisplayCard,      {})
-		grid:AddCard('position',     'Position',         buildPositionCard,     {})
+		grid:AddCard('layout',       nil,                buildLayoutCard,       {})
 		grid:AddCard('durationFont', nil,                buildDurationFontCard, {})
 		grid:AddCard('stackFont',    nil,                buildStackFontCard,    {})
 

@@ -102,20 +102,14 @@ local function buildIconSettingsCard(parent, width)
 	maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
 	cy = placeWidget(maxSlider, inner, cy, SLIDER_H)
 
-	local durCheck = Widgets.CreateCheckButton(inner, 'Show Duration', function(checked)
-		set('showDuration', checked)
-	end)
-	durCheck:SetChecked(get('showDuration') ~= false)
-	cy = placeWidget(durCheck, inner, cy, CHECK_H)
-
 	Widgets.EndCard(card, parent, cy)
 	return card
 end
 
-local function buildPositionCard(parent, width)
+local function buildLayoutCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { heading = 'Layout' })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -123,7 +117,13 @@ end
 local function buildDurationFontCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration Text Font', 'durationFont', get, set)
+	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, {
+		showToggle = {
+			label = 'Show Duration',
+			get = function() return get('showDuration') ~= false end,
+			set = function(checked) set('showDuration', checked) end,
+		},
+	})
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -175,7 +175,7 @@ F.Settings.RegisterPanel({
 		grid:SetTopOffset(math.abs(yOffset))
 
 		-- Conditional cards — added/removed based on display mode
-		local ICON_CARDS = { 'iconSettings', 'position', 'durationFont' }
+		local ICON_CARDS = { 'iconSettings', 'layout', 'durationFont' }
 		local GLOW_CARDS = { 'borderGlow' }
 
 		-- Forward-declare so buildDisplayModeCard can reference it
@@ -189,8 +189,8 @@ F.Settings.RegisterPanel({
 				if(showIcons and not grid._cardIndex[id]) then
 					if(id == 'iconSettings') then
 						grid:AddCard('iconSettings', 'Icon Settings', buildIconSettingsCard, {})
-					elseif(id == 'position') then
-						grid:AddCard('position', 'Position', buildPositionCard, {})
+					elseif(id == 'layout') then
+						grid:AddCard('layout', nil, buildLayoutCard, {})
 					elseif(id == 'durationFont') then
 						grid:AddCard('durationFont', nil, buildDurationFontCard, {})
 					end
@@ -222,7 +222,7 @@ F.Settings.RegisterPanel({
 
 		if(initIcons) then
 			grid:AddCard('iconSettings', 'Icon Settings', buildIconSettingsCard, {})
-			grid:AddCard('position',     'Position',      buildPositionCard,     {})
+			grid:AddCard('position',     'Position',      buildLayoutCard,     {})
 			grid:AddCard('durationFont', nil,             buildDurationFontCard, {})
 		end
 		if(initGlow) then

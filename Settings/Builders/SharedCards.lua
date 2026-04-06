@@ -37,6 +37,15 @@ function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, g
 
 	local fontCfg = get(configPrefix) or {}
 
+	-- Optional show/hide toggle as first item (e.g. "Show Duration")
+	if(opts.showToggle) then
+		local toggleCB = Widgets.CreateCheckButton(inner, opts.showToggle.label, function(checked)
+			opts.showToggle.set(checked)
+		end)
+		toggleCB:SetChecked(opts.showToggle.get())
+		cy = placeWidget(toggleCB, inner, cy, CHECK_H)
+	end
+
 	-- Anchor picker + offsets (opt-in)
 	if(opts.showAnchor and Widgets.CreateAnchorPicker) then
 		local anchorPicker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 15)
@@ -145,7 +154,7 @@ end
 function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
 
-	yOffset = placeHeading(parent, 'Position & Layer', yOffset)
+	yOffset = placeHeading(parent, opts.heading or 'Position & Layer', yOffset)
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
