@@ -4,11 +4,11 @@ local C = F.Constants
 local Widgets = F.Widgets
 local PI = F.PreviewIndicators
 
-local PREVIEW_W = 140
-local PREVIEW_H = 36
-local HEALTH_H  = 18
-local POWER_H   = 4
-local NAME_SIZE  = 9
+local PREVIEW_W = 120
+local PREVIEW_H = 28
+local HEALTH_H  = 16
+local POWER_H   = 3
+local NAME_SIZE  = 8
 local AURA_ICON_SIZE = 10
 
 -- Scale factor applied to configured icon sizes for the mini preview
@@ -18,15 +18,15 @@ local MINI_SIZE_MIN = 6
 local AuraPreview = {}
 F.Settings.AuraPreview = AuraPreview
 
--- ── Fake unit data for preview ──────────────────────────────
-local FAKE_NAMES = { 'Healbot', 'Tankbro', 'Dpsguy', 'Rangedps', 'Offtank' }
-local FAKE_CLASS_COLORS = {
-	{ 0.96, 0.55, 0.73 }, -- Paladin pink
-	{ 1.00, 0.49, 0.04 }, -- Warrior orange
-	{ 0.00, 0.44, 0.87 }, -- Shaman blue
-	{ 0.64, 0.19, 0.79 }, -- Warlock purple
-	{ 0.00, 0.98, 0.61 }, -- Monk green
-}
+-- ── Player class color for preview ──────────────────────────
+local function getPlayerClassColor()
+	local _, classFile = UnitClassBase('player')
+	if(classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]) then
+		local c = RAID_CLASS_COLORS[classFile]
+		return c.r, c.g, c.b
+	end
+	return 0.5, 0.5, 0.5
+end
 
 -- ── Build the preview frame ─────────────────────────────────
 function AuraPreview.Create(parent)
@@ -48,15 +48,15 @@ function AuraPreview.Create(parent)
 	health:SetStatusBarTexture(F.Media and F.Media.GetActiveBarTexture and F.Media.GetActiveBarTexture() or [[Interface\BUTTONS\WHITE8x8]])
 	health:SetMinMaxValues(0, 1)
 	health:SetValue(1)
-	local classColor = FAKE_CLASS_COLORS[1]
-	health:SetStatusBarColor(classColor[1], classColor[2], classColor[3], 1)
+	local r, g, b = getPlayerClassColor()
+	health:SetStatusBarColor(r, g, b, 1)
 	frame._health = health
 
 	-- Name text
 	local name = health:CreateFontString(nil, 'OVERLAY')
 	name:SetFont(STANDARD_TEXT_FONT, NAME_SIZE, 'OUTLINE')
-	name:SetPoint('LEFT', health, 'LEFT', 4, 0)
-	name:SetText(FAKE_NAMES[1])
+	name:SetPoint('LEFT', health, 'LEFT', 3, 0)
+	name:SetText(UnitName('player') or 'Player')
 	frame._name = name
 
 	-- Power bar

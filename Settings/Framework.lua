@@ -333,7 +333,11 @@ function Settings.SetActivePanel(panelId)
 	if(info.subSection == 'auras' and Settings._headerPreviewAnchor and F.Settings.AuraPreview) then
 		local preview = F.Settings.AuraPreview.Create(Settings._headerPreviewAnchor)
 		preview:ClearAllPoints()
-		preview:SetPoint('RIGHT', Settings._headerPreviewAnchor, 'RIGHT', -C.Spacing.normal, 0)
+		if(Settings._headerPresetText and Settings._headerPresetText:IsShown()) then
+			preview:SetPoint('RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)
+		else
+			preview:SetPoint('RIGHT', Settings._headerPreviewAnchor, 'RIGHT', -C.Spacing.normal, 0)
+		end
 		Settings._auraPreview = preview
 
 		local auraGroupKey = info.id
