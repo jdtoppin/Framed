@@ -4,12 +4,12 @@ local C = F.Constants
 local Widgets = F.Widgets
 local Settings = F.Settings
 
--- Shared layout constants (match IndicatorPanels.lua)
-local WIDGET_W    = 200
-local DROPDOWN_H  = 30
-local SLIDER_H    = 36
-local CHECK_H     = 22
-local BUTTON_H    = 28
+-- Shared layout constants (match FrameSettingsBuilder.lua / IndicatorPanels.lua)
+local WIDGET_W    = 220
+local DROPDOWN_H  = 22
+local SLIDER_H    = 26
+local CHECK_H     = 14
+local BUTTON_H    = 24
 
 local function placeWidget(widget, parent, yOffset, height)
 	widget:ClearAllPoints()
