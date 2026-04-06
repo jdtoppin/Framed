@@ -74,7 +74,8 @@ local function buildOverviewCard(parent, width)
 	enableCB:SetChecked(get('enabled') or false)
 	cy = placeWidget(enableCB, inner, cy, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildCCTypesCard(parent, width)
@@ -93,7 +94,8 @@ local function buildCCTypesCard(parent, width)
 		cy = placeWidget(check, inner, cy, CHECK_H)
 	end
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildVisualSettingsCard(parent, width)
@@ -109,7 +111,8 @@ local function buildVisualSettingsCard(parent, width)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 -- ============================================================

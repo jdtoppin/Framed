@@ -309,7 +309,7 @@ end
 --- Snaps the card to its final position so layout state stays consistent.
 --- @param card Frame
 local function cancelCardAnims(card)
-	if(not card or not card._anim) then return end
+	if(type(card) ~= 'table' or not card._anim) then return end
 	for animKey, anim in next, card._anim do
 		if(anim.onComplete) then
 			anim.onComplete(card)

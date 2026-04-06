@@ -49,7 +49,8 @@ function Builders.CastBy(parent, width, data, update)
 	castByDD:SetOnSelect(function(value) update('castBy', value) end)
 	cardY = placeWidget(castByDD, inner, cardY, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Tracked Spells ──────────────────────────────────────────
@@ -113,7 +114,8 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 
 	cardY = cardY - 24 - C.Spacing.tight
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Appearance (Icon/Icons) ──────────────────────────────────
@@ -146,7 +148,8 @@ function Builders.Appearance(parent, width, data, update, rebuildPanel)
 	hSlider:SetAfterValueChanged(function(v) update('iconHeight', v) end)
 	cardY = placeWidget(hSlider, inner, cardY, SLIDER_H)
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Layout (Icons, Bars — multi-element types) ───────────────
@@ -223,7 +226,8 @@ function Builders.Layout(parent, width, data, update, get, set)
 		cardY = placeWidget(spySlider, inner, cardY, SLIDER_H)
 	end
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Cooldown & Duration (Icon/Icons) ────────────────────────
@@ -331,7 +335,8 @@ function Builders.CooldownDuration(parent, width, data, update, get, set)
 	endPicker:SetColor(endC[1], endC[2], endC[3], 1)
 	cardY = placeWidget(endPicker, inner, cardY, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Stacks ───────────────────────────────────────────────────
@@ -388,7 +393,8 @@ function Builders.Stacks(parent, width, data, update, get, set)
 	sfShadowCB:SetChecked(sfCfg.shadow or false)
 	cardY = placeWidget(sfShadowCB, inner, cardY, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Size (Bar/Bars/Rectangle) ───────────────────────────────
@@ -430,7 +436,8 @@ function Builders.Size(parent, width, data, update)
 		cardY = placeWidget(rhSlider, inner, cardY, SLIDER_H)
 	end
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Mode (Overlay) ──────────────────────────────────────────
@@ -477,7 +484,8 @@ function Builders.Mode(parent, width, data, update, get, set, rebuildPanel)
 		cardY = placeWidget(barOriDD, inner, cardY, DROPDOWN_H)
 	end
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ── Duration (Bar/Bars) ─────────────────────────────────────
@@ -500,7 +508,8 @@ function Builders.Duration(parent, width, data, update, get, set)
 	durDD:SetOnSelect(function(v) update('durationMode', v) end)
 	cardY = placeWidget(durDD, inner, cardY, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cardY)
+	Widgets.EndCard(card, parent, cardY)
+	return card
 end
 
 -- ============================================================

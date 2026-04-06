@@ -68,7 +68,8 @@ local function buildOverviewCard(parent, width, get, set)
 		'Missing Buffs icons are created at frame setup time. Changes to icon size, position, and other settings require a /reload to take effect.')
 	cy = placeWidget(reloadInfo, inner, cy, reloadInfo:GetHeight())
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildDisplayCard(parent, width, get, set)
@@ -92,7 +93,8 @@ local function buildDisplayCard(parent, width, get, set)
 	growDD:SetOnSelect(function(v) set('growDirection', v) end)
 	cy = placeWidget(growDD, inner, cy, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildPositionCard(parent, width, get, set)

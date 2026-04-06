@@ -102,7 +102,8 @@ local function buildOverviewCard(parent, width)
 		cy = placeWidget(otherCP, inner, cy, otherCP:GetHeight())
 	end
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildDisplayCard(parent, width)
@@ -146,7 +147,8 @@ local function buildDisplayCard(parent, width)
 	oriDD:SetOnSelect(function(v) set('orientation', v) end)
 	cy = placeWidget(oriDD, inner, cy, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildPositionCard(parent, width)

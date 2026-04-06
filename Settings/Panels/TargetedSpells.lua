@@ -63,7 +63,8 @@ local function buildOverviewCard(parent, width)
 	enableCheck:SetChecked(get('enabled'))
 	cy = placeWidget(enableCheck, inner, cy, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildDisplayModeCard(parent, width, updateVisibility)
@@ -82,7 +83,8 @@ local function buildDisplayModeCard(parent, width, updateVisibility)
 	end)
 	cy = placeWidget(modeDD, inner, cy, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildIconSettingsCard(parent, width)
@@ -104,7 +106,8 @@ local function buildIconSettingsCard(parent, width)
 	durCheck:SetChecked(get('showDuration') ~= false)
 	cy = placeWidget(durCheck, inner, cy, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildPositionCard(parent, width)

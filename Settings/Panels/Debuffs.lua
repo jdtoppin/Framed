@@ -163,7 +163,8 @@ local function buildFilterModeCard(parent, width, data, update, get, set)
 	filterDD:SetOnSelect(function(v) update('filterMode', v) end)
 	cy = placeWidget(filterDD, inner, cy, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildDisplaySettingsCard(parent, width, data, update, get, set)
@@ -213,7 +214,8 @@ local function buildDisplaySettingsCard(parent, width, data, update, get, set)
 	oriDD:SetOnSelect(function(v) update('orientation', v) end)
 	cy = placeWidget(oriDD, inner, cy, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildPositionCard(parent, width, data, update, get, set)

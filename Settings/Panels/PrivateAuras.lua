@@ -68,7 +68,8 @@ local function buildOverviewCard(parent, width, get, set)
 		'Private Auras are registered at the C-level API. Changes to icon size and anchor require a /reload to take effect.')
 	cy = placeWidget(reloadInfo, inner, cy, reloadInfo:GetHeight())
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildDisplayCard(parent, width, get, set)
@@ -100,7 +101,8 @@ local function buildDisplayCard(parent, width, get, set)
 	oriDD:SetOnSelect(function(v) set('orientation', v) end)
 	cy = placeWidget(oriDD, inner, cy, DROPDOWN_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildPositionCard(parent, width, get, set)

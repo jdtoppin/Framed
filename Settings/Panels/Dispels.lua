@@ -76,7 +76,8 @@ local function buildOverviewCard(parent, width, get, set)
 	dispCheck:SetChecked(get('onlyDispellableByMe') == true)
 	cy = placeWidget(dispCheck, inner, cy, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildHighlightCard(parent, width, get, set)
@@ -100,7 +101,8 @@ local function buildHighlightCard(parent, width, get, set)
 	alphaSlider:SetAfterValueChanged(function(v) set('highlightAlpha', v / 100) end)
 	cy = placeWidget(alphaSlider, inner, cy, SLIDER_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildIconCard(parent, width, get, set)
@@ -129,7 +131,8 @@ local function buildIconCard(parent, width, get, set)
 		cy = placeWidget(picker, inner, cy, picker:GetHeight())
 	end
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 -- ============================================================

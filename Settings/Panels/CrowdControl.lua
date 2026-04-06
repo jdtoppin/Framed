@@ -97,7 +97,8 @@ local function buildOverviewCard(parent, width)
 	enableCB:SetChecked(get('enabled') or false)
 	cy = placeWidget(enableCB, inner, cy, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local SPELL_LIST_H  = 200
@@ -117,7 +118,8 @@ local function buildTrackedSpellsCard(parent, width)
 	spellInput:SetSpellList(spellList)
 	cy = placeWidget(spellInput, inner, cy, SPELL_INPUT_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildDisplayCard(parent, width)
@@ -134,7 +136,8 @@ local function buildDisplayCard(parent, width)
 	durCheck:SetChecked(get('showDuration') ~= false)
 	cy = placeWidget(durCheck, inner, cy, CHECK_H)
 
-	return Widgets.EndCard(card, parent, cy)
+	Widgets.EndCard(card, parent, cy)
+	return card
 end
 
 local function buildPositionCard(parent, width)
