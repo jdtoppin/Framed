@@ -189,7 +189,9 @@ F.Settings.RegisterPanel({
 		set = function(key, value)
 			if(F.Config) then F.Config:Set(basePath .. '.' .. key, value) end
 			if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-			if(key ~= 'enabled' and F.EventBus) then
+			if(key == 'enabled') then
+				F.Settings.UpdateAuraPreviewDimming('externals', nil)
+			elseif(F.EventBus) then
 				F.EventBus:Fire('CONFIG_CHANGED', basePath)
 			end
 		end

@@ -29,7 +29,9 @@ local function set(key, value)
 		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.targetedSpells.' .. key, value)
 	end
 	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	if(key ~= 'enabled' and F.EventBus) then
+	if(key == 'enabled') then
+		F.Settings.UpdateAuraPreviewDimming('targetedSpells', nil)
+	elseif(F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.targetedSpells')
 	end
 end

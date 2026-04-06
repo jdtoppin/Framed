@@ -147,9 +147,9 @@ F.Settings.RegisterPanel({
 		set = function(key, value)
 			if(F.Config) then F.Config:Set(basePath .. '.' .. key, value) end
 			if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-			-- Config:Set already fires CONFIG_CHANGED with the full path;
-			-- fire broad event only for non-enabled keys to avoid double-handling
-			if(key ~= 'enabled' and F.EventBus) then
+			if(key == 'enabled') then
+				F.Settings.UpdateAuraPreviewDimming('dispellable', nil)
+			elseif(F.EventBus) then
 				F.EventBus:Fire('CONFIG_CHANGED', basePath)
 			end
 		end

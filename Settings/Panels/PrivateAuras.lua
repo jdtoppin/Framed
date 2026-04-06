@@ -27,6 +27,9 @@ local function makeHelpers(unitType)
 			F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.privateAuras.' .. key, value)
 		end
 		if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
+		if(key == 'enabled') then
+			F.Settings.UpdateAuraPreviewDimming('privateAuras', nil)
+		end
 		if(F.EventBus) then
 			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.privateAuras')
 		end
