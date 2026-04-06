@@ -4,7 +4,7 @@ local C = F.Constants
 local Widgets = F.Widgets
 local Settings = F.Settings
 
--- Shared layout constants (match FrameSettingsBuilder.lua / IndicatorPanels.lua)
+-- Shared layout constants (match FrameSettingsBuilder.lua)
 local WIDGET_W    = 220
 local DROPDOWN_H  = 22
 local SLIDER_H    = 26
@@ -45,7 +45,7 @@ function Builders.CastBy(parent, width, data, update)
 		{ text = 'Others',  value = C.CastFilter.OTHERS },
 		{ text = 'Anyone',  value = C.CastFilter.ANYONE },
 	})
-	castByDD:SetValue(data.castBy or C.CastFilter.ME)
+	castByDD:SetValue(data.castBy)
 	castByDD:SetOnSelect(function(value) update('castBy', value) end)
 	cardY = placeWidget(castByDD, inner, cardY, DROPDOWN_H)
 
@@ -130,7 +130,7 @@ function Builders.Appearance(parent, width, data, update, rebuildPanel)
 		{ text = 'Spell Icons',   value = C.IconDisplay.SPELL_ICON },
 		{ text = 'Color Squares', value = C.IconDisplay.COLORED_SQUARE },
 	})
-	dtSwitch:SetValue(data.displayType or C.IconDisplay.SPELL_ICON)
+	dtSwitch:SetValue(data.displayType)
 	dtSwitch:SetOnSelect(function(v)
 		update('displayType', v)
 		-- Rebuild panel to update spell list color pickers
@@ -139,12 +139,12 @@ function Builders.Appearance(parent, width, data, update, rebuildPanel)
 	cardY = placeWidget(dtSwitch, inner, cardY, BUTTON_H)
 
 	local wSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 48, 1)
-	wSlider:SetValue(data.iconWidth or 16)
+	wSlider:SetValue(data.iconWidth)
 	wSlider:SetAfterValueChanged(function(v) update('iconWidth', v) end)
 	cardY = placeWidget(wSlider, inner, cardY, SLIDER_H)
 
 	local hSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 48, 1)
-	hSlider:SetValue(data.iconHeight or 16)
+	hSlider:SetValue(data.iconHeight)
 	hSlider:SetAfterValueChanged(function(v) update('iconHeight', v) end)
 	cardY = placeWidget(hSlider, inner, cardY, SLIDER_H)
 
@@ -160,11 +160,11 @@ function Builders.Layout(parent, width, data, update, get, set)
 
 	-- Anchor picker
 	if(Widgets.CreateAnchorPicker) then
-		local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+		local anchor = get('anchor')
 		local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W, 50)
 		picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
 		picker:SetOnChanged(function(point, x, y)
-			local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+			local a = get('anchor')
 			a[1] = point
 			a[3] = point
 			a[4] = x
@@ -176,14 +176,14 @@ function Builders.Layout(parent, width, data, update, get, set)
 
 	-- Frame level
 	local flSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 50, 1)
-	flSlider:SetValue(get('frameLevel') or 5)
+	flSlider:SetValue(get('frameLevel'))
 	flSlider:SetAfterValueChanged(function(val) set('frameLevel', val) end)
 	cardY = placeWidget(flSlider, inner, cardY, SLIDER_H)
 
 	-- Multi-element fields (Icons, Bars)
 	if(iType == C.IndicatorType.ICONS or iType == C.IndicatorType.BARS) then
 		-- Grow direction
-		local anchorData = data.anchor or { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 }
+		local anchorData = data.anchor
 		local anchorH = anchorData[3] or 'TOPLEFT'
 		local defaultGrow = (anchorH == 'TOPRIGHT' or anchorH == 'RIGHT' or anchorH == 'BOTTOMRIGHT') and 'LEFT' or 'RIGHT'
 		local effectiveGrow = data.orientation or defaultGrow
@@ -206,22 +206,22 @@ function Builders.Layout(parent, width, data, update, get, set)
 		cardY = placeWidget(oriDD, inner, cardY, DROPDOWN_H)
 
 		local mxSlider = Widgets.CreateSlider(inner, 'Max Displayed', WIDGET_W, 1, 10, 1)
-		mxSlider:SetValue(data.maxDisplayed or 3)
+		mxSlider:SetValue(data.maxDisplayed)
 		mxSlider:SetAfterValueChanged(function(v) update('maxDisplayed', v) end)
 		cardY = placeWidget(mxSlider, inner, cardY, SLIDER_H)
 
 		local nplSlider = Widgets.CreateSlider(inner, 'Num Per Line', WIDGET_W, 0, 10, 1)
-		nplSlider:SetValue(data.numPerLine or 0)
+		nplSlider:SetValue(data.numPerLine)
 		nplSlider:SetAfterValueChanged(function(v) update('numPerLine', v) end)
 		cardY = placeWidget(nplSlider, inner, cardY, SLIDER_H)
 
 		local spxSlider = Widgets.CreateSlider(inner, 'Spacing X', WIDGET_W, -20, 20, 1)
-		spxSlider:SetValue(data.spacingX or 2)
+		spxSlider:SetValue(data.spacingX)
 		spxSlider:SetAfterValueChanged(function(v) update('spacingX', v) end)
 		cardY = placeWidget(spxSlider, inner, cardY, SLIDER_H)
 
 		local spySlider = Widgets.CreateSlider(inner, 'Spacing Y', WIDGET_W, -20, 20, 1)
-		spySlider:SetValue(data.spacingY or 2)
+		spySlider:SetValue(data.spacingY)
 		spySlider:SetAfterValueChanged(function(v) update('spacingY', v) end)
 		cardY = placeWidget(spySlider, inner, cardY, SLIDER_H)
 	end
@@ -256,7 +256,7 @@ function Builders.CooldownDuration(parent, width, data, update, get, set)
 
 	local durDD = Widgets.CreateDropdown(inner, WIDGET_W)
 	durDD:SetItems(DURATION_MODE_ITEMS)
-	durDD:SetValue(data.durationMode or 'Never')
+	durDD:SetValue(data.durationMode)
 	durDD:SetOnSelect(function(v) update('durationMode', v) end)
 	cardY = placeWidget(durDD, inner, cardY, DROPDOWN_H)
 
@@ -409,29 +409,29 @@ function Builders.Size(parent, width, data, update)
 
 	if(iType == C.IndicatorType.BAR or iType == C.IndicatorType.BARS) then
 		local bwSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 100, 1)
-		bwSlider:SetValue(data.barWidth or 100)
+		bwSlider:SetValue(data.barWidth)
 		bwSlider:SetAfterValueChanged(function(v) update('barWidth', v) end)
 		cardY = placeWidget(bwSlider, inner, cardY, SLIDER_H)
 
 		local bhSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 100, 1)
-		bhSlider:SetValue(data.barHeight or 4)
+		bhSlider:SetValue(data.barHeight)
 		bhSlider:SetAfterValueChanged(function(v) update('barHeight', v) end)
 		cardY = placeWidget(bhSlider, inner, cardY, SLIDER_H)
 
 		local barOriDD = Widgets.CreateDropdown(inner, WIDGET_W)
 		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
-		barOriDD:SetValue(data.barOrientation or 'Horizontal')
+		barOriDD:SetValue(data.barOrientation)
 		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
 		cardY = placeWidget(barOriDD, inner, cardY, DROPDOWN_H)
 
 	elseif(iType == C.IndicatorType.RECTANGLE) then
 		local rwSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 500, 1)
-		rwSlider:SetValue(data.rectWidth or 10)
+		rwSlider:SetValue(data.rectWidth)
 		rwSlider:SetAfterValueChanged(function(v) update('rectWidth', v) end)
 		cardY = placeWidget(rwSlider, inner, cardY, SLIDER_H)
 
 		local rhSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 500, 1)
-		rhSlider:SetValue(data.rectHeight or 10)
+		rhSlider:SetValue(data.rectHeight)
 		rhSlider:SetAfterValueChanged(function(v) update('rectHeight', v) end)
 		cardY = placeWidget(rhSlider, inner, cardY, SLIDER_H)
 	end
@@ -450,14 +450,14 @@ function Builders.Mode(parent, width, data, update, get, set, rebuildPanel)
 		{ text = 'Color',            value = 'Color' },
 		{ text = 'Both',             value = 'Both' },
 	})
-	modeDD:SetValue(data.overlayMode or 'DurationOverlay')
+	modeDD:SetValue(data.overlayMode)
 	modeDD:SetOnSelect(function(v)
 		update('overlayMode', v)
 		if(rebuildPanel) then rebuildPanel() end
 	end)
 	cardY = placeWidget(modeDD, inner, cardY, DROPDOWN_H)
 
-	local ovColor = data.color or { 0, 0, 0, 0.6 }
+	local ovColor = data.color
 	local colorPicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
 		update('color', { r, g, b, a })
 	end)
@@ -465,7 +465,7 @@ function Builders.Mode(parent, width, data, update, get, set, rebuildPanel)
 	cardY = placeWidget(colorPicker, inner, cardY, DROPDOWN_H)
 
 	-- Conditional: DurationOverlay or Both — smooth animation + bar orientation
-	local ovMode = data.overlayMode or 'DurationOverlay'
+	local ovMode = data.overlayMode
 	if(ovMode == 'DurationOverlay' or ovMode == 'Both') then
 		local smoothSwitch = Widgets.CreateCheckButton(inner, 'Smooth Animation', function(checked)
 			update('smooth', checked)
@@ -479,7 +479,7 @@ function Builders.Mode(parent, width, data, update, get, set, rebuildPanel)
 		}
 		local barOriDD = Widgets.CreateDropdown(inner, WIDGET_W)
 		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
-		barOriDD:SetValue(data.barOrientation or 'Horizontal')
+		barOriDD:SetValue(data.barOrientation)
 		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
 		cardY = placeWidget(barOriDD, inner, cardY, DROPDOWN_H)
 	end
@@ -504,7 +504,7 @@ function Builders.Duration(parent, width, data, update, get, set)
 
 	local durDD = Widgets.CreateDropdown(inner, WIDGET_W)
 	durDD:SetItems(DURATION_MODE_ITEMS)
-	durDD:SetValue(data.durationMode or 'Never')
+	durDD:SetValue(data.durationMode)
 	durDD:SetOnSelect(function(v) update('durationMode', v) end)
 	cardY = placeWidget(durDD, inner, cardY, DROPDOWN_H)
 
