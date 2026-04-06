@@ -109,7 +109,7 @@ end
 local function buildLayoutCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { heading = 'Layout' })
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end

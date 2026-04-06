@@ -154,7 +154,7 @@ end
 function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
 
-	yOffset = placeHeading(parent, opts.heading or 'Position & Layer', yOffset)
+	yOffset = placeHeading(parent, 'Layout', yOffset)
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
