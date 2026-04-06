@@ -102,7 +102,7 @@ end
 --- @param grid  table  The card grid
 local function addPinButton(entry, grid)
 	local card = entry.card
-	local pinBtn = Widgets.CreateIconButton(card, [[Interface\Buttons\UI-GuildButton-PublicNote-Up]], 14)
+	local pinBtn = Widgets.CreateIconButton(card, [[Interface\AddOns\Framed\Media\Icons\pin]], 18)
 	pinBtn:SetPoint('TOPRIGHT', card, 'TOPRIGHT', -6, -6)
 
 	local function updatePinVisual()

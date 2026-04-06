@@ -36,19 +36,20 @@ end
 local function buildOverviewCard(parent, width, get, set)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
 
-	-- Description
-	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
-	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
-	descFS:SetText('Highlight units that have dispellable debuffs. Shows an icon and a colored frame highlight.')
-	descFS:SetWordWrap(true)
-	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
-
 	-- Enabled toggle
 	local enableCheck = Widgets.CreateCheckButton(inner, 'Enabled', function(checked)
 		set('enabled', checked)
 	end)
 	enableCheck:SetChecked(get('enabled'))
 	cy = placeWidget(enableCheck, inner, cy, CHECK_H)
+
+	-- Description
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textActive)
+	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetJustifyH('LEFT')
+	descFS:SetWordWrap(true)
+	descFS:SetText('Highlight units that have dispellable debuffs. Shows an icon and a colored frame highlight.')
+	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
 
 	-- Only show dispellable by me
 	local dispCheck = Widgets.CreateCheckButton(inner, 'Only dispellable by me', function(checked)

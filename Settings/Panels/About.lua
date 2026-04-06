@@ -19,7 +19,7 @@ end
 local function getAuthor()
 	local a = C_AddOns and C_AddOns.GetAddOnMetadata and
 		C_AddOns.GetAddOnMetadata('Framed', 'Author')
-	return a or 'jdtoppin'
+	return a or 'Moodibs'
 end
 
 -- ============================================================

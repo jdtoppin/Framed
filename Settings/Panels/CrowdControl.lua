@@ -83,19 +83,20 @@ end
 local function buildOverviewCard(parent, width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
 
-	-- Description
-	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
-	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
-	descFS:SetText('Track player CC spells cast on enemy targets. Displays an icon overlay when the tracked debuff is active.')
-	descFS:SetWordWrap(true)
-	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
-
 	-- Enabled toggle
 	local enableCB = Widgets.CreateCheckButton(inner, 'Enabled', function(checked)
 		set('enabled', checked)
 	end)
 	enableCB:SetChecked(get('enabled') or false)
 	cy = placeWidget(enableCB, inner, cy, CHECK_H)
+
+	-- Description
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textActive)
+	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetJustifyH('LEFT')
+	descFS:SetWordWrap(true)
+	descFS:SetText('Track player CC spells cast on enemy targets. Displays an icon overlay when the tracked debuff is active.')
+	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
 
 	Widgets.EndCard(card, parent, cy)
 	return card

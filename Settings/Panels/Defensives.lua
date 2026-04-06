@@ -40,10 +40,10 @@ local function buildOverviewCard(parent, width)
 	cy = placeWidget(enableCB, inner, cy, CHECK_H)
 
 	-- Description
-	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textActive)
 	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
-	descFS:SetWordWrap(true)
 	descFS:SetJustifyH('LEFT')
+	descFS:SetWordWrap(true)
 	descFS:SetText('Major personal defensive cooldowns. Supports visibility modes: show all, player-cast only, or other-cast only. Border color differentiates source.')
 	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
 

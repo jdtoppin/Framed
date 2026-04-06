@@ -103,13 +103,27 @@ function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName
 	frame._width         = fw
 	frame._height        = fh
 
+	-- When "Show All" is active, force-enable every group for the build
+	-- so disabled groups still render in the preview.
+	local showAll = frame._showAll
+	local buildConfig = rawAuraConfig
+	if(showAll) then
+		buildConfig = {}
+		for key, val in next, rawAuraConfig do
+			if(type(val) == 'table') then
+				buildConfig[key] = setmetatable({ enabled = true }, { __index = val })
+			else
+				buildConfig[key] = val
+			end
+		end
+	end
+
 	-- Render using PreviewAuras.BuildAll (with animations like edit mode)
 	if(F.PreviewAuras and F.PreviewAuras.BuildAll) then
-		F.PreviewAuras.BuildAll(frame, rawAuraConfig, true)
+		F.PreviewAuras.BuildAll(frame, buildConfig, true)
 	end
 
 	-- Apply dimming based on show-all toggle and active group
-	local showAll = frame._showAll
 	local highlightKey = (showAll or not activeGroupKey) and nil or activeGroupKey
 	F.PreviewAuras.SetAuraGroupAlpha(frame, highlightKey)
 end

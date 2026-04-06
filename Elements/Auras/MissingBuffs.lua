@@ -79,28 +79,46 @@ local function getGroupClasses()
 	return classes
 end
 
+--- Ensure a spell's name and icon are cached. C_Spell.GetSpellInfo can
+--- return nil if the data hasn't loaded yet (async), so we retry on demand.
+local function ensureCached(spellId)
+	if(nameCache[spellId]) then return nameCache[spellId] end
+	if(C_Spell and C_Spell.GetSpellInfo) then
+		local info = C_Spell.GetSpellInfo(spellId)
+		if(info) then
+			nameCache[spellId] = info.name
+			iconCache[spellId] = info.iconID
+			return info.name
+		end
+	end
+end
+
 --- Check whether the unit currently has a buff matching the given spellId.
---- Uses GetAuraDataBySpellName for targeted lookup — works in tainted combat
---- because raid buff spellIds are whitelisted as non-secret by Blizzard.
+--- Tries GetAuraDataBySpellName first (fast), then falls back to slot-based
+--- iteration. The fallback is needed because GetAuraDataBySpellName returns
+--- nil in combat for certain spells (Arcane Intellect, Skyfury) where the
+--- aura name or lookup is restricted.
 --- @param unit string
 --- @param targetSpellId number
 --- @return boolean
 local function unitHasBuff(unit, targetSpellId)
-	local spellName = nameCache[targetSpellId]
-	if(not spellName) then
-		-- Lazy cache: spell data may not have been available at init
-		if(C_Spell and C_Spell.GetSpellInfo) then
-			local info = C_Spell.GetSpellInfo(targetSpellId)
-			if(info and info.name) then
-				nameCache[targetSpellId] = info.name
-				iconCache[targetSpellId] = info.iconID
-				spellName = info.name
-			end
+	local name = ensureCached(targetSpellId)
+	if(not name) then return false end
+	-- Try direct name lookup first (fast, works out of combat)
+	local aura = C_UnitAuras.GetAuraDataBySpellName(unit, name, 'HELPFUL')
+	if(aura) then return true end
+	-- Fallback: iterate slots — GetAuraDataBySpellName can return nil in
+	-- combat for specific spells where the aura name differs from the cast
+	-- spell name, or when aura data is restricted.
+	local slots = {C_UnitAuras.GetAuraSlots(unit, 'HELPFUL')}
+	for i = 2, #slots do
+		local data = C_UnitAuras.GetAuraDataBySlot(unit, slots[i])
+		if(data) then
+			if(data.spellId == targetSpellId) then return true end
+			if(data.name == name) then return true end
 		end
-		if(not spellName) then return false end
 	end
-	local aura = C_UnitAuras.GetAuraDataBySpellName(unit, spellName, 'HELPFUL')
-	return aura ~= nil
+	return false
 end
 
 -- ============================================================

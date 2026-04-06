@@ -56,8 +56,9 @@ local function buildOverviewCard(parent, width, get, set)
 	cy = placeWidget(enableCB, inner, cy, CHECK_H)
 
 	-- Description
-	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textActive)
 	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetJustifyH('LEFT')
 	descFS:SetWordWrap(true)
 	descFS:SetText('Shows glowing spell icons for missing raid buffs (Fortitude, Intellect, Battle Shout, Mark of the Wild, Skyfury, Blessing of the Bronze). Icons only appear when the providing class is in your group.')
 	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight() + C.Spacing.tight)
