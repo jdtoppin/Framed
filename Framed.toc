@@ -176,6 +176,7 @@ Settings/Builders/IndicatorPanels.lua
 Settings/Builders/IndicatorCRUD.lua
 Settings/Builders/DebuffIndicatorCRUD.lua
 Settings/Builders/SharedCards.lua
+Settings/Builders/IndicatorCardBuilders.lua
 Settings/Panels/Appearance.lua
 Settings/Panels/FramePresets.lua
 Settings/Panels/Profiles.lua
