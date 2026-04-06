@@ -8,6 +8,16 @@ local CHECK_H = 22
 local AuraPreview = {}
 F.Settings.AuraPreview = AuraPreview
 
+-- Map panel IDs (lowercase) to aura group keys used in _auraGroups
+local PANEL_TO_GROUP = {
+	targetedspells = 'targetedSpells',
+	dispels        = 'dispellable',
+	missingbuffs   = 'missingBuffs',
+	privateauras   = 'privateAuras',
+	lossofcontrol  = 'lossOfControl',
+	crowdcontrol   = 'crowdControl',
+}
+
 -- ── Player class color for preview ──────────────────────────
 local function getPlayerClassColor()
 	local _, classFile = UnitClass('player')
@@ -103,28 +113,16 @@ function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName
 	frame._width         = fw
 	frame._height        = fh
 
-	-- When "Show All" is active, force-enable every group for the build
-	-- so disabled groups still render in the preview.
-	local showAll = frame._showAll
-	local buildConfig = rawAuraConfig
-	if(showAll) then
-		buildConfig = {}
-		for key, val in next, rawAuraConfig do
-			if(type(val) == 'table') then
-				buildConfig[key] = setmetatable({ enabled = true }, { __index = val })
-			else
-				buildConfig[key] = val
-			end
-		end
-	end
-
 	-- Render using PreviewAuras.BuildAll (with animations like edit mode)
 	if(F.PreviewAuras and F.PreviewAuras.BuildAll) then
-		F.PreviewAuras.BuildAll(frame, buildConfig, true)
+		F.PreviewAuras.BuildAll(frame, rawAuraConfig, true)
 	end
 
-	-- Apply dimming based on show-all toggle and active group
-	local highlightKey = (showAll or not activeGroupKey) and nil or activeGroupKey
+	-- Apply dimming: "Show All" undims every group, otherwise highlight the active panel
+	local highlightKey
+	if(not frame._showAll and activeGroupKey) then
+		highlightKey = PANEL_TO_GROUP[activeGroupKey] or activeGroupKey
+	end
 	F.PreviewAuras.SetAuraGroupAlpha(frame, highlightKey)
 end
 

@@ -299,16 +299,20 @@ F.Settings.RegisterPanel({
 		Widgets.EndCard(createCard, content, createY)
 
 		-- ── Indicator List card ──────────────────────────────────
+		-- Match list card height to the combined preview + create column
+		local leftColumnH = previewCardH + CARD_GAP + createCard:GetHeight()
+		local listScrollH = leftColumnH - Widgets.CARD_PADDING * 2
+
 		local listCard, listInner, listY = Widgets.StartCard(content, listCardW, pinnedRowY)
 		listCard:ClearAllPoints()
 		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', createCardW + CARD_GAP, pinnedRowY)
 		listCard._startY = pinnedRowY
 
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
-		local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, LIST_HEIGHT)
+		local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, listScrollH)
 		listScroll:ClearAllPoints()
 		Widgets.SetPoint(listScroll, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
-		listY = listY - LIST_HEIGHT
+		listY = listY - listScrollH
 		local listContent = listScroll:GetContentFrame()
 
 		local emptyLabel = Widgets.CreateFontString(listScroll, C.Font.sizeNormal, C.Colors.textSecondary)
@@ -316,12 +320,7 @@ F.Settings.RegisterPanel({
 		emptyLabel:SetText('No indicators configured')
 
 		Widgets.EndCard(listCard, content, listY)
-
-		-- Calculate combined pinned row height (tallest of left column vs list)
-		local leftColumnH = previewCardH + CARD_GAP + createCard:GetHeight()
-		local listCardH   = listCard:GetHeight()
-		local pinnedRowH  = math.max(leftColumnH, listCardH)
-		yOffset = pinnedRowY - pinnedRowH - C.Spacing.normal
+		yOffset = pinnedRowY - leftColumnH - C.Spacing.normal
 
 		-- ── CardGrid for settings cards ──────────────────────────
 		local gridTopY = yOffset
@@ -481,7 +480,7 @@ F.Settings.RegisterPanel({
 			end
 
 			listContent:SetHeight(idx * ROW_HEIGHT)
-			local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+			local listH = math.min(listScrollH, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
 			listScroll:SetHeight(listH)
 			listScroll:UpdateScrollRange()
 		end
