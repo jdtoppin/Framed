@@ -13,28 +13,10 @@ local DROPDOWN_H = 22
 local WIDGET_W   = 220
 
 -- ============================================================
--- Config helpers
+-- Config helpers (assigned per-panel in create; card builders close over these)
 -- ============================================================
 
-local function get(key)
-	local presetName = F.Settings.GetEditingPreset()
-	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
-	return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.dispellable.' .. key)
-end
-
-local function set(key, value)
-	local presetName = F.Settings.GetEditingPreset()
-	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
-	if(F.Config) then
-		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.dispellable.' .. key, value)
-	end
-	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	-- Config:Set already fires CONFIG_CHANGED with the full path;
-	-- fire broad event only for non-enabled keys to avoid double-handling
-	if(key ~= 'enabled' and F.EventBus) then
-		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.dispellable')
-	end
-end
+local get, set
 
 -- ============================================================
 -- Layout helper
@@ -155,6 +137,22 @@ F.Settings.RegisterPanel({
 		content:SetWidth(parentW)
 		local width   = parentW - C.Spacing.normal * 2
 		local yOffset = -C.Spacing.normal
+
+		-- ── Capture preset + unitType once for this panel instance ────
+		local presetName = F.Settings.GetEditingPreset()
+		local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
+		local basePath   = 'presets.' .. presetName .. '.auras.' .. unitType .. '.dispellable'
+
+		get = function(key) return F.Config and F.Config:Get(basePath .. '.' .. key) end
+		set = function(key, value)
+			if(F.Config) then F.Config:Set(basePath .. '.' .. key, value) end
+			if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
+			-- Config:Set already fires CONFIG_CHANGED with the full path;
+			-- fire broad event only for non-enabled keys to avoid double-handling
+			if(key ~= 'enabled' and F.EventBus) then
+				F.EventBus:Fire('CONFIG_CHANGED', basePath)
+			end
+		end
 
 		-- ── Unit type dropdown + copy-to ─────────────────────────
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'dispels', 'dispellable')
