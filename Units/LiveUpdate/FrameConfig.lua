@@ -574,20 +574,18 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			h._colorMode   = mode
 			h._customColor = config.health.customColor
 
-			-- Set flags for new mode
-			if(mode == 'class') then
+			-- NPC frames always use the full oUF chain
+			if(h._isNpcFrame) then
+				h.colorTapping  = true
+				h.colorThreat   = true
 				h.colorClass    = true
 				h.colorReaction = true
-				-- NPC frames need secret-safe UpdateColor for UnitThreatSituation
-				if(h._isNpcFrame) then
-					h.UpdateColor = F.Elements.Health.NpcUpdateColor
-				end
+				h.UpdateColor   = F.Elements.Health.NpcUpdateColor
+			elseif(mode == 'class') then
+				h.colorClass    = true
+				h.colorReaction = true
 			elseif(mode == 'gradient') then
 				h.colorSmooth = true
-				-- NPC frames need secret-safe UpdateColor for UnitThreatSituation
-				if(h._isNpcFrame) then
-					h.UpdateColor = F.Elements.Health.NpcUpdateColor
-				end
 				-- Ensure per-frame colors table exists
 				if(not rawget(frame, 'colors')) then
 					frame.colors = setmetatable({}, { __index = oUF.colors })
@@ -600,12 +598,10 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					[hc.gradientThreshold1 / 100] = CreateColor(unpack(hc.gradientColor1)),
 				})
 			elseif(mode == 'dark') then
-				-- Override UpdateColor to directly set dark gray
 				h.UpdateColor = function(self)
 					self.Health:SetStatusBarColor(0.25, 0.25, 0.25)
 				end
 			elseif(mode == 'custom') then
-				-- Override UpdateColor to directly set the custom color
 				h.UpdateColor = function(self)
 					local cc = self.Health._customColor
 					self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
@@ -1407,26 +1403,31 @@ local function applyFullConfig(frame, config)
 		h.colorReaction = nil
 		h.colorSmooth   = nil
 		h.UpdateColor   = nil
-		local colorMode = hc.colorMode
-		if(colorMode == 'class') then
+
+		if(h._isNpcFrame) then
+			-- NPC frames (target, focus, pet, boss, targettarget) always use the
+			-- full oUF chain regardless of colorMode config.
+			h.colorTapping  = true
+			h.colorThreat   = true
 			h.colorClass    = true
 			h.colorReaction = true
-			if(h._isNpcFrame) then
-				h.UpdateColor = F.Elements.Health.NpcUpdateColor
-			end
-		elseif(colorMode == 'gradient') then
-			h.colorSmooth = true
-			if(h._isNpcFrame) then
-				h.UpdateColor = F.Elements.Health.NpcUpdateColor
-			end
-		elseif(colorMode == 'dark') then
-			h.UpdateColor = function(self)
-				self.Health:SetStatusBarColor(0.25, 0.25, 0.25)
-			end
-		elseif(colorMode == 'custom') then
-			h.UpdateColor = function(self)
-				local cc = self.Health._customColor
-				self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
+			h.UpdateColor   = F.Elements.Health.NpcUpdateColor
+		else
+			local colorMode = hc.colorMode
+			if(colorMode == 'class') then
+				h.colorClass    = true
+				h.colorReaction = true
+			elseif(colorMode == 'gradient') then
+				h.colorSmooth = true
+			elseif(colorMode == 'dark') then
+				h.UpdateColor = function(self)
+					self.Health:SetStatusBarColor(0.25, 0.25, 0.25)
+				end
+			elseif(colorMode == 'custom') then
+				h.UpdateColor = function(self)
+					local cc = self.Health._customColor
+					self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
+				end
 			end
 		end
 

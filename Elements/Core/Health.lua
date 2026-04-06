@@ -48,23 +48,40 @@ local function NpcUpdateColor(self, event, unit)
 	local element = self.Health
 
 	local color
+
+	-- Disconnected / tapped are definitive states — short-circuit.
 	if(element.colorDisconnected and not UnitIsConnected(unit)) then
 		color = self.colors.disconnected
 	elseif(element.colorTapping and not UnitPlayerControlled(unit) and UnitIsTapDenied(unit)) then
 		color = self.colors.tapped
-	elseif(element.colorThreat and not UnitPlayerControlled(unit)) then
+	end
+
+	-- Threat: only apply if we can read the status (non-secret).
+	-- Separated from the elseif chain so a secret threat value does NOT
+	-- prevent the class/reaction fallback from running.
+	if(not color and element.colorThreat and not UnitPlayerControlled(unit)) then
 		local status = UnitThreatSituation('player', unit)
 		if(status and F.IsValueNonSecret(status)) then
 			color = self.colors.threat[status]
 		end
-	elseif(element.colorClass and (UnitIsPlayer(unit) or UnitInPartyIsAI(unit))) then
-		local _, class = UnitClass(unit)
-		color = self.colors.class[class]
-	elseif(element.colorReaction and UnitReaction(unit, 'player')) then
-		color = self.colors.reaction[UnitReaction(unit, 'player')]
 	end
 
-	if(color) then
+	-- Class (players / AI party members) → reaction fallback
+	if(not color) then
+		if(element.colorClass and (UnitIsPlayer(unit) or UnitInPartyIsAI(unit))) then
+			local _, class = UnitClass(unit)
+			if(class) then
+				color = self.colors.class[class]
+			end
+		elseif(element.colorReaction and UnitReaction(unit, 'player')) then
+			color = self.colors.reaction[UnitReaction(unit, 'player')]
+		end
+	end
+
+	-- Dead override: grey regardless of class/reaction
+	if(UnitIsDeadOrGhost(unit)) then
+		element:SetStatusBarColor(0.2, 0.2, 0.2)
+	elseif(color) then
 		element:SetStatusBarColor(color:GetRGB())
 	end
 
@@ -307,7 +324,9 @@ function F.Elements.Health.Setup(self, width, height, config)
 		end
 
 		-- ── Dead state: dark grey ─────────────────────────
-		if(UnitIsDeadOrGhost(unit)) then
+		-- NPC frames handle dead in NpcUpdateColor (runs after PostUpdate
+		-- via ColorPath) so only non-NPC frames need the override here.
+		if(not h._isNpcFrame and UnitIsDeadOrGhost(unit)) then
 			h:SetStatusBarColor(0.2, 0.2, 0.2)
 		end
 

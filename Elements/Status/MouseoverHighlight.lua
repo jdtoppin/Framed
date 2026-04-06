@@ -69,7 +69,7 @@ function F.Elements.MouseoverHighlight.Setup(self, config)
 	local border = CreateFrame('Frame', nil, self, 'BackdropTemplate')
 	border:SetPoint('TOPLEFT', self, 'TOPLEFT', -thickness, thickness)
 	border:SetPoint('BOTTOMRIGHT', self, 'BOTTOMRIGHT', thickness, -thickness)
-	border:SetFrameLevel(self:GetFrameLevel() + 8)
+	border:SetFrameLevel(self:GetFrameLevel() + 12)
 	border:SetIgnoreParentAlpha(true)
 
 	border:SetBackdrop({
