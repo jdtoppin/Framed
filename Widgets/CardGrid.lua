@@ -305,6 +305,44 @@ local function AddCard(grid, id, title, builder, builderArgs)
 	grid._cardIndex[id] = entry
 end
 
+--- Remove a single card by id. Hides and unparents the built frame.
+--- @param grid table
+--- @param id   string  Card id
+local function RemoveCard(grid, id)
+	local entry = grid._cardIndex[id]
+	if(not entry) then return end
+
+	-- Destroy the built frame
+	if(entry.card) then
+		entry.card:Hide()
+		entry.card:SetParent(nil)
+	end
+
+	-- Remove from ordered array
+	for i = #grid._cards, 1, -1 do
+		if(grid._cards[i].id == id) then
+			table.remove(grid._cards, i)
+			break
+		end
+	end
+
+	grid._cardIndex[id] = nil
+end
+
+--- Remove all cards from the grid. Hides and unparents every built frame.
+--- @param grid table
+local function RemoveAllCards(grid)
+	for i = #grid._cards, 1, -1 do
+		local entry = grid._cards[i]
+		if(entry.card) then
+			entry.card:Hide()
+			entry.card:SetParent(nil)
+		end
+		grid._cardIndex[entry.id] = nil
+		grid._cards[i] = nil
+	end
+end
+
 --- Mark or unmark a card as pinned (pinned cards sort to the front).
 --- @param grid   table
 --- @param id     string   Card id
@@ -435,6 +473,8 @@ function Widgets.CreateCardGrid(parent, width)
 
 	-- Bind methods
 	grid.AddCard          = AddCard
+	grid.RemoveCard       = RemoveCard
+	grid.RemoveAllCards   = RemoveAllCards
 	grid.SetPinned        = SetPinned
 	grid.GetColumnLayout  = GetColumnLayout
 	grid.GetSortedCards   = GetSortedCards
