@@ -20,7 +20,7 @@ F.Settings.AuraPreview = AuraPreview
 
 -- ── Player class color for preview ──────────────────────────
 local function getPlayerClassColor()
-	local _, classFile = UnitClassBase('player')
+	local _, classFile = UnitClass('player')
 	if(classFile and RAID_CLASS_COLORS and RAID_CLASS_COLORS[classFile]) then
 		local c = RAID_CLASS_COLORS[classFile]
 		return c.r, c.g, c.b
@@ -40,11 +40,10 @@ function AuraPreview.Create(parent)
 	frame:SetBackdropColor(0.1, 0.1, 0.18, 1)
 	frame:SetBackdropBorderColor(0.23, 0.23, 0.35, 1)
 
-	-- Health bar
+	-- Health bar (fills the entire frame)
 	local health = CreateFrame('StatusBar', nil, frame)
-	health:SetPoint('TOPLEFT', frame, 'TOPLEFT', 2, -2)
-	health:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', -2, -2)
-	health:SetHeight(HEALTH_H)
+	health:SetPoint('TOPLEFT', frame, 'TOPLEFT', 1, -1)
+	health:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -1, 1)
 	health:SetStatusBarTexture(F.Media and F.Media.GetActiveBarTexture and F.Media.GetActiveBarTexture() or [[Interface\BUTTONS\WHITE8x8]])
 	health:SetMinMaxValues(0, 1)
 	health:SetValue(1)
@@ -58,17 +57,6 @@ function AuraPreview.Create(parent)
 	name:SetPoint('LEFT', health, 'LEFT', 3, 0)
 	name:SetText(UnitName('player') or 'Player')
 	frame._name = name
-
-	-- Power bar
-	local power = CreateFrame('StatusBar', nil, frame)
-	power:SetPoint('TOPLEFT', health, 'BOTTOMLEFT', 0, -1)
-	power:SetPoint('TOPRIGHT', health, 'BOTTOMRIGHT', 0, -1)
-	power:SetHeight(POWER_H)
-	power:SetStatusBarTexture(F.Media and F.Media.GetActiveBarTexture and F.Media.GetActiveBarTexture() or [[Interface\BUTTONS\WHITE8x8]])
-	power:SetMinMaxValues(0, 1)
-	power:SetValue(1)
-	power:SetStatusBarColor(0.16, 0.16, 0.5, 1)
-	frame._power = power
 
 	-- Aura groups container
 	frame._auraGroups = {}
