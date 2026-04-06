@@ -7,7 +7,7 @@ local C = F.Constants
 -- Layout constants
 -- ============================================================
 local ROW_HEIGHT       = 28
-local MAX_VISIBLE_ROWS = 7
+local MAX_VISIBLE_ROWS = 5
 local LIST_HEIGHT      = MAX_VISIBLE_ROWS * ROW_HEIGHT
 local BUTTON_H         = 24
 local DROPDOWN_H       = 22
