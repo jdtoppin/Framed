@@ -7,10 +7,10 @@ local C = F.Constants
 -- Widget constants
 -- ============================================================
 
-local SLIDER_H     = 26
-local CHECK_H      = 22
-local DROPDOWN_H   = 22
-local WIDGET_W     = 220
+local SLIDER_H   = 26
+local CHECK_H    = 22
+local DROPDOWN_H = 22
+local WIDGET_W   = 220
 
 -- ============================================================
 -- Config helpers
@@ -37,16 +37,112 @@ local function set(key, value)
 end
 
 -- ============================================================
+-- Layout helper
+-- ============================================================
+
+local function placeWidget(widget, content, yOffset, height)
+	widget:ClearAllPoints()
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height - C.Spacing.normal
+end
+
+-- ============================================================
+-- Card builders
+-- Each follows CardGrid builder signature:
+--   function(parent, width, get, set)
+-- ============================================================
+
+local function buildOverviewCard(parent, width, get, set)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	-- Description
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
+	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetText('Highlight units that have dispellable debuffs. Shows an icon and a colored frame highlight.')
+	descFS:SetWordWrap(true)
+	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
+
+	-- Enabled toggle
+	local enableCheck = Widgets.CreateCheckButton(inner, 'Enabled', function(checked)
+		set('enabled', checked)
+	end)
+	enableCheck:SetChecked(get('enabled'))
+	cy = placeWidget(enableCheck, inner, cy, CHECK_H)
+
+	-- Only show dispellable by me
+	local dispCheck = Widgets.CreateCheckButton(inner, 'Only dispellable by me', function(checked)
+		set('onlyDispellableByMe', checked)
+	end)
+	dispCheck:SetChecked(get('onlyDispellableByMe') == true)
+	cy = placeWidget(dispCheck, inner, cy, CHECK_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildHighlightCard(parent, width, get, set)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	local ht = C.HighlightType
+	local highlightDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	highlightDD:SetItems({
+		{ text = 'Gradient - Health Bar (Full)', value = ht.GRADIENT_FULL },
+		{ text = 'Gradient - Health Bar (Half)', value = ht.GRADIENT_HALF },
+		{ text = 'Solid - Health Bar (Current)', value = ht.SOLID_CURRENT },
+		{ text = 'Solid - Entire Frame',          value = ht.SOLID_ENTIRE },
+	})
+	highlightDD:SetValue(get('highlightType') or ht.GRADIENT_FULL)
+	highlightDD:SetOnSelect(function(v) set('highlightType', v) end)
+	cy = placeWidget(highlightDD, inner, cy, DROPDOWN_H)
+
+	-- Highlight Alpha (new setting — stored as 0-1, displayed as 0-100)
+	local alphaSlider = Widgets.CreateSlider(inner, 'Highlight Alpha', WIDGET_W, 0, 100, 1)
+	alphaSlider:SetValue((get('highlightAlpha') or 0.8) * 100)
+	alphaSlider:SetAfterValueChanged(function(v) set('highlightAlpha', v / 100) end)
+	cy = placeWidget(alphaSlider, inner, cy, SLIDER_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildIconCard(parent, width, get, set)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	-- Icon Size
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	sizeSlider:SetValue(get('iconSize') or 20)
+	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
+	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
+
+	-- Frame Level
+	local lvlSlider = Widgets.CreateSlider(inner, 'Frame Level', WIDGET_W, 1, 20, 1)
+	lvlSlider:SetValue(get('frameLevel') or 5)
+	lvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
+	cy = placeWidget(lvlSlider, inner, cy, SLIDER_H)
+
+	-- Anchor picker
+	if(Widgets.CreateAnchorPicker) then
+		local anchorData = get('anchor') or { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 }
+		local picker = Widgets.CreateAnchorPicker(inner, WIDGET_W)
+		picker:SetAnchor(anchorData[1], anchorData[4] or -2, anchorData[5] or -2)
+		picker:SetOnChanged(function(point, x, y)
+			set('anchor', { point, nil, point, x, y })
+		end)
+		cy = placeWidget(picker, inner, cy, picker:GetHeight())
+	end
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+-- ============================================================
 -- Panel registration
 -- ============================================================
 
 F.Settings.RegisterPanel({
-	id      = 'dispels',
-	label   = 'Dispels',
+	id         = 'dispels',
+	label      = 'Dispels',
 	section    = 'PRESET_SCOPED',
 	subSection = 'auras',
 	order      = 13,
-	create  = function(parent)
+	create     = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
 		local scroll  = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
@@ -57,104 +153,57 @@ F.Settings.RegisterPanel({
 		local width   = parentW - C.Spacing.normal * 2
 		local yOffset = -C.Spacing.normal
 
-		-- Unit type dropdown + copy-to
+		-- ── Unit type dropdown + copy-to ─────────────────────────
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'dispels', 'dispellable')
 
-		-- ── Description ────────────────────────────────────────
-		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
-		descFS:ClearAllPoints()
-		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		descFS:SetWidth(width)
-		descFS:SetText('Highlight units that have dispellable debuffs. Shows an icon and a colored frame highlight.')
-		descFS:SetWordWrap(true)
-		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
+		-- ── CardGrid ─────────────────────────────────────────────
+		local grid = Widgets.CreateCardGrid(content, width)
+		grid:SetTopOffset(math.abs(yOffset))
 
-		-- ── Enabled toggle ─────────────────────────────────────
-		local enableCheck = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
-			set('enabled', checked)
-		end)
-		enableCheck:SetChecked(get('enabled'))
-		enableCheck:ClearAllPoints()
-		Widgets.SetPoint(enableCheck, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - CHECK_H - C.Spacing.normal
+		grid:AddCard('overview',  'Overview',  buildOverviewCard,  { get, set })
+		grid:AddCard('highlight', 'Highlight', buildHighlightCard, { get, set })
+		grid:AddCard('icon',      'Icon',      buildIconCard,      { get, set })
 
-		-- ── Only show dispellable by me ─────────────────────────
-		local dispCheck = Widgets.CreateCheckButton(content, 'Only show dispellable by me', function(checked)
-			set('onlyDispellableByMe', checked)
-		end)
-		dispCheck:SetChecked(get('onlyDispellableByMe') == true)
-		dispCheck:ClearAllPoints()
-		Widgets.SetPoint(dispCheck, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - CHECK_H - C.Spacing.normal
+		-- ── Initial layout ────────────────────────────────────────
+		grid:Layout(0, parentH)
+		content:SetHeight(grid:GetTotalHeight())
+		scroll:UpdateScrollRange()
 
-		-- ── Highlight Type ─────────────────────────────────────
-		local highlightHeading, highlightHeadingH = Widgets.CreateHeading(content, 'Frame Highlight', 2)
-		highlightHeading:ClearAllPoints()
-		Widgets.SetPoint(highlightHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - highlightHeadingH
-
-		local hlCard, hlInner, hlCardY
-		hlCard, hlInner, hlCardY = Widgets.StartCard(content, width, yOffset)
-
-		local ht = C.HighlightType
-		local highlightDD = Widgets.CreateDropdown(hlInner, WIDGET_W)
-		highlightDD:SetItems({
-			{ text = 'Gradient - Health Bar (Full)',    value = ht.GRADIENT_FULL },
-			{ text = 'Gradient - Health Bar (Half)',    value = ht.GRADIENT_HALF },
-			{ text = 'Solid - Health Bar (Current)',    value = ht.SOLID_CURRENT },
-			{ text = 'Solid - Entire Frame',            value = ht.SOLID_ENTIRE },
-		})
-		highlightDD:SetValue(get('highlightType') or ht.GRADIENT_FULL)
-		highlightDD:SetOnSelect(function(v) set('highlightType', v) end)
-		highlightDD:ClearAllPoints()
-		Widgets.SetPoint(highlightDD, 'TOPLEFT', hlInner, 'TOPLEFT', 0, hlCardY)
-		hlCardY = hlCardY - DROPDOWN_H - C.Spacing.normal
-
-		yOffset = Widgets.EndCard(hlCard, content, hlCardY)
-
-		-- ── Icon Settings ──────────────────────────────────────
-		local iconHeading, iconHeadingH = Widgets.CreateHeading(content, 'Icon Settings', 2)
-		iconHeading:ClearAllPoints()
-		Widgets.SetPoint(iconHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - iconHeadingH
-
-		local iconCard, iconInner, iconCardY
-		iconCard, iconInner, iconCardY = Widgets.StartCard(content, width, yOffset)
-
-		-- Icon Size
-		local sizeSlider = Widgets.CreateSlider(iconInner, 'Icon Size', WIDGET_W, 8, 48, 1)
-		sizeSlider:SetValue(get('iconSize') or 20)
-		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
-		sizeSlider:ClearAllPoints()
-		Widgets.SetPoint(sizeSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
-
-		-- Frame Level
-		local lvlSlider = Widgets.CreateSlider(iconInner, 'Frame Level', WIDGET_W, 1, 20, 1)
-		lvlSlider:SetValue(get('frameLevel') or 5)
-		lvlSlider:SetAfterValueChanged(function(v) set('frameLevel', v) end)
-		lvlSlider:ClearAllPoints()
-		Widgets.SetPoint(lvlSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
-
-		-- Anchor picker
-		if(Widgets.CreateAnchorPicker) then
-			local anchorData = get('anchor') or { 'TOPRIGHT', nil, 'TOPRIGHT', -2, -2 }
-			local picker = Widgets.CreateAnchorPicker(iconInner, WIDGET_W)
-			picker:SetAnchor(anchorData[1], anchorData[4] or -2, anchorData[5] or -2)
-			picker:ClearAllPoints()
-			Widgets.SetPoint(picker, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-			picker:SetOnChanged(function(point, x, y)
-				set('anchor', { point, nil, point, x, y })
-			end)
-			iconCardY = iconCardY - picker:GetHeight() - C.Spacing.normal
+		-- ── Scroll integration ────────────────────────────────────
+		local function onScroll()
+			local offset = scroll._scrollFrame:GetVerticalScroll()
+			local viewH  = scroll._scrollFrame:GetHeight()
+			grid:Layout(offset, viewH)
+			content:SetHeight(grid:GetTotalHeight())
 		end
 
-		yOffset = Widgets.EndCard(iconCard, content, iconCardY)
+		scroll._scrollFrame:HookScript('OnMouseWheel', function()
+			C_Timer.After(0, onScroll)
+		end)
 
-		-- ── Final height ────────────────────────────────────────
-		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
-		scroll:UpdateScrollRange()
+		-- ── Resize handling ───────────────────────────────────────
+		local resizeKey = 'Dispels.resize'
+		local function onResize(newW, newH)
+			local newWidth = newW - C.Spacing.normal * 2
+			grid:SetWidth(newWidth)
+			content:SetWidth(newW)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+
+		-- ── Cleanup on hide, re-register on show ──────────────────
+		scroll:HookScript('OnHide', function()
+			grid:CancelAnimations()
+			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+		end)
+
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			grid:Layout(0, parentH, false)
+			content:SetHeight(grid:GetTotalHeight())
+		end)
+
 		return scroll
 	end,
 })
