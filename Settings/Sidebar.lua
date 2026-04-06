@@ -267,10 +267,7 @@ local function buildSidebarContent(sidebar, contentParent)
 	-- References for dynamic elements updated by EDITING_PRESET_CHANGED
 	local groupFrameBtn
 
-	-- Aura panels hidden for unit types that lack the config
-	local HIDDEN_AURA_PANELS = {
-		pet = { externals = true, defensives = true },
-	}
+	-- Aura buttons that may be hidden when the Pet page is active
 	local hiddenAuraBtns = {}
 
 	for _, sectionId in next, orderedSections do
@@ -584,13 +581,16 @@ local function buildSidebarContent(sidebar, contentParent)
 		end
 	end, 'Sidebar')
 
-	-- ── EDITING_UNIT_TYPE_CHANGED listener ───────────────────
-	F.EventBus:Register('EDITING_UNIT_TYPE_CHANGED', function(unitType)
-		local hiddenSet = HIDDEN_AURA_PANELS[unitType] or {}
+	-- ── Hide defensives/externals while the Pet page is active ──
+	-- Matches the preset-change animation: toggle visibility, reposition
+	-- visible children to close gaps, then animate the container height.
+	local PANELS_HIDDEN_ON_PET = { externals = true, defensives = true }
+	F.EventBus:Register('ACTIVE_PANEL_CHANGED', function(activePanelId)
+		local shouldHide = (activePanelId == 'pet')
 		local changed = false
 		for panelId, btn in next, hiddenAuraBtns do
-			local shouldHide = hiddenSet[panelId]
-			if(shouldHide and btn:IsShown()) then
+			if(not PANELS_HIDDEN_ON_PET[panelId]) then
+			elseif(shouldHide and btn:IsShown()) then
 				btn:Hide()
 				changed = true
 			elseif(not shouldHide and not btn:IsShown()) then
@@ -598,10 +598,26 @@ local function buildSidebarContent(sidebar, contentParent)
 				changed = true
 			end
 		end
-		if(changed and sidebar._aurasContainer and sidebar._aurasContainer._recalc) then
-			sidebar._aurasContainer._recalc(true)
+		if(not changed) then return end
+
+		-- Reposition visible children to close gaps left by hidden buttons
+		local container = sidebar._aurasContainer
+		if(not container or not container._children) then return end
+		local childY = 0
+		for _, btn in next, container._children do
+			if(btn:IsShown()) then
+				btn:ClearAllPoints()
+				btn:SetPoint('TOPLEFT', container, 'TOPLEFT', 8, childY)
+				btn:SetPoint('TOPRIGHT', container, 'TOPRIGHT', 0, childY)
+				childY = childY - SIDEBAR_BTN_H - SIDEBAR_BTN_GAP
+			end
 		end
-	end, 'Sidebar.UnitType')
+
+		-- Animate container height (clipping handles the visual transition)
+		if(container._recalc) then
+			container._recalc(true)
+		end
+	end, 'Sidebar.PanelChanged')
 
 	-- Deferred highlight fix — button widths aren't final until first layout
 	C_Timer.After(0, function()

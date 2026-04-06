@@ -343,6 +343,20 @@ function Settings.SetActivePanel(panelId)
 		Settings._auraPreview = nil
 	end
 
+	-- ── Reset unit type when switching to aura panels ────────
+	-- Prevents "pet" (or other frame-only types) from leaking into
+	-- the Configure for dropdown on aura panels.
+	if(info.subSection == 'auras') then
+		local currentUT = Settings._editingUnitType
+		if(currentUT == 'pet') then
+			Settings._editingUnitType = nil  -- falls back to preset default
+		end
+	end
+
+	-- ── Show/hide aura sidebar buttons based on active panel ─
+	-- Defensives/Externals are hidden only while the Pet page is active.
+	F.EventBus:Fire('ACTIVE_PANEL_CHANGED', panelId)
+
 end
 
 --- Update the title card breadcrumb text, optionally appending an indicator name.
