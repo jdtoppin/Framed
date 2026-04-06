@@ -109,7 +109,7 @@ end
 local function buildLayoutCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -118,6 +118,7 @@ local function buildDurationFontCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
 	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, {
+		noHeading = true,
 		showToggle = {
 			label = 'Show Duration',
 			get = function() return get('showDuration') ~= false end,
@@ -190,9 +191,9 @@ F.Settings.RegisterPanel({
 					if(id == 'iconSettings') then
 						grid:AddCard('iconSettings', 'Icon Settings', buildIconSettingsCard, {})
 					elseif(id == 'layout') then
-						grid:AddCard('layout', nil, buildLayoutCard, {})
+						grid:AddCard('layout', 'Layout', buildLayoutCard, {})
 					elseif(id == 'durationFont') then
-						grid:AddCard('durationFont', nil, buildDurationFontCard, {})
+						grid:AddCard('durationFont', 'Duration', buildDurationFontCard, {})
 					end
 				elseif(not showIcons and grid._cardIndex[id]) then
 					grid:RemoveCard(id)
@@ -222,8 +223,8 @@ F.Settings.RegisterPanel({
 
 		if(initIcons) then
 			grid:AddCard('iconSettings', 'Icon Settings', buildIconSettingsCard, {})
-			grid:AddCard('position',     'Position',      buildLayoutCard,     {})
-			grid:AddCard('durationFont', nil,             buildDurationFontCard, {})
+			grid:AddCard('layout',       'Layout',        buildLayoutCard,       {})
+			grid:AddCard('durationFont', 'Duration',      buildDurationFontCard, {})
 		end
 		if(initGlow) then
 			grid:AddCard('borderGlow', 'Border Glow', buildGlowCard, {})

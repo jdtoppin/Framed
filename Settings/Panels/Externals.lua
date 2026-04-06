@@ -131,7 +131,7 @@ end
 local function buildLayoutCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -140,6 +140,7 @@ local function buildDurationFontCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
 	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, {
+		noHeading = true,
 		showAnchor = true,
 		showToggle = {
 			label = 'Show Duration',
@@ -154,7 +155,7 @@ end
 local function buildStackFontCard(parent, width)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stacks', 'stackFont', get, set, { showAnchor = true })
+	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stacks', 'stackFont', get, set, { noHeading = true, showAnchor = true })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -205,9 +206,9 @@ F.Settings.RegisterPanel({
 
 		grid:AddCard('overview',      'Overview',          buildOverviewCard,      {})
 		grid:AddCard('display',       'Display',           buildDisplayCard,       {})
-		grid:AddCard('layout',        nil,                 buildLayoutCard,        {})
-		grid:AddCard('durationFont',  nil,                 buildDurationFontCard,  {})
-		grid:AddCard('stackFont',     nil,                 buildStackFontCard,     {})
+		grid:AddCard('layout',        'Layout',            buildLayoutCard,        {})
+		grid:AddCard('durationFont',  'Duration',          buildDurationFontCard,  {})
+		grid:AddCard('stackFont',     'Stacks',            buildStackFontCard,     {})
 
 		grid:Layout(0, parentH)
 		content:SetHeight(grid:GetTotalHeight())

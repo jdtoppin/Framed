@@ -112,6 +112,7 @@ local function buildPositionCard(parent, width, get, set)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
 	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, {
+		noHeading = true,
 		hideFrameLevel = true,
 	})
 	wrapper:SetHeight(math.abs(yOff))
@@ -151,7 +152,7 @@ F.Settings.RegisterPanel({
 
 		grid:AddCard('overview', 'Overview',         buildOverviewCard, { get, set })
 		grid:AddCard('display',  'Display Settings', buildDisplayCard,  { get, set })
-		grid:AddCard('position', nil,                buildPositionCard, { get, set })
+		grid:AddCard('layout',   'Layout',           buildPositionCard, { get, set })
 
 		grid:Layout(0, parentH)
 		content:SetHeight(grid:GetTotalHeight())

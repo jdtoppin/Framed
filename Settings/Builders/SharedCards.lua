@@ -31,7 +31,10 @@ end
 
 function F.Settings.BuildFontCard(parent, width, yOffset, label, configPrefix, get, set, opts)
 	opts = opts or {}
-	yOffset = placeHeading(parent, label, yOffset)
+
+	if(not opts.noHeading and label) then
+		yOffset = placeHeading(parent, label, yOffset)
+	end
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 
@@ -154,7 +157,9 @@ end
 function F.Settings.BuildPositionCard(parent, width, yOffset, get, set, opts)
 	opts = opts or {}
 
-	yOffset = placeHeading(parent, 'Layout', yOffset)
+	if(not opts.noHeading) then
+		yOffset = placeHeading(parent, 'Layout', yOffset)
+	end
 
 	local card, inner, cy = Widgets.StartCard(parent, width, yOffset)
 

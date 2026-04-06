@@ -221,7 +221,7 @@ end
 local function buildPositionCard(parent, width, data, update, get, set)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set, { noHeading = true })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -229,7 +229,7 @@ end
 local function buildDurationFontCard(parent, width, data, update, get, set)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration Text Font', 'durationFont', get, set, { showAnchor = true })
+	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration', 'durationFont', get, set, { noHeading = true, showAnchor = true })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -237,7 +237,7 @@ end
 local function buildStackFontCard(parent, width, data, update, get, set)
 	local wrapper = CreateFrame('Frame', nil, parent)
 	wrapper:SetWidth(width)
-	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stack Count Font', 'stackFont', get, set, { showAnchor = true })
+	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Stacks', 'stackFont', get, set, { noHeading = true, showAnchor = true })
 	wrapper:SetHeight(math.abs(yOff))
 	return wrapper
 end
@@ -352,9 +352,9 @@ F.Settings.RegisterPanel({
 
 			grid:AddCard('filterMode',      'Filter Mode',      buildFilterModeCard,      { iData, update, get, set })
 			grid:AddCard('displaySettings', 'Display Settings', buildDisplaySettingsCard, { iData, update, get, set })
-			grid:AddCard('position',        'Position',         buildPositionCard,        { iData, update, get, set })
-			grid:AddCard('durationFont',    nil,                buildDurationFontCard,    { iData, update, get, set })
-			grid:AddCard('stackFont',       nil,                buildStackFontCard,       { iData, update, get, set })
+			grid:AddCard('layout',          'Layout',           buildPositionCard,        { iData, update, get, set })
+			grid:AddCard('durationFont',    'Duration',         buildDurationFontCard,    { iData, update, get, set })
+			grid:AddCard('stackFont',       'Stacks',           buildStackFontCard,       { iData, update, get, set })
 
 			grid:Layout(0, parentH)
 			content:SetHeight(grid:GetTotalHeight())
