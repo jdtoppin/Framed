@@ -1,15 +1,21 @@
 local addonName, Framed = ...
 local F = Framed
-
 local Widgets = F.Widgets
 local C = F.Constants
+
+-- ============================================================
+-- Widget constants
+-- ============================================================
+
+local SLIDER_H   = 26
+local CHECK_H    = 22
+local WIDGET_W   = 220
 
 -- ============================================================
 -- Default player CC spell IDs
 -- Polymorph (118), Hex (51514), Freezing Trap (187650),
 -- Mind Control (605), Entangling Roots (339),
--- Hibernate (2637), Blind (2094),
--- Intimidating Shout (5246)
+-- Blind (2094), Intimidating Shout (5246)
 -- ============================================================
 
 local DEFAULT_CC_SPELLS = {
@@ -31,6 +37,7 @@ local function getCCSpells()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	return (F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.spells')) or DEFAULT_CC_SPELLS
 end
+
 local function setCCSpells(spells)
 	local presetName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
@@ -43,12 +50,13 @@ local function setCCSpells(spells)
 	end
 end
 
-local function getCC(key)
+local function get(key)
 	local presetName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.' .. key)
 end
-local function setCC(key, value)
+
+local function set(key, value)
 	local presetName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	if(F.Config) then
@@ -56,8 +64,85 @@ local function setCC(key, value)
 	end
 	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
 	if(F.EventBus) then
-		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl.' .. key)
+		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.crowdControl')
 	end
+end
+
+-- ============================================================
+-- Card builders
+-- Each follows CardGrid builder signature:
+--   function(parent, width)
+-- ============================================================
+
+local function placeWidget(widget, content, yOffset, height)
+	widget:ClearAllPoints()
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height - C.Spacing.normal
+end
+
+local function buildOverviewCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	-- Description
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
+	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetText('Track player CC spells cast on enemy targets. Displays an icon overlay when the tracked debuff is active.')
+	descFS:SetWordWrap(true)
+	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
+
+	-- Enabled toggle
+	local enableCB = Widgets.CreateCheckButton(inner, 'Enabled', function(checked)
+		set('enabled', checked)
+	end)
+	enableCB:SetChecked(get('enabled') or false)
+	cy = placeWidget(enableCB, inner, cy, CHECK_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local SPELL_LIST_H  = 200
+local SPELL_INPUT_H = 44
+
+local function buildTrackedSpellsCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	local spellList = Widgets.CreateSpellList(inner, width - Widgets.CARD_PADDING * 2, SPELL_LIST_H)
+	spellList:SetSpells(getCCSpells())
+	spellList:SetOnChanged(function(spells)
+		setCCSpells(spells)
+	end)
+	cy = placeWidget(spellList, inner, cy, SPELL_LIST_H)
+
+	local spellInput = Widgets.CreateSpellInput(inner, width - Widgets.CARD_PADDING * 2)
+	spellInput:SetSpellList(spellList)
+	cy = placeWidget(spellInput, inner, cy, SPELL_INPUT_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildDisplayCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	sizeSlider:SetValue(get('iconSize') or 16)
+	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
+	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
+
+	local durCheck = Widgets.CreateCheckButton(inner, 'Show Duration', function(checked)
+		set('showDuration', checked)
+	end)
+	durCheck:SetChecked(get('showDuration') ~= false)
+	cy = placeWidget(durCheck, inner, cy, CHECK_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildPositionCard(parent, width)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
 end
 
 -- ============================================================
@@ -65,19 +150,16 @@ end
 -- ============================================================
 
 F.Settings.RegisterPanel({
-	id      = 'crowdcontrol',
-	label   = 'Crowd Control',
+	id         = 'crowdcontrol',
+	label      = 'Crowd Control',
 	section    = 'PRESET_SCOPED',
 	subSection = 'auras',
 	order      = 21,
-	parent  = 'lossofcontrol',
-	create  = function(parent)
+	parent     = 'lossofcontrol',
+	create     = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
-		local scroll = Widgets.CreateScrollFrame(
-			parent, nil,
-			parentW,
-			parentH)
+		local scroll  = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
@@ -88,51 +170,54 @@ F.Settings.RegisterPanel({
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'crowdcontrol')
 
-		-- ── Enabled toggle ────────────────────────────────────
-		local enableCB = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
-			setCC('enabled', checked)
-		end)
-		enableCB:SetChecked(getCC('enabled') or false)
-		enableCB:ClearAllPoints()
-		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 22 - C.Spacing.normal
+		-- ── CardGrid ─────────────────────────────────────────────
+		local grid = Widgets.CreateCardGrid(content, width)
+		grid:SetTopOffset(math.abs(yOffset))
 
-		-- ── Header description ─────────────────────────────────
-		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
-		descFS:ClearAllPoints()
-		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		descFS:SetWidth(width)
-		descFS:SetText('Player CC spells to track on enemy targets.')
-		descFS:SetWordWrap(true)
-		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
+		grid:AddCard('overview',       'Overview',        buildOverviewCard,       {})
+		grid:AddCard('trackedSpells',  'Tracked Spells',  buildTrackedSpellsCard,  {})
+		grid:AddCard('display',        'Display',         buildDisplayCard,        {})
+		grid:AddCard('position',       'Position',        buildPositionCard,       {})
 
-		-- ── Section heading ────────────────────────────────────
-		local ccHeading, ccHeadingH = Widgets.CreateHeading(content, 'Tracked CC Spells', 2)
-		ccHeading:ClearAllPoints()
-		Widgets.SetPoint(ccHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - ccHeadingH
-
-		-- ── Spell list ─────────────────────────────────────────
-		local spellList = Widgets.CreateSpellList(content, width, 200)
-		spellList:ClearAllPoints()
-		Widgets.SetPoint(spellList, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 200 - C.Spacing.normal
-
-		spellList:SetSpells(getCCSpells())
-		spellList:SetOnChanged(function(spells)
-			setCCSpells(spells)
-		end)
-
-		-- ── Spell input ────────────────────────────────────────
-		local spellInput = Widgets.CreateSpellInput(content, width)
-		spellInput:ClearAllPoints()
-		Widgets.SetPoint(spellInput, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		spellInput:SetSpellList(spellList)
-		yOffset = yOffset - 44 - C.Spacing.normal
-
-		-- ── Final content height ───────────────────────────────
-		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
+		-- ── Initial layout ────────────────────────────────────────
+		grid:Layout(0, parentH)
+		content:SetHeight(grid:GetTotalHeight())
 		scroll:UpdateScrollRange()
+
+		-- ── Scroll integration ────────────────────────────────────
+		local function onScroll()
+			local offset = scroll._scrollFrame:GetVerticalScroll()
+			local viewH  = scroll._scrollFrame:GetHeight()
+			grid:Layout(offset, viewH)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		scroll._scrollFrame:HookScript('OnMouseWheel', function()
+			C_Timer.After(0, onScroll)
+		end)
+
+		-- ── Resize handling ───────────────────────────────────────
+		local resizeKey = 'CrowdControl.resize'
+		local function onResize(newW)
+			local newWidth = newW - C.Spacing.normal * 2
+			grid:SetWidth(newWidth)
+			content:SetWidth(newW)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+
+		-- ── Cleanup on hide, re-register on show ──────────────────
+		scroll:HookScript('OnHide', function()
+			grid:CancelAnimations()
+			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+		end)
+
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			grid:Layout(0, parentH, false)
+			content:SetHeight(grid:GetTotalHeight())
+		end)
 
 		return scroll
 	end,

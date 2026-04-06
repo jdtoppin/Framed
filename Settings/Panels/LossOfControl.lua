@@ -1,16 +1,15 @@
 local addonName, Framed = ...
 local F = Framed
-
 local Widgets = F.Widgets
 local C = F.Constants
 
 -- ============================================================
--- Layout constants
+-- Widget constants
 -- ============================================================
 
-local SLIDER_H     = 26
-local CHECK_H      = 14
-local WIDGET_W     = 220
+local SLIDER_H   = 26
+local CHECK_H    = 22
+local WIDGET_W   = 220
 
 -- ============================================================
 -- CC type definitions
@@ -25,32 +24,16 @@ local CC_TYPES = {
 }
 
 -- ============================================================
--- Helpers
--- ============================================================
-
-local function placeHeading(content, text, level, yOffset)
-	local heading, height = Widgets.CreateHeading(content, text, level)
-	heading:ClearAllPoints()
-	Widgets.SetPoint(heading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	return yOffset - height
-end
-
-local function placeWidget(widget, content, yOffset, height)
-	widget:ClearAllPoints()
-	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	return yOffset - height - C.Spacing.normal
-end
-
--- ============================================================
 -- Config helpers
 -- ============================================================
 
-local function getLoC(key)
+local function get(key)
 	local presetName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.lossOfControl.' .. key)
 end
-local function setLoC(key, value)
+
+local function set(key, value)
 	local presetName = F.Settings.GetEditingPreset()
 	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 	if(F.Config) then
@@ -63,22 +46,86 @@ local function setLoC(key, value)
 end
 
 -- ============================================================
+-- Card builders
+-- Each follows CardGrid builder signature:
+--   function(parent, width)
+-- ============================================================
+
+local function placeWidget(widget, content, yOffset, height)
+	widget:ClearAllPoints()
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height - C.Spacing.normal
+end
+
+local function buildOverviewCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	-- Description
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
+	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetText('Display an overlay icon when a unit is affected by a loss of control effect such as stun, fear, or silence.')
+	descFS:SetWordWrap(true)
+	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
+
+	-- Enabled toggle
+	local enableCB = Widgets.CreateCheckButton(inner, 'Enabled', function(checked)
+		set('enabled', checked)
+	end)
+	enableCB:SetChecked(get('enabled') or false)
+	cy = placeWidget(enableCB, inner, cy, CHECK_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildCCTypesCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	for _, cc in next, CC_TYPES do
+		local check = Widgets.CreateCheckButton(inner, cc.label, function(checked)
+			set('types.' .. cc.id, checked)
+		end)
+		local savedEnabled = get('types.' .. cc.id)
+		if(savedEnabled ~= nil) then
+			check:SetChecked(savedEnabled)
+		else
+			check:SetChecked(true)
+		end
+		cy = placeWidget(check, inner, cy, CHECK_H)
+	end
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildVisualSettingsCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	local alphaSlider = Widgets.CreateSlider(inner, 'Overlay Alpha', WIDGET_W, 0.0, 1.0, 0.05)
+	alphaSlider:SetValue(get('overlayAlpha') or 0.6)
+	alphaSlider:SetAfterValueChanged(function(v) set('overlayAlpha', v) end)
+	cy = placeWidget(alphaSlider, inner, cy, SLIDER_H)
+
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 12, 64, 1)
+	sizeSlider:SetValue(get('iconSize') or 32)
+	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
+	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+-- ============================================================
 -- Panel registration
 -- ============================================================
 
 F.Settings.RegisterPanel({
-	id      = 'lossofcontrol',
-	label   = 'Loss of Control',
+	id         = 'lossofcontrol',
+	label      = 'Loss of Control',
 	section    = 'PRESET_SCOPED',
 	subSection = 'auras',
 	order      = 20,
-	create  = function(parent)
+	create     = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
-		local scroll = Widgets.CreateScrollFrame(
-			parent, nil,
-			parentW,
-			parentH)
+		local scroll  = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
@@ -89,66 +136,53 @@ F.Settings.RegisterPanel({
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'lossofcontrol')
 
-		-- ── Enabled toggle ────────────────────────────────────
-		local enableCB = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
-			setLoC('enabled', checked)
-		end)
-		enableCB:SetChecked(getLoC('enabled') or false)
-		enableCB:ClearAllPoints()
-		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - 22 - C.Spacing.normal
+		-- ── CardGrid ─────────────────────────────────────────────
+		local grid = Widgets.CreateCardGrid(content, width)
+		grid:SetTopOffset(math.abs(yOffset))
 
-		-- ── CC Type Toggles ────────────────────────────────────
-		yOffset = placeHeading(content, 'CC Type Toggles', 2, yOffset)
+		grid:AddCard('overview',       'Overview',        buildOverviewCard,       {})
+		grid:AddCard('ccTypes',        'CC Types',        buildCCTypesCard,        {})
+		grid:AddCard('visualSettings', 'Visual Settings', buildVisualSettingsCard, {})
 
-		local ccCard, ccInner, ccCardY
-		ccCard, ccInner, ccCardY = Widgets.StartCard(content, width, yOffset)
+		-- ── Initial layout ────────────────────────────────────────
+		grid:Layout(0, parentH)
+		content:SetHeight(grid:GetTotalHeight())
+		scroll:UpdateScrollRange()
 
-		for _, cc in next, CC_TYPES do
-			local check = Widgets.CreateCheckButton(ccInner, cc.label, function(checked)
-				setLoC('types.' .. cc.id, checked)
-			end)
-			ccCardY = placeWidget(check, ccInner, ccCardY, CHECK_H)
-
-			local savedEnabled = getLoC('types.' .. cc.id)
-			if(savedEnabled ~= nil) then
-				check:SetChecked(savedEnabled)
-			else
-				check:SetChecked(true)   -- default enabled
-			end
+		-- ── Scroll integration ────────────────────────────────────
+		local function onScroll()
+			local offset = scroll._scrollFrame:GetVerticalScroll()
+			local viewH  = scroll._scrollFrame:GetHeight()
+			grid:Layout(offset, viewH)
+			content:SetHeight(grid:GetTotalHeight())
 		end
 
-		yOffset = Widgets.EndCard(ccCard, content, ccCardY)
-
-		-- ── Visual Settings ────────────────────────────────────
-		yOffset = placeHeading(content, 'Visual Settings', 2, yOffset)
-
-		local visCard, visInner, visCardY
-		visCard, visInner, visCardY = Widgets.StartCard(content, width, yOffset)
-
-		-- Overlay alpha
-		local alphaSlider = Widgets.CreateSlider(visInner, 'Overlay Alpha', WIDGET_W, 0.0, 1.0, 0.05)
-		visCardY = placeWidget(alphaSlider, visInner, visCardY, SLIDER_H)
-		local savedAlpha = getLoC('overlayAlpha')
-		alphaSlider:SetValue(savedAlpha or 0.6)
-		alphaSlider:SetAfterValueChanged(function(value)
-			setLoC('overlayAlpha', value)
+		scroll._scrollFrame:HookScript('OnMouseWheel', function()
+			C_Timer.After(0, onScroll)
 		end)
 
-		-- Icon size
-		local sizeSlider = Widgets.CreateSlider(visInner, 'Icon Size', WIDGET_W, 12, 64, 1)
-		visCardY = placeWidget(sizeSlider, visInner, visCardY, SLIDER_H)
-		local savedSize = getLoC('iconSize')
-		sizeSlider:SetValue(savedSize or 32)
-		sizeSlider:SetAfterValueChanged(function(value)
-			setLoC('iconSize', value)
+		-- ── Resize handling ───────────────────────────────────────
+		local resizeKey = 'LossOfControl.resize'
+		local function onResize(newW)
+			local newWidth = newW - C.Spacing.normal * 2
+			grid:SetWidth(newWidth)
+			content:SetWidth(newW)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+
+		-- ── Cleanup on hide, re-register on show ──────────────────
+		scroll:HookScript('OnHide', function()
+			grid:CancelAnimations()
+			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
 		end)
 
-		yOffset = Widgets.EndCard(visCard, content, visCardY)
-
-		-- ── Final content height ───────────────────────────────
-		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
-		scroll:UpdateScrollRange()
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			grid:Layout(0, parentH, false)
+			content:SetHeight(grid:GetTotalHeight())
+		end)
 
 		return scroll
 	end,

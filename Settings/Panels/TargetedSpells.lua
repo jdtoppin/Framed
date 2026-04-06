@@ -35,16 +35,123 @@ local function set(key, value)
 end
 
 -- ============================================================
+-- Card builders
+-- Each follows CardGrid builder signature:
+--   function(parent, width)
+-- ============================================================
+
+local function placeWidget(widget, content, yOffset, height)
+	widget:ClearAllPoints()
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height - C.Spacing.normal
+end
+
+local function buildOverviewCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	-- Description
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
+	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetText('Highlight units that are casting targeted spells at the group. Supports icon display, border glow, or both.')
+	descFS:SetWordWrap(true)
+	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight())
+
+	-- Enabled toggle
+	local enableCheck = Widgets.CreateCheckButton(inner, 'Enabled', function(checked)
+		set('enabled', checked)
+	end)
+	enableCheck:SetChecked(get('enabled'))
+	cy = placeWidget(enableCheck, inner, cy, CHECK_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildDisplayModeCard(parent, width, updateVisibility)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	local modeDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	modeDD:SetItems({
+		{ text = 'Icons',       value = 'Icons' },
+		{ text = 'Border Glow', value = 'BorderGlow' },
+		{ text = 'Both',        value = 'Both' },
+	})
+	modeDD:SetValue(get('displayMode') or 'Both')
+	modeDD:SetOnSelect(function(v)
+		set('displayMode', v)
+		updateVisibility(v)
+	end)
+	cy = placeWidget(modeDD, inner, cy, DROPDOWN_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildIconSettingsCard(parent, width)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 48, 1)
+	sizeSlider:SetValue(get('iconSize') or 16)
+	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
+	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
+
+	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', WIDGET_W, 1, 10, 1)
+	maxSlider:SetValue(get('maxDisplayed') or 1)
+	maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
+	cy = placeWidget(maxSlider, inner, cy, SLIDER_H)
+
+	local durCheck = Widgets.CreateCheckButton(inner, 'Show Duration', function(checked)
+		set('showDuration', checked)
+	end)
+	durCheck:SetChecked(get('showDuration') ~= false)
+	cy = placeWidget(durCheck, inner, cy, CHECK_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildPositionCard(parent, width)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
+
+local function buildDurationFontCard(parent, width)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.BuildFontCard(wrapper, width, 0, 'Duration Text Font', 'durationFont', get, set)
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
+
+local function buildGlowCard(parent, width)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local function getGlow(key)
+		if(key == 'glowType')  then return get('glow.type') end
+		if(key == 'glowColor') then return get('glow.color') end
+		return get('glow.' .. key)
+	end
+	local function setGlow(key, value)
+		if(key == 'glowType')  then set('glow.type', value); return end
+		if(key == 'glowColor') then set('glow.color', value); return end
+		set('glow.' .. key, value)
+	end
+	local yOff = F.Settings.BuildGlowCard(wrapper, width, 0, getGlow, setGlow, { allowNone = false })
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
+
+-- ============================================================
 -- Panel registration
 -- ============================================================
 
 F.Settings.RegisterPanel({
-	id      = 'targetedspells',
-	label   = 'Targeted Spells',
+	id         = 'targetedspells',
+	label      = 'Targeted Spells',
 	section    = 'PRESET_SCOPED',
 	subSection = 'auras',
 	order      = 17,
-	create  = function(parent)
+	create     = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
 		local scroll  = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
@@ -58,160 +165,105 @@ F.Settings.RegisterPanel({
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'targetedspells', 'targetedSpells')
 
-		-- ── Description ────────────────────────────────────────
-		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
-		descFS:ClearAllPoints()
-		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		descFS:SetWidth(width)
-		descFS:SetText('Highlight units that are casting targeted spells at the group. Supports icon display, border glow, or both.')
-		descFS:SetWordWrap(true)
-		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.tight
+		-- ── CardGrid ─────────────────────────────────────────────
+		local grid = Widgets.CreateCardGrid(content, width)
+		grid:SetTopOffset(math.abs(yOffset))
 
-		-- ── Enabled toggle ─────────────────────────────────────
-		local enableCheck = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
-			set('enabled', checked)
-		end)
-		enableCheck:SetChecked(get('enabled'))
-		enableCheck:ClearAllPoints()
-		Widgets.SetPoint(enableCheck, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - CHECK_H - C.Spacing.normal
+		-- Conditional cards — added/removed based on display mode
+		local ICON_CARDS = { 'iconSettings', 'position', 'durationFont' }
+		local GLOW_CARDS = { 'borderGlow' }
 
-		-- Reload notice
-		local reloadInfo = Widgets.CreateInfoIcon(content,
-			'Requires /reload',
-			'Changing the display mode between Icons, Border Glow, and Both requires a /reload because it creates or destroys icon pools and glow overlays.')
-		reloadInfo:ClearAllPoints()
-		Widgets.SetPoint(reloadInfo, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - reloadInfo:GetHeight() - C.Spacing.normal
+		-- Forward-declare so buildDisplayModeCard can reference it
+		local updateVisibility
 
-		-- ── Display Mode ───────────────────────────────────────
-		local modeHeading, modeHeadingH = Widgets.CreateHeading(content, 'Display Mode', 2)
-		modeHeading:ClearAllPoints()
-		Widgets.SetPoint(modeHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - modeHeadingH
-
-		local modeCard, modeInner, modeCardY
-		modeCard, modeInner, modeCardY = Widgets.StartCard(content, width, yOffset)
-
-		local modeDD = Widgets.CreateDropdown(modeInner, WIDGET_W)
-		modeDD:SetItems({
-			{ text = 'Icons',       value = 'Icons' },
-			{ text = 'Border Glow', value = 'BorderGlow' },
-			{ text = 'Both',        value = 'Both' },
-		})
-		modeDD:SetValue(get('displayMode') or 'Both')
-		modeDD:ClearAllPoints()
-		Widgets.SetPoint(modeDD, 'TOPLEFT', modeInner, 'TOPLEFT', 0, modeCardY)
-		modeCardY = modeCardY - DROPDOWN_H - C.Spacing.normal
-
-		yOffset = Widgets.EndCard(modeCard, content, modeCardY)
-
-		-- ── Icon Settings (shown for Icons or Both) ─────────────
-		local iconHeading, iconHeadingH = Widgets.CreateHeading(content, 'Icon Settings', 2)
-		iconHeading:ClearAllPoints()
-		Widgets.SetPoint(iconHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - iconHeadingH
-
-		local iconCard, iconInner, iconCardY
-		iconCard, iconInner, iconCardY = Widgets.StartCard(content, width, yOffset)
-
-		local sizeSlider = Widgets.CreateSlider(iconInner, 'Icon Size', WIDGET_W, 8, 48, 1)
-		sizeSlider:SetValue(get('iconSize') or 16)
-		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
-		sizeSlider:ClearAllPoints()
-		Widgets.SetPoint(sizeSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
-
-		local maxSlider = Widgets.CreateSlider(iconInner, 'Max Displayed', WIDGET_W, 1, 10, 1)
-		maxSlider:SetValue(get('maxDisplayed') or 1)
-		maxSlider:SetAfterValueChanged(function(v) set('maxDisplayed', v) end)
-		maxSlider:ClearAllPoints()
-		Widgets.SetPoint(maxSlider, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-		iconCardY = iconCardY - SLIDER_H - C.Spacing.normal
-
-		-- Show Duration
-		local durCheck = Widgets.CreateCheckButton(iconInner, 'Show Duration', function(checked) set('showDuration', checked) end)
-		durCheck:SetChecked(get('showDuration') ~= false)
-		durCheck:ClearAllPoints()
-		Widgets.SetPoint(durCheck, 'TOPLEFT', iconInner, 'TOPLEFT', 0, iconCardY)
-		iconCardY = iconCardY - CHECK_H - C.Spacing.normal
-
-		yOffset = Widgets.EndCard(iconCard, content, iconCardY)
-
-		-- ── Position & Layer (shared builder) ───────────────────
-		local posChildrenBefore = { content:GetChildren() }
-		local posChildCountBefore = #posChildrenBefore
-		yOffset = F.Settings.BuildPositionCard(content, width, yOffset, get, set)
-		local posCards = {}
-		local posChildrenAfter = { content:GetChildren() }
-		for i = posChildCountBefore + 1, #posChildrenAfter do
-			posCards[#posCards + 1] = posChildrenAfter[i]
-		end
-
-		-- ── Duration Font ──────────────────────────────────────
-		local fontYStart = yOffset
-		local fontChildrenBefore = { content:GetChildren() }
-		local fontChildCountBefore = #fontChildrenBefore
-		yOffset = F.Settings.BuildFontCard(content, width, yOffset, 'Duration Text Font', 'durationFont', get, set)
-		local durationFontCards = {}
-		local fontChildrenAfter = { content:GetChildren() }
-		for i = fontChildCountBefore + 1, #fontChildrenAfter do
-			durationFontCards[#durationFontCards + 1] = fontChildrenAfter[i]
-		end
-
-		-- ── Border Glow Settings (shown for BorderGlow or Both) ─
-		local glowHeading, glowHeadingH = Widgets.CreateHeading(content, 'Border Glow Settings', 2)
-		glowHeading:ClearAllPoints()
-		Widgets.SetPoint(glowHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - glowHeadingH
-
-		local function getGlow(key)
-			if(key == 'glowType') then return get('glow.type') end
-			if(key == 'glowColor') then return get('glow.color') end
-			return get('glow.' .. key)
-		end
-		local function setGlow(key, value)
-			if(key == 'glowType') then set('glow.type', value); return end
-			if(key == 'glowColor') then set('glow.color', value); return end
-			set('glow.' .. key, value)
-		end
-
-		-- Capture child count before building glow card
-		local childrenBefore = { content:GetChildren() }
-		local childCountBefore = #childrenBefore
-
-		yOffset = F.Settings.BuildGlowCard(content, width, yOffset, getGlow, setGlow, { allowNone = false })
-
-		-- Find the card frame(s) added by BuildGlowCard
-		local glowCards = {}
-		local childrenAfter = { content:GetChildren() }
-		for i = childCountBefore + 1, #childrenAfter do
-			glowCards[#glowCards + 1] = childrenAfter[i]
-		end
-
-		-- ── Display mode visibility ─────────────────────────────
-		local iconWidgets = { iconHeading, iconCard }
-		for _, card in next, posCards do iconWidgets[#iconWidgets + 1] = card end
-
-		local function updatePaneVisibility(mode)
+		updateVisibility = function(mode)
 			local showIcons = (mode == 'Icons' or mode == 'Both')
 			local showGlow  = (mode == 'BorderGlow' or mode == 'Both')
-			for _, w in next, iconWidgets do w:SetShown(showIcons) end
-			for _, card in next, durationFontCards do card:SetShown(showIcons) end
-			glowHeading:SetShown(showGlow)
-			for _, card in next, glowCards do card:SetShown(showGlow) end
+
+			for _, id in next, ICON_CARDS do
+				if(showIcons and not grid._cardIndex[id]) then
+					if(id == 'iconSettings') then
+						grid:AddCard('iconSettings', 'Icon Settings', buildIconSettingsCard, {})
+					elseif(id == 'position') then
+						grid:AddCard('position', 'Position', buildPositionCard, {})
+					elseif(id == 'durationFont') then
+						grid:AddCard('durationFont', nil, buildDurationFontCard, {})
+					end
+				elseif(not showIcons and grid._cardIndex[id]) then
+					grid:RemoveCard(id)
+				end
+			end
+
+			for _, id in next, GLOW_CARDS do
+				if(showGlow and not grid._cardIndex[id]) then
+					grid:AddCard('borderGlow', 'Border Glow', buildGlowCard, {})
+				elseif(not showGlow and grid._cardIndex[id]) then
+					grid:RemoveCard(id)
+				end
+			end
+
+			grid:Layout(grid._lastScrollOffset or 0, grid._lastViewHeight or parentH, true)
+			content:SetHeight(grid:GetTotalHeight())
+			scroll:UpdateScrollRange()
 		end
 
-		updatePaneVisibility(get('displayMode') or 'Both')
+		grid:AddCard('overview',     'Overview',     buildOverviewCard,     {})
+		grid:AddCard('displayMode',  'Display Mode', buildDisplayModeCard,  { updateVisibility })
 
-		modeDD:SetOnSelect(function(v)
-			set('displayMode', v)
-			updatePaneVisibility(v)
+		-- Add conditional cards based on initial mode
+		local initialMode = get('displayMode') or 'Both'
+		local initIcons = (initialMode == 'Icons' or initialMode == 'Both')
+		local initGlow  = (initialMode == 'BorderGlow' or initialMode == 'Both')
+
+		if(initIcons) then
+			grid:AddCard('iconSettings', 'Icon Settings', buildIconSettingsCard, {})
+			grid:AddCard('position',     'Position',      buildPositionCard,     {})
+			grid:AddCard('durationFont', nil,             buildDurationFontCard, {})
+		end
+		if(initGlow) then
+			grid:AddCard('borderGlow', 'Border Glow', buildGlowCard, {})
+		end
+
+		-- ── Initial layout ────────────────────────────────────────
+		grid:Layout(0, parentH)
+		content:SetHeight(grid:GetTotalHeight())
+		scroll:UpdateScrollRange()
+
+		-- ── Scroll integration ────────────────────────────────────
+		local function onScroll()
+			local offset = scroll._scrollFrame:GetVerticalScroll()
+			local viewH  = scroll._scrollFrame:GetHeight()
+			grid:Layout(offset, viewH)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		scroll._scrollFrame:HookScript('OnMouseWheel', function()
+			C_Timer.After(0, onScroll)
 		end)
 
-		-- ── Final height ────────────────────────────────────────
-		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
-		scroll:UpdateScrollRange()
+		-- ── Resize handling ───────────────────────────────────────
+		local resizeKey = 'TargetedSpells.resize'
+		local function onResize(newW)
+			local newWidth = newW - C.Spacing.normal * 2
+			grid:SetWidth(newWidth)
+			content:SetWidth(newW)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+
+		-- ── Cleanup on hide, re-register on show ──────────────────
+		scroll:HookScript('OnHide', function()
+			grid:CancelAnimations()
+			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+		end)
+
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			grid:Layout(0, parentH, false)
+			content:SetHeight(grid:GetTotalHeight())
+		end)
+
 		return scroll
 	end,
 })
