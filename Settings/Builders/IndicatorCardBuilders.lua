@@ -390,3 +390,219 @@ function Builders.Stacks(parent, width, data, update, get, set)
 
 	return Widgets.EndCard(card, parent, cardY)
 end
+
+-- ── Size (Bar/Bars/Rectangle) ───────────────────────────────
+function Builders.Size(parent, width, data, update)
+	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local iType = data.type
+
+	local BAR_ORIENTATION_ITEMS = {
+		{ text = 'Horizontal', value = 'Horizontal' },
+		{ text = 'Vertical',   value = 'Vertical' },
+	}
+
+	if(iType == C.IndicatorType.BAR or iType == C.IndicatorType.BARS) then
+		local bwSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 100, 1)
+		bwSlider:SetValue(data.barWidth or 100)
+		bwSlider:SetAfterValueChanged(function(v) update('barWidth', v) end)
+		cardY = placeWidget(bwSlider, inner, cardY, SLIDER_H)
+
+		local bhSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 100, 1)
+		bhSlider:SetValue(data.barHeight or 4)
+		bhSlider:SetAfterValueChanged(function(v) update('barHeight', v) end)
+		cardY = placeWidget(bhSlider, inner, cardY, SLIDER_H)
+
+		local barOriDD = Widgets.CreateDropdown(inner, WIDGET_W)
+		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
+		barOriDD:SetValue(data.barOrientation or 'Horizontal')
+		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
+		cardY = placeWidget(barOriDD, inner, cardY, DROPDOWN_H)
+
+	elseif(iType == C.IndicatorType.RECTANGLE) then
+		local rwSlider = Widgets.CreateSlider(inner, 'Width', WIDGET_W, 3, 500, 1)
+		rwSlider:SetValue(data.rectWidth or 10)
+		rwSlider:SetAfterValueChanged(function(v) update('rectWidth', v) end)
+		cardY = placeWidget(rwSlider, inner, cardY, SLIDER_H)
+
+		local rhSlider = Widgets.CreateSlider(inner, 'Height', WIDGET_W, 3, 500, 1)
+		rhSlider:SetValue(data.rectHeight or 10)
+		rhSlider:SetAfterValueChanged(function(v) update('rectHeight', v) end)
+		cardY = placeWidget(rhSlider, inner, cardY, SLIDER_H)
+	end
+
+	return Widgets.EndCard(card, parent, cardY)
+end
+
+-- ── Mode (Overlay) ──────────────────────────────────────────
+function Builders.Mode(parent, width, data, update, get, set, rebuildPanel)
+	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+
+	local modeDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	modeDD:SetItems({
+		{ text = 'Duration Overlay', value = 'DurationOverlay' },
+		{ text = 'Color',            value = 'Color' },
+		{ text = 'Both',             value = 'Both' },
+	})
+	modeDD:SetValue(data.overlayMode or 'DurationOverlay')
+	modeDD:SetOnSelect(function(v)
+		update('overlayMode', v)
+		if(rebuildPanel) then rebuildPanel() end
+	end)
+	cardY = placeWidget(modeDD, inner, cardY, DROPDOWN_H)
+
+	local ovColor = data.color or { 0, 0, 0, 0.6 }
+	local colorPicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
+		update('color', { r, g, b, a })
+	end)
+	colorPicker:SetColor(ovColor[1], ovColor[2], ovColor[3], ovColor[4] or 1)
+	cardY = placeWidget(colorPicker, inner, cardY, DROPDOWN_H)
+
+	-- Conditional: DurationOverlay or Both — smooth animation + bar orientation
+	local ovMode = data.overlayMode or 'DurationOverlay'
+	if(ovMode == 'DurationOverlay' or ovMode == 'Both') then
+		local smoothSwitch = Widgets.CreateCheckButton(inner, 'Smooth Animation', function(checked)
+			update('smooth', checked)
+		end)
+		smoothSwitch:SetChecked(data.smooth ~= false)
+		cardY = placeWidget(smoothSwitch, inner, cardY, CHECK_H)
+
+		local BAR_ORIENTATION_ITEMS = {
+			{ text = 'Horizontal', value = 'Horizontal' },
+			{ text = 'Vertical',   value = 'Vertical' },
+		}
+		local barOriDD = Widgets.CreateDropdown(inner, WIDGET_W)
+		barOriDD:SetItems(BAR_ORIENTATION_ITEMS)
+		barOriDD:SetValue(data.barOrientation or 'Horizontal')
+		barOriDD:SetOnSelect(function(v) update('barOrientation', v) end)
+		cardY = placeWidget(barOriDD, inner, cardY, DROPDOWN_H)
+	end
+
+	return Widgets.EndCard(card, parent, cardY)
+end
+
+-- ── Duration (Bar/Bars) ─────────────────────────────────────
+function Builders.Duration(parent, width, data, update, get, set)
+	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+
+	local DURATION_MODE_ITEMS = {
+		{ text = 'Never',   value = 'Never' },
+		{ text = 'Always',  value = 'Always' },
+		{ text = '< 75%',   value = '<75%' },
+		{ text = '< 50%',   value = '<50%' },
+		{ text = '< 25%',   value = '<25%' },
+		{ text = '< 15s',   value = '<15s' },
+		{ text = '< 5s',    value = '<5s' },
+	}
+
+	local durDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	durDD:SetItems(DURATION_MODE_ITEMS)
+	durDD:SetValue(data.durationMode or 'Never')
+	durDD:SetOnSelect(function(v) update('durationMode', v) end)
+	cardY = placeWidget(durDD, inner, cardY, DROPDOWN_H)
+
+	return Widgets.EndCard(card, parent, cardY)
+end
+
+-- ============================================================
+-- Type → Card mapping
+-- Each entry: { cardId, cardTitle, builderFn }
+-- The panel iterates this to spawn cards for the active indicator.
+-- ============================================================
+
+Builders.CARDS_FOR_TYPE = {
+	[C.IndicatorType.ICONS] = {
+		{ 'castBy',           'Cast By',             Builders.CastBy },
+		{ 'trackedSpells',    'Tracked Spells',      Builders.TrackedSpells },
+		{ 'appearance',       'Appearance',          Builders.Appearance },
+		{ 'layout',           'Layout',              Builders.Layout },
+		{ 'cooldownDuration', 'Cooldown & Duration', Builders.CooldownDuration },
+		{ 'stacks',           'Stacks',              Builders.Stacks },
+		{ 'glow',             nil,                   'SharedGlow' },
+	},
+	[C.IndicatorType.ICON] = {
+		{ 'castBy',           'Cast By',             Builders.CastBy },
+		{ 'trackedSpells',    'Tracked Spells',      Builders.TrackedSpells },
+		{ 'appearance',       'Appearance',          Builders.Appearance },
+		{ 'position',         'Position',            'SharedPosition' },
+		{ 'cooldownDuration', 'Cooldown & Duration', Builders.CooldownDuration },
+		{ 'stacks',           'Stacks',              Builders.Stacks },
+		{ 'glow',             nil,                   'SharedGlow' },
+	},
+	[C.IndicatorType.BARS] = {
+		{ 'castBy',           'Cast By',        Builders.CastBy },
+		{ 'trackedSpells',    'Tracked Spells',  Builders.TrackedSpells },
+		{ 'size',             'Size',            Builders.Size },
+		{ 'layout',           'Layout',          Builders.Layout },
+		{ 'thresholdColors',  nil,               'SharedThresholdColors' },
+		{ 'duration',         'Duration',        Builders.Duration },
+		{ 'stacks',           'Stacks',          Builders.Stacks },
+		{ 'glow',             nil,               'SharedGlow' },
+	},
+	[C.IndicatorType.BAR] = {
+		{ 'castBy',           'Cast By',        Builders.CastBy },
+		{ 'trackedSpells',    'Tracked Spells',  Builders.TrackedSpells },
+		{ 'size',             'Size',            Builders.Size },
+		{ 'layout',           'Layout',          Builders.Layout },
+		{ 'thresholdColors',  nil,               'SharedThresholdColors' },
+		{ 'duration',         'Duration',        Builders.Duration },
+		{ 'stacks',           'Stacks',          Builders.Stacks },
+		{ 'glow',             nil,               'SharedGlow' },
+	},
+	[C.IndicatorType.RECTANGLE] = {
+		{ 'size',             'Size',       Builders.Size },
+		{ 'thresholdColors',  nil,          'SharedThresholdColors' },
+		{ 'stacks',           'Stacks',     Builders.Stacks },
+		{ 'glow',             nil,          'SharedGlow' },
+		{ 'position',         'Position',   'SharedPosition' },
+	},
+	[C.IndicatorType.OVERLAY] = {
+		{ 'mode',             'Mode',       Builders.Mode },
+		{ 'thresholdColors',  nil,          'SharedThresholdColors' },
+	},
+	[C.IndicatorType.BORDER] = {
+		-- Border uses BorderIconSettings-style settings
+		-- Handled separately in panel code
+	},
+}
+
+-- Helper: string markers like 'SharedGlow' are resolved at spawn time
+-- to call F.Settings.BuildGlowCard, BuildPositionCard, BuildThresholdColorCard
+-- wrapped in a CardGrid-compatible builder.
+
+-- ============================================================
+-- Shared card wrappers for CardGrid
+-- These adapt the yOffset-based SharedCards builders to return
+-- a card frame like CardGrid expects.
+-- ============================================================
+
+function Builders.SharedGlow(parent, width, data, update, get, set)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.BuildGlowCard(wrapper, width, 0, get, set, { allowNone = true })
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
+
+function Builders.SharedPosition(parent, width, data, update, get, set)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
+
+function Builders.SharedThresholdColors(parent, width, data, update, get, set, opts)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local tcOpts = {}
+	if(data.type == C.IndicatorType.BAR or data.type == C.IndicatorType.BARS) then
+		tcOpts.showBorderColor = true
+		tcOpts.showBgColor = true
+		tcOpts.hideBaseColor = true
+	elseif(data.type == C.IndicatorType.RECTANGLE) then
+		tcOpts.showBorderColor = true
+	end
+	local yOff = F.Settings.BuildThresholdColorCard(wrapper, width, 0, get, set, tcOpts)
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
