@@ -276,6 +276,9 @@ function Settings.CreateMainFrame()
 	Settings._headerPresetText:SetText('')
 	Settings._headerPresetText:Hide()
 
+	-- Preview anchor (populated by AuraPreview when an aura panel is active)
+	Settings._headerPreviewAnchor = titleCard
+
 	-- Panel container (below title card — each panel manages its own scrolling)
 	-- Uses full anchor-based sizing (TOPLEFT + BOTTOMRIGHT) so child
 	-- SetAllPoints resolves correctly in the layout engine.
@@ -330,6 +333,15 @@ function Settings.CreateMainFrame()
 				Settings._contentParent._explicitHeight = contentH
 				F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
 			end
+		end
+	end)
+
+	frame:HookScript('OnHide', function()
+		if(Settings._auraPreview) then
+			if(F.Settings.AuraPreview) then
+				F.Settings.AuraPreview.Destroy(Settings._auraPreview)
+			end
+			Settings._auraPreview = nil
 		end
 	end)
 

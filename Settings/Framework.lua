@@ -322,6 +322,48 @@ function Settings.SetActivePanel(panelId)
 		end
 	end
 
+	-- ── Aura preview lifecycle ──────────────────────────────
+	if(Settings._auraPreview) then
+		if(F.Settings.AuraPreview) then
+			F.Settings.AuraPreview.Destroy(Settings._auraPreview)
+		end
+		Settings._auraPreview = nil
+	end
+
+	if(info.subSection == 'auras' and Settings._headerPreviewAnchor and F.Settings.AuraPreview) then
+		local preview = F.Settings.AuraPreview.Create(Settings._headerPreviewAnchor)
+		preview:ClearAllPoints()
+		preview:SetPoint('RIGHT', Settings._headerPreviewAnchor, 'RIGHT', -C.Spacing.normal, 0)
+		Settings._auraPreview = preview
+
+		local auraGroupKey = info.id
+		local unitType = Settings.GetEditingUnitType() or 'player'
+		F.Settings.AuraPreview.Render(preview, unitType, auraGroupKey, nil)
+	end
+
+end
+
+--- Update the title card breadcrumb text, optionally appending an indicator name.
+--- @param pageLabel string   The panel label (e.g. 'Buffs')
+--- @param indicatorName string|nil  Optional indicator sub-page name
+function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
+	if(not Settings._headerPanelText) then return end
+	if(indicatorName) then
+		Settings._headerPanelText:SetText(pageLabel .. '  |cff6688cc>|r  ' .. indicatorName)
+	else
+		Settings._headerPanelText:SetText(pageLabel)
+	end
+end
+
+--- Re-render the live preview for the given aura group, dimming everything
+--- except icons belonging to the active indicator.
+--- @param activeGroupKey string     Panel id (e.g. 'buffs')
+--- @param activeIndicatorName string|nil  Indicator name to highlight, or nil for all
+function Settings.UpdateAuraPreviewDimming(activeGroupKey, activeIndicatorName)
+	if(not Settings._auraPreview) then return end
+	if(not F.Settings.AuraPreview) then return end
+	local unitType = Settings.GetEditingUnitType() or 'player'
+	F.Settings.AuraPreview.Render(Settings._auraPreview, unitType, activeGroupKey, activeIndicatorName)
 end
 
 -- Refresh active panel when the editing preset changes.
