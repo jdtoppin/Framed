@@ -5,10 +5,7 @@ local Widgets = F.Widgets
 local PI = F.PreviewIndicators
 
 local PREVIEW_W = 120
-local PREVIEW_H = 28
-local HEALTH_H  = 16
-local POWER_H   = 3
-local NAME_SIZE  = 8
+local PREVIEW_H = 24
 local AURA_ICON_SIZE = 10
 
 -- Scale factor applied to configured icon sizes for the mini preview
@@ -50,13 +47,6 @@ function AuraPreview.Create(parent)
 	local r, g, b = getPlayerClassColor()
 	health:SetStatusBarColor(r, g, b, 1)
 	frame._health = health
-
-	-- Name text
-	local name = health:CreateFontString(nil, 'OVERLAY')
-	name:SetFont(STANDARD_TEXT_FONT, NAME_SIZE, 'OUTLINE')
-	name:SetPoint('LEFT', health, 'LEFT', 3, 0)
-	name:SetText(UnitName('player') or 'Player')
-	frame._name = name
 
 	-- Aura groups container
 	frame._auraGroups = {}
