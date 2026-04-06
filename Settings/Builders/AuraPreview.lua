@@ -11,6 +11,10 @@ local POWER_H   = 4
 local NAME_SIZE  = 9
 local AURA_ICON_SIZE = 10
 
+-- Scale factor applied to configured icon sizes for the mini preview
+local MINI_SCALE   = 0.60
+local MINI_SIZE_MIN = 6
+
 local AuraPreview = {}
 F.Settings.AuraPreview = AuraPreview
 
@@ -98,6 +102,91 @@ function AuraPreview.Create(parent)
 	return frame
 end
 
+-- ── Scale a size value for the mini preview ─────────────────
+local function miniSize(n)
+	if(not n) then return MINI_SIZE_MIN end
+	return math.max(MINI_SIZE_MIN, math.floor(n * MINI_SCALE + 0.5))
+end
+
+-- ── Return a shallow-copied indicator config with scaled sizes ─
+local function scaledIndCfg(indCfg)
+	local s = {}
+	for k, v in next, indCfg do
+		s[k] = v
+	end
+	if(s.iconSize)   then s.iconSize   = miniSize(s.iconSize)   end
+	if(s.iconWidth)  then s.iconWidth  = miniSize(s.iconWidth)  end
+	if(s.iconHeight) then s.iconHeight = miniSize(s.iconHeight) end
+	if(s.barWidth)   then s.barWidth   = miniSize(s.barWidth)   end
+	if(s.barHeight)  then s.barHeight  = miniSize(s.barHeight)  end
+	if(s.rectWidth)  then s.rectWidth  = miniSize(s.rectWidth)  end
+	if(s.rectHeight) then s.rectHeight = miniSize(s.rectHeight) end
+	return s
+end
+
+-- ── Return a shallow-copied group config with scaled indicators ─
+local function scaledGroupCfg(groupCfg)
+	if(not groupCfg) then return nil end
+	local g = {}
+	for k, v in next, groupCfg do
+		g[k] = v
+	end
+	-- Scale top-level size fields (flat groups: externals, defensives, dispellable)
+	if(g.iconSize)   then g.iconSize   = miniSize(g.iconSize)   end
+	if(g.iconWidth)  then g.iconWidth  = miniSize(g.iconWidth)  end
+	if(g.iconHeight) then g.iconHeight = miniSize(g.iconHeight) end
+	if(g.barWidth)   then g.barWidth   = miniSize(g.barWidth)   end
+	if(g.barHeight)  then g.barHeight  = miniSize(g.barHeight)  end
+	-- Scale per-indicator tables (buffs, debuffs)
+	if(groupCfg.indicators) then
+		local scaled = {}
+		for key, indCfg in next, groupCfg.indicators do
+			scaled[key] = scaledIndCfg(indCfg)
+		end
+		g.indicators = scaled
+	end
+	return g
+end
+
+-- ── Build scaled aura config for mini preview ────────────────
+local AURA_GROUPS = { 'buffs', 'debuffs', 'externals', 'defensives', 'dispellable',
+                      'missingBuffs', 'privateAuras', 'lossOfControl', 'crowdControl', 'targetedSpells' }
+
+local function buildScaledAuraConfig(rawAuraConfig)
+	local out = {}
+	for _, key in next, AURA_GROUPS do
+		out[key] = scaledGroupCfg(rawAuraConfig[key])
+	end
+	return out
+end
+
+-- ── Fallback: plain colored squares per group ────────────────
+local GROUP_FALLBACK_COLORS = {
+	buffs        = { 0.4, 0.8, 0.4, 0.8 },
+	debuffs      = { 0.9, 0.3, 0.3, 0.8 },
+	externals    = { 0.4, 0.6, 1.0, 0.8 },
+	defensives   = { 1.0, 0.8, 0.2, 0.8 },
+	dispellable  = { 0.3, 0.7, 1.0, 0.6 },
+	missingBuffs = { 0.8, 0.8, 0.2, 0.8 },
+	privateAuras = { 0.8, 0.5, 0.8, 0.8 },
+	lossOfControl= { 1.0, 0.4, 0.0, 0.8 },
+	crowdControl = { 0.9, 0.6, 0.1, 0.8 },
+	targetedSpells={ 0.5, 0.9, 0.9, 0.8 },
+}
+
+local function buildFallbackGroup(frame, groupKey, groupCfg)
+	local c = GROUP_FALLBACK_COLORS[groupKey] or { 0.5, 0.5, 0.5, 0.8 }
+	local groupFrame = CreateFrame('Frame', nil, frame)
+	groupFrame:SetAllPoints(frame)
+
+	local sq = groupFrame:CreateTexture(nil, 'OVERLAY')
+	sq:SetSize(MINI_SIZE_MIN, MINI_SIZE_MIN)
+	sq:SetColorTexture(c[1], c[2], c[3], c[4])
+	sq:SetPoint('TOPLEFT', frame, 'TOPLEFT', 2, -2)
+
+	return groupFrame
+end
+
 -- ── Render aura indicators from config ──────────────────────
 function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName)
 	-- Clear existing aura groups
@@ -107,13 +196,34 @@ function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName
 	end
 	wipe(frame._auraGroups)
 
-	-- Read live config
-	local config = F.Config and F.Config:GetUnitConfig and F.Config:GetUnitConfig(unitType)
-	if(not config) then return end
+	-- Read live aura config from active editing preset
+	if(not F.Config or not F.Config.Get) then return end
+	local presetName = F.Settings and F.Settings.GetEditingPreset and F.Settings.GetEditingPreset()
+	if(not presetName) then return end
+	local rawAuraConfig = F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType)
+	if(not rawAuraConfig) then return end
 
-	-- Build aura indicators using PreviewAuras if available
-	if(F.PreviewAuras and F.PreviewAuras.BuildForSettingsPreview) then
-		F.PreviewAuras.BuildForSettingsPreview(frame, config, unitType)
+	-- Wire up frame fields required by PreviewAuras (health wrapper for dispellable overlay)
+	frame._healthWrapper = frame._health
+	frame._healthBar     = frame._health
+	frame._width         = PREVIEW_W
+	frame._height        = PREVIEW_H
+
+	-- Build scaled copy of config so icon sizes fit the mini frame
+	local scaledConfig = buildScaledAuraConfig(rawAuraConfig)
+
+	-- Render using PreviewAuras.BuildAll when loaded; otherwise simple fallback squares
+	if(F.PreviewAuras and F.PreviewAuras.BuildAll) then
+		F.PreviewAuras.BuildAll(frame, scaledConfig, false)
+	else
+		-- PreviewAuras not yet loaded — create simple colored squares as placeholder
+		for _, groupKey in next, AURA_GROUPS do
+			local groupCfg = rawAuraConfig[groupKey]
+			if(groupCfg and groupCfg.enabled) then
+				local g = buildFallbackGroup(frame, groupKey, groupCfg)
+				frame._auraGroups[groupKey] = g
+			end
+		end
 	end
 
 	-- Apply dimming
