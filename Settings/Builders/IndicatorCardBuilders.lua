@@ -57,7 +57,11 @@ end
 function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 
-	local spList = Widgets.CreateSpellList(inner, width - 24, nil)
+	-- Calculate spell list height based on spell count
+	local spellCount = data.spells and #data.spells or 0
+	local spListH = math.max(60, spellCount * 24 + 8)
+
+	local spList = Widgets.CreateSpellList(inner, width - 24, spListH)
 	spList:SetSpells(data.spells or {})
 	spList:SetOnChanged(function(spells)
 		update('spells', spells)
@@ -73,10 +77,6 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 		spList:SetSpellColors(data.spellColors or {})
 		spList:SetShowColorPicker(true)
 	end
-
-	-- Calculate spell list height based on spell count
-	local spellCount = data.spells and #data.spells or 0
-	local spListH = math.max(60, spellCount * 24 + 8)
 	cardY = placeWidget(spList, inner, cardY, spListH)
 
 	local spInput = Widgets.CreateSpellInput(inner, width - 24)
