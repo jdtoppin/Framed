@@ -1,6 +1,6 @@
 # Edit Mode Preview System — Implementation Plan (v2)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Replace the dim-overlay-and-reveal edit mode behavior with pixel-perfect, config-driven preview frames that respond live to EditCache changes. Precede implementation with an aura testing pass to ensure the real aura elements are bug-free before building previews against them.
 
@@ -699,7 +699,7 @@ EditMode/
 **Files:**
 - Modify: `EditMode/EditCache.lua:43-48`
 
-- [ ] **Step 1: Add event fire to EditCache.Set()**
+- [x] **Step 1: Add event fire to EditCache.Set()**
 
 ```lua
 function EditCache.Set(frameKey, configPath, value)
@@ -712,12 +712,12 @@ function EditCache.Set(frameKey, configPath, value)
 end
 ```
 
-- [ ] **Step 2: Verify no existing callsites break**
+- [x] **Step 2: Verify no existing callsites break**
 
 Run: `grep -rn 'EditCache.Set(' EditMode/ Settings/ Units/`
 The event fire is additive — no listener exists yet. Confirm no callsite depends on Set() being silent.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add EditMode/EditCache.lua
@@ -734,7 +734,7 @@ git commit -m "feat: fire EDIT_CACHE_VALUE_CHANGED event from EditCache.Set"
 
 Build the core renderer that draws a visual frame from config. Pixel-perfect: uses the same textures, fonts, and sizing as StyleBuilder.
 
-- [ ] **Step 1: Create PreviewFrame.lua with frame shell + health bar + power bar**
+- [x] **Step 1: Create PreviewFrame.lua with frame shell + health bar + power bar**
 
 ```lua
 local addonName, Framed = ...
@@ -922,7 +922,7 @@ function F.PreviewFrame.Create(parent, config, fakeUnit)
 end
 ```
 
-- [ ] **Step 2: Add to Framed.toc after Preview/Preview.lua**
+- [x] **Step 2: Add to Framed.toc after Preview/Preview.lua**
 
 ```
 # Preview
@@ -930,7 +930,7 @@ Preview/Preview.lua
 Preview/PreviewFrame.lua
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Preview/PreviewFrame.lua Framed.toc
@@ -947,7 +947,7 @@ git commit -m "feat: add PreviewFrame renderer with health, power, name"
 
 The manager creates/destroys preview frames on selection, wires EditCache events to live updates.
 
-- [ ] **Step 1: Create PreviewManager.lua**
+- [x] **Step 1: Create PreviewManager.lua**
 
 ```lua
 local addonName, Framed = ...
@@ -1128,14 +1128,14 @@ F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, v
 end, 'PreviewManager.cacheChanged')
 ```
 
-- [ ] **Step 2: Add to Framed.toc**
+- [x] **Step 2: Add to Framed.toc**
 
 ```
 Preview/PreviewFrame.lua
 Preview/PreviewManager.lua
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Preview/PreviewManager.lua Framed.toc
@@ -1151,7 +1151,7 @@ git commit -m "feat: add PreviewManager with solo frame preview and live updates
 
 Adjust z-ordering so preview renders above selected catcher. Store `_def` on each catcher for the event handler.
 
-- [ ] **Step 1: Store def reference on catcher**
+- [x] **Step 1: Store def reference on catcher**
 
 In `CreateCatcher()`, after `catcher._isGroup = def.isGroup`, add:
 
@@ -1159,7 +1159,7 @@ In `CreateCatcher()`, after `catcher._isGroup = def.isGroup`, add:
 catcher._def = def
 ```
 
-- [ ] **Step 2: Update EDIT_MODE_FRAME_SELECTED handler**
+- [x] **Step 2: Update EDIT_MODE_FRAME_SELECTED handler**
 
 Replace the existing handler with z-ordering logic:
 
@@ -1181,7 +1181,7 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 end, 'ClickCatchers')
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add EditMode/ClickCatchers.lua
@@ -1192,7 +1192,7 @@ git commit -m "feat: wire click catchers to preview system with z-ordering"
 
 ### Task 5: Phase 1 Integration Test
 
-- [ ] **Step 1: Sync to WoW addon folder**
+- [x] **Step 1: Sync to WoW addon folder**
 
 ```bash
 rsync -av --delete \
@@ -1201,7 +1201,7 @@ rsync -av --delete \
   . "/Applications/World of Warcraft/_retail_/Interface/AddOns/Framed/"
 ```
 
-- [ ] **Step 2: Test in-game**
+- [x] **Step 2: Test in-game**
   - `/framed edit` — enter edit mode
   - Click player frame → preview shows with health bar, power bar, name
   - Click target frame → preview switches to target
@@ -1210,9 +1210,9 @@ rsync -av --delete \
   - Drag frame → preview follows
   - Exit edit mode → preview disappears
 
-- [ ] **Step 3: Fix any issues found**
+- [x] **Step 3: Fix any issues found**
 
-- [ ] **Step 4: Commit fixes**
+- [x] **Step 4: Commit fixes**
 
 ```bash
 git add -A
@@ -1228,7 +1228,7 @@ git commit -m "fix: phase 1 integration testing fixes"
 **Files:**
 - Modify: `Preview/PreviewFrame.lua`
 
-- [ ] **Step 1: Add BuildStatusIcons()**
+- [x] **Step 1: Add BuildStatusIcons()**
 
 11 icon types rendered as small gray placeholder squares at their configured positions:
 
@@ -1260,13 +1260,13 @@ local function BuildStatusIcons(frame, config)
 end
 ```
 
-- [ ] **Step 2: Wire into Create() after BuildNameText**
+- [x] **Step 2: Wire into Create() after BuildNameText**
 
 ```lua
 BuildStatusIcons(frame, config)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Preview/PreviewFrame.lua
@@ -1280,7 +1280,7 @@ git commit -m "feat: add status icon placeholders to PreviewFrame"
 **Files:**
 - Modify: `Preview/PreviewFrame.lua`
 
-- [ ] **Step 1: Add BuildCastbar()**
+- [x] **Step 1: Add BuildCastbar()**
 
 ```lua
 local function BuildCastbar(frame, config)
@@ -1313,7 +1313,7 @@ local function BuildCastbar(frame, config)
 end
 ```
 
-- [ ] **Step 2: Add BuildHighlights()**
+- [x] **Step 2: Add BuildHighlights()**
 
 ```lua
 local function BuildHighlights(frame, config)
@@ -1332,14 +1332,14 @@ local function BuildHighlights(frame, config)
 end
 ```
 
-- [ ] **Step 3: Wire both into Create()**
+- [x] **Step 3: Wire both into Create()**
 
 ```lua
 BuildCastbar(frame, config)
 BuildHighlights(frame, config)
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add Preview/PreviewFrame.lua
@@ -1353,7 +1353,7 @@ git commit -m "feat: add castbar and highlight borders to PreviewFrame"
 **Files:**
 - Modify: `Preview/PreviewFrame.lua`
 
-- [ ] **Step 1: Add Destroy() helper**
+- [x] **Step 1: Add Destroy() helper**
 
 ```lua
 local function DestroyChildren(frame)
@@ -1382,7 +1382,7 @@ local function DestroyChildren(frame)
 end
 ```
 
-- [ ] **Step 2: Add UpdateFromConfig method to Create()**
+- [x] **Step 2: Add UpdateFromConfig method to Create()**
 
 Before the return in `F.PreviewFrame.Create()`:
 
@@ -1425,7 +1425,7 @@ function frame:UpdateFromConfig(config)
 end
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add Preview/PreviewFrame.lua
@@ -1436,14 +1436,14 @@ git commit -m "feat: add UpdateFromConfig for live preview rebuilds"
 
 ### Task 9: Phase 2 Integration Test
 
-- [ ] **Step 1: Sync and test**
+- [x] **Step 1: Sync and test**
   - Status icons appear at correct positions
   - Castbar renders below frame (only for unit types with castbar config)
   - Target highlight border visible on player preview
   - Changing castbar height/width in settings updates preview
   - Toggling showCastBar removes/adds castbar from preview
 
-- [ ] **Step 2: Fix issues, commit**
+- [x] **Step 2: Fix issues, commit**
 
 ---
 
@@ -1454,7 +1454,7 @@ git commit -m "feat: add UpdateFromConfig for live preview rebuilds"
 **Files:**
 - Modify: `Preview/PreviewManager.lua`
 
-- [ ] **Step 1: Add group constants and fake units**
+- [x] **Step 1: Add group constants and fake units**
 
 ```lua
 local GROUP_FRAME_COUNTS = {
@@ -1467,7 +1467,7 @@ local GROUP_FRAME_COUNTS = {
 local GROUP_FAKES = nil  -- Lazy-init from Preview.GetFakeUnits
 ```
 
-- [ ] **Step 2: Implement showGroupPreview()**
+- [x] **Step 2: Implement showGroupPreview()**
 
 ```lua
 local function showGroupPreview(frameKey)
@@ -1516,7 +1516,7 @@ local function showGroupPreview(frameKey)
 end
 ```
 
-- [ ] **Step 3: Add party pet frame**
+- [x] **Step 3: Add party pet frame**
 
 After the main party loop, add a single pet frame if `frameKey == 'party'`:
 
@@ -1537,7 +1537,7 @@ After the main party loop, add a single pet frame if `frameKey == 'party'`:
 	end
 ```
 
-- [ ] **Step 4: Wire into PM.ShowPreview replacing placeholder**
+- [x] **Step 4: Wire into PM.ShowPreview replacing placeholder**
 
 ```lua
 function PM.ShowPreview(frameKey)
@@ -1552,7 +1552,7 @@ function PM.ShowPreview(frameKey)
 end
 ```
 
-- [ ] **Step 5: Update EDIT_CACHE_VALUE_CHANGED for group layout changes**
+- [x] **Step 5: Update EDIT_CACHE_VALUE_CHANGED for group layout changes**
 
 ```lua
 -- Replace position-only block with:
@@ -1563,7 +1563,7 @@ if(configPath == 'position.x' or configPath == 'position.y'
 end
 ```
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add Preview/PreviewManager.lua
@@ -1574,14 +1574,14 @@ git commit -m "feat: add group frame preview (party+pet/raid/arena/boss)"
 
 ### Task 11: Phase 3 Integration Test
 
-- [ ] **Step 1: Sync and test**
+- [x] **Step 1: Sync and test**
   - Click party → 5 frames + 1 pet frame in correct layout
   - Click raid → 20 frames in vertical column
   - Change orientation to horizontal → frames switch to horizontal layout
   - Change spacing → gap between frames updates
   - Change anchorPoint → growth direction changes
 
-- [ ] **Step 2: Fix issues, commit**
+- [x] **Step 2: Fix issues, commit**
 
 ---
 
@@ -1614,7 +1614,7 @@ The real aura system uses 8 distinct indicator/renderer types. The preview must 
 
 Dedicated file for preview-mode indicator rendering. Each builder creates the visual elements that match the real renderer's appearance, frozen at a fake duration point.
 
-- [ ] **Step 1: Create PreviewIndicators.lua with fake data and shared helpers**
+- [x] **Step 1: Create PreviewIndicators.lua with fake data and shared helpers**
 
 ```lua
 local addonName, Framed = ...
@@ -1662,7 +1662,7 @@ local function orientOffset(orient, i, w, h, spacingX, spacingY)
 end
 ```
 
-- [ ] **Step 2: Add Icon preview builder (linear depletion bar)**
+- [x] **Step 2: Add Icon preview builder (linear depletion bar)**
 
 Matches `Elements/Indicators/Icon.lua` — spell icon + linear depletion StatusBar overlay + leading edge line + border + stack/duration text:
 
@@ -1752,7 +1752,7 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig)
 end
 ```
 
-- [ ] **Step 3: Add BorderIcon preview builder (radial cooldown swipe)**
+- [x] **Step 3: Add BorderIcon preview builder (radial cooldown swipe)**
 
 Matches `Elements/Indicators/BorderIcon.lua` — icon + colored border + CooldownFrame + stack/duration:
 
@@ -1828,7 +1828,7 @@ function PI.CreateBorderIcon(parent, iconTexture, size, borderThickness, dispelT
 end
 ```
 
-- [ ] **Step 4: Add Bar preview builder**
+- [x] **Step 4: Add Bar preview builder**
 
 Matches `Elements/Indicators/Bar.lua` — StatusBar with border, stack/duration text:
 
@@ -1871,7 +1871,7 @@ function PI.CreateBar(parent, barConfig)
 end
 ```
 
-- [ ] **Step 5: Add Color (rectangle), Overlay, and BorderGlow preview builders**
+- [x] **Step 5: Add Color (rectangle), Overlay, and BorderGlow preview builders**
 
 ```lua
 -- ============================================================
@@ -1996,13 +1996,13 @@ function PI.CreateBorderGlow(parent, bgConfig)
 end
 ```
 
-- [ ] **Step 6: Add to Framed.toc after PreviewFrame.lua**
+- [x] **Step 6: Add to Framed.toc after PreviewFrame.lua**
 
 ```
 Preview/PreviewIndicators.lua
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Preview/PreviewIndicators.lua Framed.toc
@@ -2019,7 +2019,7 @@ git commit -m "feat: add preview indicator renderers matching all 8 real indicat
 
 Connect the indicator renderers to the PreviewFrame so aura config drives visual output.
 
-- [ ] **Step 1: Add buff indicator builder using PreviewIndicators**
+- [x] **Step 1: Add buff indicator builder using PreviewIndicators**
 
 Buffs use the `indicators` table with per-indicator config. Each indicator's `type` determines which PI builder to call:
 
@@ -2104,7 +2104,7 @@ local function BuildBuffIndicators(frame, buffsConfig)
 end
 ```
 
-- [ ] **Step 2: Add BorderIcon group builder for debuffs/externals/defensives/raidDebuffs**
+- [x] **Step 2: Add BorderIcon group builder for debuffs/externals/defensives/raidDebuffs**
 
 ```lua
 local BORDICON_GROUPS = { 'debuffs', 'raidDebuffs', 'externals', 'defensives' }
@@ -2144,7 +2144,7 @@ local function BuildBorderIconGroup(frame, groupKey, groupCfg)
 end
 ```
 
-- [ ] **Step 3: Add dispellable, missingBuffs, and other simple group builders**
+- [x] **Step 3: Add dispellable, missingBuffs, and other simple group builders**
 
 ```lua
 local function BuildDispellableGroup(frame, dispCfg)
@@ -2212,7 +2212,7 @@ local function BuildSimpleIconGroup(frame, groupKey, cfg)
 end
 ```
 
-- [ ] **Step 4: Wire all aura builders into PreviewFrame.Create()**
+- [x] **Step 4: Wire all aura builders into PreviewFrame.Create()**
 
 Update `F.PreviewFrame.Create` to accept `auraConfig` and build all groups:
 
@@ -2253,7 +2253,7 @@ function F.PreviewFrame.Create(parent, config, fakeUnit, auraConfig)
 end
 ```
 
-- [ ] **Step 5: Update PreviewManager to read and pass auraConfig**
+- [x] **Step 5: Update PreviewManager to read and pass auraConfig**
 
 ```lua
 local function getAuraConfig(frameKey)
@@ -2269,7 +2269,7 @@ local auraConfig = getAuraConfig(frameKey)
 local pf = F.PreviewFrame.Create(container, config, fakeUnit, auraConfig)
 ```
 
-- [ ] **Step 6: Wire aura dimming event in PreviewManager**
+- [x] **Step 6: Wire aura dimming event in PreviewManager**
 
 ```lua
 F.EventBus:Register('EDIT_MODE_AURA_DIM', function(frameKey, activeGroupId)
@@ -2282,7 +2282,7 @@ F.EventBus:Register('EDIT_MODE_AURA_DIM', function(frameKey, activeGroupId)
 end, 'PreviewManager.auraDim')
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add Preview/PreviewFrame.lua Preview/PreviewManager.lua
@@ -2293,32 +2293,32 @@ git commit -m "feat: wire indicator renderers into preview frames with aura conf
 
 ### Task 14: Phase 4 Integration Test
 
-- [ ] **Step 1: Test buff indicator types on solo frames**
+- [x] **Step 1: Test buff indicator types on solo frames**
   - Player preview: "My Buffs" Icons indicator at TOPLEFT with linear depletion bars
   - Verify: each icon has trimmed texture, 0.5px border, depletion fill at 60%
   - If indicator type is BAR/BARS — verify StatusBar renders correctly
 
-- [ ] **Step 2: Test BorderIcon groups on group frames**
+- [x] **Step 2: Test BorderIcon groups on group frames**
   - Party: debuffs at BOTTOMLEFT with dispel-colored borders + radial cooldown swipe
   - RaidDebuffs at CENTER with size scaling
   - Externals at RIGHT, Defensives at LEFT
   - Verify: border colors match dispel type (Magic=blue, Curse=purple, etc.)
 
-- [ ] **Step 3: Test dispellable with health bar overlay**
+- [x] **Step 3: Test dispellable with health bar overlay**
   - Verify: dispellable icon + health bar colored overlay (gradient/solid per config)
 
-- [ ] **Step 4: Test aura settings → preview updates**
+- [x] **Step 4: Test aura settings → preview updates**
   - Change buff indicator anchor → icons move on preview
   - Change debuff iconSize → icons resize on preview
   - Change indicator type (Icons→Bar) → visual style changes
   - Toggle aura group enabled/disabled → indicators appear/disappear
 
-- [ ] **Step 5: Test aura group dimming**
+- [x] **Step 5: Test aura group dimming**
   - Select frame, switch to "Buffs" panel → buff indicators bright, others 20% alpha
   - Switch to "Debuffs" → debuffs bright, others dim
   - Switch back to "Frame Settings" → all restore to 100%
 
-- [ ] **Step 6: Fix issues, commit**
+- [x] **Step 6: Fix issues, commit**
 
 ---
 
@@ -2326,18 +2326,18 @@ git commit -m "feat: wire indicator renderers into preview frames with aura conf
 
 ### Task 15: Final Integration Test
 
-- [ ] **Step 1: Full test pass across all frame types**
-- [ ] **Step 2: Test edit cache flow — edit, save, verify saved values**
-- [ ] **Step 3: Test edit cache flow — edit, discard, verify reverted**
-- [ ] **Step 4: Test preset switching in edit mode**
-- [ ] **Step 5: Fix any remaining issues**
+- [x] **Step 1: Full test pass across all frame types**
+- [x] **Step 2: Test edit cache flow — edit, save, verify saved values**
+- [x] **Step 3: Test edit cache flow — edit, discard, verify reverted**
+- [x] **Step 4: Test preset switching in edit mode**
+- [x] **Step 5: Fix any remaining issues**
 
 ### Task 16: Version Bump
 
 **Files:**
 - Modify: `Init.lua`
 
-- [ ] **Step 1: Check current version and bump patch**
+- [x] **Step 1: Check current version and bump patch**
 
 ```bash
 grep 'F.version' Init.lua
@@ -2345,7 +2345,7 @@ grep 'F.version' Init.lua
 
 Increment the patch number.
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add Init.lua
