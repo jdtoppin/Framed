@@ -80,6 +80,13 @@ local function buildHighlightCard(parent, width, get, set)
 	-- Highlight Alpha (new setting — stored as 0-1, displayed as 0-100)
 	local alphaSlider = Widgets.CreateSlider(inner, 'Highlight Alpha', widgetW, 0, 100, 1)
 	alphaSlider:SetValue((get('highlightAlpha') or 0.8) * 100)
+	-- Lightweight live update during drag (only changes the texture alpha)
+	alphaSlider:SetOnValueChanged(function(v)
+		if(F.Settings.AuraPreview and F.Settings.AuraPreview.UpdateDispelAlpha) then
+			F.Settings.AuraPreview.UpdateDispelAlpha(v / 100)
+		end
+	end)
+	-- Full save on release
 	alphaSlider:SetAfterValueChanged(function(v) set('highlightAlpha', v / 100) end)
 	cy = placeWidget(alphaSlider, inner, cy, SLIDER_H)
 
@@ -162,6 +169,7 @@ F.Settings.RegisterPanel({
 		grid:SetTopOffset(math.abs(yOffset))
 
 		grid:AddCard('preview',   'Preview',   F.Settings.AuraPreview.BuildPreviewCard, {})
+		grid:SetSticky('preview')
 		grid:AddCard('overview',  'Overview',  buildOverviewCard,  { get, set })
 		grid:AddCard('highlight', 'Highlight', buildHighlightCard, { get, set })
 		grid:AddCard('icon',      'Icon',      buildIconCard,      { get, set })

@@ -258,6 +258,27 @@ function Settings.SetActivePanel(panelId)
 
 	if(not info) then return end
 
+	-- ── Update editing unit type for unit frame panels ──────
+	-- Fires every navigation (not just first create) so the
+	-- "Configure for" dropdown on aura panels stays in sync.
+	if(info.getUnitType) then
+		Settings.SetEditingUnitType(info.getUnitType())
+	elseif(info.unitType) then
+		Settings.SetEditingUnitType(info.unitType)
+	end
+
+	-- Invalidate cached aura panels when unit type has changed since build
+	if(info.subSection == 'auras' and Settings._panelFrames[panelId]) then
+		local builtFor = Settings._panelBuiltUnitType and Settings._panelBuiltUnitType[panelId]
+		local current = Settings.GetEditingUnitType()
+		if(builtFor and builtFor ~= current) then
+			Settings._panelFrames[panelId]:Hide()
+			Settings._panelFrames[panelId]:SetParent(nil)
+			Settings._panelFrames[panelId] = nil
+			Settings._auraPreview = nil
+		end
+	end
+
 	-- Build panel frame if not yet created
 	if(not Settings._panelFrames[panelId]) then
 		if(info.create and Settings._contentParent) then
@@ -272,6 +293,11 @@ function Settings.SetActivePanel(panelId)
 				pFrame:Hide()
 				Settings._panelFrames[panelId] = pFrame
 				Settings._panelRefresh[panelId] = refreshFn  -- may be nil
+				-- Track what unit type this aura panel was built for
+				if(info.subSection == 'auras') then
+					Settings._panelBuiltUnitType = Settings._panelBuiltUnitType or {}
+					Settings._panelBuiltUnitType[panelId] = Settings.GetEditingUnitType()
+				end
 			end
 		end
 	end

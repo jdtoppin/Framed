@@ -24,6 +24,17 @@ function PA.SetAuraGroupAlpha(frame, activeGroupId)
 	end
 end
 
+--- Update the dispel overlay texture alpha without a full rebuild.
+--- @param frame table  The preview frame
+--- @param alpha number  New highlight alpha (0-1)
+function PA.UpdateDispelOverlayAlpha(frame, alpha)
+	if(not frame or not frame._auraGroups) then return end
+	local group = frame._auraGroups.dispellable
+	if(not group or not group._highlightTexture or not group._highlightColor) then return end
+	local c = group._highlightColor
+	group._highlightTexture:SetVertexColor(c[1], c[2], c[3], alpha)
+end
+
 -- ============================================================
 -- Buff indicators (Icon, Icons, Bar, Bars, Border, Rectangle, Overlay)
 -- ============================================================
@@ -215,6 +226,7 @@ local function BuildDispellableGroup(frame, dispCfg)
 	local hlType = dispCfg.highlightType
 	if(frame._healthWrapper and frame._healthBar and hlType) then
 		local hlColor = PI.DISPEL_COLORS[DISPEL_PREVIEW_TYPE] or { 0.2, 0.6, 1.0 }
+		local hlAlpha = dispCfg.highlightAlpha or 0.8
 		local wrapper = frame._healthWrapper
 		local fw = frame._width or 120
 		local fh = frame._height or 36
@@ -235,12 +247,12 @@ local function BuildDispellableGroup(frame, dispCfg)
 			hl:SetPoint('BOTTOMRIGHT', -1, 1)
 			hl:SetTexture(GRADIENT_TEXTURE)
 			hl:SetBlendMode('BLEND')
-			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], hlAlpha)
 		elseif(hlType == 'gradient_half') then
 			hl = overlayFrame:CreateTexture(nil, 'OVERLAY')
 			hl:SetTexture(GRADIENT_TEXTURE)
 			hl:SetBlendMode('BLEND')
-			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], hlAlpha)
 			hl:SetPoint('BOTTOMLEFT', 1, 1)
 			hl:SetPoint('BOTTOMRIGHT', -1, 1)
 			hl:SetHeight(wh * 0.5)
@@ -250,18 +262,20 @@ local function BuildDispellableGroup(frame, dispCfg)
 			hl:SetPoint('BOTTOMLEFT', 1, 1)
 			hl:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 			hl:SetBlendMode('ADD')
-			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], hlAlpha)
 			hl:SetWidth(1)
 		elseif(hlType == 'solid_entire') then
 			hl = overlayFrame:CreateTexture(nil, 'OVERLAY')
 			hl:SetAllPoints(overlayFrame)
 			hl:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 			hl:SetBlendMode('ADD')
-			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], 0.8)
+			hl:SetVertexColor(hlColor[1], hlColor[2], hlColor[3], hlAlpha)
 		end
 
 		if(hl) then
 			groupFrame._healthOverlay = overlayFrame
+			groupFrame._highlightTexture = hl
+			groupFrame._highlightColor = hlColor
 		end
 	end
 
@@ -301,6 +315,20 @@ end
 -- ============================================================
 
 function PA.BuildAll(frame, auraConfig, animated)
+	-- Clean up previous groups before rebuilding
+	if(frame._auraGroups) then
+		for _, groupFrame in next, frame._auraGroups do
+			-- Dispel overlay is parented to _healthWrapper, not groupFrame —
+			-- must be explicitly hidden/removed or it persists across rebuilds.
+			if(groupFrame._healthOverlay) then
+				groupFrame._healthOverlay:Hide()
+				groupFrame._healthOverlay:SetParent(nil)
+			end
+			groupFrame:Hide()
+			groupFrame:SetParent(nil)
+		end
+	end
+
 	local auraLevel = frame:GetFrameLevel() + 20
 	frame._auraGroups = {}
 	if(not auraConfig) then return end

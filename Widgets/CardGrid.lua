@@ -210,11 +210,49 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 			local x = shortestCol * (cardW + CARD_GAP)
 			local y = cardTopY
 
-			-- Store target position for future animation reference
+			-- Store natural grid position
 			entry._layoutX = x
 			entry._layoutY = y
 
-			if(animated and oldPos[entry.id]) then
+			-- ── Sticky card: reparent to viewport when scrolled past ──
+			-- While sticky the card is parented to the scroll container
+			-- (non-scrolling), so it stays put with zero per-tick work.
+			if(entry.sticky) then
+				local sOffset = grid._lastScrollOffset
+				local shouldStick = sOffset > y
+
+				if(shouldStick and not entry._stickyActive) then
+					-- Transition → sticky: reparent to scroll viewport
+					entry._stickyActive = true
+					local scrollParent = grid._container:GetParent()._scrollParent
+					if(scrollParent) then
+						entry._stickyAnchor = scrollParent
+						entry._origFrameLevel = entry.card:GetFrameLevel()
+						entry.card:SetParent(scrollParent)
+						entry.card:SetFrameLevel(entry._origFrameLevel + 50)
+						entry.card:ClearAllPoints()
+						Widgets.SetPoint(entry.card, 'TOPLEFT', scrollParent, 'TOPLEFT', x, 0)
+						entry.card:SetWidth(cardW)
+					end
+				elseif(not shouldStick and entry._stickyActive) then
+					-- Transition → normal: reparent back to grid
+					entry._stickyActive = false
+					entry.card:SetParent(grid._container)
+					if(entry._origFrameLevel) then
+						entry.card:SetFrameLevel(entry._origFrameLevel)
+						entry._origFrameLevel = nil
+					end
+					entry.card:ClearAllPoints()
+					Widgets.SetPoint(entry.card, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
+					entry.card:SetWidth(cardW)
+				elseif(not shouldStick) then
+					-- Normal grid position (not yet scrolled past)
+					entry.card:ClearAllPoints()
+					Widgets.SetPoint(entry.card, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
+					entry.card:SetWidth(cardW)
+				end
+				-- While sticky: do nothing — card is anchored to viewport
+			elseif(animated and oldPos[entry.id]) then
 				local old = oldPos[entry.id]
 				local dx = x - old.x
 				local dy = y - old.y
@@ -373,6 +411,16 @@ local function SetPinned(grid, id, pinned)
 	end
 end
 
+--- Mark a card as sticky (pins at viewport top when scrolled past).
+--- @param grid table
+--- @param id   string  Card id
+local function SetSticky(grid, id)
+	local entry = grid._cardIndex[id]
+	if(entry) then
+		entry.sticky = true
+	end
+end
+
 local REFLOW_DURATION = 0.2  -- slightly slower than pin animation for visibility
 
 --- Animated reflow: uses the last-known height from the previous Layout
@@ -495,6 +543,7 @@ function Widgets.CreateCardGrid(parent, width)
 	grid.RemoveCard       = RemoveCard
 	grid.RemoveAllCards   = RemoveAllCards
 	grid.SetPinned        = SetPinned
+	grid.SetSticky        = SetSticky
 	grid.GetColumnLayout  = GetColumnLayout
 	grid.GetSortedCards   = GetSortedCards
 	grid.Layout           = Layout

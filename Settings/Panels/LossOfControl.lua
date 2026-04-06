@@ -145,6 +145,7 @@ F.Settings.RegisterPanel({
 		grid:SetTopOffset(math.abs(yOffset))
 
 		grid:AddCard('preview',        'Preview',         F.Settings.AuraPreview.BuildPreviewCard, {})
+		grid:SetSticky('preview')
 		grid:AddCard('overview',       'Overview',        buildOverviewCard,       {})
 		grid:AddCard('ccTypes',        'CC Types',        buildCCTypesCard,        {})
 		grid:AddCard('visualSettings', 'Visual Settings', buildVisualSettingsCard, {})

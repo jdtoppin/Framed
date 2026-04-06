@@ -205,6 +205,7 @@ F.Settings.RegisterPanel({
 		end
 
 		grid:AddCard('preview',      'Preview',      F.Settings.AuraPreview.BuildPreviewCard, {})
+		grid:SetSticky('preview')
 		grid:AddCard('overview',     'Overview',     buildOverviewCard,     {})
 		grid:AddCard('displayMode',  'Display Mode', buildDisplayModeCard,  { updateVisibility })
 

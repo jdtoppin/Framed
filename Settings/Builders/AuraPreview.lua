@@ -55,7 +55,6 @@ local function createPreviewFrame(parent, unitType, maxWidth)
 	})
 	frame:SetBackdropColor(0.1, 0.1, 0.18, 1)
 	frame:SetBackdropBorderColor(0.23, 0.23, 0.35, 1)
-	frame:SetClipsChildren(true)
 
 	-- Health bar (fills the entire frame)
 	local health = CreateFrame('StatusBar', nil, frame)
@@ -74,8 +73,12 @@ end
 
 -- ── Render aura indicators from config (full size, no scaling) ─
 function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName)
-	-- Clear existing aura groups
+	-- Clear existing aura groups (including overlay frames parented elsewhere)
 	for _, group in next, frame._auraGroups do
+		if(group._healthOverlay) then
+			group._healthOverlay:Hide()
+			group._healthOverlay:SetParent(nil)
+		end
 		group:Hide()
 		group:SetParent(nil)
 	end
@@ -107,13 +110,8 @@ function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName
 
 	-- Apply dimming based on show-all toggle and active group
 	local showAll = frame._showAll
-	for groupKey, group in next, frame._auraGroups do
-		if(showAll or not activeGroupKey or groupKey == activeGroupKey) then
-			group:SetAlpha(1.0)
-		else
-			group:SetAlpha(0.2)
-		end
-	end
+	local highlightKey = (showAll or not activeGroupKey) and nil or activeGroupKey
+	F.PreviewAuras.SetAuraGroupAlpha(frame, highlightKey)
 end
 
 -- ── Card builder for CardGrid ───────────────────────────────
@@ -169,6 +167,15 @@ function AuraPreview.UpdateDimming(activeGroupKey, activeIndicatorName)
 	-- Use the preview's stored unit type (matches "Configure for" at build time)
 	local unitType = Settings._auraPreview._unitType or (Settings.GetEditingUnitType and Settings.GetEditingUnitType()) or 'player'
 	AuraPreview.Render(Settings._auraPreview, unitType, activeGroupKey, activeIndicatorName)
+end
+
+-- ── Lightweight dispel overlay alpha update (no rebuild) ────
+function AuraPreview.UpdateDispelAlpha(alpha)
+	local Settings = F.Settings
+	if(not Settings._auraPreview) then return end
+	if(F.PreviewAuras and F.PreviewAuras.UpdateDispelOverlayAlpha) then
+		F.PreviewAuras.UpdateDispelOverlayAlpha(Settings._auraPreview, alpha)
+	end
 end
 
 -- ── Destroy ─────────────────────────────────────────────────

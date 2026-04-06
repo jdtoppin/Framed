@@ -188,6 +188,7 @@ F.Settings.RegisterPanel({
 		grid:SetTopOffset(math.abs(yOffset))
 
 		grid:AddCard('preview',       'Preview',           F.Settings.AuraPreview.BuildPreviewCard, {})
+		grid:SetSticky('preview')
 		grid:AddCard('overview',      'Overview',          buildOverviewCard,      {})
 		grid:AddCard('display',       'Display',           buildDisplayCard,       {})
 		grid:AddCard('layout',        'Layout',            buildLayoutCard,        {})
