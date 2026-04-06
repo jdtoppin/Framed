@@ -14,7 +14,7 @@ local BUTTON_H    = 24
 local function placeWidget(widget, parent, yOffset, height)
 	widget:ClearAllPoints()
 	Widgets.SetPoint(widget, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	return yOffset - height - C.Spacing.tight
+	return yOffset - height - C.Spacing.normal
 end
 
 local function placeHeading(parent, text, level, yOffset)

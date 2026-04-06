@@ -670,6 +670,7 @@ F.Settings.RegisterPanel({
 			grid:SetWidth(newWidth)
 			content:SetWidth(newW)
 			content:SetHeight(grid:GetTotalHeight())
+			scroll:UpdateScrollRange()
 		end
 
 		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
