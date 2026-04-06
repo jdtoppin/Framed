@@ -99,8 +99,6 @@ end
 -- Overlay helpers
 -- ============================================================
 
-local OVERLAY_ALPHA = 0.8
-
 local function hideAllOverlays(element)
 	if(element._overlayGradientFull) then element._overlayGradientFull:Hide() end
 	if(element._overlayGradientHalf) then element._overlayGradientHalf:Hide() end
@@ -159,19 +157,19 @@ local function showOverlay(element, highlightType, r, g, b, a)
 	local ht = C.HighlightType
 	if(highlightType == ht.GRADIENT_FULL and element._overlayGradientFull) then
 		local tex = element._overlayGradientFull
-		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
+		tex:SetVertexColor(r, g, b, a or 0.8)
 		tex:Show()
 	elseif(highlightType == ht.GRADIENT_HALF and element._overlayGradientHalf) then
 		local tex = element._overlayGradientHalf
-		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
+		tex:SetVertexColor(r, g, b, a or 0.8)
 		tex:Show()
 	elseif(highlightType == ht.SOLID_CURRENT and element._overlaySolidCurrent) then
 		local tex = element._overlaySolidCurrent
-		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
+		tex:SetVertexColor(r, g, b, a or 0.8)
 		tex:Show()
 	elseif(highlightType == ht.SOLID_ENTIRE and element._overlaySolidEntire) then
 		local tex = element._overlaySolidEntire
-		tex:SetVertexColor(r, g, b, a or OVERLAY_ALPHA)
+		tex:SetVertexColor(r, g, b, a or 0.8)
 		tex:Show()
 	end
 end
@@ -243,12 +241,13 @@ local function Update(self, event, unit)
 		showDispelIcons(element, unit, dispelAuraID)
 
 		-- Show overlay via highlight curve (secret-safe).
-		-- Ignore the curve's alpha (1.0) — use our own OVERLAY_ALPHA
+		-- Ignore the curve's alpha (1.0) — use our own overlayAlpha
 		-- to avoid a bright/washed overlay with ADD blend mode.
+		local overlayAlpha = element.__config and element.__config.highlightAlpha or 0.8
 		local hlColor = C_UnitAuras.GetAuraDispelTypeColor(unit, dispelAuraID, highlightCurve)
 		if(hlColor and element._highlightType) then
 			local cr, cg, cb = hlColor:GetRGB()
-			showOverlay(element, element._highlightType, cr, cg, cb)
+			showOverlay(element, element._highlightType, cr, cg, cb, overlayAlpha)
 		end
 	else
 		hideAllIcons(element)
@@ -387,6 +386,7 @@ function F.Elements.Dispellable.Setup(self, config)
 
 	-- 3. Build element container
 	local container = {
+		__config               = config,
 		_iconFrame             = iconFrame,
 		_icons                 = icons,
 		_overlayFrame          = overlayFrame,
