@@ -230,6 +230,9 @@ local function ShowImportPopup(onImport)
 	Widgets.FadeIn(importPopup, C.Animation.durationNormal)
 end
 
+-- Expose for IndicatorCardBuilders (TrackedSpells import button)
+F.Settings.Builders.ShowImportPopup = ShowImportPopup
+
 -- ============================================================
 -- Build type-specific indicator settings
 -- ============================================================

@@ -3,16 +3,279 @@ local F = Framed
 local Widgets = F.Widgets
 local C = F.Constants
 
+-- ============================================================
+-- Layout constants
+-- ============================================================
+local ROW_HEIGHT       = 28
+local MAX_VISIBLE_ROWS = 7
+local LIST_HEIGHT      = MAX_VISIBLE_ROWS * ROW_HEIGHT
+local BUTTON_H         = 24
+local DROPDOWN_H       = 22
+local PAD_H            = 6
+
+-- Display names for indicator types in the list
+local TYPE_DISPLAY = {
+	Border  = 'Border / Glow',
+	Overlay = 'Color / Duration Overlay',
+}
+
+-- Type descriptions for the Create card
+local TYPE_DESCRIPTIONS = {
+	Icon      = 'Single spell icon or colored square',
+	Icons     = 'Row/grid of spell icons or colored squares',
+	Bar       = 'Single depleting status bar',
+	Bars      = 'Row/grid of depleting status bars',
+	Rectangle = 'Colored rectangle positioned on frame',
+	Overlay   = 'Color fill, depleting overlay, or both',
+	Border    = 'Colored border or glow effect around the frame',
+}
+
+-- ============================================================
+-- Config helpers
+-- ============================================================
+local function makeConfigHelpers(unitType)
+	local function basePath()
+		local presetName = F.Settings.GetEditingPreset()
+		return 'presets.' .. presetName .. '.auras.' .. unitType .. '.buffs.indicators'
+	end
+
+	local function getIndicators()
+		if(not F.Config) then return {} end
+		return F.Config:Get(basePath()) or {}
+	end
+
+	local function fireChange()
+		if(not F.EventBus) then return end
+		local presetName = F.Settings.GetEditingPreset()
+		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.buffs')
+	end
+
+	local function setIndicator(name, data)
+		if(not F.Config) then return end
+		local presetName = F.Settings.GetEditingPreset()
+		F.Config:Set(basePath() .. '.' .. name, data)
+		F.PresetManager.MarkCustomized(presetName)
+		fireChange()
+	end
+
+	local function removeIndicator(name)
+		if(not F.Config) then return end
+		local presetName = F.Settings.GetEditingPreset()
+		F.Config:Set(basePath() .. '.' .. name, nil)
+		F.PresetManager.MarkCustomized(presetName)
+		fireChange()
+	end
+
+	return getIndicators, setIndicator, removeIndicator
+end
+
+-- ============================================================
+-- Indicator type dropdown items
+-- ============================================================
+local function getTypeItems()
+	return {
+		{ text = 'Icons',     value = C.IndicatorType.ICONS },
+		{ text = 'Icon',      value = C.IndicatorType.ICON },
+		{ text = 'Bars',      value = C.IndicatorType.BARS },
+		{ text = 'Bar',       value = C.IndicatorType.BAR },
+		{ text = 'Color / Duration Overlay', value = C.IndicatorType.OVERLAY },
+		{ text = 'Border / Glow', value = C.IndicatorType.BORDER },
+		{ text = 'Rectangle', value = C.IndicatorType.RECTANGLE },
+	}
+end
+
+-- ============================================================
+-- List row creation
+-- ============================================================
+local function createListRow(scrollContent)
+	local row = CreateFrame('Frame', nil, scrollContent, 'BackdropTemplate')
+	Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.border)
+	row:SetHeight(ROW_HEIGHT)
+
+	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
+	nameFS:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
+	nameFS:SetJustifyH('LEFT')
+	nameFS:SetWidth(100)
+	row.__nameFS = nameFS
+
+	-- "Editing: name" overlay
+	local editingWrap = CreateFrame('Frame', nil, row)
+	editingWrap:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
+	editingWrap:SetSize(160, ROW_HEIGHT)
+	editingWrap:Hide()
+	row.__editingWrap = editingWrap
+
+	local editingFS = Widgets.CreateFontString(editingWrap, C.Font.sizeNormal, { 0.3, 0.9, 0.3, 1 })
+	editingFS:SetPoint('LEFT', editingWrap, 'LEFT', 0, 0)
+	editingFS:SetJustifyH('LEFT')
+	editingFS:SetWidth(160)
+	row.__editingFS = editingFS
+
+	local typeFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	typeFS:SetJustifyH('LEFT')
+	row.__typeFS = typeFS
+
+	-- Enabled toggle
+	row.__onEnabledChanged = nil
+	local enabledCB = Widgets.CreateCheckButton(row, '', function(checked)
+		if(row.__onEnabledChanged) then row.__onEnabledChanged(checked) end
+	end)
+	enabledCB:SetWidgetTooltip('Enable / Disable')
+	row.__enabledCB = enabledCB
+
+	local editBtn = Widgets.CreateButton(row, 'Edit', 'widget', 40, 20)
+	row.__editBtn = editBtn
+	local deleteBtn = Widgets.CreateButton(row, 'Delete', 'red', 50, 20)
+	row.__deleteBtn = deleteBtn
+
+	-- Anchoring: [name] [type] ... [enabled] [delete] [edit]
+	editBtn:SetPoint('RIGHT', row, 'RIGHT', -PAD_H, 0)
+	deleteBtn:SetPoint('RIGHT', editBtn, 'LEFT', -C.Spacing.base, 0)
+	enabledCB:ClearAllPoints()
+	Widgets.SetPoint(enabledCB, 'RIGHT', deleteBtn, 'LEFT', -C.Spacing.base, 0)
+	typeFS:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
+
+	-- Row highlight
+	row:EnableMouse(true)
+	row:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
+	row:SetScript('OnLeave', function(self)
+		if(self:IsMouseOver()) then return end
+		Widgets.SetBackdropHighlight(self, false)
+	end)
+
+	for _, child in next, { editBtn, deleteBtn, enabledCB } do
+		child:HookScript('OnEnter', function() Widgets.SetBackdropHighlight(row, true) end)
+		child:HookScript('OnLeave', function()
+			if(row:IsMouseOver()) then return end
+			Widgets.SetBackdropHighlight(row, false)
+		end)
+	end
+
+	return row
+end
+
+-- ============================================================
+-- Resolve card builder: string markers → Builders.SharedXxx
+-- ============================================================
+local function resolveBuilder(builderOrString)
+	if(type(builderOrString) == 'string') then
+		local Builders = F.Settings.IndicatorCardBuilders
+		return Builders[builderOrString]
+	end
+	return builderOrString
+end
+
+-- ============================================================
+-- Border settings wrapper (Border type has no CARDS_FOR_TYPE entries)
+-- Falls back to the old BuildIndicatorSettings rendered inside a card.
+-- ============================================================
+local function buildBorderSettingsCard(parent, width, data, update, get, set, rebuildPanel)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.Builders.BuildIndicatorSettings(wrapper, width, 0, data._name, data, data._setIndicator, rebuildPanel)
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
+
+-- ============================================================
+-- Default data for new indicators (matches IndicatorCRUD.lua)
+-- ============================================================
+local function createDefaultData(iType, selectedDisplayType, selectedBorderGlowMode)
+	local data = {
+		type       = iType,
+		enabled    = true,
+		spells     = {},
+		castBy     = 'anyone',
+		anchor     = { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 },
+		frameLevel = 5,
+	}
+
+	if(iType == C.IndicatorType.ICONS) then
+		data.iconWidth    = 16
+		data.iconHeight   = 16
+		data.maxDisplayed = 3
+		data.orientation  = 'RIGHT'
+		data.displayType  = selectedDisplayType
+		data.showCooldown = true
+		data.showStacks   = true
+		data.durationMode = 'Never'
+		data.durationFont = { size = 10, outline = 'OUTLINE', shadow = false }
+		data.stackFont    = { size = 10, outline = 'OUTLINE', shadow = false,
+		                      anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                      color = { 1, 1, 1, 1 } }
+		data.glowType     = 'None'
+		data.glowColor    = { 1, 1, 1, 1 }
+		data.glowConfig   = {}
+		data.numPerLine   = 0
+		data.spacingX     = 1
+		data.spacingY     = 1
+	elseif(iType == C.IndicatorType.ICON) then
+		data.iconWidth    = 16
+		data.iconHeight   = 16
+		data.displayType  = selectedDisplayType
+		data.showCooldown = true
+		data.showStacks   = true
+		data.durationMode = 'Never'
+		data.durationFont = { size = 10, outline = 'OUTLINE', shadow = false }
+		data.stackFont    = { size = 10, outline = 'OUTLINE', shadow = false,
+		                      anchor = 'BOTTOMRIGHT', xOffset = 0, yOffset = 0,
+		                      color = { 1, 1, 1, 1 } }
+		data.glowType     = 'None'
+		data.glowColor    = { 1, 1, 1, 1 }
+		data.glowConfig   = {}
+	elseif(iType == C.IndicatorType.BAR) then
+		data.barWidth       = 100
+		data.barHeight      = 4
+		data.barOrientation = 'Horizontal'
+		data.durationMode   = 'Never'
+		data.color          = { 1, 1, 1, 1 }
+	elseif(iType == C.IndicatorType.BARS) then
+		data.barWidth       = 50
+		data.barHeight      = 4
+		data.barOrientation = 'Horizontal'
+		data.maxDisplayed   = 3
+		data.orientation    = 'DOWN'
+		data.numPerLine     = 0
+		data.spacingX       = 1
+		data.spacingY       = 1
+		data.durationMode   = 'Never'
+		data.color          = { 1, 1, 1, 1 }
+	elseif(iType == C.IndicatorType.RECTANGLE) then
+		data.rectWidth  = 10
+		data.rectHeight = 10
+		data.color      = { 1, 1, 1, 1 }
+	elseif(iType == C.IndicatorType.OVERLAY) then
+		data.overlayMode    = 'DurationOverlay'
+		data.barOrientation = 'Horizontal'
+		data.color          = { 0, 0, 0, 0.6 }
+	elseif(iType == C.IndicatorType.BORDER) then
+		data.borderGlowMode = selectedBorderGlowMode
+		if(selectedBorderGlowMode == 'Border') then
+			data.borderThickness = 2
+			data.color = { 1, 1, 1, 1 }
+		else
+			data.glowType = C.GlowType.PIXEL
+			data.glowColor = { 1, 1, 1, 1 }
+		end
+	end
+
+	return data
+end
+
+-- ============================================================
+-- Panel Registration
+-- ============================================================
+
 F.Settings.RegisterPanel({
-	id      = 'buffs',
-	label   = 'Buffs',
+	id         = 'buffs',
+	label      = 'Buffs',
 	section    = 'PRESET_SCOPED',
 	subSection = 'auras',
 	order      = 11,
-	create  = function(parent)
+	create     = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
-		local scroll = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
+		local scroll  = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
@@ -20,26 +283,409 @@ F.Settings.RegisterPanel({
 		local width   = parentW - C.Spacing.normal * 2
 		local yOffset = -C.Spacing.normal
 
-		-- Unit type dropdown + copy-to
+		local unitType = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
+		local getIndicators, setIndicator, removeIndicator = makeConfigHelpers(unitType)
+
+		-- ── Unit type dropdown + copy-to ─────────────────────────
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'buffs', 'buffs')
 
-		-- Description
-		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
-		descFS:ClearAllPoints()
-		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		descFS:SetWidth(width)
-		descFS:SetText('Create and configure buff indicators. Each indicator tracks specific spells and renders them using the chosen display type.')
-		descFS:SetWordWrap(true)
-		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.normal
+		-- ── Pinned row: Create card + Indicator List card ────────
+		local CARD_GAP    = C.Spacing.normal
+		local createCardW = math.floor((width - CARD_GAP) * 0.35)
+		local listCardW   = width - createCardW - CARD_GAP
+		local pinnedRowY  = yOffset
 
-		-- CRUD builder
-		yOffset = F.Settings.Builders.IndicatorCRUD(content, width, yOffset, {
-			unitType  = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party',
-			configKey = 'buffs',
-		})
+		-- ── Create card ──────────────────────────────────────────
+		local selectedType = C.IndicatorType.ICONS
+		local selectedDisplayType = C.IconDisplay.SPELL_ICON
+		local selectedBorderGlowMode = 'Border'
 
-		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
+		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, pinnedRowY)
+
+		-- Type dropdown
+		local typeDD = Widgets.CreateDropdown(createInner, createCardW - Widgets.CARD_PADDING * 2)
+		typeDD:SetItems(getTypeItems())
+		typeDD:SetValue(C.IndicatorType.ICONS)
+		typeDD:ClearAllPoints()
+		Widgets.SetPoint(typeDD, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+		createY = createY - DROPDOWN_H - C.Spacing.tight
+
+		-- Type description
+		local typeDescFS = Widgets.CreateFontString(createInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		typeDescFS:ClearAllPoints()
+		Widgets.SetPoint(typeDescFS, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+		typeDescFS:SetJustifyH('LEFT')
+		typeDescFS:SetWidth(createCardW - Widgets.CARD_PADDING * 2)
+		typeDescFS:SetWordWrap(true)
+		typeDescFS:SetText(TYPE_DESCRIPTIONS[selectedType] or '')
+		createY = createY - 14 - C.Spacing.tight
+
+		-- Display type toggle (Icon/Icons only)
+		local function isIconType(t)
+			return t == C.IndicatorType.ICON or t == C.IndicatorType.ICONS
+		end
+
+		local displayTypeRow = CreateFrame('Frame', nil, createInner)
+		displayTypeRow:SetSize(createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
+		displayTypeRow:ClearAllPoints()
+		Widgets.SetPoint(displayTypeRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+
+		local spellIconsBtn = Widgets.CreateButton(displayTypeRow, 'Spell Icons', 'accent', 100, BUTTON_H)
+		spellIconsBtn:SetPoint('TOPLEFT', displayTypeRow, 'TOPLEFT', 0, 0)
+		spellIconsBtn.value = C.IconDisplay.SPELL_ICON
+
+		local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Square Colors', 'widget', 110, BUTTON_H)
+		squareColorsBtn:SetPoint('LEFT', spellIconsBtn, 'RIGHT', C.Spacing.tight, 0)
+		squareColorsBtn.value = C.IconDisplay.COLORED_SQUARE
+
+		local displayTypeGroup = Widgets.CreateButtonGroup({ spellIconsBtn, squareColorsBtn }, function(value)
+			selectedDisplayType = value
+		end)
+		displayTypeGroup:SetValue(C.IconDisplay.SPELL_ICON)
+
+		-- Border/Glow toggle (Border type only)
+		local borderGlowRow = CreateFrame('Frame', nil, createInner)
+		borderGlowRow:SetSize(createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
+		borderGlowRow:ClearAllPoints()
+		Widgets.SetPoint(borderGlowRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+
+		local borderModeBtn = Widgets.CreateButton(borderGlowRow, 'Border', 'accent', 100, BUTTON_H)
+		borderModeBtn:SetPoint('TOPLEFT', borderGlowRow, 'TOPLEFT', 0, 0)
+		borderModeBtn.value = 'Border'
+
+		local glowModeBtn = Widgets.CreateButton(borderGlowRow, 'Glow', 'widget', 100, BUTTON_H)
+		glowModeBtn:SetPoint('LEFT', borderModeBtn, 'RIGHT', C.Spacing.tight, 0)
+		glowModeBtn.value = 'Glow'
+
+		local borderGlowGroup = Widgets.CreateButtonGroup({ borderModeBtn, glowModeBtn }, function(value)
+			selectedBorderGlowMode = value
+		end)
+		borderGlowGroup:SetValue('Border')
+
+		if(isIconType(selectedType)) then
+			displayTypeRow:Show()
+			borderGlowRow:Hide()
+			createY = createY - BUTTON_H - C.Spacing.tight
+		elseif(selectedType == C.IndicatorType.BORDER) then
+			displayTypeRow:Hide()
+			borderGlowRow:Show()
+			createY = createY - BUTTON_H - C.Spacing.tight
+		else
+			displayTypeRow:Hide()
+			borderGlowRow:Hide()
+		end
+
+		typeDD:SetOnSelect(function(value)
+			selectedType = value
+			typeDescFS:SetText(TYPE_DESCRIPTIONS[value] or '')
+			if(isIconType(value)) then
+				displayTypeRow:Show()
+			else
+				displayTypeRow:Hide()
+			end
+			if(value == C.IndicatorType.BORDER) then
+				borderGlowRow:Show()
+			else
+				borderGlowRow:Hide()
+			end
+		end)
+
+		-- Name input
+		local nameBox = Widgets.CreateEditBox(createInner, nil, createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
+		nameBox:ClearAllPoints()
+		Widgets.SetPoint(nameBox, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+		nameBox:SetPlaceholder('Indicator name')
+		createY = createY - BUTTON_H - C.Spacing.tight
+
+		-- Create button
+		local createBtn = Widgets.CreateButton(createInner, 'Create', 'accent', createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
+		createBtn:ClearAllPoints()
+		Widgets.SetPoint(createBtn, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
+		createY = createY - BUTTON_H
+
+		Widgets.EndCard(createCard, content, createY)
+
+		-- ── Indicator List card ──────────────────────────────────
+		local listCard, listInner, listY = Widgets.StartCard(content, listCardW, pinnedRowY)
+		listCard:ClearAllPoints()
+		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', createCardW + CARD_GAP, pinnedRowY)
+		listCard._startY = pinnedRowY
+
+		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
+		local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, LIST_HEIGHT)
+		listScroll:ClearAllPoints()
+		Widgets.SetPoint(listScroll, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
+		listY = listY - LIST_HEIGHT
+		local listContent = listScroll:GetContentFrame()
+
+		local emptyLabel = Widgets.CreateFontString(listScroll, C.Font.sizeNormal, C.Colors.textSecondary)
+		emptyLabel:SetPoint('CENTER', listScroll, 'CENTER', 0, 0)
+		emptyLabel:SetText('No indicators configured')
+
+		Widgets.EndCard(listCard, content, listY)
+
+		-- Calculate combined pinned row height (tallest of the two cards)
+		local createCardH = createCard:GetHeight()
+		local listCardH   = listCard:GetHeight()
+		local pinnedRowH  = math.max(createCardH, listCardH)
+		yOffset = pinnedRowY - pinnedRowH - C.Spacing.normal
+
+		-- ── CardGrid for settings cards ──────────────────────────
+		local gridTopY = yOffset
+		local grid = Widgets.CreateCardGrid(content, width)
+		grid:SetTopOffset(math.abs(gridTopY))
+
+		-- ── State ────────────────────────────────────────────────
+		local editingName = nil
+		local listRowPool = {}
+		local indicatorCount = 0
+
+		-- ── Helper: spawn settings cards for an indicator ────────
+		local function spawnSettingsCards(iName, iData)
+			grid:RemoveAllCards()
+
+			local Builders = F.Settings.IndicatorCardBuilders
+			local cardsForType = Builders.CARDS_FOR_TYPE[iData.type]
+
+			local function update(key, value)
+				iData[key] = value
+				setIndicator(iName, iData)
+			end
+			local function get(key) return iData[key] end
+			local function set(key, value) update(key, value) end
+
+			local function rebuildPanel()
+				local cur = getIndicators()[iName]
+				if(not cur) then return end
+				iData = cur
+				spawnSettingsCards(iName, iData)
+			end
+
+			if(cardsForType and #cardsForType > 0) then
+				for _, cardDef in next, cardsForType do
+					local cardId    = cardDef[1]
+					local cardTitle = cardDef[2]
+					local builder   = resolveBuilder(cardDef[3])
+					if(builder) then
+						grid:AddCard(cardId, cardTitle, builder, { iData, update, get, set, rebuildPanel })
+					end
+				end
+			elseif(iData.type == C.IndicatorType.BORDER) then
+				-- Border type: use BuildIndicatorSettings wrapped in a card
+				iData._name = iName
+				iData._setIndicator = setIndicator
+				grid:AddCard('borderSettings', 'Border Settings', buildBorderSettingsCard, { iData, update, get, set, rebuildPanel })
+			end
+
+			grid:Layout(0, parentH)
+			content:SetHeight(grid:GetTotalHeight())
+			scroll:UpdateScrollRange()
+
+			-- Update breadcrumb and preview dimming
+			F.Settings.UpdateAuraBreadcrumb('Buffs', iName)
+			F.Settings.UpdateAuraPreviewDimming('buffs', iName)
+		end
+
+		-- ── Helper: close settings cards ─────────────────────────
+		local function closeSettingsCards()
+			grid:RemoveAllCards()
+			grid:Layout(0, parentH)
+
+			editingName = nil
+
+			-- Reset editing labels
+			for _, r in next, listRowPool do
+				if(r.__editingWrap) then
+					r.__editingWrap:Hide()
+					r.__nameFS:Show()
+				end
+			end
+
+			-- Update content height
+			content:SetHeight(math.abs(gridTopY) + C.Spacing.normal)
+			scroll:UpdateScrollRange()
+
+			-- Reset breadcrumb and preview
+			F.Settings.UpdateAuraBreadcrumb('Buffs', nil)
+			F.Settings.UpdateAuraPreviewDimming('buffs', nil)
+		end
+
+		-- ── Refresh the indicator list ───────────────────────────
+		local function layoutList()
+			for _, row in next, listRowPool do row:Hide() end
+
+			local indicators = getIndicators()
+			indicatorCount = 0
+			for _ in next, indicators do indicatorCount = indicatorCount + 1 end
+
+			if(indicatorCount == 0) then
+				emptyLabel:Show()
+				listContent:SetHeight(1)
+				listScroll:SetHeight(ROW_HEIGHT)
+				listScroll:UpdateScrollRange()
+				return
+			end
+			emptyLabel:Hide()
+
+			local idx = 0
+			for iName, iData in next, indicators do
+				idx = idx + 1
+				local row = listRowPool[idx]
+				if(not row) then
+					row = createListRow(listContent)
+					listRowPool[idx] = row
+				end
+				row:Show()
+				row:SetAlpha(1)
+				row:ClearAllPoints()
+				row:SetPoint('TOPLEFT', listContent, 'TOPLEFT', 0, -(idx - 1) * ROW_HEIGHT)
+				row:SetPoint('TOPRIGHT', listContent, 'TOPRIGHT', 0, -(idx - 1) * ROW_HEIGHT)
+
+				-- Name + editing state
+				row.__nameFS:SetText(iName)
+				row.__nameFS:Show()
+				row.__editingWrap:Hide()
+				if(editingName == iName) then
+					row.__nameFS:Hide()
+					row.__editingFS:SetText('Editing: ' .. iName)
+					row.__editingWrap:SetAlpha(1)
+					row.__editingWrap:Show()
+				end
+				row.__typeFS:SetText(TYPE_DISPLAY[iData.type] or iData.type or '?')
+				row.__enabledCB:SetChecked(iData.enabled ~= false)
+
+				-- Capture locals for closures
+				local capName, capData = iName, iData
+
+				row.__onEnabledChanged = function(checked)
+					capData.enabled = checked
+					setIndicator(capName, capData)
+				end
+
+				row.__editBtn:SetText(editingName == capName and 'Close' or 'Edit')
+				row.__editBtn:SetOnClick(function()
+					if(editingName == capName) then
+						closeSettingsCards()
+						row.__editBtn:SetText('Edit')
+						layoutList()
+						return
+					end
+
+					editingName = capName
+
+					-- Reset all row editing labels
+					for _, r in next, listRowPool do
+						if(r.__editingWrap) then
+							r.__editingWrap:Hide()
+							r.__nameFS:Show()
+						end
+						if(r.__editBtn) then
+							r.__editBtn:SetText('Edit')
+						end
+					end
+					row.__nameFS:Hide()
+					row.__editingFS:SetText('Editing: ' .. capName)
+					row.__editingWrap:SetAlpha(1)
+					row.__editingWrap:Show()
+					row.__editBtn:SetText('Close')
+
+					-- Fetch fresh data and spawn cards
+					local freshData = getIndicators()[capName]
+					if(freshData) then
+						spawnSettingsCards(capName, freshData)
+					end
+				end)
+
+				row.__deleteBtn:SetOnClick(function()
+					Widgets.ShowConfirmDialog('Delete Indicator', 'Delete "' .. capName .. '"?', function()
+						removeIndicator(capName)
+						if(editingName == capName) then
+							closeSettingsCards()
+						end
+						layoutList()
+					end)
+				end)
+			end
+
+			listContent:SetHeight(idx * ROW_HEIGHT)
+			local listH = math.min(LIST_HEIGHT, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+			listScroll:SetHeight(listH)
+			listScroll:UpdateScrollRange()
+		end
+
+		-- ── Create handler ───────────────────────────────────────
+		local function doCreate()
+			local iName = nameBox:GetText()
+			if(not iName or iName == '') then return end
+			local indicators = getIndicators()
+			if(indicators[iName]) then return end
+
+			local data = createDefaultData(typeDD:GetValue(), selectedDisplayType, selectedBorderGlowMode)
+			setIndicator(iName, data)
+			nameBox:SetText('')
+			layoutList()
+
+			-- Auto-open for editing
+			editingName = iName
+			local freshData = getIndicators()[iName]
+			if(freshData) then
+				spawnSettingsCards(iName, freshData)
+			end
+			-- Update list to reflect editing state
+			layoutList()
+		end
+
+		createBtn:SetOnClick(doCreate)
+		nameBox:SetOnEnterPressed(doCreate)
+
+		-- ── Initial layout ───────────────────────────────────────
+		layoutList()
+		content:SetHeight(math.abs(gridTopY) + C.Spacing.normal)
 		scroll:UpdateScrollRange()
+
+		-- ── Scroll integration ───────────────────────────────────
+		local function onScroll()
+			local offset = scroll._scrollFrame:GetVerticalScroll()
+			local viewH  = scroll._scrollFrame:GetHeight()
+			grid:Layout(offset, viewH)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		scroll._scrollFrame:HookScript('OnMouseWheel', function()
+			C_Timer.After(0, onScroll)
+		end)
+
+		-- ── Resize handling ──────────────────────────────────────
+		local resizeKey = 'Buffs.resize.' .. unitType
+		local function onResize(newW, newH)
+			local newWidth = newW - C.Spacing.normal * 2
+			local newCreateW = math.floor((newWidth - CARD_GAP) * 0.35)
+			local newListW   = newWidth - newCreateW - CARD_GAP
+
+			createCard:SetWidth(newCreateW)
+			listCard:SetWidth(newListW)
+			listCard:ClearAllPoints()
+			Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newCreateW + CARD_GAP, pinnedRowY)
+
+			grid:SetWidth(newWidth)
+			content:SetWidth(newW)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+
+		-- ── Cleanup on hide, re-register on show ─────────────────
+		scroll:HookScript('OnHide', function()
+			grid:CancelAnimations()
+			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+		end)
+
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			grid:Layout(0, parentH, false)
+			content:SetHeight(grid:GetTotalHeight())
+		end)
+
 		return scroll
 	end,
 })
