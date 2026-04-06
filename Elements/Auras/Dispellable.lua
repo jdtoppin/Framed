@@ -157,19 +157,19 @@ local function showOverlay(element, highlightType, r, g, b, a)
 	local ht = C.HighlightType
 	if(highlightType == ht.GRADIENT_FULL and element._overlayGradientFull) then
 		local tex = element._overlayGradientFull
-		tex:SetVertexColor(r, g, b, a or 0.8)
+		tex:SetVertexColor(r, g, b, a)
 		tex:Show()
 	elseif(highlightType == ht.GRADIENT_HALF and element._overlayGradientHalf) then
 		local tex = element._overlayGradientHalf
-		tex:SetVertexColor(r, g, b, a or 0.8)
+		tex:SetVertexColor(r, g, b, a)
 		tex:Show()
 	elseif(highlightType == ht.SOLID_CURRENT and element._overlaySolidCurrent) then
 		local tex = element._overlaySolidCurrent
-		tex:SetVertexColor(r, g, b, a or 0.8)
+		tex:SetVertexColor(r, g, b, a)
 		tex:Show()
 	elseif(highlightType == ht.SOLID_ENTIRE and element._overlaySolidEntire) then
 		local tex = element._overlaySolidEntire
-		tex:SetVertexColor(r, g, b, a or 0.8)
+		tex:SetVertexColor(r, g, b, a)
 		tex:Show()
 	end
 end
