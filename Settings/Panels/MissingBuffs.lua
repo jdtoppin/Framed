@@ -4,34 +4,111 @@ local Widgets = F.Widgets
 local C = F.Constants
 
 -- ============================================================
--- Widget constants
+-- Layout constants
 -- ============================================================
-
-local SLIDER_H     = 26
-local DROPDOWN_H   = 22
-local CHECK_H      = 22
-local WIDGET_W     = 220
+local SLIDER_H   = 26
+local DROPDOWN_H = 22
+local CHECK_H    = 22
+local WIDGET_W   = 220
 
 -- ============================================================
 -- Config helpers
 -- ============================================================
 
-local function get(key)
-	local presetName = F.Settings.GetEditingPreset()
-	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
-	return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs.' .. key)
+local function makeHelpers(unitType)
+	local function get(key)
+		local presetName = F.Settings.GetEditingPreset()
+		return F.Config and F.Config:Get('presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs.' .. key)
+	end
+
+	local function set(key, value)
+		local presetName = F.Settings.GetEditingPreset()
+		if(F.Config) then
+			F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs.' .. key, value)
+		end
+		if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
+		if(F.EventBus) then
+			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs')
+		end
+	end
+
+	return get, set
 end
 
-local function set(key, value)
-	local presetName = F.Settings.GetEditingPreset()
-	local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
-	if(F.Config) then
-		F.Config:Set('presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs.' .. key, value)
-	end
-	if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
-	if(F.EventBus) then
-		F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs')
-	end
+-- ============================================================
+-- Card builders
+-- ============================================================
+
+local function placeWidget(widget, content, yOffset, height)
+	widget:ClearAllPoints()
+	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+	return yOffset - height - C.Spacing.normal
+end
+
+local function buildOverviewCard(parent, width, get, set)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	-- Enabled toggle
+	local enableCB = Widgets.CreateCheckButton(inner, 'Enabled', function(checked)
+		set('enabled', checked)
+	end)
+	enableCB:SetChecked(get('enabled') or false)
+	cy = placeWidget(enableCB, inner, cy, CHECK_H)
+
+	-- Description
+	local descFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
+	descFS:SetWidth(width - Widgets.CARD_PADDING * 2)
+	descFS:SetWordWrap(true)
+	descFS:SetText('Shows glowing spell icons for missing raid buffs (Fortitude, Intellect, Battle Shout, Mark of the Wild, Skyfury, Blessing of the Bronze). Icons only appear when the providing class is in your group.')
+	cy = placeWidget(descFS, inner, cy, descFS:GetStringHeight() + C.Spacing.tight)
+
+	-- Reload notice
+	local reloadInfo = Widgets.CreateInfoIcon(inner,
+		'Requires /reload',
+		'Missing Buffs icons are created at frame setup time. Changes to icon size, position, and other settings require a /reload to take effect.')
+	cy = placeWidget(reloadInfo, inner, cy, reloadInfo:GetHeight())
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildDisplayCard(parent, width, get, set)
+	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+
+	-- Icon Size
+	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 32, 1)
+	sizeSlider:SetValue(get('iconSize') or 12)
+	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
+	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
+
+	-- Growth Direction
+	local growDD = Widgets.CreateDropdown(inner, WIDGET_W)
+	growDD:SetItems({
+		{ text = 'Right', value = 'RIGHT' },
+		{ text = 'Left',  value = 'LEFT' },
+		{ text = 'Up',    value = 'UP' },
+		{ text = 'Down',  value = 'DOWN' },
+	})
+	growDD:SetValue(get('growDirection') or 'LEFT')
+	growDD:SetOnSelect(function(v) set('growDirection', v) end)
+	cy = placeWidget(growDD, inner, cy, DROPDOWN_H)
+
+	return Widgets.EndCard(card, parent, cy)
+end
+
+local function buildPositionCard(parent, width, get, set)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.BuildPositionCard(wrapper, width, 0, get, set)
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
+end
+
+local function buildGlowCard(parent, width, get, set)
+	local wrapper = CreateFrame('Frame', nil, parent)
+	wrapper:SetWidth(width)
+	local yOff = F.Settings.BuildGlowCard(wrapper, width, 0, get, set, { allowNone = false })
+	wrapper:SetHeight(math.abs(yOff))
+	return wrapper
 end
 
 -- ============================================================
@@ -39,12 +116,12 @@ end
 -- ============================================================
 
 F.Settings.RegisterPanel({
-	id      = 'missingbuffs',
-	label   = 'Missing Buffs',
+	id         = 'missingbuffs',
+	label      = 'Missing Buffs',
 	section    = 'PRESET_SCOPED',
 	subSection = 'auras',
 	order      = 19,
-	create  = function(parent)
+	create     = function(parent)
 		local parentW = parent._explicitWidth  or parent:GetWidth()  or 530
 		local parentH = parent._explicitHeight or parent:GetHeight() or 400
 		local scroll  = Widgets.CreateScrollFrame(parent, nil, parentW, parentH)
@@ -55,88 +132,59 @@ F.Settings.RegisterPanel({
 		local width   = parentW - C.Spacing.normal * 2
 		local yOffset = -C.Spacing.normal
 
+		local unitType = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
+		local get, set = makeHelpers(unitType)
+
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'missingbuffs', 'missingBuffs')
 
-		-- ── Enabled toggle ────────────────────────────────────
-		local enableCB = Widgets.CreateCheckButton(content, 'Enabled', function(checked)
-			set('enabled', checked)
-		end)
-		enableCB:SetChecked(get('enabled') or false)
-		enableCB:ClearAllPoints()
-		Widgets.SetPoint(enableCB, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - CHECK_H - C.Spacing.normal
+		-- CardGrid
+		local grid = Widgets.CreateCardGrid(content, width)
+		grid:SetTopOffset(math.abs(yOffset))
 
-		-- ── Description ────────────────────────────────────────
-		local descFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
-		descFS:ClearAllPoints()
-		Widgets.SetPoint(descFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		descFS:SetWidth(width)
-		descFS:SetText('Shows glowing spell icons for missing raid buffs (Fortitude, Intellect, Battle Shout, Mark of the Wild, Skyfury, Blessing of the Bronze). Icons only appear when the providing class is in your group.')
-		descFS:SetWordWrap(true)
-		yOffset = yOffset - descFS:GetStringHeight() - C.Spacing.tight
+		grid:AddCard('overview', 'Overview',         buildOverviewCard, { get, set })
+		grid:AddCard('display',  'Display Settings', buildDisplayCard,  { get, set })
+		grid:AddCard('position', nil,                buildPositionCard, { get, set })
+		grid:AddCard('glow',     nil,                buildGlowCard,     { get, set })
 
-		-- Reload notice
-		local reloadInfo = Widgets.CreateInfoIcon(content,
-			'Requires /reload',
-			'Missing Buffs icons are created at frame setup time. Changes to icon size, position, and other settings require a /reload to take effect.')
-		reloadInfo:ClearAllPoints()
-		Widgets.SetPoint(reloadInfo, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - reloadInfo:GetHeight() - C.Spacing.normal
-
-		-- ── Display Settings ──────────────────────────────────
-		local displayHeading, displayHeadingH = Widgets.CreateHeading(content, 'Display Settings', 2)
-		displayHeading:ClearAllPoints()
-		Widgets.SetPoint(displayHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - displayHeadingH
-
-		local card, inner, cardY
-		card, inner, cardY = Widgets.StartCard(content, width, yOffset)
-
-		-- Icon Size
-		local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', WIDGET_W, 8, 32, 1)
-		sizeSlider:SetValue(get('iconSize') or 12)
-		sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
-		sizeSlider:ClearAllPoints()
-		Widgets.SetPoint(sizeSlider, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-		cardY = cardY - SLIDER_H - C.Spacing.normal
-
-		-- Growth Direction
-		local growDD = Widgets.CreateDropdown(inner, WIDGET_W)
-		growDD:SetItems({
-			{ text = 'Right', value = 'RIGHT' },
-			{ text = 'Left',  value = 'LEFT' },
-			{ text = 'Up',    value = 'UP' },
-			{ text = 'Down',  value = 'DOWN' },
-		})
-		growDD:SetValue(get('growDirection') or 'LEFT')
-		growDD:SetOnSelect(function(v) set('growDirection', v) end)
-		growDD:ClearAllPoints()
-		Widgets.SetPoint(growDD, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-		cardY = cardY - DROPDOWN_H - C.Spacing.normal
-
-		yOffset = Widgets.EndCard(card, content, cardY)
-
-		-- ── Position & Layer (shared builder) ──────────────────
-		yOffset = F.Settings.BuildPositionCard(content, width, yOffset, get, set)
-
-		-- ── Glow Settings ─────────────────────────────────────
-		local function getGlow(key)
-			if(key == 'glowType') then return get('glowType') end
-			if(key == 'glowColor') then return get('glowColor') end
-			return get(key)
-		end
-		local function setGlow(key, value)
-			if(key == 'glowType') then set('glowType', value); return end
-			if(key == 'glowColor') then set('glowColor', value); return end
-			set(key, value)
-		end
-
-		yOffset = F.Settings.BuildGlowCard(content, width, yOffset, getGlow, setGlow, { allowNone = false })
-
-		-- ── Final height ────────────────────────────────────────
-		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
+		grid:Layout(0, parentH)
+		content:SetHeight(grid:GetTotalHeight())
 		scroll:UpdateScrollRange()
+
+		-- Scroll integration
+		local function onScroll()
+			local offset = scroll._scrollFrame:GetVerticalScroll()
+			local viewH  = scroll._scrollFrame:GetHeight()
+			grid:Layout(offset, viewH)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		scroll._scrollFrame:HookScript('OnMouseWheel', function()
+			C_Timer.After(0, onScroll)
+		end)
+
+		-- Resize handling
+		local resizeKey = 'MissingBuffs.resize.' .. unitType
+		local function onResize(newW)
+			local newWidth = newW - C.Spacing.normal * 2
+			grid:SetWidth(newWidth)
+			content:SetWidth(newW)
+			content:SetHeight(grid:GetTotalHeight())
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+
+		scroll:HookScript('OnHide', function()
+			grid:CancelAnimations()
+			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+		end)
+
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			grid:Layout(0, parentH, false)
+			content:SetHeight(grid:GetTotalHeight())
+		end)
+
 		return scroll
 	end,
 })
