@@ -271,7 +271,7 @@ F.Settings.RegisterPanel({
 
 		-- ── Pinned row: Create card + Indicator List card ────────
 		local CARD_GAP    = C.Spacing.normal
-		local createCardW = math.floor((width - CARD_GAP) * 0.35)
+		local createCardW = math.floor((width - CARD_GAP) * 0.45)
 		local listCardW   = width - createCardW - CARD_GAP
 		local pinnedRowY  = yOffset
 
