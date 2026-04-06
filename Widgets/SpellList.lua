@@ -5,9 +5,9 @@ local Widgets = F.Widgets
 local C = F.Constants
 
 -- ============================================================
--- SpellList — scrollable spell list + spell ID input widget
--- Used by Buffs/Debuffs settings panels to configure tracked
--- spells per indicator category.
+-- SpellList — spell list + spell ID input widget
+-- Used by settings panels to configure tracked spells per indicator.
+-- Supports scrollable (default) and flat (noScroll) modes.
 -- ============================================================
 
 local ROW_HEIGHT   = 28
@@ -160,12 +160,13 @@ local function ReleaseAllRows(pool)
 	for _, r in next, pool do r:Hide() end
 end
 
---- Create a scrollable spell list widget.
---- @param parent Frame   Parent frame
---- @param width  number  Logical width
---- @param height number  Logical height
+--- Create a spell list widget.
+--- @param parent Frame    Parent frame
+--- @param width  number   Logical width
+--- @param height number   Logical height
+--- @param noScroll boolean When true, skip the scroll frame; container grows to fit content
 --- @return Frame spellList
-function Widgets.CreateSpellList(parent, width, height)
+function Widgets.CreateSpellList(parent, width, height, noScroll)
 	-- Outer container
 	local spellList = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
 	spellList._bgColor     = C.Colors.panel
@@ -180,14 +181,20 @@ function Widgets.CreateSpellList(parent, width, height)
 	spellList._onChanged        = nil
 	spellList._showColorPicker  = false
 	spellList._spellColors      = {}
+	spellList._noScroll         = noScroll
 
-	-- ScrollFrame fills the outer container
-	local scroll = Widgets.CreateScrollFrame(spellList, nil, width, height)
-	scroll:SetPoint('TOPLEFT',     spellList, 'TOPLEFT',     0, 0)
-	scroll:SetPoint('BOTTOMRIGHT', spellList, 'BOTTOMRIGHT', 0, 0)
-	spellList._scroll = scroll
-
-	local content = scroll:GetContentFrame()
+	local content
+	if(noScroll) then
+		-- Flat mode: rows parent directly to the container, which resizes to fit
+		content = spellList
+	else
+		-- ScrollFrame fills the outer container
+		local scroll = Widgets.CreateScrollFrame(spellList, nil, width, height)
+		scroll:SetPoint('TOPLEFT',     spellList, 'TOPLEFT',     0, 0)
+		scroll:SetPoint('BOTTOMRIGHT', spellList, 'BOTTOMRIGHT', 0, 0)
+		spellList._scroll = scroll
+		content = scroll:GetContentFrame()
+	end
 
 	-- Empty-state label
 	local emptyLabel = Widgets.CreateFontString(spellList, C.Font.sizeNormal, C.Colors.textSecondary)
@@ -203,8 +210,12 @@ function Widgets.CreateSpellList(parent, width, height)
 
 		if(count == 0) then
 			spellList._emptyLabel:Show()
-			content:SetHeight(1)
-			scroll:UpdateScrollRange()
+			if(noScroll) then
+				spellList:SetHeight(ROW_HEIGHT)
+			else
+				content:SetHeight(1)
+				spellList._scroll:UpdateScrollRange()
+			end
 			return
 		end
 
@@ -322,8 +333,12 @@ function Widgets.CreateSpellList(parent, width, height)
 			end
 		end
 
-		content:SetHeight(count * ROW_HEIGHT)
-		scroll:UpdateScrollRange()
+		if(noScroll) then
+			spellList:SetHeight(count * ROW_HEIGHT)
+		else
+			content:SetHeight(count * ROW_HEIGHT)
+			spellList._scroll:UpdateScrollRange()
+		end
 	end
 
 	spellList._layout = Layout

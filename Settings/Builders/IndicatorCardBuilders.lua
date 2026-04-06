@@ -61,7 +61,7 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 	local spellCount = data.spells and #data.spells or 0
 	local spListH = math.max(60, spellCount * 24 + 8)
 
-	local spList = Widgets.CreateSpellList(inner, width - 24, spListH)
+	local spList = Widgets.CreateSpellList(inner, width - 24, spListH, true)
 	spList:SetSpells(data.spells or {})
 	spList:SetOnChanged(function(spells)
 		update('spells', spells)
