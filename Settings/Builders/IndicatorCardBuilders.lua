@@ -57,9 +57,9 @@ end
 function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 
-	-- Calculate spell list height based on spell count
+	-- Calculate spell list height based on spell count (28px per row matches SpellList ROW_HEIGHT)
 	local spellCount = data.spells and #data.spells or 0
-	local spListH = math.max(60, spellCount * 24 + 8)
+	local spListH = math.max(60, spellCount * 28)
 
 	local spList = Widgets.CreateSpellList(inner, width - 24, spListH, true)
 	spList:SetSpells(data.spells or {})
@@ -68,6 +68,7 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 		if(spList._showColorPicker) then
 			update('spellColors', spList:GetSpellColors())
 		end
+		if(rebuildPanel) then rebuildPanel() end
 	end)
 
 	-- Show per-spell color pickers for colored square and bar types
@@ -84,7 +85,10 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 	spInput:ClearAllPoints()
 	Widgets.SetPoint(spInput, 'TOPLEFT', spList, 'BOTTOMLEFT', 0, -C.Spacing.normal)
 	spInput:SetSpellList(spList)
-	spInput:SetOnAdd(function() update('spells', spList:GetSpells()) end)
+	spInput:SetOnAdd(function()
+		update('spells', spList:GetSpells())
+		if(rebuildPanel) then rebuildPanel() end
+	end)
 
 	local btnRow = CreateFrame('Frame', nil, inner)
 	btnRow:SetHeight(24)
