@@ -77,16 +77,18 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 		spList:SetSpellColors(data.spellColors or {})
 		spList:SetShowColorPicker(true)
 	end
-	cardY = placeWidget(spList, inner, cardY, spListH)
+	spList:ClearAllPoints()
+	Widgets.SetPoint(spList, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 
 	local spInput = Widgets.CreateSpellInput(inner, width - 24)
-	cardY = placeWidget(spInput, inner, cardY, 50)
+	spInput:ClearAllPoints()
+	Widgets.SetPoint(spInput, 'TOPLEFT', spList, 'BOTTOMLEFT', 0, -C.Spacing.normal)
 	spInput:SetSpellList(spList)
 	spInput:SetOnAdd(function() update('spells', spList:GetSpells()) end)
 
 	local btnRow = CreateFrame('Frame', nil, inner)
 	btnRow:SetHeight(24)
-	Widgets.SetPoint(btnRow, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+	Widgets.SetPoint(btnRow, 'TOPLEFT', spInput, 'BOTTOMLEFT', 0, -C.Spacing.normal)
 	btnRow:SetWidth(width - 24)
 
 	local importBtn = Widgets.CreateButton(btnRow, 'Import Healer Spells', 'widget', 160, 24)
@@ -112,7 +114,8 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 		end)
 	end)
 
-	cardY = cardY - 24 - C.Spacing.tight
+	-- Compute total card height: spellList + spacing + spInput(50) + spacing + btnRow(24)
+	cardY = cardY - spListH - C.Spacing.normal - 50 - C.Spacing.normal - 24
 
 	Widgets.EndCard(card, parent, cardY)
 	return card
