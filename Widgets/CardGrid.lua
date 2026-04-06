@@ -305,6 +305,19 @@ local function AddCard(grid, id, title, builder, builderArgs)
 	grid._cardIndex[id] = entry
 end
 
+--- Cancel any in-flight animations on a single card frame.
+--- Snaps the card to its final position so layout state stays consistent.
+--- @param card Frame
+local function cancelCardAnims(card)
+	if(not card or not card._anim) then return end
+	for animKey, anim in next, card._anim do
+		if(anim.onComplete) then
+			anim.onComplete(card)
+		end
+		card._anim[animKey] = nil
+	end
+end
+
 --- Remove a single card by id. Hides and unparents the built frame.
 --- @param grid table
 --- @param id   string  Card id
@@ -314,6 +327,7 @@ local function RemoveCard(grid, id)
 
 	-- Destroy the built frame
 	if(entry.card) then
+		cancelCardAnims(entry.card)
 		entry.card:Hide()
 		entry.card:SetParent(nil)
 	end
@@ -335,12 +349,17 @@ local function RemoveAllCards(grid)
 	for i = #grid._cards, 1, -1 do
 		local entry = grid._cards[i]
 		if(entry.card) then
+			cancelCardAnims(entry.card)
 			entry.card:Hide()
 			entry.card:SetParent(nil)
 		end
 		grid._cardIndex[entry.id] = nil
 		grid._cards[i] = nil
 	end
+	grid._cards        = {}
+	grid._cardIndex    = {}
+	grid._avgCardHeight = nil
+	grid._totalHeight  = 0
 end
 
 --- Mark or unmark a card as pinned (pinned cards sort to the front).
