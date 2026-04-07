@@ -31,18 +31,12 @@ tickerFrame:SetScript('OnUpdate', function(self, elapsed)
 		end
 
 		-- Threshold visibility
-		if(icon._thresholdCurve and icon._durationObj) then
+		if(icon._thresholdCurve and icon._durationObj and icon._cooldown) then
 			local vis = icon._durationObj:EvaluateRemainingPercent(icon._thresholdCurve)
-			if(icon._cdText) then
-				-- Bracket curve returns alpha 1 (show) or 0 (hide)
-				local _, _, _, a = vis:GetRGBA()
-				if(F.IsValueNonSecret(a)) then
-					if(a > 0.5) then
-						icon._cdText:Show()
-					else
-						icon._cdText:Hide()
-					end
-				end
+			-- Bracket curve returns alpha 1 (show) or 0 (hide)
+			local _, _, _, a = vis:GetRGBA()
+			if(F.IsValueNonSecret(a)) then
+				icon._cooldown:SetHideCountdownNumbers(a <= 0.5)
 			end
 		end
 	end
