@@ -100,21 +100,23 @@ local function createListRow(scrollContent)
 	nameFS:SetWidth(100)
 	row.__nameFS = nameFS
 
-	-- "Editing: name" overlay
+	-- "Editing: name" overlay (RIGHT anchor set after enabledCB is created)
 	local editingWrap = CreateFrame('Frame', nil, row)
 	editingWrap:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
-	editingWrap:SetSize(160, ROW_HEIGHT)
+	editingWrap:SetHeight(ROW_HEIGHT)
 	editingWrap:Hide()
 	row.__editingWrap = editingWrap
 
 	local editingFS = Widgets.CreateFontString(editingWrap, C.Font.sizeNormal, { 0.3, 0.9, 0.3, 1 })
 	editingFS:SetPoint('LEFT', editingWrap, 'LEFT', 0, 0)
+	editingFS:SetPoint('RIGHT', editingWrap, 'RIGHT', 0, 0)
 	editingFS:SetJustifyH('LEFT')
-	editingFS:SetWidth(160)
+	editingFS:SetWordWrap(false)
 	row.__editingFS = editingFS
 
 	local typeFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-	typeFS:SetJustifyH('LEFT')
+	typeFS:SetJustifyH('RIGHT')
+	typeFS:SetWordWrap(false)
 	row.__typeFS = typeFS
 
 	-- Enabled toggle
@@ -125,9 +127,9 @@ local function createListRow(scrollContent)
 	enabledCB:SetWidgetTooltip('Enable / Disable')
 	row.__enabledCB = enabledCB
 
-	local editBtn = Widgets.CreateButton(row, 'Edit', 'widget', 40, 20)
+	local editBtn = Widgets.CreateButton(row, 'Edit', 'widget', 44, 20)
 	row.__editBtn = editBtn
-	local deleteBtn = Widgets.CreateButton(row, 'Delete', 'red', 50, 20)
+	local deleteBtn = Widgets.CreateButton(row, 'Delete', 'red', 56, 20)
 	row.__deleteBtn = deleteBtn
 
 	-- Anchoring: [name] [type] ... [enabled] [delete] [edit]
@@ -135,14 +137,29 @@ local function createListRow(scrollContent)
 	deleteBtn:SetPoint('RIGHT', editBtn, 'LEFT', -C.Spacing.base, 0)
 	enabledCB:ClearAllPoints()
 	Widgets.SetPoint(enabledCB, 'RIGHT', deleteBtn, 'LEFT', -C.Spacing.base, 0)
+	typeFS:SetPoint('LEFT', nameFS, 'RIGHT', C.Spacing.tight, 0)
 	typeFS:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
+	editingWrap:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
 
-	-- Row highlight
+	-- Row highlight + truncation tooltip
 	row:EnableMouse(true)
-	row:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
+	row:SetScript('OnEnter', function(self)
+		Widgets.SetBackdropHighlight(self, true)
+		-- Show tooltip when name or type text is truncated
+		if(Widgets.ShowTooltip) then
+			local nameTrunc = nameFS:IsTruncated()
+			local typeTrunc = typeFS:IsTruncated()
+			if(nameTrunc or typeTrunc) then
+				local title = nameTrunc and nameFS:GetText() or nil
+				local body = typeTrunc and typeFS:GetText() or nil
+				Widgets.ShowTooltip(self, title or body, title and body or nil)
+			end
+		end
+	end)
 	row:SetScript('OnLeave', function(self)
 		if(self:IsMouseOver()) then return end
 		Widgets.SetBackdropHighlight(self, false)
+		if(Widgets.HideTooltip) then Widgets.HideTooltip() end
 	end)
 
 	for _, child in next, { editBtn, deleteBtn, enabledCB } do
@@ -150,6 +167,7 @@ local function createListRow(scrollContent)
 		child:HookScript('OnLeave', function()
 			if(row:IsMouseOver()) then return end
 			Widgets.SetBackdropHighlight(row, false)
+			if(Widgets.HideTooltip) then Widgets.HideTooltip() end
 		end)
 	end
 
@@ -623,7 +641,20 @@ F.Settings.RegisterPanel({
 			nameBox:SetWidth(newCreateInnerW)
 			createBtn:SetWidth(newCreateInnerW)
 
-			-- List card inner scroll
+			-- Display type toggle buttons (fill row proportionally)
+			local halfBtnW = math.floor((newCreateInnerW - C.Spacing.tight) / 2)
+			spellIconsBtn:SetWidth(halfBtnW)
+			squareColorsBtn:SetWidth(newCreateInnerW - halfBtnW - C.Spacing.tight)
+			borderModeBtn:SetWidth(halfBtnW)
+			glowModeBtn:SetWidth(newCreateInnerW - halfBtnW - C.Spacing.tight)
+
+			-- Preview frame max width
+			local preview = F.Settings._auraPreview
+			if(preview) then
+				preview._maxWidth = newCreateW - Widgets.CARD_PADDING * 2
+			end
+
+			-- List card inner scroll (content width auto-updates via OnSizeChanged)
 			listScroll:SetWidth(newListInnerW)
 
 			grid:SetWidth(newWidth)
@@ -635,6 +666,9 @@ F.Settings.RegisterPanel({
 		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
 		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 			grid:RebuildCards()
+			if(F.Settings._auraPreview) then
+				F.Settings.AuraPreview.Rebuild()
+			end
 		end, resizeKey .. '.complete')
 
 		-- ── Cleanup on hide, re-register on show ─────────────────
@@ -648,6 +682,9 @@ F.Settings.RegisterPanel({
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
 			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 				grid:RebuildCards()
+				if(F.Settings._auraPreview) then
+					F.Settings.AuraPreview.Rebuild()
+				end
 			end, resizeKey .. '.complete')
 			grid:Layout(0, parentH, false)
 			content:SetHeight(grid:GetTotalHeight())

@@ -305,7 +305,7 @@ end
 -- Color (rectangle) preview builder
 ------------------------------------------------------------------------
 
-function PI.CreateColorRect(parent, rectConfig)
+function PI.CreateColorRect(parent, rectConfig, animated)
 	rectConfig = rectConfig or {}
 	local w = rectConfig.rectWidth or 10
 	local h = rectConfig.rectHeight or 10
@@ -320,6 +320,28 @@ function PI.CreateColorRect(parent, rectConfig)
 	tex:SetPoint('BOTTOMRIGHT', -1, 1)
 	local c = rectConfig.color or { 1, 1, 1, 1 }
 	tex:SetColorTexture(c[1], c[2], c[3], c[4] or 1)
+
+	-- Depletion overlay (same dark sweep as spell icons)
+	if(animated) then
+		local depBar = CreateFrame('StatusBar', nil, f)
+		depBar:SetPoint('TOPLEFT', 1, -1)
+		depBar:SetPoint('BOTTOMRIGHT', -1, 1)
+		depBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+		depBar:SetStatusBarColor(0, 0, 0, 0.6)
+		depBar:SetMinMaxValues(0, 1)
+		depBar:SetOrientation('VERTICAL')
+		depBar:SetReverseFill(true)
+		depBar:SetFrameLevel(f:GetFrameLevel() + 1)
+
+		-- Leading edge line
+		local edge = depBar:CreateTexture(nil, 'OVERLAY')
+		edge:SetHeight(0.75)
+		edge:SetColorTexture(1, 1, 1, 0.75)
+		edge:SetPoint('TOPLEFT',  depBar:GetStatusBarTexture(), 'BOTTOMLEFT',  0, 0)
+		edge:SetPoint('TOPRIGHT', depBar:GetStatusBarTexture(), 'BOTTOMRIGHT', 0, 0)
+
+		startBarDepletionLoop(depBar)
+	end
 
 	return f
 end

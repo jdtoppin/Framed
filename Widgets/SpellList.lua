@@ -139,9 +139,13 @@ local function CreateRow(parent)
 	row:EnableMouse(true)
 	row:SetScript('OnEnter', function(self)
 		self._highlight:Show()
+		if(Widgets.ShowTooltip and self._nameFS:IsTruncated()) then
+			Widgets.ShowTooltip(self, self._nameFS:GetText())
+		end
 	end)
 	row:SetScript('OnLeave', function(self)
 		self._highlight:Hide()
+		if(Widgets.HideTooltip) then Widgets.HideTooltip() end
 	end)
 
 	return row

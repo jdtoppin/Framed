@@ -63,7 +63,7 @@ local function BuildBuffIndicators(frame, buffsConfig, animated)
 				local w = indCfg.iconWidth or 14
 				local h = indCfg.iconHeight or 14
 				if(indCfg.displayType == C.IconDisplay.COLORED_SQUARE) then
-					local rect = PI.CreateColorRect(groupFrame, { rectWidth = w, rectHeight = h, color = indCfg.color or { 1, 1, 1, 1 } })
+					local rect = PI.CreateColorRect(groupFrame, { rectWidth = w, rectHeight = h, color = indCfg.color or { 1, 1, 1, 1 } }, animated)
 					rect:SetPoint(pt, frame, relPt, offX, offY)
 					groupFrame._elements[#groupFrame._elements + 1] = rect
 				else
@@ -80,7 +80,7 @@ local function BuildBuffIndicators(frame, buffsConfig, animated)
 				for i = 1, max do
 					local elem
 					if(isSquare) then
-						elem = PI.CreateColorRect(groupFrame, { rectWidth = w, rectHeight = h, color = indCfg.color or { 1, 1, 1, 1 } })
+						elem = PI.CreateColorRect(groupFrame, { rectWidth = w, rectHeight = h, color = indCfg.color or { 1, 1, 1, 1 } }, animated)
 					else
 						elem = PI.CreateIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], w, h, indCfg, animated)
 					end

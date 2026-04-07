@@ -92,10 +92,13 @@ function Widgets.CreateButton(parent, text, colorScheme, width, height)
 	Widgets.SetSize(button, width, height)
 	button:EnableMouse(true)
 
-	-- Label
+	-- Label (two-point anchoring for truncation at small widths)
 	local label = Widgets.CreateFontString(button, C.Font.sizeNormal, scheme.textColor)
 	label:ClearAllPoints()
-	label:SetPoint('CENTER', button, 'CENTER', 0, 0)
+	label:SetPoint('LEFT', button, 'LEFT', 4, 0)
+	label:SetPoint('RIGHT', button, 'RIGHT', -4, 0)
+	label:SetJustifyH('CENTER')
+	label:SetWordWrap(false)
 	label:SetText(text or '')
 	button._label = label
 
@@ -111,6 +114,8 @@ function Widgets.CreateButton(parent, text, colorScheme, width, height)
 		self._label:SetTextColor(1, 1, 1, 1)
 		if(Widgets.ShowTooltip and self._tooltipTitle) then
 			Widgets.ShowTooltip(self, self._tooltipTitle, self._tooltipBody)
+		elseif(Widgets.ShowTooltip and self._label:IsTruncated()) then
+			Widgets.ShowTooltip(self, self._label:GetText())
 		end
 	end)
 

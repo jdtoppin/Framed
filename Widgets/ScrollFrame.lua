@@ -254,6 +254,13 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 	-- Back-reference so children can find the scroll container
 	content._scrollParent = scroll
 
+	-- Auto-update content width when scroll container is resized
+	scroll:HookScript('OnSizeChanged', function(self, w, h)
+		if(w > 0) then
+			content:SetWidth(w - SCROLLBAR_OFFSET)
+		end
+	end)
+
 	-- ── Scrollbar track ────────────────────────────────────────
 	local track = CreateFrame('Frame', nil, scroll, 'BackdropTemplate')
 	track:SetWidth(SCROLLBAR_WIDTH)
