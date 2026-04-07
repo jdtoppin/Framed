@@ -134,7 +134,7 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig, animated)
 		local function startCLevelDepletionLoop()
 			local durObj = CreateLuaDurationObject()
 			durObj:SetTimeFromStart(GetTime(), ANIM_CYCLE)
-			depBar:SetTimerDuration(durObj, nil, Enum.StatusBarTimerDirection.RemainingTime)
+			depBar:SetTimerDuration(durObj, nil, Enum.StatusBarTimerDirection.ElapsedTime)
 			C_Timer.After(ANIM_CYCLE, function()
 				if(depBar:IsShown()) then startCLevelDepletionLoop() end
 			end)

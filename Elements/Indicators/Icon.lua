@@ -78,7 +78,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 	-- Depletion bar
 	if(self._depletionBar) then
 		if(durationObj and not durationObj:IsZero()) then
-			self._depletionBar:SetTimerDuration(durationObj, nil, Enum.StatusBarTimerDirection.RemainingTime)
+			self._depletionBar:SetTimerDuration(durationObj, nil, Enum.StatusBarTimerDirection.ElapsedTime)
 			self._depletionBar:Show()
 		else
 			self._depletionBar:SetValue(0)
