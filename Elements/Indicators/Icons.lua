@@ -28,7 +28,6 @@ function IconsMethods:SetIcons(auraList)
 				iconWidth    = cfg.iconWidth,
 				iconHeight   = cfg.iconHeight,
 				displayType  = cfg.displayType,
-				showCooldown = cfg.showCooldown,
 				showStacks   = cfg.showStacks,
 				durationMode = cfg.durationMode,
 				durationFont = cfg.durationFont,
@@ -71,6 +70,8 @@ function IconsMethods:SetIcons(auraList)
 		end
 
 		icon:SetSpell(
+			aura.unit,
+			aura.auraInstanceID,
 			aura.spellId,
 			aura.icon,
 			aura.duration,
@@ -162,7 +163,6 @@ end
 ---     numPerLine    number   icons per row/column before wrapping; 0 = no wrap (default 0),
 ---     growDirection string   'RIGHT'|'LEFT'|'DOWN'|'UP' (default 'RIGHT'),
 ---     displayType   string   C.IconDisplay value (default SpellIcon),
----     showCooldown  boolean  (default true),
 ---     showStacks    boolean  (default true),
 ---     durationMode  string   'Always'|'Never'|'<75'|'<50'|'<25'|'<15s'|'<5s' (default 'Always'),
 ---     durationFont  table|nil,
@@ -184,7 +184,6 @@ function F.Indicators.Icons.Create(parent, config)
 		numPerLine    = config.numPerLine    or 0,  -- 0 = single row/column (no wrapping)
 		growDirection = config.growDirection or 'RIGHT',
 		displayType   = config.displayType   or C.IconDisplay.SPELL_ICON,
-		showCooldown  = config.showCooldown  ~= false,
 		showStacks    = config.showStacks    ~= false,
 		durationMode  = config.durationMode  or 'Always',
 		durationFont  = config.durationFont,
