@@ -10,65 +10,10 @@ F.Indicators.Icon = {}
 local DEBUFF_TYPE_COLORS = setmetatable({ none = C.Colors.dispel.Physical }, { __index = C.Colors.dispel })
 
 -- ============================================================
--- Combined OnUpdate handler for depletion fill + duration text
+-- Duration/depletion driven by C-level APIs (SetTimerDuration,
+-- SetCooldownFromDurationObject). Color progression + threshold
+-- handled by shared IconTicker module.
 -- ============================================================
-
-local DURATION_UPDATE_INTERVAL = 0.1
-
-local function IconOnUpdate(frame, elapsed)
-	local icon = frame._iconRef
-	if(not icon) then return end
-
-	local now = GetTime()
-	local needsUpdate = false
-
-	-- Depletion fill update
-	if(icon._depletionActive and icon._depletionBar) then
-		local rem = icon._depletionExpiration - now
-		if(rem <= 0) then
-			icon._depletionBar:SetValue(1)
-			icon._depletionActive = false
-		else
-			icon._depletionBar:SetValue(1 - (rem / icon._depletionDuration))
-			needsUpdate = true
-		end
-	end
-
-	-- Duration text update (throttled)
-	if(icon._durationActive and icon.duration) then
-		icon._durationElapsed = (icon._durationElapsed or 0) + elapsed
-		if(icon._durationElapsed >= DURATION_UPDATE_INTERVAL) then
-			icon._durationElapsed = 0
-			local remaining = icon._expirationTime - now
-			if(remaining <= 0) then
-				icon.duration:SetText('')
-				icon._durationActive = false
-			else
-				local show = F.Indicators.ShouldShowDuration(icon._durationMode, remaining, icon._totalDuration or 0)
-				if(show) then
-					icon.duration:SetText(F.FormatDuration(remaining))
-					icon.duration:Show()
-
-					-- Color progression (green → yellow → red)
-					if(icon._durationColorCurve and icon._totalDuration and icon._totalDuration > 0) then
-						local pct = remaining / icon._totalDuration
-						local color = icon._durationColorCurve:Evaluate(pct)
-						icon.duration:SetTextColor(color:GetRGB())
-					end
-				else
-					icon.duration:Hide()
-				end
-				needsUpdate = true
-			end
-		else
-			needsUpdate = true
-		end
-	end
-
-	if(not needsUpdate) then
-		frame:SetScript('OnUpdate', nil)
-	end
-end
 
 -- ============================================================
 -- Icon methods
@@ -77,13 +22,15 @@ end
 local IconMethods = {}
 
 --- Set the displayed spell/aura data on this icon.
+--- @param unit string|nil Unit token
+--- @param auraInstanceID number|nil Aura instance ID
 --- @param spellID number
 --- @param iconTexture number|string Texture ID or path
 --- @param duration number Duration in seconds (may be a secret value)
 --- @param expirationTime number Expiration GetTime() value (may be a secret value)
 --- @param stacks number Stack count
 --- @param dispelType string|nil Dispel/debuff type ('Magic', 'Curse', etc.)
-function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, stacks, dispelType)
+function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks, dispelType)
 	-- Texture
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE) then
 		local colorKey = (dispelType and dispelType ~= '') and dispelType or 'none'
@@ -106,20 +53,12 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 		end
 	end
 
-	-- Store total duration for ShouldShowDuration
-	self._totalDuration = duration
-
-	-- Depletion fill overlay
-	if(self._depletionBar) then
-		self:SetDepletion(duration, expirationTime)
-	end
-
 	-- Stacks
 	if(self._config.showStacks) then
 		self:SetStacks(stacks)
 	end
 
-	-- Per-spell color (ColoredSquare mode)
+	-- Per-spell color override (ColoredSquare mode)
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE and self._spellColors) then
 		local sc = self._spellColors[spellID]
 		if(sc) then
@@ -127,45 +66,66 @@ function IconMethods:SetSpell(spellID, iconTexture, duration, expirationTime, st
 		end
 	end
 
-	-- Duration text
-	if(self.duration) then
-		local durationSafe = F.IsValueNonSecret(duration)
-		local expirationSafe = F.IsValueNonSecret(expirationTime)
-		if(not durationSafe or not expirationSafe or duration == 0) then
-			self.duration:SetText('')
-			self._durationActive = false
-		else
-			self._expirationTime = expirationTime
-			self._durationElapsed = 0
-			local remaining = expirationTime - GetTime()
-			if(remaining > 0) then
-				self._durationActive = true
-				local show = F.Indicators.ShouldShowDuration(self._durationMode, remaining, duration)
-				if(show) then
-					self.duration:SetText(F.FormatDuration(remaining))
-					self.duration:Show()
+	-- Get DurationObject
+	local durationObj
+	if(unit and auraInstanceID) then
+		durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
+	else
+		durationObj = self._manualDurObj
+	end
+	self._durationObj = durationObj
 
-					-- Initial color progression
-					if(self._durationColorCurve and duration > 0) then
-						local pct = remaining / duration
-						local color = self._durationColorCurve:Evaluate(pct)
-						self.duration:SetTextColor(color:GetRGB())
-					end
-				else
-					self.duration:Hide()
-				end
-			else
-				self.duration:SetText('')
-				self._durationActive = false
-			end
+	-- Depletion bar
+	if(self._depletionBar) then
+		if(durationObj and not durationObj:IsZero()) then
+			self._depletionBar:SetTimerDuration(durationObj, nil, Enum.StatusBarTimerDirection.RemainingTime)
+			self._depletionBar:Show()
+		else
+			self._depletionBar:SetValue(0)
+			self._depletionBar:Hide()
 		end
 	end
 
-	-- Start combined OnUpdate if either depletion or duration is active
-	if(self._depletionActive or self._durationActive) then
-		self._frame:SetScript('OnUpdate', IconOnUpdate)
-	else
-		self._frame:SetScript('OnUpdate', nil)
+	-- Duration countdown via Cooldown frame
+	if(self._cooldown) then
+		if(durationObj and not durationObj:IsZero()) then
+			self._cooldown:SetCooldownFromDurationObject(durationObj)
+
+			-- Reparent and style Blizzard's countdown text once (lazy creation),
+			-- then re-apply anchor after every cooldown set (Blizzard re-centers it).
+			local cdText = self._cooldown.GetCountdownFontString and self._cooldown:GetCountdownFontString()
+			if(cdText) then
+				if(not self._countdownReparented) then
+					cdText:SetParent(self._textOverlay)
+					local df = self._durationFont
+					if(df) then
+						local fontFace = F.Media.GetActiveFont()
+						cdText:SetFont(fontFace, df.size, df.outline)
+						if(df.shadow == false) then
+							cdText:SetShadowOffset(0, 0)
+						else
+							cdText:SetShadowOffset(1, -1)
+						end
+					end
+					self._countdownReparented = true
+				end
+				-- Re-apply position after every cooldown set (Blizzard resets to CENTER)
+				cdText:ClearAllPoints()
+				local df = self._durationFont
+				if(df) then
+					cdText:SetPoint(df.anchor or 'BOTTOM', self._textOverlay, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
+				end
+				self._cdText = cdText
+			end
+
+			-- Register with shared ticker if color/threshold curves exist
+			if(self._colorCurve or self._thresholdCurve) then
+				F.Indicators.IconTicker_Register(self)
+			end
+		else
+			self._cooldown:Clear()
+			F.Indicators.IconTicker_Unregister(self)
+		end
 	end
 
 	-- Glow (auto-start when glowType is configured and not 'None')
@@ -195,55 +155,38 @@ function IconMethods:SetStacks(count)
 	end
 end
 
---- Start the depletion fill animation.
---- Value goes from 0 (full duration remaining, no overlay) to 1 (expired, fully covered).
+--- Set up a manual DurationObject for preview/manual use.
 --- @param duration number
 --- @param expirationTime number
 function IconMethods:SetDepletion(duration, expirationTime)
-	if(not self._depletionBar) then return end
-	local durationSafe = F.IsValueNonSecret(duration)
-	local expirationSafe = F.IsValueNonSecret(expirationTime)
-
-	if(not durationSafe or not expirationSafe or duration == 0) then
-		self._depletionBar:SetValue(0)
-		self._depletionBar:Hide()
-		self._depletionActive = false
+	if(not duration or duration <= 0) then
+		self._manualDurObj = nil
 		return
 	end
-
-	self._depletionBar:Show()
-	self._depletionDuration = duration
-	self._depletionExpiration = expirationTime
-	self._depletionActive = true
-
-	-- Initial value
-	local remaining = expirationTime - GetTime()
-	if(remaining > 0) then
-		self._depletionBar:SetValue(1 - (remaining / duration))
-	else
-		self._depletionBar:SetValue(1)
-		self._depletionActive = false
+	if(not self._manualDurObj) then
+		self._manualDurObj = CreateLuaDurationObject()
 	end
+	local startTime = expirationTime - duration
+	self._manualDurObj:SetTimeFromStart(startTime, duration)
 end
 
---- Clear and hide this icon, stopping any active OnUpdate.
+--- Clear and hide this icon.
 function IconMethods:Clear()
 	self.texture:SetTexture(nil)
 	if(self.stacks) then
 		self.stacks:SetText('')
 		self.stacks:Hide()
 	end
-	if(self.duration) then
-		self.duration:SetText('')
-	end
 	if(self._depletionBar) then
 		self._depletionBar:SetValue(0)
 		self._depletionBar:Hide()
 	end
+	if(self._cooldown) then
+		self._cooldown:Clear()
+	end
 	self:StopGlow()
-	self._durationActive = false
-	self._depletionActive = false
-	self._frame:SetScript('OnUpdate', nil)
+	self._durationObj = nil
+	F.Indicators.IconTicker_Unregister(self)
 	self._frame:Hide()
 end
 
@@ -307,12 +250,11 @@ end
 --- Create a single Icon indicator primitive.
 --- @param parent Frame
 --- @param size number|nil Pixel size (width = height); overridden by iconWidth/iconHeight in config
---- @param config table { displayType, showCooldown, showStacks, durationMode, durationFont, stackFont, spellColors, iconWidth, iconHeight }
+--- @param config table { displayType, showStacks, durationMode, durationFont, stackFont, spellColors, iconWidth, iconHeight }
 --- @return table icon
 function F.Indicators.Icon.Create(parent, size, config)
 	config = config or {}
 	local displayType  = config.displayType  or C.IconDisplay.SPELL_ICON
-	local showCooldown = config.showCooldown ~= false  -- default true
 	local showStacks   = config.showStacks   ~= false  -- default true
 	local durationMode = config.durationMode or 'Always'
 	local showDuration = durationMode ~= 'Never'
@@ -350,62 +292,60 @@ function F.Indicators.Icon.Create(parent, size, config)
 	-- 2. Depletion bar overlay (inset matches icon; extra 1px on trailing edge
 	--    so the fill visibly stops inside the colored area, not at the border)
 	local depletionBar
-	if(showCooldown) then
-		local fillDirection = config.fillDirection or 'topToBottom'
-		depletionBar = CreateFrame('StatusBar', nil, frame)
+	local fillDirection = config.fillDirection or 'topToBottom'
+	depletionBar = CreateFrame('StatusBar', nil, frame)
 
-		if(fillDirection == 'topToBottom') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P + 1)
-			depletionBar:SetOrientation('VERTICAL')
-			depletionBar:SetReverseFill(true)
-		elseif(fillDirection == 'bottomToTop') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -(P + 1))
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
-			depletionBar:SetOrientation('VERTICAL')
-			depletionBar:SetReverseFill(false)
-		elseif(fillDirection == 'leftToRight') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -(P + 1), P)
-			depletionBar:SetOrientation('HORIZONTAL')
-			depletionBar:SetReverseFill(false)
-		elseif(fillDirection == 'rightToLeft') then
-			depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P + 1, -P)
-			depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
-			depletionBar:SetOrientation('HORIZONTAL')
-			depletionBar:SetReverseFill(true)
-		end
-
-		depletionBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
-		depletionBar:SetStatusBarColor(0, 0, 0, 0.8)
-		depletionBar:SetMinMaxValues(0, 1)
-		depletionBar:SetValue(0)
-
-		-- Spark line at the fill boundary (ADD blend for glow effect)
-		local barTex = depletionBar:GetStatusBarTexture()
-		local spark = depletionBar:CreateTexture(nil, 'BORDER')
-		spark:SetColorTexture(1, 1, 1, 1)
-		spark:SetBlendMode('ADD')
-
-		if(fillDirection == 'topToBottom') then
-			spark:SetHeight(P)
-			spark:SetPoint('TOPLEFT', barTex, 'BOTTOMLEFT')
-			spark:SetPoint('TOPRIGHT', barTex, 'BOTTOMRIGHT')
-		elseif(fillDirection == 'bottomToTop') then
-			spark:SetHeight(P)
-			spark:SetPoint('BOTTOMLEFT', barTex, 'TOPLEFT')
-			spark:SetPoint('BOTTOMRIGHT', barTex, 'TOPRIGHT')
-		elseif(fillDirection == 'leftToRight') then
-			spark:SetWidth(P)
-			spark:SetPoint('TOPLEFT', barTex, 'TOPRIGHT')
-			spark:SetPoint('BOTTOMLEFT', barTex, 'BOTTOMRIGHT')
-		elseif(fillDirection == 'rightToLeft') then
-			spark:SetWidth(P)
-			spark:SetPoint('TOPRIGHT', barTex, 'TOPLEFT')
-			spark:SetPoint('BOTTOMRIGHT', barTex, 'BOTTOMLEFT')
-		end
-		depletionBar:Hide()
+	if(fillDirection == 'topToBottom') then
+		depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
+		depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P + 1)
+		depletionBar:SetOrientation('VERTICAL')
+		depletionBar:SetReverseFill(true)
+	elseif(fillDirection == 'bottomToTop') then
+		depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -(P + 1))
+		depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
+		depletionBar:SetOrientation('VERTICAL')
+		depletionBar:SetReverseFill(false)
+	elseif(fillDirection == 'leftToRight') then
+		depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P, -P)
+		depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -(P + 1), P)
+		depletionBar:SetOrientation('HORIZONTAL')
+		depletionBar:SetReverseFill(false)
+	elseif(fillDirection == 'rightToLeft') then
+		depletionBar:SetPoint('TOPLEFT', frame, 'TOPLEFT', P + 1, -P)
+		depletionBar:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -P, P)
+		depletionBar:SetOrientation('HORIZONTAL')
+		depletionBar:SetReverseFill(true)
 	end
+
+	depletionBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+	depletionBar:SetStatusBarColor(0, 0, 0, 0.8)
+	depletionBar:SetMinMaxValues(0, 1)
+	depletionBar:SetValue(0)
+
+	-- Spark line at the fill boundary (ADD blend for glow effect)
+	local barTex = depletionBar:GetStatusBarTexture()
+	local spark = depletionBar:CreateTexture(nil, 'BORDER')
+	spark:SetColorTexture(1, 1, 1, 1)
+	spark:SetBlendMode('ADD')
+
+	if(fillDirection == 'topToBottom') then
+		spark:SetHeight(P)
+		spark:SetPoint('TOPLEFT', barTex, 'BOTTOMLEFT')
+		spark:SetPoint('TOPRIGHT', barTex, 'BOTTOMRIGHT')
+	elseif(fillDirection == 'bottomToTop') then
+		spark:SetHeight(P)
+		spark:SetPoint('BOTTOMLEFT', barTex, 'TOPLEFT')
+		spark:SetPoint('BOTTOMRIGHT', barTex, 'TOPRIGHT')
+	elseif(fillDirection == 'leftToRight') then
+		spark:SetWidth(P)
+		spark:SetPoint('TOPLEFT', barTex, 'TOPRIGHT')
+		spark:SetPoint('BOTTOMLEFT', barTex, 'BOTTOMRIGHT')
+	elseif(fillDirection == 'rightToLeft') then
+		spark:SetWidth(P)
+		spark:SetPoint('TOPRIGHT', barTex, 'TOPLEFT')
+		spark:SetPoint('BOTTOMRIGHT', barTex, 'BOTTOMLEFT')
+	end
+	depletionBar:Hide()
 
 	-- 3. Text overlay frame — renders above the depletion bar
 	local textOverlay
@@ -425,47 +365,51 @@ function F.Indicators.Icon.Create(parent, size, config)
 		stacksText:Hide()
 	end
 
-	-- 5. Duration text (configurable anchor, font, outline, shadow)
-	local durationText
+	-- 5. Cooldown frame for Blizzard countdown text (no swipe)
+	local cooldown
 	local durationColorCurve
+	local thresholdCurve
 	if(showDuration) then
-		local df = config.durationFont or {}
-		local dfAnchor = df.anchor or 'BOTTOM'
-		durationText = Widgets.CreateFontString(textOverlay, df.size or C.Font.sizeSmall, C.Colors.textActive, df.outline or '', df.shadow)
-		durationText:SetPoint(dfAnchor, textOverlay, dfAnchor, df.offsetX or 0, df.offsetY or 0)
+		cooldown = CreateFrame('Cooldown', nil, frame, 'CooldownFrameTemplate')
+		cooldown:SetAllPoints(frame)
+		cooldown:SetDrawSwipe(false)
+		cooldown:SetDrawEdge(false)
+		cooldown:SetDrawBling(false)
+		cooldown:SetHideCountdownNumbers(false)
+		cooldown:SetFrameLevel((depletionBar and depletionBar:GetFrameLevel() or frame:GetFrameLevel()) + 2)
 
-		-- Color progression curve (green → yellow → red based on remaining %)
+		-- Color progression curve
+		local df = config.durationFont or {}
 		if(df.colorProgression) then
-			local startColor = df.progressionStart or { 0, 1, 0 }   -- green (full)
-			local midColor   = df.progressionMid   or { 1, 1, 0 }   -- yellow (half)
-			local endColor   = df.progressionEnd    or { 1, 0, 0 }   -- red (expired)
-			durationColorCurve = C_CurveUtil.CreateColorCurve()
-			durationColorCurve:AddPoint(0, CreateColor(endColor[1], endColor[2], endColor[3]))
-			durationColorCurve:AddPoint(0.5, CreateColor(midColor[1], midColor[2], midColor[3]))
-			durationColorCurve:AddPoint(1, CreateColor(startColor[1], startColor[2], startColor[3]))
+			local startColor = df.progressionStart or { 0, 1, 0 }
+			local midColor   = df.progressionMid   or { 1, 1, 0 }
+			local endColor   = df.progressionEnd    or { 1, 0, 0 }
+			durationColorCurve = F.Indicators.CreateDurationColorCurve(startColor, midColor, endColor)
 		end
+
+		-- Threshold curve
+		thresholdCurve = F.Indicators.GetThresholdCurve(durationMode)
 	end
 
 	-- Build icon object
 	local icon = {
 		_frame        = frame,
 		_config       = {
-			showCooldown = showCooldown,
-			showStacks   = showStacks,
+			showStacks = showStacks,
 		},
-		_displayType  = displayType,
+		_displayType     = displayType,
 		_durationMode    = durationMode,
-		_durationColorCurve = durationColorCurve,
+		_durationFont    = config.durationFont,
 		_spellColors     = config.spellColors,
-		_totalDuration   = 0,
-		_durationActive  = false,
-		_durationElapsed = 0,
-		_expirationTime  = 0,
 
-		_depletionBar        = depletionBar,
-		_depletionDuration   = 0,
-		_depletionExpiration = 0,
-		_depletionActive     = false,
+		_depletionBar    = depletionBar,
+		_cooldown        = cooldown,
+		_textOverlay     = textOverlay,
+		_colorCurve      = durationColorCurve,
+		_thresholdCurve  = thresholdCurve,
+		_durationObj     = nil,
+		_cdText          = nil,
+		_countdownReparented = false,
 
 		_glowType   = config.glowType,
 		_glowColor  = config.glowColor,
@@ -473,16 +417,12 @@ function F.Indicators.Icon.Create(parent, size, config)
 
 		texture  = texture,
 		stacks   = stacksText,
-		duration = durationText,
 	}
 
 	-- Apply methods
 	for k, v in next, IconMethods do
 		icon[k] = v
 	end
-
-	-- Allow IconOnUpdate to reach icon via frame._iconRef
-	frame._iconRef = icon
 
 	return icon
 end
