@@ -827,7 +827,20 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				if(frame.Health.ForceUpdate) then frame.Health:ForceUpdate() end
 			elseif(frame.Health.text) then
 				frame.Health.text:SetShown(show)
-				if(show and frame.Health.ForceUpdate) then frame.Health:ForceUpdate() end
+				if(show) then
+					if(frame.Health.ForceUpdate) then frame.Health:ForceUpdate() end
+				elseif(frame.Health._attachedToName and frame.Name) then
+					-- Restore Name to un-shifted position
+					local nc = config.name
+					local nap = frame.Name._anchorPoint
+					if(type(nap) == 'table') then nap = nap[1] end
+					nap = nap or nc.anchor
+					local nx = frame.Name._anchorX or nc.anchorX
+					local ny = frame.Name._anchorY or nc.anchorY
+					frame.Name:ClearAllPoints()
+					Widgets.SetPoint(frame.Name, nap, frame.Health._wrapper or frame.Health, nap, nx, ny)
+					frame.Health._lastAttachShift = nil
+				end
 			end
 		end)
 		return
@@ -842,8 +855,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(not frame.Health) then return end
 			frame.Health._attachedToName = attached
 
-			-- Create text if it doesn't exist yet (showText may have been off)
-			if(attached and not frame.Health.text) then
+			-- Create text if it doesn't exist yet (only when showText is also on)
+			if(attached and hc.showText and not frame.Health.text) then
 				local textOverlay = frame._textOverlay
 				if(not textOverlay) then
 					textOverlay = CreateFrame('Frame', nil, frame)
@@ -863,7 +876,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 
 			if(not frame.Health.text) then return end
 			frame.Health.text:ClearAllPoints()
-			if(attached and frame.Name) then
+			if(attached and frame.Name and hc.showText) then
 				frame.Health.text:SetPoint('LEFT', frame.Name, 'RIGHT', 2, 0)
 				frame.Health.text:Show()
 				frame.Health._lastAttachShift = nil
@@ -1367,9 +1380,20 @@ local function applyFullConfig(frame, config)
 		h._textCustomColor = hc.textCustomColor
 		h._attachedToName  = hc.attachedToName
 
-		-- Show/hide health text
+		-- Show/hide health text (create on demand if preset switch enables it)
+		local wantText = hc.showText or hc.attachedToName
+		if(wantText and not h.text) then
+			local textOverlay = frame._textOverlay
+			if(not textOverlay) then
+				textOverlay = CreateFrame('Frame', nil, frame)
+				textOverlay:SetAllPoints(frame)
+				textOverlay:SetFrameLevel(frame:GetFrameLevel() + 5)
+				frame._textOverlay = textOverlay
+			end
+			h.text = Widgets.CreateFontString(textOverlay, hc.fontSize, C.Colors.textActive, hc.outline, hc.shadow ~= false)
+		end
 		if(h.text) then
-			h.text:SetShown(hc.showText ~= false or hc.attachedToName)
+			h.text:SetShown(wantText)
 		end
 
 		-- Text font / outline / shadow

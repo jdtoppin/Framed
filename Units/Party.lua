@@ -42,17 +42,18 @@ local function PetStyle(self, unit)
 
 	-- Health bar fills the whole frame (same path as regular party frames)
 	local healthCfg = {
-		colorMode     = 'class',
-		smooth        = true,
-		showText      = petCfg.showHealthText ~= false,
-		textFormat    = petCfg.healthTextFormat,
-		fontSize      = petCfg.healthTextFontSize,
-		textColorMode = petCfg.healthTextColor,
-		textAnchor    = 'CENTER',
-		textAnchorX   = petCfg.healthTextOffsetX,
-		textAnchorY   = petCfg.healthTextOffsetY,
-		outline       = petCfg.healthTextOutline,
-		shadow        = petCfg.healthTextShadow ~= false,
+		colorMode      = 'class',
+		smooth         = true,
+		showText       = petCfg.showHealthText ~= false,
+		textFormat     = petCfg.healthTextFormat,
+		fontSize       = petCfg.healthTextFontSize,
+		textColorMode  = petCfg.healthTextColor,
+		textAnchor     = 'CENTER',
+		textAnchorX    = petCfg.healthTextOffsetX,
+		textAnchorY    = petCfg.healthTextOffsetY,
+		outline        = petCfg.healthTextOutline,
+		shadow         = petCfg.healthTextShadow ~= false,
+		attachedToName = false,
 	}
 	F.Elements.Health.Setup(self, w, h, healthCfg)
 

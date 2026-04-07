@@ -109,46 +109,8 @@ F.Elements.Health.NpcUpdateColor = NpcUpdateColor
 --- @param config? table  Optional config table; defaults applied if nil
 function F.Elements.Health.Setup(self, width, height, config)
 
-	-- --------------------------------------------------------
-	-- Config defaults
-	-- --------------------------------------------------------
-
-	config = config or {}
-	config.colorMode          = config.colorMode or 'class'       -- 'class', 'dark', 'gradient', 'custom'
-	config.colorThreat        = config.colorThreat or false
-	config.smooth             = config.smooth ~= false             -- default true
-	config.customColor        = config.customColor or { 0.2, 0.8, 0.2 }
-	config.gradientColor1     = config.gradientColor1 or { 0.2, 0.8, 0.2 }
-	config.gradientThreshold1 = config.gradientThreshold1 or 95
-	config.gradientColor2     = config.gradientColor2 or { 0.9, 0.6, 0.1 }
-	config.gradientThreshold2 = config.gradientThreshold2 or 50
-	config.gradientColor3     = config.gradientColor3 or { 0.8, 0.1, 0.1 }
-	config.gradientThreshold3 = config.gradientThreshold3 or 5
-	config.lossColorMode      = config.lossColorMode or 'dark'    -- 'class', 'dark', 'gradient', 'custom'
-	config.lossCustomColor    = config.lossCustomColor or { 0.15, 0.15, 0.15 }
-	config.lossGradientColor1     = config.lossGradientColor1 or { 0.1, 0.4, 0.1 }
-	config.lossGradientThreshold1 = config.lossGradientThreshold1 or 95
-	config.lossGradientColor2     = config.lossGradientColor2 or { 0.4, 0.25, 0.05 }
-	config.lossGradientThreshold2 = config.lossGradientThreshold2 or 50
-	config.lossGradientColor3     = config.lossGradientColor3 or { 0.4, 0.05, 0.05 }
-	config.lossGradientThreshold3 = config.lossGradientThreshold3 or 5
-	config.showText           = config.showText or false
-	config.textFormat         = config.textFormat or 'percent'
-	config.fontSize           = config.fontSize or C.Font.sizeSmall
-	config.textAnchor         = config.textAnchor or 'CENTER'
-	config.textAnchorX        = config.textAnchorX or 0
-	config.textAnchorY        = config.textAnchorY or 0
-	config.outline            = config.outline or ''
-	config.shadow             = (config.shadow == nil) and true or config.shadow
-	config.attachedToName     = config.attachedToName or false
-	config.healPrediction      = config.healPrediction ~= false  -- incoming heal bars
-	config.healPredictionMode  = config.healPredictionMode or 'all' -- 'all', 'player', 'other'
-	config.healPredictionColor = config.healPredictionColor or { 0.6, 0.6, 0.6, 0.4 }
-	config.damageAbsorb        = config.damageAbsorb ~= false    -- shield/absorb bar
-	config.damageAbsorbColor   = config.damageAbsorbColor or { 1, 1, 1, 0.6 }
-	config.healAbsorb          = config.healAbsorb ~= false      -- anti-heal overlay
-	config.healAbsorbColor     = config.healAbsorbColor or { 0.7, 0.1, 0.1, 0.5 }
-	config.overAbsorb          = config.overAbsorb ~= false      -- overshield indicator
+	-- All config keys come from Presets/Defaults.lua via EnsureDefaults.
+	-- No hardcoded fallbacks here — the default lives in one place only.
 
 	local unitType = self._framedUnitType
 	local isNpcFrame = unitType and NPC_FRAME_TYPES[unitType]
@@ -434,11 +396,12 @@ function F.Elements.Health.Setup(self, width, height, config)
 				local font, size, flags = h.text:GetFont()
 				h._measureProxy:SetFont(font, size, flags)
 
+				-- Use fixed representative strings for width measurement.
+				-- UnitHealthPercent can return secret values which taint
+				-- GetStringWidth, making arithmetic impossible.
 				local proxyStr
 				if(fmt == 'percent') then
-					-- UnitHealthPercent is C-level and returns non-secret
-					local pct = UnitHealthPercent(unit, true, CurveConstants.ScaleTo100)
-					proxyStr = prefix .. string.format('%d', pct) .. '%'
+					proxyStr = prefix .. '100%'
 				elseif(fmt == 'currentMax') then
 					proxyStr = prefix .. '000k/000k'
 				elseif(fmt == 'deficit') then

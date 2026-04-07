@@ -30,19 +30,29 @@ function F.SettingsCards.HealthText(parent, width, unitType, getConfig, setConfi
 		end
 	end
 
+	local isShowText = getConfig('health.showText')
 	local isAttached = getConfig('health.attachedToName')
-	local attachToNameCheck = Widgets.CreateCheckButton(inner, 'Attach to Name', function(checked)
+	local attachToNameCheck  -- forward declaration for callback below
+
+	-- Show Health Text is the primary toggle
+	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text', function(checked)
+		setConfig('health.showText', checked)
+		-- Dim attach-to-name when text is disabled
+		attachToNameCheck:SetAlpha(checked and 1 or 0.35)
+		attachToNameCheck:EnableMouse(checked)
+	end)
+	showHealthTextCheck:SetChecked(isShowText)
+	cardY = B.PlaceWidget(showHealthTextCheck, inner, cardY, B.CHECK_H)
+
+	-- Attach to Name is subordinate — only meaningful when Show Health Text is on
+	attachToNameCheck = Widgets.CreateCheckButton(inner, 'Attach to Name', function(checked)
 		setConfig('health.attachedToName', checked)
 		updateHealthPositionDimming(checked)
 	end)
 	attachToNameCheck:SetChecked(isAttached)
+	attachToNameCheck:SetAlpha(isShowText and 1 or 0.35)
+	attachToNameCheck:EnableMouse(isShowText and true or false)
 	cardY = B.PlaceWidget(attachToNameCheck, inner, cardY, B.CHECK_H)
-
-	local showHealthTextCheck = Widgets.CreateCheckButton(inner, 'Show Health Text', function(checked)
-		setConfig('health.showText', checked)
-	end)
-	showHealthTextCheck:SetChecked(getConfig('health.showText'))
-	cardY = B.PlaceWidget(showHealthTextCheck, inner, cardY, B.CHECK_H)
 
 	-- Health text format dropdown
 	cardY = B.PlaceHeading(inner, 'Health Text Format', 4, cardY)

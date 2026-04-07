@@ -64,6 +64,7 @@ end
 local function ActivatePreset(presetName)
 	if(presetName == currentPreset) then return end
 	currentPreset = presetName
+	print(('|cff00ccff[Framed]|r Preset: %s'):format(presetName))
 	F.EventBus:Fire('PRESET_CHANGED', presetName)
 end
 
