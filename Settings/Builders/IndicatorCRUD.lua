@@ -196,7 +196,6 @@ local function createDefaultData(iType, selectedDisplayType, selectedBorderGlowM
 		data.maxDisplayed = 3
 		data.orientation  = 'RIGHT'
 		data.displayType  = selectedDisplayType
-		data.showCooldown = true
 		data.showStacks   = true
 		data.durationMode = 'Never'
 		data.durationFont = { size = 10, outline = 'OUTLINE', shadow = false }
@@ -213,7 +212,6 @@ local function createDefaultData(iType, selectedDisplayType, selectedBorderGlowM
 		data.iconWidth    = 16
 		data.iconHeight   = 16
 		data.displayType  = selectedDisplayType
-		data.showCooldown = true
 		data.showStacks   = true
 		data.durationMode = 'Never'
 		data.durationFont = { size = 10, outline = 'OUTLINE', shadow = false }

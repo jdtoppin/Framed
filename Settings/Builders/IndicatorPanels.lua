@@ -430,12 +430,6 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 		yOffset = placeHeading(parent, 'Cooldown & Duration', 2, yOffset)
 		local cdCard, cdInner, cdY = Widgets.StartCard(parent, width, yOffset)
 
-		local cdSwitch = Widgets.CreateCheckButton(cdInner, 'Show Cooldown', function(checked)
-			update('showCooldown', checked)
-		end)
-		cdSwitch:SetChecked(data.showCooldown ~= false)
-		cdY = placeWidget(cdSwitch, cdInner, cdY, CHECK_H)
-
 		local durModeLabel = Widgets.CreateFontString(cdInner, C.Font.sizeSmall, C.Colors.textSecondary)
 		durModeLabel:SetText('Duration Text')
 		cdY = placeWidget(durModeLabel, cdInner, cdY, C.Font.sizeSmall)
