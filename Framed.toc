@@ -80,6 +80,7 @@ Elements/Status/CrowdControl.lua
 
 # Elements - Indicators
 Elements/Indicators/Shared.lua
+Elements/Indicators/IconTicker.lua
 Elements/Indicators/Icon.lua
 Elements/Indicators/Icons.lua
 Elements/Indicators/FrameBar.lua
