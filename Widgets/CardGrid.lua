@@ -495,12 +495,34 @@ local function CancelAnimations(grid)
 end
 
 --- Update the available width and re-layout.
+--- Repositions cards immediately; full rebuild deferred to RebuildCards().
 --- @param grid     table
 --- @param newWidth number
 local function SetWidth(grid, newWidth)
 	grid._width = newWidth
 	Widgets.SetSize(grid._container, newWidth, math.max(1, grid._totalHeight + BOTTOM_PAD))
-	Layout(grid, 0, 0)
+	Layout(grid, grid._lastScrollOffset, grid._lastViewHeight)
+end
+
+--- Destroy and rebuild all cards at the current width.
+--- Call after resize is complete (mouse release) to rebuild widgets
+--- at the correct size without per-frame flicker.
+--- @param grid table
+local function RebuildCards(grid)
+	for _, entry in next, grid._cards do
+		if(entry.card) then
+			cancelCardAnims(entry.card)
+			entry.card:Hide()
+			entry.card:SetParent(nil)
+		end
+		entry.card        = nil
+		entry.built       = false
+		entry._titleAdded = false
+		entry._titleHeight = 0
+		entry._stickyActive = false
+	end
+	grid._avgCardHeight = nil
+	Layout(grid, grid._lastScrollOffset, grid._lastViewHeight)
 end
 
 --- Return the total content height of all positioned cards.
@@ -550,6 +572,7 @@ function Widgets.CreateCardGrid(parent, width)
 	grid.AnimatedReflow   = AnimatedReflow
 	grid.CancelAnimations = CancelAnimations
 	grid.SetWidth         = SetWidth
+	grid.RebuildCards     = RebuildCards
 	grid.GetTotalHeight   = GetTotalHeight
 	grid.SetTopOffset     = SetTopOffset
 

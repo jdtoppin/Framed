@@ -78,6 +78,10 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end, 'AppearancePanel.resize')
 
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+			grid:RebuildCards()
+		end, 'Appearance.resizeComplete')
+
 		return scroll
 	end,
 })

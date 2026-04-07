@@ -643,12 +643,12 @@ function Settings.BuildSidebar()
 	local sidebar = Settings._mainFrame._sidebar
 
 	-- ── Sidebar ScrollFrame (with styled scrollbar) ─────────
-	-- Explicit pixel sizing (frame operates at pixel scale via ApplyUIScale).
 	local sidebarH = Settings._mainFrame:GetHeight() - HEADER_HEIGHT
 
 	local scroll = Widgets.CreateScrollFrame(sidebar, nil, SIDEBAR_W, sidebarH)
 	scroll:ClearAllPoints()
 	scroll:SetPoint('TOPLEFT', sidebar, 'TOPLEFT', 0, 0)
+	scroll:SetPoint('BOTTOMLEFT', sidebar, 'BOTTOMLEFT', 0, 0)
 	sidebar._sidebarScroll = function(_, delta)
 		local sf = scroll._scrollFrame
 		local current = sf:GetVerticalScroll()
@@ -677,6 +677,11 @@ function Settings.BuildSidebar()
 	C_Timer.After(0, function()
 		scroll:UpdateScrollRange()
 	end)
+
+	-- Update scroll range when window resizes (sidebar height changes via anchors)
+	F.EventBus:Register('SETTINGS_RESIZED', function()
+		scroll:UpdateScrollRange()
+	end, 'Sidebar.resize')
 
 	-- Auto-select first registered panel
 	local registeredPanels = Settings._panels

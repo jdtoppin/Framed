@@ -210,15 +210,22 @@ F.Settings.RegisterPanel({
 		end
 
 		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+			grid:RebuildCards()
+		end, resizeKey .. '.complete')
 
 		-- ── Cleanup on hide, re-register on show ──────────────────
 		scroll:HookScript('OnHide', function()
 			grid:CancelAnimations()
 			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+			F.EventBus:Unregister('SETTINGS_RESIZE_COMPLETE', resizeKey .. '.complete')
 		end)
 
 		scroll:HookScript('OnShow', function()
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+				grid:RebuildCards()
+			end, resizeKey .. '.complete')
 			grid:Layout(0, parentH, false)
 			content:SetHeight(grid:GetTotalHeight())
 		end)

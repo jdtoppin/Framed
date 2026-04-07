@@ -120,6 +120,7 @@ function Widgets.StartCard(parent, width, yOffset)
 	Widgets.SetPoint(card, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
 	card:SetWidth(width)
 	card:SetFrameLevel(parent:GetFrameLevel())
+	card:SetClipsChildren(true)
 
 	-- Inner content frame: inset from card edges on all sides
 	local inner = CreateFrame('Frame', nil, card)

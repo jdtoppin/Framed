@@ -234,6 +234,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		content:SetHeight(grid:GetTotalHeight())
 	end, 'FrameSettingsBuilder.resize.' .. unitType)
 
+	F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+		grid:RebuildCards()
+	end, 'FrameSettingsBuilder.resizeComplete.' .. unitType)
+
 	-- ── Invalidate on preset change ────────────────────────────
 	-- When the editing preset changes, mark this scroll frame stale so
 	-- the Settings framework knows to rebuild on next panel activation.

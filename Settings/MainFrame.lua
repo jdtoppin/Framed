@@ -205,21 +205,34 @@ function Settings.CreateMainFrame()
 	SetupAccentHover(editModeBtn, editModeBtn._label, false)
 
 	-- ── Resize button ─────────────────────────────────────────
+	local lastResizeTime = 0
+	local RESIZE_THROTTLE = 0.05
 	resizeBtn = Widgets.CreateResizeButton(frame,
 		WINDOW_MIN_W, WINDOW_MIN_H,
 		WINDOW_MAX_W, GetWindowMaxH(),
-		nil,
 		function(f, w, h)
-			-- Update max height bounds in case resolution changed
+			-- Live resize: update dimensions and fire throttled
+			if(Settings._contentParent) then
+				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
+				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
+				local now = GetTime()
+				if(now - lastResizeTime >= RESIZE_THROTTLE) then
+					lastResizeTime = now
+					F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
+				end
+			end
+		end,
+		function(f, w, h)
+			-- On release: save size, fire final resize + rebuild
 			f:SetResizeBounds(WINDOW_MIN_W, WINDOW_MIN_H, WINDOW_MAX_W, GetWindowMaxH())
 			if(F.Config) then
 				F.Config:Set('general.settingsSize', { w, h })
 			end
-			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
 				Settings._contentParent._explicitWidth  = w - SIDEBAR_W - C.Spacing.normal
 				Settings._contentParent._explicitHeight = h - HEADER_HEIGHT - SUB_HEADER_H - C.Spacing.normal
 				F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
+				F.EventBus:Fire('SETTINGS_RESIZE_COMPLETE')
 			end
 		end)
 

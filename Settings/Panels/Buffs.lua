@@ -603,13 +603,28 @@ F.Settings.RegisterPanel({
 		local resizeKey = 'Buffs.resize.' .. unitType
 		local function onResize(newW, newH)
 			local newWidth = newW - C.Spacing.normal * 2
-			local newCreateW = math.floor((newWidth - CARD_GAP) * 0.35)
+			local newCreateW = math.floor((newWidth - CARD_GAP) * 0.40)
 			local newListW   = newWidth - newCreateW - CARD_GAP
+			local newCreateInnerW = newCreateW - Widgets.CARD_PADDING * 2
+			local newListInnerW   = newListW - Widgets.CARD_PADDING * 2
 
+			-- Wrapper card frames
+			previewCard:SetWidth(newCreateW)
 			createCard:SetWidth(newCreateW)
 			listCard:SetWidth(newListW)
 			listCard:ClearAllPoints()
 			Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newCreateW + CARD_GAP, pinnedRowY)
+
+			-- Create card inner widgets
+			typeDD:SetWidth(newCreateInnerW)
+			typeDescFS:SetWidth(newCreateInnerW)
+			displayTypeRow:SetWidth(newCreateInnerW)
+			borderGlowRow:SetWidth(newCreateInnerW)
+			nameBox:SetWidth(newCreateInnerW)
+			createBtn:SetWidth(newCreateInnerW)
+
+			-- List card inner scroll
+			listScroll:SetWidth(newListInnerW)
 
 			grid:SetWidth(newWidth)
 			content:SetWidth(newW)
@@ -618,15 +633,22 @@ F.Settings.RegisterPanel({
 		end
 
 		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+			grid:RebuildCards()
+		end, resizeKey .. '.complete')
 
 		-- ── Cleanup on hide, re-register on show ─────────────────
 		scroll:HookScript('OnHide', function()
 			grid:CancelAnimations()
 			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+			F.EventBus:Unregister('SETTINGS_RESIZE_COMPLETE', resizeKey .. '.complete')
 		end)
 
 		scroll:HookScript('OnShow', function()
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+				grid:RebuildCards()
+			end, resizeKey .. '.complete')
 			grid:Layout(0, parentH, false)
 			content:SetHeight(grid:GetTotalHeight())
 		end)
