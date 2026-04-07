@@ -15,6 +15,9 @@ local THRESHOLD_PERCENTS = {
 	['<75']  = 0.75,
 	['<50']  = 0.50,
 	['<25']  = 0.25,
+	['<75%'] = 0.75,
+	['<50%'] = 0.50,
+	['<25%'] = 0.25,
 }
 
 --- Get or create a bracket curve for the given durationMode.

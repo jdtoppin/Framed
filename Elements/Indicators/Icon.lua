@@ -122,6 +122,15 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 					local color = durationObj:EvaluateRemainingPercent(self._colorCurve)
 					cdText:SetTextColor(color:GetRGBA())
 				end
+
+				-- Apply initial threshold so first frame doesn't flash
+				if(self._thresholdCurve and durationObj) then
+					local vis = durationObj:EvaluateRemainingPercent(self._thresholdCurve)
+					local _, _, _, a = vis:GetRGBA()
+					if(F.IsValueNonSecret(a)) then
+						self._cooldown:SetHideCountdownNumbers(a <= 0.5)
+					end
+				end
 			end
 
 			-- Register with shared ticker if color/threshold curves exist
