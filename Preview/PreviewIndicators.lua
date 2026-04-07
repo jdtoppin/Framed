@@ -54,10 +54,21 @@ function PI.OrientOffset(orient, i, w, h, spacingX, spacingY)
 end
 
 ------------------------------------------------------------------------
--- Animation helpers
+-- Animation helpers (looping depletion via Widgets.StartAnimation)
 ------------------------------------------------------------------------
 
 local Widgets = F.Widgets
+
+-- Looping StatusBar depletion: value animates 0 → 1 over ANIM_CYCLE, then restarts
+local function startBarDepletionLoop(bar)
+	bar:SetValue(0)
+	Widgets.StartAnimation(bar, 'deplete', 0, 1, ANIM_CYCLE,
+		function(f, v) f:SetValue(v) end,
+		function(f)
+			if(f:IsShown()) then startBarDepletionLoop(f) end
+		end
+	)
+end
 
 -- Looping Cooldown swipe: resets the cooldown each cycle
 local function startCooldownLoop(cd, duration)
@@ -131,15 +142,7 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig, animated)
 	end
 
 	if(animated) then
-		local function startCLevelDepletionLoop()
-			local durObj = CreateLuaDurationObject()
-			durObj:SetTimeFromStart(GetTime(), ANIM_CYCLE)
-			depBar:SetTimerDuration(durObj, nil, Enum.StatusBarTimerDirection.ElapsedTime)
-			C_Timer.After(ANIM_CYCLE, function()
-				if(depBar:IsShown()) then startCLevelDepletionLoop() end
-			end)
-		end
-		startCLevelDepletionLoop()
+		startBarDepletionLoop(depBar)
 	else
 		depBar:SetValue(1 - FAKE_DEPLETION_PCT)
 	end
@@ -154,48 +157,17 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig, animated)
 		if(sf.shadow ~= false) then stackText:SetShadowOffset(1, -1) end
 	end
 
-	-- Duration countdown (Blizzard cooldown frame, no swipe)
+	-- Duration text
 	if(indConfig and indConfig.durationMode and indConfig.durationMode ~= 'Never') then
-		local cd = CreateFrame('Cooldown', nil, f, 'CooldownFrameTemplate')
-		cd:SetAllPoints(f)
-		cd:SetDrawSwipe(false)
-		cd:SetDrawEdge(false)
-		cd:SetDrawBling(false)
-		cd:SetHideCountdownNumbers(false)
-		cd:SetFrameLevel(depBar:GetFrameLevel() + 1)
-
-		if(animated) then
-			local function startCooldownCountdownLoop()
-				local durObj = CreateLuaDurationObject()
-				durObj:SetTimeFromStart(GetTime(), ANIM_CYCLE)
-				cd:SetCooldownFromDurationObject(durObj)
-				C_Timer.After(ANIM_CYCLE, function()
-					if(cd:IsShown()) then startCooldownCountdownLoop() end
-				end)
-			end
-			startCooldownCountdownLoop()
-		else
-			local durObj = CreateLuaDurationObject()
-			durObj:SetTimeFromStart(GetTime() - (ANIM_CYCLE * FAKE_DEPLETION_PCT), ANIM_CYCLE)
-			cd:SetCooldownFromDurationObject(durObj)
+		local df = indConfig.durationFont or {}
+		local durText = f:CreateFontString(nil, 'OVERLAY')
+		durText:SetFont(F.Media.GetActiveFont(), df.size or 9, df.outline or 'OUTLINE')
+		durText:SetPoint(df.anchor or 'BOTTOM', f, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
+		durText:SetText('18')
+		if(df.shadow ~= false) then durText:SetShadowOffset(1, -1) end
+		if(df.colorProgression) then
+			durText:SetTextColor(0.6, 1.0, 0.0, 1)
 		end
-
-		-- Style the countdown font string (deferred one frame for lazy creation)
-		C_Timer.After(0, function()
-			local cdText = cd.GetCountdownFontString and cd:GetCountdownFontString()
-			if(cdText) then
-				local df = indConfig.durationFont or {}
-				cdText:SetParent(f)
-				cdText:SetFont(F.Media.GetActiveFont(), df.size or 9, df.outline or 'OUTLINE')
-				if(df.shadow == false) then
-					cdText:SetShadowOffset(0, 0)
-				else
-					cdText:SetShadowOffset(1, -1)
-				end
-				cdText:ClearAllPoints()
-				cdText:SetPoint(df.anchor or 'BOTTOM', f, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
-			end
-		end)
 	end
 
 	return f
