@@ -37,7 +37,6 @@ local function defaultBuffIndicator()
 		iconHeight   = 14,
 		maxDisplayed = 3,
 		orientation  = 'RIGHT',
-		showCooldown  = true,
 		showStacks    = true,
 		durationMode  = 'Never',
 		durationFont  = durationFont(),
