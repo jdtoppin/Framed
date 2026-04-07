@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-07
 **Issue:** #63
-**Scope:** Eliminate `IconOnUpdate` from `Elements/Indicators/Icon.lua` by migrating depletion bar animation and duration text to C-level WoW APIs.
+**Scope:** Eliminate `IconOnUpdate` from `Elements/Indicators/Icon.lua` by migrating depletion bar animation and duration text to C-level WoW APIs. This migration is strictly for Icon/Icons indicators only. Do not touch Bar, BorderIcon, BorderGlow, Overlay, Color, or any other indicator type.
 
 ## Problem
 
