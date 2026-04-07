@@ -164,9 +164,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- Register cards in display order
 	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig })
 
-	if(not isNpcFrame) then
-		grid:AddCard('healthColor', 'Portrait & Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, setConfig, relayout })
-	end
+	grid:AddCard('healthColor', 'Portrait & Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, setConfig, relayout })
 
 	grid:AddCard('shields', 'Shields & Absorbs', F.SettingsCards.ShieldsAndAbsorbs, { unitType, getConfig, setConfig })
 	grid:AddCard('power', 'Power Bar', F.SettingsCards.PowerBar, { unitType, getConfig, setConfig })

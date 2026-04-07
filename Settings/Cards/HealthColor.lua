@@ -28,7 +28,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 		if(checked) then
 			setConfig('portrait', { type = portraitStyle:GetValue() or '2D' })
 		else
-			setConfig('portrait', nil)
+			setConfig('portrait', false)
 		end
 		if(reflowRef[1]) then reflowRef[1]() end
 	end)

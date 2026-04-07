@@ -468,12 +468,12 @@ function F.PresetDefaults.GetAll()
 		unitConfigs = {
 			player = (function()
 				local p = playerConfig()
-				p.portrait = nil
+				p.portrait = false
 				return p
 			end)(),
 			target = (function()
 				local t = targetConfig()
-				t.portrait = nil
+				t.portrait = false
 				return t
 			end)(),
 			targettarget = targettargetConfig(),
