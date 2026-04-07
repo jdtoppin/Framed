@@ -116,6 +116,12 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 					cdText:SetPoint(df.anchor or 'BOTTOM', self._textOverlay, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
 				end
 				self._cdText = cdText
+
+				-- Apply initial color so first frame isn't white
+				if(self._colorCurve and durationObj) then
+					local color = durationObj:EvaluateRemainingPercent(self._colorCurve)
+					cdText:SetTextColor(color:GetRGBA())
+				end
 			end
 
 			-- Register with shared ticker if color/threshold curves exist
