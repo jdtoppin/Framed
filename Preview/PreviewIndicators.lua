@@ -54,21 +54,10 @@ function PI.OrientOffset(orient, i, w, h, spacingX, spacingY)
 end
 
 ------------------------------------------------------------------------
--- Animation helpers (looping depletion via Widgets.StartAnimation)
+-- Animation helpers
 ------------------------------------------------------------------------
 
 local Widgets = F.Widgets
-
--- Looping StatusBar depletion: value animates 0 → 1 over ANIM_CYCLE, then restarts
-local function startBarDepletionLoop(bar)
-	bar:SetValue(0)
-	Widgets.StartAnimation(bar, 'deplete', 0, 1, ANIM_CYCLE,
-		function(f, v) f:SetValue(v) end,
-		function(f)
-			if(f:IsShown()) then startBarDepletionLoop(f) end
-		end
-	)
-end
 
 -- Looping Cooldown swipe: resets the cooldown each cycle
 local function startCooldownLoop(cd, duration)
@@ -112,41 +101,47 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig, animated)
 	border:SetBackdrop({ edgeFile = [[Interface\BUTTONS\WHITE8x8]], edgeSize = 0.5 })
 	border:SetBackdropBorderColor(0, 0, 0, 1)
 
-	-- Linear depletion bar (if showCooldown)
-	if(indConfig and indConfig.showCooldown ~= false) then
-		local fillDir = indConfig.fillDirection or 'topToBottom'
-		local depBar = CreateFrame('StatusBar', nil, f)
-		depBar:SetAllPoints(f)
-		depBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
-		depBar:SetStatusBarColor(0, 0, 0, 0.6)
-		depBar:SetMinMaxValues(0, 1)
-		if(fillDir == 'leftToRight' or fillDir == 'rightToLeft') then
-			depBar:SetOrientation('HORIZONTAL')
-			if(fillDir == 'rightToLeft') then depBar:SetReverseFill(true) end
-		else
-			depBar:SetOrientation('VERTICAL')
-			if(fillDir == 'topToBottom') then depBar:SetReverseFill(true) end
-		end
-		depBar:SetFrameLevel(f:GetFrameLevel() + 1)
+	-- Linear depletion bar (always on)
+	local fillDir = indConfig and indConfig.fillDirection or 'topToBottom'
+	local depBar = CreateFrame('StatusBar', nil, f)
+	depBar:SetAllPoints(f)
+	depBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+	depBar:SetStatusBarColor(0, 0, 0, 0.6)
+	depBar:SetMinMaxValues(0, 1)
+	if(fillDir == 'leftToRight' or fillDir == 'rightToLeft') then
+		depBar:SetOrientation('HORIZONTAL')
+		if(fillDir == 'rightToLeft') then depBar:SetReverseFill(true) end
+	else
+		depBar:SetOrientation('VERTICAL')
+		if(fillDir == 'topToBottom') then depBar:SetReverseFill(true) end
+	end
+	depBar:SetFrameLevel(f:GetFrameLevel() + 1)
 
-		-- Leading edge line
-		local edge = depBar:CreateTexture(nil, 'OVERLAY')
-		edge:SetColorTexture(1, 1, 1, 0.75)
-		if(fillDir == 'topToBottom' or fillDir == 'bottomToTop') then
-			edge:SetHeight(0.75)
-			edge:SetPoint('TOPLEFT',  depBar:GetStatusBarTexture(), 'BOTTOMLEFT',  0, 0)
-			edge:SetPoint('TOPRIGHT', depBar:GetStatusBarTexture(), 'BOTTOMRIGHT', 0, 0)
-		else
-			edge:SetWidth(0.75)
-			edge:SetPoint('TOPLEFT',    depBar:GetStatusBarTexture(), 'TOPRIGHT',    0, 0)
-			edge:SetPoint('BOTTOMLEFT', depBar:GetStatusBarTexture(), 'BOTTOMRIGHT', 0, 0)
-		end
+	-- Leading edge line
+	local edge = depBar:CreateTexture(nil, 'OVERLAY')
+	edge:SetColorTexture(1, 1, 1, 0.75)
+	if(fillDir == 'topToBottom' or fillDir == 'bottomToTop') then
+		edge:SetHeight(0.75)
+		edge:SetPoint('TOPLEFT',  depBar:GetStatusBarTexture(), 'BOTTOMLEFT',  0, 0)
+		edge:SetPoint('TOPRIGHT', depBar:GetStatusBarTexture(), 'BOTTOMRIGHT', 0, 0)
+	else
+		edge:SetWidth(0.75)
+		edge:SetPoint('TOPLEFT',    depBar:GetStatusBarTexture(), 'TOPRIGHT',    0, 0)
+		edge:SetPoint('BOTTOMLEFT', depBar:GetStatusBarTexture(), 'BOTTOMRIGHT', 0, 0)
+	end
 
-		if(animated) then
-			startBarDepletionLoop(depBar)
-		else
-			depBar:SetValue(1 - FAKE_DEPLETION_PCT)
+	if(animated) then
+		local function startCLevelDepletionLoop()
+			local durObj = CreateLuaDurationObject()
+			durObj:SetTimeFromStart(GetTime(), ANIM_CYCLE)
+			depBar:SetTimerDuration(durObj, nil, Enum.StatusBarTimerDirection.RemainingTime)
+			C_Timer.After(ANIM_CYCLE, function()
+				if(depBar:IsShown()) then startCLevelDepletionLoop() end
+			end)
 		end
+		startCLevelDepletionLoop()
+	else
+		depBar:SetValue(1 - FAKE_DEPLETION_PCT)
 	end
 
 	-- Stack count text
@@ -159,17 +154,48 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig, animated)
 		if(sf.shadow ~= false) then stackText:SetShadowOffset(1, -1) end
 	end
 
-	-- Duration text
+	-- Duration countdown (Blizzard cooldown frame, no swipe)
 	if(indConfig and indConfig.durationMode and indConfig.durationMode ~= 'Never') then
-		local df = indConfig.durationFont or {}
-		local durText = f:CreateFontString(nil, 'OVERLAY')
-		durText:SetFont(F.Media.GetActiveFont(), df.size or 9, df.outline or 'OUTLINE')
-		durText:SetPoint(df.anchor or 'BOTTOM', f, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
-		durText:SetText('18')
-		if(df.shadow ~= false) then durText:SetShadowOffset(1, -1) end
-		if(df.colorProgression) then
-			durText:SetTextColor(0.6, 1.0, 0.0, 1)
+		local cd = CreateFrame('Cooldown', nil, f, 'CooldownFrameTemplate')
+		cd:SetAllPoints(f)
+		cd:SetDrawSwipe(false)
+		cd:SetDrawEdge(false)
+		cd:SetDrawBling(false)
+		cd:SetHideCountdownNumbers(false)
+		cd:SetFrameLevel(depBar:GetFrameLevel() + 1)
+
+		if(animated) then
+			local function startCooldownCountdownLoop()
+				local durObj = CreateLuaDurationObject()
+				durObj:SetTimeFromStart(GetTime(), ANIM_CYCLE)
+				cd:SetCooldownFromDurationObject(durObj)
+				C_Timer.After(ANIM_CYCLE, function()
+					if(cd:IsShown()) then startCooldownCountdownLoop() end
+				end)
+			end
+			startCooldownCountdownLoop()
+		else
+			local durObj = CreateLuaDurationObject()
+			durObj:SetTimeFromStart(GetTime() - (ANIM_CYCLE * FAKE_DEPLETION_PCT), ANIM_CYCLE)
+			cd:SetCooldownFromDurationObject(durObj)
 		end
+
+		-- Style the countdown font string (deferred one frame for lazy creation)
+		C_Timer.After(0, function()
+			local cdText = cd.GetCountdownFontString and cd:GetCountdownFontString()
+			if(cdText) then
+				local df = indConfig.durationFont or {}
+				cdText:SetParent(f)
+				cdText:SetFont(F.Media.GetActiveFont(), df.size or 9, df.outline or 'OUTLINE')
+				if(df.shadow == false) then
+					cdText:SetShadowOffset(0, 0)
+				else
+					cdText:SetShadowOffset(1, -1)
+				end
+				cdText:ClearAllPoints()
+				cdText:SetPoint(df.anchor or 'BOTTOM', f, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
+			end
+		end)
 	end
 
 	return f
