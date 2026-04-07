@@ -212,6 +212,8 @@ local function Update(self, event, unit)
 			local aura = matched[idx]
 			if(aura) then
 				renderer:SetSpell(
+					aura.unit,
+					aura.auraInstanceID,
 					aura.spellId,
 					aura.icon,
 					aura.duration,
