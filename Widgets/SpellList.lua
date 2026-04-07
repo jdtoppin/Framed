@@ -535,6 +535,12 @@ function Widgets.CreateSpellInput(parent, width)
 	preview:EnableMouse(true)
 	preview:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
 	preview:SetScript('OnLeave', function(self) Widgets.SetBackdropHighlight(self, false) end)
+	preview:SetScript('OnMouseDown', function(self, button)
+		if(button == 'LeftButton' and container._tryAdd) then
+			container._clickedPreview = true
+			container._tryAdd()
+		end
+	end)
 	preview:Hide()
 	container._preview = preview
 
@@ -604,6 +610,8 @@ function Widgets.CreateSpellInput(parent, width)
 		ClearPreview()
 	end
 
+	container._tryAdd = TryAddSpell
+
 	editBox:SetOnTextChanged(function(text)
 		-- Cancel previous debounce timer
 		if(container._debounce) then
@@ -626,13 +634,21 @@ function Widgets.CreateSpellInput(parent, width)
 	editBox:SetOnEnterPressed(function(_text) TryAddSpell() end)
 	addBtn:SetOnClick(function() TryAddSpell() end)
 
-	-- Clicking away from the edit box dismisses the preview
+	-- Clicking away from the edit box dismisses the preview.
+	-- Defer by one frame so a click on the preview row can register
+	-- its OnMouseDown before the preview is hidden.
 	editBox:SetOnFocusLost(function()
 		if(container._debounce) then
 			container._debounce:Cancel()
 			container._debounce = nil
 		end
-		ClearPreview()
+		C_Timer.After(0, function()
+			if(container._clickedPreview) then
+				container._clickedPreview = nil
+				return
+			end
+			ClearPreview()
+		end)
 	end)
 
 	--- Link this input to a SpellList for auto-add on confirm.

@@ -83,11 +83,19 @@ end
 
 -- ── Render aura indicators from config (full size, no scaling) ─
 function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName)
-	-- Clear existing aura groups (including overlay frames parented elsewhere)
+	-- Clear existing aura groups (including elements parented elsewhere)
 	for _, group in next, frame._auraGroups do
 		if(group._healthOverlay) then
 			group._healthOverlay:Hide()
 			group._healthOverlay:SetParent(nil)
+		end
+		if(group._elements) then
+			for _, el in next, group._elements do
+				if(el:GetParent() ~= group) then
+					el:Hide()
+					el:SetParent(nil)
+				end
+			end
 		end
 		group:Hide()
 		group:SetParent(nil)
@@ -113,7 +121,7 @@ function AuraPreview.Render(frame, unitType, activeGroupKey, activeIndicatorName
 	frame._width         = fw
 	frame._height        = fh
 
-	-- Render using PreviewAuras.BuildAll (with animations like edit mode)
+	-- Render using PreviewAuras.BuildAll (animated for live preview)
 	if(F.PreviewAuras and F.PreviewAuras.BuildAll) then
 		F.PreviewAuras.BuildAll(frame, rawAuraConfig, true)
 	end
@@ -171,14 +179,24 @@ function AuraPreview.BuildPreviewCard(parent, width)
 	return card
 end
 
--- ── Update dimming (called by panels on config change) ──────
+-- ── Update dimming (lightweight — only changes group alpha, no rebuild) ──
 function AuraPreview.UpdateDimming(activeGroupKey, activeIndicatorName)
 	local Settings = F.Settings
 	if(not Settings._auraPreview) then return end
 	Settings._activePreviewGroup = activeGroupKey
-	-- Use the preview's stored unit type (matches "Configure for" at build time)
+	local highlightKey
+	if(not Settings._auraPreview._showAll and activeGroupKey) then
+		highlightKey = PANEL_TO_GROUP[activeGroupKey] or activeGroupKey
+	end
+	F.PreviewAuras.SetAuraGroupAlpha(Settings._auraPreview, highlightKey)
+end
+
+-- ── Full rebuild (called after config changes that affect the preview) ──
+function AuraPreview.Rebuild()
+	local Settings = F.Settings
+	if(not Settings._auraPreview) then return end
 	local unitType = Settings._auraPreview._unitType or (Settings.GetEditingUnitType and Settings.GetEditingUnitType()) or 'player'
-	AuraPreview.Render(Settings._auraPreview, unitType, activeGroupKey, activeIndicatorName)
+	AuraPreview.Render(Settings._auraPreview, unitType, Settings._activePreviewGroup, nil)
 end
 
 -- ── Lightweight dispel overlay alpha update (no rebuild) ────
@@ -189,6 +207,13 @@ function AuraPreview.UpdateDispelAlpha(alpha)
 		F.PreviewAuras.UpdateDispelOverlayAlpha(Settings._auraPreview, alpha)
 	end
 end
+
+-- ── Auto-rebuild on aura config changes ─────────────────────
+F.EventBus:Register('CONFIG_CHANGED', function(path)
+	if(not path or not path:find('%.auras%.')) then return end
+	if(not F.Settings._auraPreview) then return end
+	AuraPreview.Rebuild()
+end, 'AuraPreview.AutoRebuild')
 
 -- ── Destroy ─────────────────────────────────────────────────
 function AuraPreview.Destroy(frame)

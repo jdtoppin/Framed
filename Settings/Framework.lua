@@ -406,6 +406,12 @@ function Settings.UpdateAuraPreviewDimming(activeGroupKey, activeIndicatorName)
 	F.Settings.AuraPreview.UpdateDimming(activeGroupKey, activeIndicatorName)
 end
 
+--- Full rebuild of the aura preview (call after config changes).
+function Settings.RebuildAuraPreview()
+	if(not F.Settings.AuraPreview) then return end
+	F.Settings.AuraPreview.Rebuild()
+end
+
 -- Refresh active panel when the editing preset changes.
 -- Invalidate all preset-scoped panels so stale frames are rebuilt
 -- when the user navigates to them.

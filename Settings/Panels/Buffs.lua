@@ -167,18 +167,6 @@ local function resolveBuilder(builderOrString)
 	return builderOrString
 end
 
--- ============================================================
--- Border settings wrapper (Border type has no CARDS_FOR_TYPE entries)
--- Falls back to the old BuildIndicatorSettings rendered inside a card.
--- ============================================================
-local function buildBorderSettingsCard(parent, width, data, update, get, set, rebuildPanel)
-	local wrapper = CreateFrame('Frame', nil, parent)
-	wrapper:SetWidth(width)
-	local yOff = F.Settings.Builders.BuildIndicatorSettings(wrapper, width, 0, data._name, data, data._setIndicator, rebuildPanel)
-	wrapper:SetHeight(math.abs(yOff))
-	return wrapper
-end
-
 local createDefaultData = F.Settings.Builders.CreateDefaultIndicatorData
 
 -- ============================================================
@@ -215,9 +203,21 @@ F.Settings.RegisterPanel({
 		local pinnedRowY  = yOffset
 
 		-- ── Preview card (above create card, same column) ────────
+		-- Add accent top border to pinned cards
+		local function addAccentBar(card)
+			local bar = card:CreateTexture(nil, 'OVERLAY')
+			bar:SetHeight(1)
+			bar:SetPoint('TOPLEFT', card, 'TOPLEFT', 0, 0)
+			bar:SetPoint('TOPRIGHT', card, 'TOPRIGHT', 0, 0)
+			local ac = C.Colors.accent
+			bar:SetColorTexture(ac[1], ac[2], ac[3], 0.4)
+			return bar
+		end
+
 		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, createCardW)
 		previewCard:ClearAllPoints()
 		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
+		local previewAccentBar = addAccentBar(previewCard)
 		local previewCardH = previewCard:GetHeight()
 		local createStartY = pinnedRowY - previewCardH - CARD_GAP
 
@@ -227,6 +227,7 @@ F.Settings.RegisterPanel({
 		local selectedBorderGlowMode = 'Border'
 
 		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, createStartY)
+		addAccentBar(createCard)
 
 		-- Type dropdown
 		local typeDD = Widgets.CreateDropdown(createInner, createCardW - Widgets.CARD_PADDING * 2)
@@ -340,6 +341,7 @@ F.Settings.RegisterPanel({
 		listCard:ClearAllPoints()
 		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', createCardW + CARD_GAP, pinnedRowY)
 		listCard._startY = pinnedRowY
+		addAccentBar(listCard)
 
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
 		local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, listScrollH)
@@ -386,7 +388,7 @@ F.Settings.RegisterPanel({
 				spawnSettingsCards(iName, iData)
 			end
 
-			if(cardsForType and #cardsForType > 0) then
+			if(cardsForType) then
 				for _, cardDef in next, cardsForType do
 					local cardId    = cardDef[1]
 					local cardTitle = cardDef[2]
@@ -395,11 +397,6 @@ F.Settings.RegisterPanel({
 						grid:AddCard(cardId, cardTitle, builder, { iData, update, get, set, rebuildPanel })
 					end
 				end
-			elseif(iData.type == C.IndicatorType.BORDER) then
-				-- Border type: use BuildIndicatorSettings wrapped in a card
-				iData._name = iName
-				iData._setIndicator = setIndicator
-				grid:AddCard('borderSettings', 'Border Settings', buildBorderSettingsCard, { iData, update, get, set, rebuildPanel })
 			end
 
 			grid:Layout(0, parentH)
@@ -569,11 +566,33 @@ F.Settings.RegisterPanel({
 		scroll:UpdateScrollRange()
 
 		-- ── Scroll integration ───────────────────────────────────
+		local previewNaturalY = math.abs(pinnedRowY)
+		local previewSticky = false
+		local previewOrigLevel = previewCard:GetFrameLevel()
+
 		local function onScroll()
 			local offset = scroll._scrollFrame:GetVerticalScroll()
 			local viewH  = scroll._scrollFrame:GetHeight()
 			grid:Layout(offset, viewH)
 			content:SetHeight(grid:GetTotalHeight())
+
+			-- Sticky preview: reparent to scroll viewport when scrolled past
+			local shouldStick = offset > previewNaturalY
+			if(shouldStick and not previewSticky) then
+				previewSticky = true
+				previewAccentBar:Hide()
+				previewCard:SetParent(scroll)
+				previewCard:SetFrameLevel(previewOrigLevel + 50)
+				previewCard:ClearAllPoints()
+				Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, 0)
+			elseif(not shouldStick and previewSticky) then
+				previewSticky = false
+				previewAccentBar:Show()
+				previewCard:SetParent(content)
+				previewCard:SetFrameLevel(previewOrigLevel)
+				previewCard:ClearAllPoints()
+				Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
+			end
 		end
 
 		scroll._scrollFrame:HookScript('OnMouseWheel', function()

@@ -16,10 +16,17 @@ function PA.SetAuraGroupAlpha(frame, activeGroupId)
 	for groupId, groupFrame in next, frame._auraGroups do
 		local alpha = (activeGroupId == nil or groupId == activeGroupId) and 1.0 or 0.2
 		groupFrame:SetAlpha(alpha)
-		-- Dispel overlay is a child of _healthWrapper (not groupFrame) so
-		-- groupFrame:SetAlpha won't reach it — set alpha explicitly
+		-- Elements parented outside groupFrame (border glows, overlays,
+		-- dispel highlights) need alpha set explicitly
 		if(groupFrame._healthOverlay) then
 			groupFrame._healthOverlay:SetAlpha(alpha)
+		end
+		if(groupFrame._elements) then
+			for _, el in next, groupFrame._elements do
+				if(el:GetParent() ~= groupFrame) then
+					el:SetAlpha(alpha)
+				end
+			end
 		end
 	end
 end
@@ -318,11 +325,19 @@ function PA.BuildAll(frame, auraConfig, animated)
 	-- Clean up previous groups before rebuilding
 	if(frame._auraGroups) then
 		for _, groupFrame in next, frame._auraGroups do
-			-- Dispel overlay is parented to _healthWrapper, not groupFrame —
-			-- must be explicitly hidden/removed or it persists across rebuilds.
+			-- Elements parented outside groupFrame (border glows, overlays,
+			-- dispel highlights) must be explicitly cleaned up
 			if(groupFrame._healthOverlay) then
 				groupFrame._healthOverlay:Hide()
 				groupFrame._healthOverlay:SetParent(nil)
+			end
+			if(groupFrame._elements) then
+				for _, el in next, groupFrame._elements do
+					if(el:GetParent() ~= groupFrame) then
+						el:Hide()
+						el:SetParent(nil)
+					end
+				end
 			end
 			groupFrame:Hide()
 			groupFrame:SetParent(nil)

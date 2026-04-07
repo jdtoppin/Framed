@@ -36,7 +36,7 @@ local function BuildDialog()
 
 	local dimTex = dimmer:CreateTexture(nil, 'BACKGROUND')
 	dimTex:SetAllPoints(dimmer)
-	dimTex:SetColorTexture(0, 0, 0, 0.5)
+	dimTex:SetColorTexture(0, 0, 0, 0.75)
 
 	-- Dialog box
 	local frame = CreateFrame('Frame', nil, dimmer, 'BackdropTemplate')

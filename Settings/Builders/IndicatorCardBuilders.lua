@@ -54,7 +54,7 @@ function Builders.CastBy(parent, width, data, update)
 end
 
 -- ── Tracked Spells ──────────────────────────────────────────
-function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
+function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPanel)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 
 	-- Calculate spell list height based on spell count (28px per row matches SpellList ROW_HEIGHT)
@@ -106,8 +106,8 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 			for _, spellID in next, selectedSpells do
 				existing[#existing + 1] = spellID
 			end
-			spList:SetSpells(existing)
 			update('spells', existing)
+			spList:SetSpells(existing)
 		end)
 	end)
 
@@ -115,8 +115,8 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 	deleteAllBtn:SetPoint('LEFT', importBtn, 'RIGHT', C.Spacing.tight, 0)
 	deleteAllBtn:SetOnClick(function()
 		Widgets.ShowConfirmDialog('Delete All Spells', 'Remove all tracked spells from this indicator?', function()
-			spList:SetSpells({})
 			update('spells', {})
+			spList:SetSpells({})
 		end)
 	end)
 
@@ -128,7 +128,7 @@ function Builders.TrackedSpells(parent, width, data, update, rebuildPanel)
 end
 
 -- ── Appearance (Icon/Icons) ──────────────────────────────────
-function Builders.Appearance(parent, width, data, update, rebuildPanel)
+function Builders.Appearance(parent, width, data, update, get, set, rebuildPanel)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
@@ -528,6 +528,83 @@ function Builders.Duration(parent, width, data, update, get, set)
 	return card
 end
 
+-- ── Border Mode (Border/Glow switch) ──────────────────────────
+function Builders.BorderMode(parent, width, data, update, get, set, rebuildPanel)
+	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
+
+	local modeSwitch = Widgets.CreateSwitch(inner, widgetW, BUTTON_H, {
+		{ text = 'Border', value = 'Border' },
+		{ text = 'Glow',   value = 'Glow' },
+	})
+	modeSwitch:SetValue(data.borderGlowMode or 'Border')
+	modeSwitch:SetOnSelect(function(v)
+		update('borderGlowMode', v)
+		if(rebuildPanel) then rebuildPanel() end
+	end)
+	cardY = placeWidget(modeSwitch, inner, cardY, BUTTON_H)
+
+	Widgets.EndCard(card, parent, cardY)
+	return card
+end
+
+-- ── Border Appearance (mode-dependent settings) ───────────────
+function Builders.BorderAppearance(parent, width, data, update, get, set)
+	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local widgetW = width - Widgets.CARD_PADDING * 2
+	local bgMode = data.borderGlowMode or 'Border'
+
+	-- Fade Out (shared, always first)
+	local fadeCheck = Widgets.CreateCheckButton(inner, 'Fade Out', function(checked)
+		update('fadeOut', checked)
+	end)
+	fadeCheck:SetChecked(data.fadeOut == true)
+	cardY = placeWidget(fadeCheck, inner, cardY, CHECK_H)
+
+	if(bgMode == 'Border') then
+		-- Color
+		local borColor = data.color or { 1, 1, 1, 1 }
+		local borColorPicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
+			update('color', { r, g, b, a })
+		end)
+		borColorPicker:SetColor(borColor[1], borColor[2], borColor[3], borColor[4] or 1)
+		cardY = placeWidget(borColorPicker, inner, cardY, DROPDOWN_H)
+
+		-- Thickness
+		local thkSlider = Widgets.CreateSlider(inner, 'Thickness', widgetW, 1, 15, 1)
+		thkSlider:SetValue(data.borderThickness or 2)
+		thkSlider:SetAfterValueChanged(function(v) update('borderThickness', v) end)
+		cardY = placeWidget(thkSlider, inner, cardY, SLIDER_H)
+	else
+		-- Glow color
+		local glowColor = get('glowColor') or { 1, 1, 1, 1 }
+		local colorPicker = Widgets.CreateColorPicker(inner, 'Color', true, function(r, g, b, a)
+			set('glowColor', { r, g, b, a })
+		end)
+		colorPicker:SetColor(glowColor[1], glowColor[2], glowColor[3], glowColor[4] or 1)
+		cardY = placeWidget(colorPicker, inner, cardY, DROPDOWN_H)
+
+		-- Glow type dropdown (frame-level glows only: Pixel and Shine)
+		local typeDD = Widgets.CreateDropdown(inner, widgetW)
+		typeDD:SetItems({
+			{ text = 'Pixel', value = C.GlowType.PIXEL },
+			{ text = 'Shine', value = C.GlowType.SHINE },
+		})
+		typeDD:SetValue(get('glowType') or C.GlowType.PIXEL)
+		typeDD:SetOnSelect(function(value) set('glowType', value) end)
+		cardY = placeWidget(typeDD, inner, cardY, DROPDOWN_H)
+	end
+
+	Widgets.EndCard(card, parent, cardY)
+	return card
+end
+
+-- ── Border Position (frame level only, no anchor picker) ──────
+function Builders.BorderPosition(parent, width, data, update, get, set)
+	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true, hidePosition = true })
+	return card
+end
+
 -- ============================================================
 -- Type → Card mapping
 -- Each entry: { cardId, cardTitle, builderFn }
@@ -542,7 +619,7 @@ Builders.CARDS_FOR_TYPE = {
 		{ 'layout',           'Layout',              Builders.Layout },
 		{ 'cooldownDuration', 'Cooldown & Duration', Builders.CooldownDuration },
 		{ 'stacks',           'Stacks',              Builders.Stacks },
-		{ 'glow',             nil,                   'SharedGlow' },
+		{ 'glow',             'Border Glow',         'SharedGlow' },
 	},
 	[C.IndicatorType.ICON] = {
 		{ 'castBy',           'Cast By',             Builders.CastBy },
@@ -551,42 +628,47 @@ Builders.CARDS_FOR_TYPE = {
 		{ 'position',         'Position',            'SharedPosition' },
 		{ 'cooldownDuration', 'Cooldown & Duration', Builders.CooldownDuration },
 		{ 'stacks',           'Stacks',              Builders.Stacks },
-		{ 'glow',             nil,                   'SharedGlow' },
+		{ 'glow',             'Border Glow',         'SharedGlow' },
 	},
 	[C.IndicatorType.BARS] = {
 		{ 'castBy',           'Cast By',        Builders.CastBy },
 		{ 'trackedSpells',    'Tracked Spells',  Builders.TrackedSpells },
 		{ 'size',             'Size',            Builders.Size },
 		{ 'layout',           'Layout',          Builders.Layout },
-		{ 'thresholdColors',  nil,               'SharedThresholdColors' },
+		{ 'thresholdColors',  'Colors',          'SharedThresholdColors' },
 		{ 'duration',         'Duration',        Builders.Duration },
 		{ 'stacks',           'Stacks',          Builders.Stacks },
-		{ 'glow',             nil,               'SharedGlow' },
+		{ 'glow',             'Border Glow',     'SharedGlow' },
 	},
 	[C.IndicatorType.BAR] = {
 		{ 'castBy',           'Cast By',        Builders.CastBy },
 		{ 'trackedSpells',    'Tracked Spells',  Builders.TrackedSpells },
 		{ 'size',             'Size',            Builders.Size },
 		{ 'layout',           'Layout',          Builders.Layout },
-		{ 'thresholdColors',  nil,               'SharedThresholdColors' },
+		{ 'thresholdColors',  'Colors',          'SharedThresholdColors' },
 		{ 'duration',         'Duration',        Builders.Duration },
 		{ 'stacks',           'Stacks',          Builders.Stacks },
-		{ 'glow',             nil,               'SharedGlow' },
+		{ 'glow',             'Border Glow',     'SharedGlow' },
 	},
 	[C.IndicatorType.RECTANGLE] = {
 		{ 'size',             'Size',       Builders.Size },
 		{ 'thresholdColors',  nil,          'SharedThresholdColors' },
 		{ 'stacks',           'Stacks',     Builders.Stacks },
-		{ 'glow',             nil,          'SharedGlow' },
+		{ 'glow',             'Border Glow', 'SharedGlow' },
 		{ 'position',         'Position',   'SharedPosition' },
 	},
 	[C.IndicatorType.OVERLAY] = {
+		{ 'castBy',           'Cast By',    Builders.CastBy },
+		{ 'trackedSpells',    'Tracked Spells', Builders.TrackedSpells },
 		{ 'mode',             'Mode',       Builders.Mode },
-		{ 'thresholdColors',  nil,          'SharedThresholdColors' },
+		{ 'thresholdColors',  'Colors',     'SharedThresholdColors' },
 	},
 	[C.IndicatorType.BORDER] = {
-		-- Border uses BorderIconSettings-style settings
-		-- Handled separately in panel code
+		{ 'castBy',             'Cast By',              Builders.CastBy },
+		{ 'trackedSpells',      'Tracked Spells',       Builders.TrackedSpells },
+		{ 'borderMode',         'Mode',                 Builders.BorderMode },
+		{ 'borderAppearance',   'Settings',             Builders.BorderAppearance },
+		{ 'position',           'Position',             Builders.BorderPosition },
 	},
 }
 

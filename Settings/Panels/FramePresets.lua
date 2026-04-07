@@ -104,9 +104,7 @@ F.Settings.RegisterPanel({
 
 		local function buildPresetRow(rowParent, presetName, rowY)
 			local row = CreateFrame('Frame', nil, rowParent, 'BackdropTemplate')
-			row._bgColor     = C.Colors.widget
-			row._borderColor = C.Colors.border
-			Widgets.ApplyBackdrop(row, C.Colors.widget, C.Colors.border)
+			Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.border)
 			row:ClearAllPoints()
 			Widgets.SetPoint(row, 'TOPLEFT', rowParent, 'TOPLEFT', 0, rowY)
 			row:SetPoint('TOPRIGHT', rowParent, 'TOPRIGHT', 0, rowY)
