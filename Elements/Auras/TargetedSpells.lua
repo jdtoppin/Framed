@@ -27,8 +27,6 @@ local legacyDisplayModeMap = {
 	['both']   = DisplayMode.BOTH,
 }
 
-local UnitIsUnit = UnitIsUnit
-
 -- ============================================================
 -- Helpers
 -- ============================================================
@@ -117,8 +115,16 @@ local function showCastsSecret(element, castList, unit)
 				if(bc) then
 					bi:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
 				end
-				-- SetAlphaFromBoolean is C-level and accepts secret booleans
-				bi._frame:SetAlphaFromBoolean(UnitIsUnit(cast.sourceUnit .. 'target', unit), 1, 0)
+				-- UnitIsUnit with compound nameplate tokens is disallowed
+				-- against party units as of 12.1 (returns nil). Still
+				-- permitted against 'player', 'target', 'focus', etc.
+				-- Fall back to showing on all frames when unresolvable.
+				local targeting = UnitIsUnit(cast.sourceUnit .. 'target', unit)
+				if(type(targeting) == 'boolean') then
+					bi._frame:SetAlphaFromBoolean(targeting, 1, 0)
+				else
+					bi._frame:SetAlpha(1)
+				end
 				bi:Show()
 			end
 		end
@@ -134,10 +140,14 @@ local function showCastsSecret(element, castList, unit)
 		if(element._glow) then
 			element._glow:Start(element._glowColor, element._glowType, element._glowConfig)
 		end
-		-- Use SetAlphaFromBoolean on the glow frame
 		if(element._glowFrame) then
 			element._glowFrame:Show()
-			element._glowFrame:SetAlphaFromBoolean(UnitIsUnit(castList[1].sourceUnit .. 'target', unit), 1, 0)
+			local targeting = UnitIsUnit(castList[1].sourceUnit .. 'target', unit)
+			if(type(targeting) == 'boolean') then
+				element._glowFrame:SetAlphaFromBoolean(targeting, 1, 0)
+			else
+				element._glowFrame:SetAlpha(1)
+			end
 		end
 	elseif(element._glow) then
 		element._glow:Stop()
@@ -159,12 +169,11 @@ local function Update(self, event, unit)
 	if(not unit) then return end
 
 	if(F.CastTracker:IsSecretPath()) then
-		local allCasts = F.CastTracker:GetAllActiveCasts()
-		if(#allCasts == 0) then
-			hideAll(element)
-		else
-			showCastsSecret(element, allCasts, unit)
-		end
+		-- Secret path: UnitIsUnit with compound nameplate tokens is
+		-- disallowed against party units as of 12.1, so per-frame
+		-- filtering is not possible. Hide until Blizzard provides a
+		-- suitable API for party-frame-level spell target matching.
+		hideAll(element)
 	else
 		local unitCasts = F.CastTracker:GetCastsOnUnit(unit)
 		if(#unitCasts == 0) then

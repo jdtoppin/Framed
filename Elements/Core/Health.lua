@@ -56,12 +56,12 @@ local function NpcUpdateColor(self, event, unit)
 		color = self.colors.tapped
 	end
 
-	-- Threat: only apply if we can read the status (non-secret).
-	-- Separated from the elseif chain so a secret threat value does NOT
-	-- prevent the class/reaction fallback from running.
+	-- Threat: only apply if we can read the status (non-secret) and
+	-- the unit is actively on a threat table (status > 0). Status 0
+	-- means "not on threat table" and should not override reaction color.
 	if(not color and element.colorThreat and not UnitPlayerControlled(unit)) then
 		local status = UnitThreatSituation('player', unit)
-		if(status and F.IsValueNonSecret(status)) then
+		if(status and status > 0 and F.IsValueNonSecret(status)) then
 			color = self.colors.threat[status]
 		end
 	end
@@ -73,13 +73,17 @@ local function NpcUpdateColor(self, event, unit)
 			if(class) then
 				color = self.colors.class[class]
 			end
-		elseif(element.colorReaction and UnitReaction(unit, 'player')) then
-			color = self.colors.reaction[UnitReaction(unit, 'player')]
+		elseif(element.colorReaction) then
+			local reaction = UnitReaction(unit, 'player')
+			if(reaction and F.IsValueNonSecret(reaction)) then
+				color = self.colors.reaction[reaction]
+			end
 		end
 	end
 
 	-- Dead override: grey regardless of class/reaction
-	if(UnitIsDeadOrGhost(unit)) then
+	local isDead = UnitIsDeadOrGhost(unit)
+	if(isDead and F.IsValueNonSecret(isDead)) then
 		element:SetStatusBarColor(0.2, 0.2, 0.2)
 	elseif(color) then
 		element:SetStatusBarColor(color:GetRGB())
