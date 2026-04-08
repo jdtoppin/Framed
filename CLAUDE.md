@@ -6,7 +6,7 @@ WoW unit frames and raid frames addon. GPL v3.
 
 - `Libs/oUF/` — Embedded oUF (MIT). Do not modify unless necessary.
   - oUF is embedded, NOT standalone. It stores itself as `ns.oUF` (our Framed namespace), so `Framed.oUF` is auto-populated.
-  - Do NOT add `## X-oUF` to the TOC — that's for standalone oUF and would overwrite our global.
+  - TOC has `## X-oUF: Framed` per oUF embedding docs — this sets the global prefix for oUF's internal frames.
   - Do NOT reference a global `oUF` — it doesn't exist when embedded. Use `F.oUF` everywhere.
 - `Core/` — Config API, EventBus, Constants, SecretValues. The boundary between settings and frames.
 - `Widgets/` — AF-inspired widget library. One file per widget type.

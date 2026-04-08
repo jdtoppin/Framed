@@ -6,6 +6,7 @@
 ## SavedVariables: FramedDB, FramedBackupDB
 ## SavedVariablesPerCharacter: FramedCharDB
 ## License: GPL v3
+## X-oUF: Framed
 
 ## X-Website: https://github.com/jdtoppin/Framed
 ## X-Credits: oUF by oUF-wow contributors (MIT), UI inspired by AbstractFramework by enderneko (GPLv3)

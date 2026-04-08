@@ -20,6 +20,9 @@ externals:
     url: https://github.com/safeteeWoW/LibDeflate.git
     tag: latest
 
+tools-used:
+  - ouf
+
 ignore:
   - .git
   - .gitignore
