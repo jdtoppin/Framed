@@ -2,6 +2,8 @@ name: Release
 
 on:
   push:
+    branches: [main]
+    paths: ['Framed.toc']
     tags: ['v*']
 
 permissions:
@@ -14,6 +16,23 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Extract version from TOC
+        id: version
+        run: |
+          ver=$(grep -oP '## Version:\s*\K\S+' Framed.toc)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag if it doesn't exist
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
+            echo "Tag ${{ steps.version.outputs.tag }} already exists, skipping"
+          else
+            git tag "${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}"
+            echo "Created and pushed tag ${{ steps.version.outputs.tag }}"
+          fi
 
       - uses: BigWigsMods/packager@v2
         with:
