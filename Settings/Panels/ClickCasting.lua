@@ -153,9 +153,16 @@ local BUTTON_LABELS = {
 	Button5      = 'Button 5',
 }
 
+-- Keys that are modifiers only — don't capture these as bindings
+local MODIFIER_KEYS = {
+	LSHIFT = true, RSHIFT = true,
+	LCTRL  = true, RCTRL  = true,
+	LALT   = true, RALT   = true,
+}
+
 --- Build a display string from modifier + button values.
 --- @param modifier string  e.g. '', 'shift', 'ctrl-shift'
---- @param button   string  e.g. 'LeftButton'
+--- @param button   string  e.g. 'LeftButton' or 'F' or 'F1'
 --- @return string
 local function FormatBindText(modifier, button)
 	local parts = {}
@@ -305,6 +312,7 @@ F.Settings.RegisterPanel({
 					button   = row._button,
 					modifier = row._modifier,
 					type     = bindType,
+					isKey    = row._isKey or nil,
 				}
 				if(VALUE_TYPES[bindType]) then
 					local val = row._valueDD:GetValue()
@@ -366,20 +374,31 @@ F.Settings.RegisterPanel({
 			captureBtn._label:SetTextColor(Widgets.UnpackColor(C.Colors.accent))
 			captureBtn._label:SetText('Press a bind...')
 
-			-- Listen for keyboard (Escape to cancel)
+			-- Listen for keyboard keys
 			captureBtn:EnableKeyboard(true)
 			captureBtn:SetPropagateKeyboardInput(true)
 			captureBtn:SetScript('OnKeyDown', function(self, key)
 				if(key == 'ESCAPE') then
 					self:SetPropagateKeyboardInput(false)
 					stopCapture(self)
-				else
+				elseif(MODIFIER_KEYS[key]) then
+					-- Bare modifier press, keep waiting
 					self:SetPropagateKeyboardInput(true)
+				else
+					-- Capture this key as the binding
+					self:SetPropagateKeyboardInput(false)
+					local row = self:GetParent()
+					row._button   = key
+					row._modifier = GetCurrentModifiers()
+					row._isKey    = true
+					self._displayText = FormatBindText(row._modifier, row._button)
+					stopCapture(self)
+					saveAllBindings()
 				end
 			end)
 		end
 
-		local function addBindingRow(btnVal, modVal, typeVal, valText)
+		local function addBindingRow(btnVal, modVal, typeVal, valText, isKey)
 			local idx = #bindingRows + 1
 			local rowY = -(idx - 1) * (ROW_H + C.Spacing.base)
 
@@ -391,6 +410,7 @@ F.Settings.RegisterPanel({
 			-- Store the binding values on the row
 			row._button   = btnVal or 'LeftButton'
 			row._modifier = modVal or ''
+			row._isKey    = isKey or false
 
 			-- ── Capture button ────────────────────────────────
 			local captureBtn = Widgets.CreateButton(row, '', 'widget', CAPTURE_W, EDITBOX_H)
@@ -408,6 +428,7 @@ F.Settings.RegisterPanel({
 				if(self._capturing) then
 					row._button   = mouseButton
 					row._modifier = GetCurrentModifiers()
+					row._isKey    = false
 					self._displayText = FormatBindText(row._modifier, row._button)
 					stopCapture(self)
 					saveAllBindings()
@@ -551,7 +572,7 @@ F.Settings.RegisterPanel({
 		local savedBindings = getBindings()
 		if(#savedBindings > 0) then
 			for _, b in next, savedBindings do
-				addBindingRow(b.button, b.modifier, b.type, b.spell or b.macro or '')
+				addBindingRow(b.button, b.modifier, b.type, b.spell or b.macro or '', b.isKey)
 			end
 		else
 			-- Start with one empty row
