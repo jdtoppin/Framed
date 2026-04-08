@@ -170,7 +170,7 @@ F.Settings.RegisterPanel({
 
 				-- Highlight the currently editing preset with accent border
 				if(name == editingPreset) then
-					Widgets.ApplyBackdrop(row, C.Colors.widget, C.Colors.accent)
+					Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.accent)
 				end
 
 				rowY = rowY - ROW_H - 1
@@ -440,9 +440,9 @@ F.Settings.RegisterPanel({
 				local editingPreset = F.Settings.GetEditingPreset()
 				for _, row in next, presetRowPool do
 					if(row.__presetName == editingPreset) then
-						Widgets.ApplyBackdrop(row, C.Colors.widget, C.Colors.accent)
+						Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.accent)
 					else
-						Widgets.ApplyBackdrop(row, C.Colors.widget, C.Colors.border)
+						Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.border)
 					end
 					row.__tagFS:SetText(getPresetTag(row.__presetName))
 				end
