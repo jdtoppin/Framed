@@ -6,9 +6,6 @@ local Widgets = F.Widgets
 F.Indicators = F.Indicators or {}
 F.Indicators.Icon = {}
 
--- Wrap C.Colors.dispel with a 'none' fallback without mutating the shared constant table
-local DEBUFF_TYPE_COLORS = setmetatable({ none = C.Colors.dispel.Physical }, { __index = C.Colors.dispel })
-
 -- ============================================================
 -- Duration/depletion driven by C-level APIs (SetTimerDuration,
 -- SetCooldownFromDurationObject). Color progression + threshold
@@ -33,8 +30,7 @@ local IconMethods = {}
 function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks, dispelType)
 	-- Texture
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE) then
-		local colorKey = (dispelType and dispelType ~= '') and dispelType or 'none'
-		local color = DEBUFF_TYPE_COLORS[colorKey] or DEBUFF_TYPE_COLORS['none']
+		local color = self._config.color or { 1, 1, 1, 1 }
 		self.texture:SetColorTexture(color[1], color[2], color[3])
 	else
 		-- SpellIcon (default)
@@ -411,6 +407,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 		_frame        = frame,
 		_config       = {
 			showStacks = showStacks,
+			color      = config.color,
 		},
 		_displayType     = displayType,
 		_durationMode    = durationMode,
