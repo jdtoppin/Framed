@@ -236,6 +236,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 		grid:RebuildCards()
+		onScroll()
 	end, 'FrameSettingsBuilder.resizeComplete.' .. unitType)
 
 	-- ── Invalidate on preset change ────────────────────────────

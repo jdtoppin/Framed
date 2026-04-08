@@ -95,7 +95,8 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 	btnRow:SetWidth(width - 24)
 	btnRow:SetFrameLevel(spInput:GetFrameLevel() + 2)
 
-	local importBtn = Widgets.CreateButton(btnRow, 'Import Healer Spells', 'widget', 160, 24)
+	local btnHalf = math.floor(((width - 24) - C.Spacing.tight) / 2)
+	local importBtn = Widgets.CreateButton(btnRow, 'Import Healer Spells', 'widget', btnHalf, 24)
 	Widgets.SetPoint(importBtn, 'TOPLEFT', btnRow, 'TOPLEFT', 0, 0)
 	importBtn:SetOnClick(function()
 		F.Settings.Builders.ShowImportPopup(function(selectedSpells)
@@ -106,7 +107,7 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 		end)
 	end)
 
-	local deleteAllBtn = Widgets.CreateButton(btnRow, 'Delete All Spells', 'red', 140, 24)
+	local deleteAllBtn = Widgets.CreateButton(btnRow, 'Delete All Spells', 'red', btnHalf, 24)
 	deleteAllBtn:SetPoint('LEFT', importBtn, 'RIGHT', C.Spacing.tight, 0)
 	deleteAllBtn:SetOnClick(function()
 		Widgets.ShowConfirmDialog('Delete All Spells', 'Remove all tracked spells from this indicator?', function()
