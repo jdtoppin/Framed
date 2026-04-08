@@ -366,13 +366,6 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 			if(id == spellID) then return end
 		end
 		self._spells[#self._spells + 1] = spellID
-		-- Auto-save white as default spell color when color pickers are active
-		if(self._showColorPicker) then
-			if(not self._spellColors) then self._spellColors = {} end
-			if(not self._spellColors[spellID]) then
-				self._spellColors[spellID] = { 1, 1, 1 }
-			end
-		end
 		NotifyChanged()
 	end
 
@@ -409,7 +402,6 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 	--- @param spellIDs table Array of spell IDs
 	function spellList:SetSpells(spellIDs)
 		self._spells = {}
-		self._spellColors = {}
 		if(spellIDs) then
 			for _, id in next, spellIDs do
 				local n = tonumber(id)
@@ -421,9 +413,6 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 					end
 					if(not dup) then
 						self._spells[#self._spells + 1] = n
-						if(self._showColorPicker) then
-							self._spellColors[n] = { 1, 1, 1 }
-						end
 					end
 				end
 			end
