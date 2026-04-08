@@ -185,6 +185,7 @@ function F.Indicators.Icons.Create(parent, config)
 		numPerLine    = config.numPerLine    or 0,  -- 0 = single row/column (no wrapping)
 		growDirection = config.growDirection or 'RIGHT',
 		displayType   = config.displayType   or C.IconDisplay.SPELL_ICON,
+		color         = config.color,
 		showStacks    = config.showStacks    ~= false,
 		durationMode  = config.durationMode  or 'Always',
 		durationFont  = config.durationFont,
