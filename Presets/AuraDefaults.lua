@@ -33,6 +33,8 @@ local function defaultBuffIndicator()
 		enabled      = true,
 		spells       = {},
 		castBy       = 'me',
+		displayType  = 'SpellIcon',
+		color        = { 1, 1, 1, 1 },
 		iconWidth    = 14,
 		iconHeight   = 14,
 		maxDisplayed = 3,

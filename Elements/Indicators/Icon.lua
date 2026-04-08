@@ -30,7 +30,7 @@ local IconMethods = {}
 function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks, dispelType)
 	-- Texture
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE) then
-		local color = self._config.color or { 1, 1, 1, 1 }
+		local color = self._config.color
 		self.texture:SetColorTexture(color[1], color[2], color[3])
 	else
 		-- SpellIcon (default)
