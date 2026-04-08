@@ -43,3 +43,4 @@ jobs:
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REF: refs/tags/${{ steps.version.outputs.tag }}
