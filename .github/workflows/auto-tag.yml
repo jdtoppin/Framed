@@ -1,0 +1,45 @@
+name: Auto Tag
+
+on:
+  push:
+    branches: [main]
+    paths: ['Framed.toc']
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from TOC
+        id: version
+        run: |
+          ver=$(grep -oP '## Version:\s*\K\S+' Framed.toc)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        id: create_tag
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          if git ls-remote --tags origin "refs/tags/$tag" | grep -q .; then
+            echo "Tag $tag already exists, skipping"
+            echo "created=false" >> "$GITHUB_OUTPUT"
+          else
+            git tag "$tag"
+            git push origin "$tag"
+            echo "Created and pushed tag $tag"
+            echo "created=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trigger release workflow
+        if: steps.create_tag.outputs.created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run release.yml --ref "${{ steps.version.outputs.tag }}"
+          echo "Triggered release for ${{ steps.version.outputs.tag }}"
