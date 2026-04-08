@@ -28,6 +28,7 @@ function IconsMethods:SetIcons(auraList)
 				iconWidth    = cfg.iconWidth,
 				iconHeight   = cfg.iconHeight,
 				displayType  = cfg.displayType,
+				color        = cfg.color,
 				showStacks   = cfg.showStacks,
 				durationMode = cfg.durationMode,
 				durationFont = cfg.durationFont,
