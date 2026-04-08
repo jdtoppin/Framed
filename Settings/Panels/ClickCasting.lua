@@ -401,24 +401,26 @@ F.Settings.RegisterPanel({
 			captureBtn._capturing = false
 			row._captureBtn = captureBtn
 
-			-- Mouse-up enters capture mode; mouse-down while capturing records the bind
-			captureBtn:RegisterForClicks('AnyDown', 'AnyUp')
-			captureBtn:SetScript('OnClick', function(self, mouseButton, down)
+			-- OnMouseDown captures the bind (fires on press, modifiers still held)
+			-- OnClick enters capture mode (fires on release)
+			captureBtn:RegisterForClicks('AnyUp')
+			captureBtn:SetScript('OnMouseDown', function(self, mouseButton)
 				if(self._capturing) then
-					if(down) then
-						-- Capture on mouse-down so modifiers are still held
-						row._button   = mouseButton
-						row._modifier = GetCurrentModifiers()
-						self._displayText = FormatBindText(row._modifier, row._button)
-						stopCapture(self)
-						saveAllBindings()
-					end
-					-- Ignore mouse-up events while capturing
-				else
-					if(not down) then
-						-- Enter capture mode on mouse-up (prevents instant capture)
-						startCapture(self)
-					end
+					row._button   = mouseButton
+					row._modifier = GetCurrentModifiers()
+					self._displayText = FormatBindText(row._modifier, row._button)
+					stopCapture(self)
+					saveAllBindings()
+					self._justCaptured = true
+				end
+			end)
+			captureBtn:SetScript('OnClick', function(self)
+				if(self._justCaptured) then
+					self._justCaptured = nil
+					return
+				end
+				if(not self._capturing) then
+					startCapture(self)
 				end
 			end)
 
