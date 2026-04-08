@@ -260,9 +260,6 @@ local RESIZE_BUTTON_SIZE = 8
 --- @param onResizeComplete? function Called on mouse-up: onResizeComplete(frame, w, h)
 --- @return Button resizeButton
 function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHeight, onResize, onResizeComplete)
-	frame:SetResizable(true)
-	frame:SetResizeBounds(minWidth, minHeight, maxWidth, maxHeight)
-
 	local button = CreateFrame('Button', nil, frame)
 	button:SetFrameLevel(frame:GetFrameLevel() + 10)
 	Widgets.SetSize(button, RESIZE_BUTTON_SIZE, RESIZE_BUTTON_SIZE)
@@ -279,6 +276,38 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 		C.Colors.textSecondary[4] or 1)
 	button:SetAlpha(0)
 
+	-- Manual resize state
+	button._resizing = false
+	local startCursorX, startCursorY
+	local startW, startH
+
+	local function doResize()
+		local scale = frame:GetEffectiveScale()
+		local curX, curY = GetCursorPosition()
+		curX = curX / scale
+		curY = curY / scale
+
+		local dx = curX - startCursorX
+		local dy = startCursorY - curY  -- Y is inverted (dragging down = larger)
+
+		local newW = math.max(minWidth, math.min(startW + dx, maxWidth))
+		local newH = math.max(minHeight, math.min(startH + dy, maxHeight))
+
+		frame:SetSize(newW, newH)
+
+		if(onResize) then
+			onResize(frame, newW, newH)
+		end
+	end
+
+	local function stopResize()
+		button._resizing = false
+		local w, h = frame:GetWidth(), frame:GetHeight()
+		if(onResizeComplete) then
+			onResizeComplete(frame, w, h)
+		end
+	end
+
 	-- Fade helpers
 	local fadeTimer
 	local function fadeIn()
@@ -286,9 +315,7 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 		local elapsed = 0
 		local startAlpha = button:GetAlpha()
 		button:SetScript('OnUpdate', function(self, dt)
-			if(self._resizing and onResize) then
-				onResize(frame, frame:GetWidth(), frame:GetHeight())
-			end
+			if(self._resizing) then doResize() end
 			if(startAlpha < 1) then
 				elapsed = elapsed + dt
 				local t = math.min(elapsed / 0.15, 1)
@@ -305,49 +332,56 @@ function Widgets.CreateResizeButton(frame, minWidth, minHeight, maxWidth, maxHei
 			local elapsed = 0
 			local startAlpha = button:GetAlpha()
 			button:SetScript('OnUpdate', function(self, dt)
-				if(self._resizing and onResize) then
-					onResize(frame, frame:GetWidth(), frame:GetHeight())
-				end
+				if(self._resizing) then doResize() end
 				elapsed = elapsed + dt
 				local t = math.min(elapsed / 0.3, 1)
 				self:SetAlpha(startAlpha * (1 - t))
 				if(t >= 1) then
 					self:SetScript('OnUpdate', function(s)
-						if(s._resizing and onResize) then
-							onResize(frame, frame:GetWidth(), frame:GetHeight())
-						end
+						if(s._resizing) then doResize() end
 					end)
 				end
 			end)
 		end)
 	end
 
-	-- Resize state flag
-	button._resizing = false
+	-- Full-screen click catcher so mouse release is captured even when
+	-- the cursor moves beyond the resize grabber
+	local catcher = CreateFrame('Frame', nil, UIParent)
+	catcher:SetFrameStrata('TOOLTIP')
+	catcher:SetAllPoints(UIParent)
+	catcher:EnableMouse(true)
+	catcher:Hide()
+
+	catcher:SetScript('OnMouseUp', function(self, mouseButton)
+		if(mouseButton == 'LeftButton' and button._resizing) then
+			self:Hide()
+			stopResize()
+		end
+	end)
 
 	button:SetScript('OnMouseDown', function(self, mouseButton)
 		if(mouseButton == 'LeftButton') then
+			local scale = frame:GetEffectiveScale()
+			startCursorX, startCursorY = GetCursorPosition()
+			startCursorX = startCursorX / scale
+			startCursorY = startCursorY / scale
+			startW, startH = frame:GetSize()
 			self._resizing = true
-			frame:StartSizing('BOTTOMRIGHT')
+			catcher:Show()
 		end
 	end)
 
 	button:SetScript('OnMouseUp', function(self, mouseButton)
 		if(mouseButton == 'LeftButton' and self._resizing) then
-			self._resizing = false
-			frame:StopMovingOrSizing()
-			local w, h = frame:GetWidth(), frame:GetHeight()
-			if(onResizeComplete) then
-				onResizeComplete(frame, w, h)
-			end
+			catcher:Hide()
+			stopResize()
 		end
 	end)
 
-	-- Live resize callbacks via OnUpdate
+	-- Live resize via OnUpdate (handles case where no fade is active)
 	button:SetScript('OnUpdate', function(self)
-		if(self._resizing and onResize) then
-			onResize(frame, frame:GetWidth(), frame:GetHeight())
-		end
+		if(self._resizing) then doResize() end
 	end)
 
 	-- Show on hover, fade out on leave

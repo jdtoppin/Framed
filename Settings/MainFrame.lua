@@ -9,17 +9,33 @@ local Settings = F.Settings
 -- Window Constants
 -- ============================================================
 
-local WINDOW_W         = 900
-local WINDOW_H         = 600
 local WINDOW_MIN_W     = 700
 local WINDOW_MIN_H     = 450
-local WINDOW_MAX_W     = 1200
-local function GetWindowMaxH()
-	-- Frame operates at pixel scale (ApplyUIScale sets effective scale to 1.0),
-	-- so max height must be in pixels, not UIParent coordinates.
-	local screenPx = UIParent:GetHeight() * UIParent:GetEffectiveScale()
+
+local function GetScreenPixelSize()
+	local scale = UIParent:GetEffectiveScale()
+	return UIParent:GetWidth() * scale, UIParent:GetHeight() * scale
+end
+
+local function GetWindowMaxW()
+	local screenPx = select(1, GetScreenPixelSize())
 	return math.floor(screenPx * 0.85)
 end
+
+local function GetWindowMaxH()
+	local screenPx = select(2, GetScreenPixelSize())
+	return math.floor(screenPx * 0.85)
+end
+
+-- Default size: 50% of screen width/height, clamped to min
+local function GetDefaultSize()
+	local sw, sh = GetScreenPixelSize()
+	local w = math.max(WINDOW_MIN_W, math.floor(sw * 0.5))
+	local h = math.max(WINDOW_MIN_H, math.floor(sh * 0.5))
+	return w, h
+end
+
+local WINDOW_W, WINDOW_H
 
 local SIDEBAR_W        = 170
 local HEADER_HEIGHT    = 24
@@ -97,8 +113,10 @@ function Settings.CreateMainFrame()
 	if(Settings._mainFrame) then return end
 
 	-- ── Outer window ──────────────────────────────────────────
+	WINDOW_W, WINDOW_H = GetDefaultSize()
+	local maxW = GetWindowMaxW()
 	local maxH = GetWindowMaxH()
-	local initW = math.min(WINDOW_W, WINDOW_MAX_W)
+	local initW = math.min(WINDOW_W, maxW)
 	local initH = math.min(WINDOW_H, maxH)
 	local frame, header = Widgets.CreateHeaderedFrame(UIParent, 'Framed', initW, initH)
 	frame:SetFrameStrata('HIGH')
@@ -163,7 +181,7 @@ function Settings.CreateMainFrame()
 
 			local screenW = UIParent:GetWidth()
 			local screenH = UIParent:GetHeight()
-			local maxW = math.min(screenW - FULLSCREEN_PAD * 2, WINDOW_MAX_W)
+			local maxW = math.min(screenW - FULLSCREEN_PAD * 2, GetWindowMaxW())
 			local maxH = math.min(screenH - FULLSCREEN_PAD * 2, GetWindowMaxH())
 			frame:ClearAllPoints()
 			frame:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
@@ -209,7 +227,7 @@ function Settings.CreateMainFrame()
 	local RESIZE_THROTTLE = 0.05
 	resizeBtn = Widgets.CreateResizeButton(frame,
 		WINDOW_MIN_W, WINDOW_MIN_H,
-		WINDOW_MAX_W, GetWindowMaxH(),
+		GetWindowMaxW(), GetWindowMaxH(),
 		function(f, w, h)
 			-- Live resize: update dimensions and fire throttled
 			if(Settings._contentParent) then
@@ -224,7 +242,7 @@ function Settings.CreateMainFrame()
 		end,
 		function(f, w, h)
 			-- On release: save size, fire final resize + rebuild
-			f:SetResizeBounds(WINDOW_MIN_W, WINDOW_MIN_H, WINDOW_MAX_W, GetWindowMaxH())
+			f:SetResizeBounds(WINDOW_MIN_W, WINDOW_MIN_H, GetWindowMaxW(), GetWindowMaxH())
 			if(F.Config) then
 				F.Config:Set('general.settingsSize', { w, h })
 			end
@@ -318,7 +336,7 @@ function Settings.CreateMainFrame()
 		local sz = F.Config:Get('general.settingsSize')
 		if(sz) then
 			local maxH = GetWindowMaxH()
-			frame:SetSize(math.min(sz[1], WINDOW_MAX_W), math.min(sz[2], maxH))
+			frame:SetSize(math.min(sz[1], GetWindowMaxW()), math.min(sz[2], maxH))
 			-- Update stored dimensions (anchors handle actual sizing)
 			if(Settings._contentParent) then
 				Settings._contentParent._explicitWidth  = sz[1] - SIDEBAR_W - C.Spacing.normal
