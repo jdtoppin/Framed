@@ -13,11 +13,11 @@ local BUTTON_H     = 22
 local EDITBOX_H    = 22
 
 -- Binding field widths
-local CAPTURE_W   = 160
-local TYPE_DD_W   = 80
-local VALUE_EB_W  = 140
+local CAPTURE_W   = 130
+local TYPE_DD_W   = 70
+local VALUE_DD_W  = 160
 local ADD_BTN_W   = 100
-local REM_BTN_W   = 22
+local REM_BTN_W   = 20
 
 -- ============================================================
 -- Dropdown option tables
@@ -39,26 +39,52 @@ local VALUE_TYPES = { spell = true, macro = true }
 -- Spell / Macro data helpers
 -- ============================================================
 
+local function makeSpellDecorator(iconID, spellID)
+	return function(row)
+		if(iconID) then
+			row._swatch:SetTexture(iconID)
+			row._swatch:SetVertexColor(1, 1, 1, 1)
+			row._swatch:Show()
+			row._label:SetPoint('LEFT', row, 'LEFT', 30, 0)
+		end
+		row:SetScript('OnEnter', function(self)
+			GameTooltip:SetOwner(self, 'ANCHOR_RIGHT')
+			GameTooltip:SetSpellByID(spellID)
+			GameTooltip:Show()
+			local ac = C.Colors.accent
+			self:SetBackdropColor(ac[1] * 0.3, ac[2] * 0.3, ac[3] * 0.3, 0.5)
+		end)
+		row:SetScript('OnLeave', function(self)
+			GameTooltip:Hide()
+			self:SetBackdropColor(0, 0, 0, 0)
+		end)
+	end
+end
+
 local function getSpellItems()
 	local items = {}
 	local seen = {}
-	-- Iterate spellbook tabs (General, spec-specific, etc.)
-	local numTabs = C_SpellBook.GetNumSpellBookSkillLines()
+	local numTabs = C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetNumSpellBookSkillLines()
+	if(not numTabs or numTabs == 0) then return items end
+
 	for tab = 1, numTabs do
 		local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(tab)
-		if(skillLineInfo) then
-			local offset = skillLineInfo.itemIndexOffset
-			local count = skillLineInfo.numSpellBookItems
+		if(skillLineInfo and not skillLineInfo.shouldHide) then
+			local offset = skillLineInfo.itemIndexOffset or 0
+			local count = skillLineInfo.numSpellBookItems or 0
 			for i = offset + 1, offset + count do
-				local info = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
-				if(info and info.spellID and info.itemType == Enum.SpellBookItemType.Spell) then
-					local name = C_Spell.GetSpellName(info.spellID)
-					if(name and not seen[name]) then
-						local spellInfo = C_Spell.GetSpellInfo(info.spellID)
-						local isPassive = spellInfo and spellInfo.isPassive
-						if(not isPassive) then
+				local itemInfo = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
+				if(itemInfo and itemInfo.spellID) then
+					local isSpell = (itemInfo.itemType == Enum.SpellBookItemType.Spell)
+					if(isSpell and not itemInfo.isPassive and not itemInfo.isOffSpec) then
+						local name = itemInfo.name or (C_Spell.GetSpellName and C_Spell.GetSpellName(itemInfo.spellID))
+						if(name and not seen[name]) then
 							seen[name] = true
-							items[#items + 1] = { text = name, value = name }
+							items[#items + 1] = {
+								text = name .. '  |cff888888(' .. itemInfo.spellID .. ')|r',
+								value = name,
+								_decorateRow = makeSpellDecorator(itemInfo.iconID, itemInfo.spellID),
+							}
 						end
 					end
 				end
@@ -69,19 +95,38 @@ local function getSpellItems()
 	return items
 end
 
+local function makeMacroDecorator(iconTexture)
+	return function(row)
+		if(iconTexture) then
+			row._swatch:SetTexture(iconTexture)
+			row._swatch:SetVertexColor(1, 1, 1, 1)
+			row._swatch:Show()
+			row._label:SetPoint('LEFT', row, 'LEFT', 30, 0)
+		end
+	end
+end
+
 local function getMacroItems()
 	local items = {}
 	local numGlobal, numChar = GetNumMacros()
 	for i = 1, numGlobal do
-		local name = GetMacroInfo(i)
+		local name, iconTexture = GetMacroInfo(i)
 		if(name) then
-			items[#items + 1] = { text = name, value = name }
+			items[#items + 1] = {
+				text = name,
+				value = name,
+				_decorateRow = makeMacroDecorator(iconTexture),
+			}
 		end
 	end
 	for i = MAX_ACCOUNT_MACROS + 1, MAX_ACCOUNT_MACROS + numChar do
-		local name = GetMacroInfo(i)
+		local name, iconTexture = GetMacroInfo(i)
 		if(name) then
-			items[#items + 1] = { text = name .. ' (char)', value = name }
+			items[#items + 1] = {
+				text = name .. ' (char)',
+				value = name,
+				_decorateRow = makeMacroDecorator(iconTexture),
+			}
 		end
 	end
 	return items
@@ -206,6 +251,7 @@ F.Settings.RegisterPanel({
 
 		local bindCard, bindInner, bindCardY
 		bindCard, bindInner, bindCardY = Widgets.StartCard(content, width, yOffset)
+		local innerWidth = width - Widgets.CARD_PADDING * 2
 
 		-- Column headers
 		local headerY = bindCardY
@@ -233,7 +279,7 @@ F.Settings.RegisterPanel({
 		local rowContainer = CreateFrame('Frame', nil, bindInner)
 		rowContainer:ClearAllPoints()
 		Widgets.SetPoint(rowContainer, 'TOPLEFT', bindInner, 'TOPLEFT', 0, bindCardY)
-		rowContainer:SetWidth(width)
+		rowContainer:SetWidth(innerWidth)
 
 		-- Track the list of binding row frames
 		local bindingRows = {}
@@ -331,7 +377,7 @@ F.Settings.RegisterPanel({
 			local row = CreateFrame('Frame', nil, rowContainer)
 			row:ClearAllPoints()
 			Widgets.SetPoint(row, 'TOPLEFT', rowContainer, 'TOPLEFT', 0, rowY)
-			row:SetSize(width, ROW_H)
+			row:SetSize(innerWidth, ROW_H)
 
 			-- Store the binding values on the row
 			row._button   = btnVal or 'LeftButton'
@@ -346,20 +392,24 @@ F.Settings.RegisterPanel({
 			captureBtn._capturing = false
 			row._captureBtn = captureBtn
 
-			-- Left-click toggles capture mode; any other mouse button is captured
-			captureBtn:RegisterForClicks('AnyDown')
-			captureBtn:SetOnClick(nil)  -- clear default
-			captureBtn:SetScript('OnClick', function(self, mouseButton)
+			-- Mouse-up enters capture mode; mouse-down while capturing records the bind
+			captureBtn:RegisterForClicks('AnyDown', 'AnyUp')
+			captureBtn:SetScript('OnClick', function(self, mouseButton, down)
 				if(self._capturing) then
-					-- Capture this click as the binding
-					row._button   = mouseButton
-					row._modifier = GetCurrentModifiers()
-					self._displayText = FormatBindText(row._modifier, row._button)
-					stopCapture(self)
-					saveAllBindings()
+					if(down) then
+						-- Capture on mouse-down so modifiers are still held
+						row._button   = mouseButton
+						row._modifier = GetCurrentModifiers()
+						self._displayText = FormatBindText(row._modifier, row._button)
+						stopCapture(self)
+						saveAllBindings()
+					end
+					-- Ignore mouse-up events while capturing
 				else
-					-- Enter capture mode
-					startCapture(self)
+					if(not down) then
+						-- Enter capture mode on mouse-up (prevents instant capture)
+						startCapture(self)
+					end
 				end
 			end)
 
@@ -371,7 +421,7 @@ F.Settings.RegisterPanel({
 			row._typeDD = typeDD
 
 			-- Value dropdown (spell or macro list)
-			local valueDD = Widgets.CreateDropdown(row, VALUE_EB_W)
+			local valueDD = Widgets.CreateDropdown(row, VALUE_DD_W)
 			valueDD:ClearAllPoints()
 			Widgets.SetPoint(valueDD, 'LEFT', typeDD, 'RIGHT', C.Spacing.base, 0)
 			valueDD:SetOnSelect(saveAllBindings)
