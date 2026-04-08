@@ -226,10 +226,13 @@ local function Update(self, event, unit)
 	element:SetMinMaxValues(0, max)
 
 	local cur = element.values:GetCurrentHealth()
-	if(UnitIsConnected(unit)) then
-		element:SetValue(cur, element.smoothing)
-	else
+	-- UnitIsConnected can return a secret boolean in combat;
+	-- assume connected if secret (being in combat implies connection).
+	local connected = UnitIsConnected(unit)
+	if(not issecretvalue(connected) and not connected) then
 		element:SetValue(max, element.smoothing)
+	else
+		element:SetValue(cur, element.smoothing)
 	end
 
 	element.cur = cur -- DEPRECATED: use element.values

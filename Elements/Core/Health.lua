@@ -302,7 +302,8 @@ function F.Elements.Health.Setup(self, width, height, config)
 		-- ── Dead state: dark grey ─────────────────────────
 		-- NPC frames handle dead in NpcUpdateColor (runs after PostUpdate
 		-- via ColorPath) so only non-NPC frames need the override here.
-		if(not h._isNpcFrame and UnitIsDeadOrGhost(unit)) then
+		local isDead = UnitIsDeadOrGhost(unit)
+		if(not h._isNpcFrame and F.IsValueNonSecret(isDead) and isDead) then
 			h:SetStatusBarColor(0.2, 0.2, 0.2)
 		end
 
