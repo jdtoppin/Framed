@@ -30,8 +30,14 @@ local IconMethods = {}
 function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks, dispelType)
 	-- Texture
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE) then
-		local color = self._config.color or { 1, 1, 1, 1 }
-		self.texture:SetColorTexture(color[1], color[2], color[3])
+		-- Per-spell color first, then base indicator color
+		local sc = self._spellColors and self._spellColors[spellID]
+		if(sc) then
+			self.texture:SetColorTexture(sc[1], sc[2], sc[3], 1)
+		else
+			local color = self._config.color or { 1, 1, 1, 1 }
+			self.texture:SetColorTexture(color[1], color[2], color[3], color[4] or 1)
+		end
 	else
 		-- SpellIcon (default)
 		if(iconTexture) then
@@ -52,14 +58,6 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 	-- Stacks
 	if(self._config.showStacks) then
 		self:SetStacks(stacks)
-	end
-
-	-- Per-spell color override (ColoredSquare mode)
-	if(self._displayType == C.IconDisplay.COLORED_SQUARE and self._spellColors) then
-		local sc = self._spellColors[spellID]
-		if(sc) then
-			self.texture:SetColorTexture(sc[1], sc[2], sc[3], 1)
-		end
 	end
 
 	-- Get DurationObject
