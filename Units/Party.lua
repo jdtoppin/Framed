@@ -48,7 +48,7 @@ local function PetStyle(self, unit)
 		textFormat     = petCfg.healthTextFormat,
 		fontSize       = petCfg.healthTextFontSize,
 		textColorMode  = petCfg.healthTextColor,
-		textAnchor     = 'CENTER',
+		textAnchor     = petCfg.healthTextAnchor or 'CENTER',
 		textAnchorX    = petCfg.healthTextOffsetX,
 		textAnchorY    = petCfg.healthTextOffsetY,
 		outline        = petCfg.healthTextOutline,
@@ -58,13 +58,18 @@ local function PetStyle(self, unit)
 	F.Elements.Health.Setup(self, w, h, healthCfg)
 
 	-- Name at top of frame
-	local nameOverlay = CreateFrame('Frame', nil, self)
-	nameOverlay:SetAllPoints(self)
-	nameOverlay:SetFrameLevel(self:GetFrameLevel() + 5)
-	local name = Widgets.CreateFontString(nameOverlay, C.Font.sizeSmall, C.Colors.textActive, '', true)
-	name:SetPoint('TOP', self, 'TOP', 0, -2)
-	self:Tag(name, '[name]')
-	self.Name = name
+	if(petCfg.showName ~= false) then
+		local nameOverlay = CreateFrame('Frame', nil, self)
+		nameOverlay:SetAllPoints(self)
+		nameOverlay:SetFrameLevel(self:GetFrameLevel() + 5)
+		local nameAnchor  = petCfg.nameAnchor or 'TOP'
+		local nameOutline = petCfg.nameOutline or ''
+		local nameShadow  = petCfg.nameShadow ~= false
+		local name = Widgets.CreateFontString(nameOverlay, petCfg.nameFontSize or C.Font.sizeSmall, C.Colors.textActive, nameOutline, nameShadow)
+		name:SetPoint(nameAnchor, self, nameAnchor, petCfg.nameOffsetX or 0, petCfg.nameOffsetY or -2)
+		self:Tag(name, '[name]')
+		self.Name = name
+	end
 
 
 	-- Aura elements (share party aura config)

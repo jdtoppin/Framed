@@ -7,7 +7,7 @@ local B = F.FrameSettingsBuilder
 F.SettingsCards = F.SettingsCards or {}
 
 -- ============================================================
--- Party Pets card — show/hide toggle + health text options
+-- Party Pets card — show/hide toggle + name/health text options
 -- Only shown in the Party Frames settings panel.
 -- Config lives at presets.<name>.partyPets (not inside unitConfigs).
 -- ============================================================
@@ -47,6 +47,70 @@ function F.SettingsCards.PartyPets(parent, width)
 		setPetConfig('spacing', value)
 	end)
 	cardY = B.PlaceWidget(spacingSlider, inner, cardY, B.SLIDER_H)
+
+	-- ── Name Text ────────────────────────────────────────────
+	cardY = B.PlaceHeading(inner, 'Name Text', 4, cardY)
+
+	-- Show Name toggle
+	local showName = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
+		setPetConfig('showName', checked)
+	end)
+	showName:SetChecked(getPetConfig('showName') ~= false)
+	cardY = B.PlaceWidget(showName, inner, cardY, B.CHECK_H)
+
+	-- Name font size slider
+	local nameFontSize = Widgets.CreateSlider(inner, 'Font Size', widgetW, 6, 24, 1)
+	nameFontSize:SetValue(getPetConfig('nameFontSize'))
+	nameFontSize:SetAfterValueChanged(function(value)
+		setPetConfig('nameFontSize', value)
+	end)
+	cardY = B.PlaceWidget(nameFontSize, inner, cardY, B.SLIDER_H)
+
+	-- Name outline dropdown
+	local nameOutline = Widgets.CreateDropdown(inner, widgetW)
+	nameOutline:SetItems({
+		{ text = 'None',       value = '' },
+		{ text = 'Outline',    value = 'OUTLINE' },
+		{ text = 'Monochrome', value = 'MONOCHROME' },
+	})
+	nameOutline:SetValue(getPetConfig('nameOutline'))
+	nameOutline:SetOnSelect(function(value)
+		setPetConfig('nameOutline', value)
+	end)
+	cardY = B.PlaceWidget(nameOutline, inner, cardY, B.DROPDOWN_H)
+
+	-- Name shadow toggle
+	local nameShadow = Widgets.CreateCheckButton(inner, 'Text Shadow', function(checked)
+		setPetConfig('nameShadow', checked)
+	end)
+	nameShadow:SetChecked(getPetConfig('nameShadow') ~= false)
+	cardY = B.PlaceWidget(nameShadow, inner, cardY, B.CHECK_H)
+
+	-- Name anchor picker
+	local nameAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
+	nameAnchor:SetAnchor(getPetConfig('nameAnchor') or 'TOP', 0, 0)
+	nameAnchor:SetOnChanged(function(point)
+		setPetConfig('nameAnchor', point)
+	end)
+	nameAnchor._xSlider:Hide()
+	nameAnchor._ySlider:Hide()
+	cardY = B.PlaceWidget(nameAnchor, inner, cardY, 56)
+
+	-- Name X offset slider
+	local nameXOff = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
+	nameXOff:SetValue(getPetConfig('nameOffsetX'))
+	nameXOff:SetAfterValueChanged(function(value)
+		setPetConfig('nameOffsetX', value)
+	end)
+	cardY = B.PlaceWidget(nameXOff, inner, cardY, B.SLIDER_H)
+
+	-- Name Y offset slider
+	local nameYOff = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
+	nameYOff:SetValue(getPetConfig('nameOffsetY'))
+	nameYOff:SetAfterValueChanged(function(value)
+		setPetConfig('nameOffsetY', value)
+	end)
+	cardY = B.PlaceWidget(nameYOff, inner, cardY, B.SLIDER_H)
 
 	-- ── Health Text ──────────────────────────────────────────
 	cardY = B.PlaceHeading(inner, 'Health Text', 4, cardY)
@@ -111,6 +175,16 @@ function F.SettingsCards.PartyPets(parent, width)
 	end)
 	shadowCheck:SetChecked(getPetConfig('healthTextShadow') ~= false)
 	cardY = B.PlaceWidget(shadowCheck, inner, cardY, B.CHECK_H)
+
+	-- Health text anchor picker
+	local healthAnchor = Widgets.CreateAnchorPicker(inner, widgetW)
+	healthAnchor:SetAnchor(getPetConfig('healthTextAnchor') or 'CENTER', 0, 0)
+	healthAnchor:SetOnChanged(function(point)
+		setPetConfig('healthTextAnchor', point)
+	end)
+	healthAnchor._xSlider:Hide()
+	healthAnchor._ySlider:Hide()
+	cardY = B.PlaceWidget(healthAnchor, inner, cardY, 56)
 
 	-- X offset slider
 	local xOffSlider = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
