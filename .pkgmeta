@@ -19,3 +19,12 @@ externals:
   Libs/LibDeflate:
     url: https://github.com/safeteeWoW/LibDeflate.git
     tag: latest
+
+ignore:
+  - .git
+  - .gitignore
+  - .claude
+  - .superpowers
+  - .worktrees
+  - docs
+  - CLAUDE.md
