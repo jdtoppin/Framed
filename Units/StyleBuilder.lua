@@ -112,6 +112,23 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- Register for all mouse button clicks (WoW 10.0+ defaults to LeftButtonUp only)
 	self:RegisterForClicks('AnyUp')
 
+	-- Unit tooltip on hover
+	self:SetScript('OnEnter', function(frame)
+		if(F.Config:Get('general.tooltipEnabled') == false) then return end
+		if(F.Config:Get('general.tooltipHideInCombat') and InCombatLockdown()) then return end
+		local anchor = F.Config:Get('general.tooltipAnchor') or 'ANCHOR_RIGHT'
+		local offX = F.Config:Get('general.tooltipOffsetX') or 0
+		local offY = F.Config:Get('general.tooltipOffsetY') or 0
+		GameTooltip_SetDefaultAnchor(GameTooltip, frame)
+		GameTooltip:SetUnit(frame.unit)
+		GameTooltip:Show()
+	end)
+	self:SetScript('OnLeave', function()
+		if(not GameTooltip:IsForbidden()) then
+			GameTooltip:Hide()
+		end
+	end)
+
 	-- --------------------------------------------------------
 	-- 1. Size the frame
 	-- --------------------------------------------------------

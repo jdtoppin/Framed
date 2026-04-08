@@ -33,6 +33,20 @@ local function PetStyle(self, unit)
 	self:RegisterForClicks('AnyUp')
 	Widgets.SetSize(self, w, h)
 
+	-- Unit tooltip on hover
+	self:SetScript('OnEnter', function(frame)
+		if(F.Config:Get('general.tooltipEnabled') == false) then return end
+		if(F.Config:Get('general.tooltipHideInCombat') and InCombatLockdown()) then return end
+		GameTooltip_SetDefaultAnchor(GameTooltip, frame)
+		GameTooltip:SetUnit(frame.unit)
+		GameTooltip:Show()
+	end)
+	self:SetScript('OnLeave', function()
+		if(not GameTooltip:IsForbidden()) then
+			GameTooltip:Hide()
+		end
+	end)
+
 	-- Dark background
 	local bg = self:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(self)
