@@ -1,0 +1,32 @@
+name: Auto Tag
+
+on:
+  push:
+    branches: [main]
+    paths: ['Framed.toc']
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from TOC
+        id: version
+        run: |
+          ver=$(grep -oP '## Version:\s*\K\S+' Framed.toc)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag if it doesn't exist
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
+            echo "Tag ${{ steps.version.outputs.tag }} already exists, skipping"
+          else
+            git tag "${{ steps.version.outputs.tag }}"
+            git push origin "${{ steps.version.outputs.tag }}"
+            echo "Created and pushed tag ${{ steps.version.outputs.tag }}"
+          fi
