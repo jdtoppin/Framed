@@ -142,12 +142,12 @@ F.Settings.RegisterPanel({
 		}
 
 		for _, entry in next, creditLines do
-			local nameFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textActive)
+			local nameFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textActive)
 			nameFS:SetJustifyH('LEFT')
 			nameFS:ClearAllPoints()
 			Widgets.SetPoint(nameFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 			nameFS:SetText(entry.label)
-			yOffset = yOffset - C.Font.sizeNormal - C.Spacing.base
+			yOffset = yOffset - C.Font.sizeSmall - C.Spacing.base
 
 			local detailFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
 			detailFS:SetJustifyH('LEFT')
