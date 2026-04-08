@@ -1,5 +1,7 @@
 package-as: Framed
 
+manual-changelog: CHANGELOG.md
+
 enable-nolib-creation: no
 
 externals:
