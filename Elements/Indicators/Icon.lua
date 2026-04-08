@@ -34,8 +34,8 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 		local sc = self._spellColors and self._spellColors[spellID]
 		if(sc) then
 			self.texture:SetColorTexture(sc[1], sc[2], sc[3], 1)
-		else
-			local color = self._config.color or { 1, 1, 1, 1 }
+		elseif(self._config.color) then
+			local color = self._config.color
 			self.texture:SetColorTexture(color[1], color[2], color[3], color[4] or 1)
 		end
 	else

@@ -274,10 +274,7 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 	spList:SetSpells(data.spells or {})
 	spList:SetOnChanged(function(spells)
 		update('spells', spells)
-		-- Sync spell colors when spells change
-		if(spList._showColorPicker) then
-			update('spellColors', spList:GetSpellColors())
-		end
+		update('spellColors', spList:GetSpellColors())
 	end)
 
 	-- Show per-spell color pickers for colored square and bars types
@@ -298,12 +295,9 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 	importBtn:SetOnClick(function()
 		ShowImportPopup(function(selectedSpells)
 			if(not selectedSpells or #selectedSpells == 0) then return end
-			local existing = spList:GetSpells()
 			for _, spellID in next, selectedSpells do
-				existing[#existing + 1] = spellID
+				spList:AddSpell(spellID)
 			end
-			spList:SetSpells(existing)
-			update('spells', existing)
 		end)
 	end)
 

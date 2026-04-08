@@ -65,9 +65,7 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 	spList:SetSpells(data.spells or {})
 	spList:SetOnChanged(function(spells)
 		update('spells', spells)
-		if(spList._showColorPicker) then
-			update('spellColors', spList:GetSpellColors())
-		end
+		update('spellColors', spList:GetSpellColors())
 		if(rebuildPanel) then rebuildPanel() end
 	end)
 
@@ -102,12 +100,9 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 	importBtn:SetOnClick(function()
 		F.Settings.Builders.ShowImportPopup(function(selectedSpells)
 			if(not selectedSpells or #selectedSpells == 0) then return end
-			local existing = spList:GetSpells()
 			for _, spellID in next, selectedSpells do
-				existing[#existing + 1] = spellID
+				spList:AddSpell(spellID)
 			end
-			update('spells', existing)
-			spList:SetSpells(existing)
 		end)
 	end)
 
