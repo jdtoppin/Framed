@@ -36,8 +36,11 @@ function F.ClickCasting.ApplyBindings(frame)
 			frame:SetAttribute(attrKey, 'spell')
 			frame:SetAttribute(prefix .. 'spell-' .. button, binding.spell)
 		elseif(binding.type == 'macro') then
-			frame:SetAttribute(attrKey, 'macro')
-			frame:SetAttribute(prefix .. 'macrotext-' .. button, binding.macro)
+			local macroIndex = binding.macro and GetMacroIndexByName(binding.macro)
+			if(macroIndex and macroIndex > 0) then
+				frame:SetAttribute(attrKey, 'macro')
+				frame:SetAttribute(prefix .. 'macro-' .. button, macroIndex)
+			end
 		elseif(binding.type == 'target') then
 			frame:SetAttribute(attrKey, 'target')
 		elseif(binding.type == 'focus') then

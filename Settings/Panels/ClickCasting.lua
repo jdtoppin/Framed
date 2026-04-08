@@ -32,6 +32,47 @@ local TYPE_OPTIONS = {
 	{ text = 'Menu',   value = 'menu' },
 }
 
+-- Types that need a value dropdown
+local VALUE_TYPES = { spell = true, macro = true }
+
+-- ============================================================
+-- Spell / Macro data helpers
+-- ============================================================
+
+local function getSpellItems()
+	local items = {}
+	local seen = {}
+	for i = 1, (C_SpellBook.GetNumSpellBookItems(Enum.SpellBookSpellBank.Player) or 0) do
+		local info = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
+		if(info and info.itemType == Enum.SpellBookItemType.Spell and info.name) then
+			if(not seen[info.name] and not IsPassiveSpell(info.spellID)) then
+				seen[info.name] = true
+				items[#items + 1] = { text = info.name, value = info.name }
+			end
+		end
+	end
+	table.sort(items, function(a, b) return a.text < b.text end)
+	return items
+end
+
+local function getMacroItems()
+	local items = {}
+	local numGlobal, numChar = GetNumMacros()
+	for i = 1, numGlobal do
+		local name = GetMacroInfo(i)
+		if(name) then
+			items[#items + 1] = { text = name, value = name }
+		end
+	end
+	for i = MAX_ACCOUNT_MACROS + 1, MAX_ACCOUNT_MACROS + numChar do
+		local name = GetMacroInfo(i)
+		if(name) then
+			items[#items + 1] = { text = name .. ' (char)', value = name }
+		end
+	end
+	return items
+end
+
 -- ============================================================
 -- Bind capture formatting
 -- ============================================================
@@ -173,12 +214,13 @@ F.Settings.RegisterPanel({
 					modifier = row._modifier,
 					type     = bindType,
 				}
-				-- Runtime reads 'spell' or 'macro' field, not 'value'
-				local val = row._valueEB:GetText()
-				if(bindType == 'spell') then
-					entry.spell = val
-				elseif(bindType == 'macro') then
-					entry.macro = val
+				if(VALUE_TYPES[bindType]) then
+					local val = row._valueDD:GetValue()
+					if(bindType == 'spell') then
+						entry.spell = val
+					elseif(bindType == 'macro') then
+						entry.macro = val
+					end
 				end
 				bindings[#bindings + 1] = entry
 			end
@@ -288,26 +330,46 @@ F.Settings.RegisterPanel({
 			typeDD:ClearAllPoints()
 			Widgets.SetPoint(typeDD, 'LEFT', captureBtn, 'RIGHT', C.Spacing.base, 0)
 			typeDD:SetItems(TYPE_OPTIONS)
-			typeDD:SetValue(typeVal or 'spell')
-			typeDD:SetOnSelect(saveAllBindings)
 			row._typeDD = typeDD
 
-			-- Value editbox
-			local valueEB = Widgets.CreateEditBox(row, nil, VALUE_EB_W, EDITBOX_H, 'text')
-			valueEB:ClearAllPoints()
-			Widgets.SetPoint(valueEB, 'LEFT', typeDD, 'RIGHT', C.Spacing.base, 0)
-			if(valText and valText ~= '') then
-				valueEB:SetText(valText)
-			else
-				valueEB:SetPlaceholder('Spell or Macro')
+			-- Value dropdown (spell or macro list)
+			local valueDD = Widgets.CreateDropdown(row, VALUE_EB_W)
+			valueDD:ClearAllPoints()
+			Widgets.SetPoint(valueDD, 'LEFT', typeDD, 'RIGHT', C.Spacing.base, 0)
+			valueDD:SetOnSelect(saveAllBindings)
+			row._valueDD = valueDD
+
+			-- Populate and show/hide value dropdown based on type
+			local function updateValueDropdown(bindType)
+				if(bindType == 'spell') then
+					valueDD:SetItems(getSpellItems())
+					valueDD:Show()
+				elseif(bindType == 'macro') then
+					valueDD:SetItems(getMacroItems())
+					valueDD:Show()
+				else
+					valueDD:Hide()
+				end
 			end
-			valueEB:SetOnTextChanged(saveAllBindings)
-			row._valueEB = valueEB
+
+			-- Set initial type and value
+			local initType = typeVal or 'spell'
+			typeDD:SetValue(initType)
+			updateValueDropdown(initType)
+			if(valText and valText ~= '') then
+				valueDD:SetValue(valText)
+			end
+
+			typeDD:SetOnSelect(function(value)
+				updateValueDropdown(value)
+				valueDD:SetValue(nil)
+				saveAllBindings()
+			end)
 
 			-- Remove button
 			local remBtn = Widgets.CreateButton(row, 'X', 'widget', REM_BTN_W, EDITBOX_H)
 			remBtn:ClearAllPoints()
-			Widgets.SetPoint(remBtn, 'LEFT', valueEB, 'RIGHT', C.Spacing.base, 0)
+			Widgets.SetPoint(remBtn, 'LEFT', valueDD, 'RIGHT', C.Spacing.base, 0)
 			local capturedRow = row
 			remBtn:SetOnClick(function()
 				removeRow(capturedRow)
