@@ -176,79 +176,88 @@ local function CreateCatcher(def, overlay)
 		-- Switch to selected visuals during drag
 		ApplySelectedVisuals(self)
 
-		-- ElvUI-style: track click offset from frame anchor in frame-space.
-		-- GetCenter() and GetCursorPosition()/fScale are both in frame-space
-		-- (1 unit = fScale screen pixels). Since fScale differs from uiScale,
-		-- UIParent reference must be converted to frame-space before subtracting.
+		-- Track click offset from frame reference point in frame-space.
+		-- Group frames use TOPLEFT (matching LiveUpdate); solo use CENTER.
 		local fScale = frame:GetEffectiveScale()
 		local uiScale = UIParent:GetEffectiveScale()
-		local fCX, fCY = frame:GetCenter()
+		local isGroupDrag = self._isGroup
+		self._isGroupDrag = isGroupDrag
+
+		-- Reference point: frame's top-left for groups, center for solo
+		local fRefX, fRefY
+		if(isGroupDrag) then
+			fRefX, fRefY = frame:GetLeft(), frame:GetTop()
+		else
+			fRefX, fRefY = frame:GetCenter()
+		end
+
 		-- Use original click position (captured in OnMouseDown before drag threshold)
-		-- to avoid the offset caused by cursor moving before OnDragStart fires
 		local clickX = self._mouseDownX or GetCursorPosition()
 		local clickY = self._mouseDownY or select(2, GetCursorPosition())
-		-- Click offset in frame-space (both terms in frame-space)
-		self._clickOffX = fCX - clickX / fScale
-		self._clickOffY = fCY - clickY / fScale
+		-- Click offset in frame-space
+		self._clickOffX = fRefX - clickX / fScale
+		self._clickOffY = fRefY - clickY / fScale
 		self._frameW = frame:GetWidth()
 		self._frameH = frame:GetHeight()
 		self._isDragging = true
 
-		-- Group frames use TOPLEFT anchor; solo frames use CENTER
-		local isGroupDrag = self._isGroup
-		self._isGroupDrag = isGroupDrag
-
 		F.EventBus:Fire('EDIT_MODE_DRAG_STARTED', frameKey)
 
-		-- UIParent center in frame-space (convert from UIParent-space → screen px → frame-space)
-		local uiCX, uiCY = UIParent:GetCenter()
-		local uiCenterX = uiCX * uiScale / fScale
-		local uiCenterY = uiCY * uiScale / fScale
+		-- UIParent reference point in frame-space:
+		-- TOPLEFT = (0, top) for groups, CENTER for solo
+		local uiRefX, uiRefY
+		if(isGroupDrag) then
+			uiRefX = 0
+			uiRefY = UIParent:GetTop() * uiScale / fScale
+		else
+			local uiCX, uiCY = UIParent:GetCenter()
+			uiRefX = uiCX * uiScale / fScale
+			uiRefY = uiCY * uiScale / fScale
+		end
 		-- Scale ratio for converting frame-space → UIParent-space (alignment guides)
 		local scaleRatio = fScale / uiScale
+		local dragAnchor = isGroupDrag and 'TOPLEFT' or 'CENTER'
+		local dragRelPoint = isGroupDrag and 'TOPLEFT' or 'CENTER'
 		self:SetScript('OnUpdate', function(s)
 			local cx, cy = GetCursorPosition()
-			-- Frame center in frame-space = cursor in frame-space + click offset
-			local newCX = cx / fScale + s._clickOffX
-			local newCY = cy / fScale + s._clickOffY
-			-- SetPoint offset = frame center minus UIParent center (both in frame-space)
-			local newX = newCX - uiCenterX
-			local newY = newCY - uiCenterY
+			-- Frame ref in frame-space = cursor in frame-space + click offset
+			local newRefX = cx / fScale + s._clickOffX
+			local newRefY = cy / fScale + s._clickOffY
+			-- SetPoint offset = frame ref minus UIParent ref (both in frame-space)
+			local newX = newRefX - uiRefX
+			local newY = newRefY - uiRefY
 
 			-- Live snap: convert to UIParent-space, snap, convert back
 			local snapX, snapY = EditMode.SnapToGrid(newX * scaleRatio, newY * scaleRatio, s._frameW * scaleRatio, s._frameH * scaleRatio)
 			newX = snapX / scaleRatio
 			newY = snapY / scaleRatio
 
+			-- Store last computed position for OnDragStop
+			s._lastX = newX
+			s._lastY = newY
+
 			-- Move frame to follow cursor (raw SetPoint to avoid pixel-rounding drift)
 			frame:ClearAllPoints()
-			frame:SetPoint('CENTER', UIParent, 'CENTER', newX, newY)
-
-			-- Convert CENTER-relative offset to TOPLEFT-relative for group frames
-			-- so stored values match what LiveUpdate expects
-			local savedX, savedY = newX, newY
-			if(isGroupDrag) then
-				local uiW = UIParent:GetWidth() * uiScale / fScale
-				local uiH = UIParent:GetHeight() * uiScale / fScale
-				savedX = newX + uiW / 2 - s._frameW / 2
-				savedY = -(uiH / 2 - newY - s._frameH / 2)
-			end
-
-			-- Store last computed position for OnDragStop
-			s._lastX = savedX
-			s._lastY = savedY
+			frame:SetPoint(dragAnchor, UIParent, dragRelPoint, newX, newY)
 
 			-- NOTE: Do NOT re-anchor catcher here — WoW's drag system
 			-- fights with SetAllPoints during drag, causing compounding drift.
 
 			-- Live position update for sliders
-			F.EventBus:Fire('EDIT_MODE_DRAGGING', frameKey, Widgets.Round(savedX), Widgets.Round(savedY))
+			F.EventBus:Fire('EDIT_MODE_DRAGGING', frameKey, Widgets.Round(newX), Widgets.Round(newY))
 
 			-- Update alignment guides (convert frame-space → UIParent-space)
 			local uiHalfW = UIParent:GetWidth() / 2
 			local uiHalfH = UIParent:GetHeight() / 2
-			local centerX = uiHalfW + newX * scaleRatio
-			local centerY = uiHalfH + newY * scaleRatio
+			local centerX, centerY
+			if(isGroupDrag) then
+				-- TOPLEFT offset → screen center
+				centerX = newX * scaleRatio + s._frameW / 2 * scaleRatio
+				centerY = UIParent:GetHeight() + newY * scaleRatio - s._frameH / 2 * scaleRatio
+			else
+				centerX = uiHalfW + newX * scaleRatio
+				centerY = uiHalfH + newY * scaleRatio
+			end
 			local halfW = s._frameW / 2 * scaleRatio
 			local halfH = s._frameH / 2 * scaleRatio
 			EditMode.UpdateAlignmentGuides(nil, {
