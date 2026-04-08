@@ -49,26 +49,36 @@ local function NpcUpdateColor(self, event, unit)
 
 	local color
 
+	-- Unit status APIs can return secret values in combat; guard all
+	-- boolean tests with IsValueNonSecret to degrade gracefully.
+	local isConnected = UnitIsConnected(unit)
+	local isPlayerControlled = UnitPlayerControlled(unit)
+
 	-- Disconnected / tapped are definitive states — short-circuit.
-	if(element.colorDisconnected and not UnitIsConnected(unit)) then
+	if(element.colorDisconnected and F.IsValueNonSecret(isConnected) and not isConnected) then
 		color = self.colors.disconnected
-	elseif(element.colorTapping and not UnitPlayerControlled(unit) and UnitIsTapDenied(unit)) then
-		color = self.colors.tapped
+	elseif(element.colorTapping and F.IsValueNonSecret(isPlayerControlled) and not isPlayerControlled) then
+		local isTapDenied = UnitIsTapDenied(unit)
+		if(F.IsValueNonSecret(isTapDenied) and isTapDenied) then
+			color = self.colors.tapped
+		end
 	end
 
 	-- Threat: only apply if we can read the status (non-secret) and
 	-- the unit is actively on a threat table (status > 0). Status 0
 	-- means "not on threat table" and should not override reaction color.
-	if(not color and element.colorThreat and not UnitPlayerControlled(unit)) then
+	if(not color and element.colorThreat and F.IsValueNonSecret(isPlayerControlled) and not isPlayerControlled) then
 		local status = UnitThreatSituation('player', unit)
-		if(status and status > 0 and F.IsValueNonSecret(status)) then
+		if(status and F.IsValueNonSecret(status) and status > 0) then
 			color = self.colors.threat[status]
 		end
 	end
 
 	-- Class (players / AI party members) → reaction fallback
 	if(not color) then
-		if(element.colorClass and (UnitIsPlayer(unit) or UnitInPartyIsAI(unit))) then
+		local isPlayer = UnitIsPlayer(unit)
+		local isAI = UnitInPartyIsAI and UnitInPartyIsAI(unit)
+		if(element.colorClass and ((F.IsValueNonSecret(isPlayer) and isPlayer) or (isAI and F.IsValueNonSecret(isAI) and isAI))) then
 			local _, class = UnitClass(unit)
 			if(class) then
 				color = self.colors.class[class]
