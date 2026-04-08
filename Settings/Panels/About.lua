@@ -46,11 +46,6 @@ F.Settings.RegisterPanel({
 		local yOffset = -C.Spacing.normal
 
 		-- ── Version info ───────────────────────────────────────
-		local versionHeading, versionHeadingH = Widgets.CreateHeading(content, 'Version', 2)
-		versionHeading:ClearAllPoints()
-		Widgets.SetPoint(versionHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - versionHeadingH
-
 		local versionFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textNormal)
 		versionFS:SetJustifyH('LEFT')
 		versionFS:ClearAllPoints()
