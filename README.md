@@ -22,9 +22,9 @@ Download the latest release from the [Releases](https://github.com/jdtoppin/Fram
 
 ## Usage
 
-- `/framed` or `/fr` — Show help
-- `/framed config` — Debug config state
-- Right-click the minimap icon or type `/fr` to open settings
+- `/framed` or `/fr` — Open settings
+- `/framed edit` — Toggle edit mode
+- `/framed help` — Show all commands
 
 ## License
 

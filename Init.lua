@@ -41,6 +41,34 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 			F.CastTracker:Enable()
 		end
 
+		-- Minimap icon via LibDataBroker + LibDBIcon
+		local LDB = LibStub('LibDataBroker-1.1')
+		local LDBIcon = LibStub('LibDBIcon-1.0')
+		local dataObj = LDB:NewDataObject('Framed', {
+			type = 'launcher',
+			text = 'Framed',
+			icon = [[Interface\AddOns\Framed\Media\Textures\Logo]],
+			OnClick = function(_, button)
+				if(button == 'LeftButton') then
+					if(F.Settings and F.Settings.Toggle) then
+						F.Settings.Toggle()
+					end
+				elseif(button == 'RightButton') then
+					if(F.EditMode.IsActive()) then
+						F.EditMode.RequestCancel()
+					else
+						F.EditMode.Enter()
+					end
+				end
+			end,
+			OnTooltipShow = function(tip)
+				tip:AddLine('|cff00ccffFramed|r')
+				tip:AddLine('Left-click to open settings')
+				tip:AddLine('Right-click to toggle edit mode')
+			end,
+		})
+		LDBIcon:Register('Framed', dataObj, FramedDB.minimap)
+
 		F.EventBus:Fire('PLAYER_LOGIN')
 
 		-- First-run wizard

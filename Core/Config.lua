@@ -32,6 +32,7 @@ local accountDefaults = {
 		editModeGridSnap = true,
 		editModeAnimate = false,
 	},
+	minimap = { hide = false },
 	presets = {},       -- populated by Presets/Defaults.lua
 	profiles = {},
 }
