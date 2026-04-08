@@ -413,6 +413,7 @@ local function createRenderer(parent, indConfig)
 			iconWidth    = indConfig.iconWidth,
 			iconHeight   = indConfig.iconHeight,
 			displayType  = indConfig.displayType,
+			color        = indConfig.color,
 			showCooldown = indConfig.showCooldown,
 			showStacks   = indConfig.showStacks,
 			durationMode = indConfig.durationMode,
