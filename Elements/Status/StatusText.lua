@@ -36,31 +36,40 @@ local function Update(self, event, unit)
 
 	local text, color
 
-	if(UnitIsDeadOrGhost(unit)) then
-		if(UnitIsGhost(unit)) then
+	-- Unit status APIs return secret booleans in combat; guard with
+	-- IsValueNonSecret so we degrade gracefully (hide text) instead of erroring.
+	local dead      = UnitIsDeadOrGhost(unit)
+	local ghost     = UnitIsGhost(unit)
+	local connected = UnitIsConnected(unit)
+	local afk       = UnitIsAFK(unit)
+
+	if(F.IsValueNonSecret(dead) and dead) then
+		if(F.IsValueNonSecret(ghost) and ghost) then
 			text  = 'GHOST'
 			color = COLOR_GHOST
 		else
 			text  = 'DEAD'
 			color = COLOR_DEAD
 		end
-	elseif(not UnitIsConnected(unit)) then
+	elseif(F.IsValueNonSecret(connected) and not connected) then
 		text  = 'OFFLINE'
 		color = COLOR_OFFLINE
-	elseif(UnitIsAFK(unit)) then
+	elseif(F.IsValueNonSecret(afk) and afk) then
 		text  = 'AFK'
 		color = COLOR_AFK
 	elseif(C_IncomingSummon and C_IncomingSummon.IncomingSummonStatus) then
 		local status = C_IncomingSummon.IncomingSummonStatus(unit)
-		if(status == SUMMON_PENDING) then
-			text  = 'SUMMON'
-			color = C.Colors.accent
-		elseif(status == SUMMON_ACCEPTED) then
-			text  = 'ACCEPTED'
-			color = COLOR_ACCEPTED
-		elseif(status == SUMMON_DECLINED) then
-			text  = 'DECLINED'
-			color = COLOR_DECLINED
+		if(F.IsValueNonSecret(status)) then
+			if(status == SUMMON_PENDING) then
+				text  = 'SUMMON'
+				color = C.Colors.accent
+			elseif(status == SUMMON_ACCEPTED) then
+				text  = 'ACCEPTED'
+				color = COLOR_ACCEPTED
+			elseif(status == SUMMON_DECLINED) then
+				text  = 'DECLINED'
+				color = COLOR_DECLINED
+			end
 		end
 	end
 
