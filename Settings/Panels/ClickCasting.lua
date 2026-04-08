@@ -42,18 +42,25 @@ local VALUE_TYPES = { spell = true, macro = true }
 local function getSpellItems()
 	local items = {}
 	local seen = {}
-	local numSpells = C_SpellBook.GetNumSpellBookItems(Enum.SpellBookSpellBank.Player) or 0
-	for i = 1, numSpells do
-		local info = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
-		if(info and info.spellID) then
-			local isFlyout = (info.itemType == Enum.SpellBookItemType.Flyout)
-			local isSpell = (info.itemType == Enum.SpellBookItemType.Spell)
-			if(isSpell and not isFlyout) then
-				local name = C_Spell.GetSpellName(info.spellID)
-				local isPassive = C_Spell.IsSpellPassive(info.spellID)
-				if(name and not isPassive and not seen[name]) then
-					seen[name] = true
-					items[#items + 1] = { text = name, value = name }
+	-- Iterate spellbook tabs (General, spec-specific, etc.)
+	local numTabs = C_SpellBook.GetNumSpellBookSkillLines()
+	for tab = 1, numTabs do
+		local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(tab)
+		if(skillLineInfo) then
+			local offset = skillLineInfo.itemIndexOffset
+			local count = skillLineInfo.numSpellBookItems
+			for i = offset + 1, offset + count do
+				local info = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
+				if(info and info.spellID and info.itemType == Enum.SpellBookItemType.Spell) then
+					local name = C_Spell.GetSpellName(info.spellID)
+					if(name and not seen[name]) then
+						local spellInfo = C_Spell.GetSpellInfo(info.spellID)
+						local isPassive = spellInfo and spellInfo.isPassive
+						if(not isPassive) then
+							seen[name] = true
+							items[#items + 1] = { text = name, value = name }
+						end
+					end
 				end
 			end
 		end
@@ -200,6 +207,28 @@ F.Settings.RegisterPanel({
 		local bindCard, bindInner, bindCardY
 		bindCard, bindInner, bindCardY = Widgets.StartCard(content, width, yOffset)
 
+		-- Column headers
+		local headerY = bindCardY
+		local hdrBind = Widgets.CreateFontString(bindInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		hdrBind:SetJustifyH('LEFT')
+		hdrBind:ClearAllPoints()
+		Widgets.SetPoint(hdrBind, 'TOPLEFT', bindInner, 'TOPLEFT', 0, headerY)
+		hdrBind:SetText('Binding')
+
+		local hdrType = Widgets.CreateFontString(bindInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		hdrType:SetJustifyH('LEFT')
+		hdrType:ClearAllPoints()
+		Widgets.SetPoint(hdrType, 'TOPLEFT', bindInner, 'TOPLEFT', CAPTURE_W + C.Spacing.base, headerY)
+		hdrType:SetText('Type')
+
+		local hdrValue = Widgets.CreateFontString(bindInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		hdrValue:SetJustifyH('LEFT')
+		hdrValue:ClearAllPoints()
+		Widgets.SetPoint(hdrValue, 'TOPLEFT', bindInner, 'TOPLEFT', CAPTURE_W + TYPE_DD_W + C.Spacing.base * 2, headerY)
+		hdrValue:SetText('Value')
+
+		bindCardY = bindCardY - C.Font.sizeSmall - C.Spacing.base
+
 		-- Container for binding rows (grows dynamically)
 		local rowContainer = CreateFrame('Frame', nil, bindInner)
 		rowContainer:ClearAllPoints()
@@ -211,6 +240,7 @@ F.Settings.RegisterPanel({
 
 		-- Track which capture button is currently listening (only one at a time)
 		local activeCapture = nil
+		local updateLayout  -- forward declaration
 
 		local function saveAllBindings()
 			local bindings = {}
@@ -255,6 +285,7 @@ F.Settings.RegisterPanel({
 			local totalH = #bindingRows * (ROW_H + C.Spacing.base)
 			rowContainer:SetHeight(math.max(totalH, 1))
 			saveAllBindings()
+			if(updateLayout) then updateLayout() end
 		end
 
 		--- Exit capture mode on a button, restoring its display text.
@@ -377,7 +408,6 @@ F.Settings.RegisterPanel({
 			local remBtn = Widgets.CreateIconButton(row, F.Media.GetIcon('Close'), REM_BTN_W)
 			remBtn:ClearAllPoints()
 			Widgets.SetPoint(remBtn, 'RIGHT', row, 'RIGHT', 0, 0)
-			remBtn:SetBackdrop(nil)
 			local capturedRow = row
 			remBtn:SetOnClick(function()
 				removeRow(capturedRow)
@@ -392,6 +422,19 @@ F.Settings.RegisterPanel({
 			return row
 		end
 
+		-- Forward-declared layout updater for add/remove
+		local addBtn
+		function updateLayout()
+			local totalH = math.max(#bindingRows * (ROW_H + C.Spacing.base), ROW_H)
+			rowContainer:SetHeight(totalH)
+			local btnY = bindCardY - totalH - C.Spacing.normal
+			addBtn:ClearAllPoints()
+			Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, btnY)
+			local cardBottomY = btnY - BUTTON_H - C.Spacing.normal
+			content:SetHeight(math.abs(cardBottomY) + C.Spacing.normal)
+			scroll:UpdateScrollRange()
+		end
+
 		-- Populate from saved config
 		local savedBindings = getBindings()
 		if(#savedBindings > 0) then
@@ -403,24 +446,20 @@ F.Settings.RegisterPanel({
 			addBindingRow('LeftButton', '', 'spell', '')
 		end
 
-		-- Update bindCardY past row container
-		local containerH = math.max(#bindingRows * (ROW_H + C.Spacing.base), ROW_H)
-		bindCardY = bindCardY - containerH - C.Spacing.normal
-
 		-- ── Add Binding button ─────────────────────────────────
-		local addBtn = Widgets.CreateButton(bindInner, 'Add Binding', 'accent', ADD_BTN_W, BUTTON_H)
+		local containerH = math.max(#bindingRows * (ROW_H + C.Spacing.base), ROW_H)
+		local addBtnY = bindCardY - containerH - C.Spacing.normal
+
+		addBtn = Widgets.CreateButton(bindInner, 'Add Binding', 'accent', ADD_BTN_W, BUTTON_H)
 		addBtn:ClearAllPoints()
-		Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, bindCardY)
+		Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, addBtnY)
 		addBtn:SetOnClick(function()
 			addBindingRow('LeftButton', '', 'spell', '')
-			-- Shift the button down
-			bindCardY = bindCardY - (ROW_H + C.Spacing.base)
-			addBtn:ClearAllPoints()
-			Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, bindCardY)
-			content:SetHeight(math.abs(bindCardY) + C.Spacing.normal + BUTTON_H)
-			scroll:UpdateScrollRange()
+			saveAllBindings()
+			updateLayout()
 		end)
-		bindCardY = bindCardY - BUTTON_H - C.Spacing.normal
+		local finalY = addBtnY - BUTTON_H - C.Spacing.normal
+		bindCardY = finalY
 
 		yOffset = Widgets.EndCard(bindCard, content, bindCardY)
 
