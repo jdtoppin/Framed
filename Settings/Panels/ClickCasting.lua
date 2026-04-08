@@ -290,6 +290,7 @@ F.Settings.RegisterPanel({
 		hdrValue:SetText('Value')
 
 		bindCardY = bindCardY - C.Font.sizeSmall - C.Spacing.base
+		local rowStartY = bindCardY  -- stable reference for layout calculations
 
 		-- Container for binding rows (grows dynamically)
 		local rowContainer = CreateFrame('Frame', nil, bindInner)
@@ -560,11 +561,13 @@ F.Settings.RegisterPanel({
 		function updateLayout()
 			local totalH = math.max(#bindingRows * (ROW_H + C.Spacing.base), ROW_H)
 			rowContainer:SetHeight(totalH)
-			local btnY = bindCardY - totalH - C.Spacing.normal
+			local btnY = rowStartY - totalH - C.Spacing.normal
 			addBtn:ClearAllPoints()
 			Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, btnY)
-			local cardBottomY = btnY - BUTTON_H - C.Spacing.normal
-			content:SetHeight(math.abs(cardBottomY) + C.Spacing.normal)
+			-- Update card and content sizing
+			bindCardY = btnY - BUTTON_H - C.Spacing.normal
+			Widgets.EndCard(bindCard, content, bindCardY)
+			content:SetHeight(math.abs(bindCardY) + Widgets.CARD_PADDING * 2 + C.Spacing.normal * 2)
 			scroll:UpdateScrollRange()
 		end
 
