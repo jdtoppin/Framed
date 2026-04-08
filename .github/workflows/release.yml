@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths: ['Framed.toc']
+  workflow_dispatch:
 
 permissions:
   contents: write
