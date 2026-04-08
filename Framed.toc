@@ -2,7 +2,7 @@
 ## Title: Framed
 ## Notes: Modern, customizable unit frames and raid frames
 ## Author: jdtoppin
-## Version: 0.7.6-alpha
+## Version: 0.7.7-alpha
 ## SavedVariables: FramedDB, FramedBackupDB
 ## SavedVariablesPerCharacter: FramedCharDB
 ## License: GPL v3
