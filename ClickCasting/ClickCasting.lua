@@ -22,6 +22,10 @@ function F.ClickCasting.ApplyBindings(frame)
 	local bindings = F.ClickCasting.GetBindings()
 	if(not bindings) then return end
 
+	-- Clear oUF's hardcoded defaults so only configured bindings are active
+	frame:SetAttribute('*type1', nil)
+	frame:SetAttribute('*type2', nil)
+
 	-- Clear previous keyboard override bindings
 	ClearOverrideBindings(frame)
 
