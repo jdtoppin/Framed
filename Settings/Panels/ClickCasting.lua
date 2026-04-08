@@ -429,10 +429,20 @@ F.Settings.RegisterPanel({
 			typeDD:SetItems(TYPE_OPTIONS)
 			row._typeDD = typeDD
 
-			-- Value dropdown (spell or macro list)
+			-- Remove button (created first so value dropdown can anchor to it)
+			local remBtn = Widgets.CreateIconButton(row, F.Media.GetIcon('Close'), REM_BTN_W)
+			remBtn:ClearAllPoints()
+			Widgets.SetPoint(remBtn, 'RIGHT', row, 'RIGHT', 0, 0)
+			local capturedRow = row
+			remBtn:SetOnClick(function()
+				removeRow(capturedRow)
+			end)
+
+			-- Value dropdown (spell or macro list) — stretches to fill between type and delete
 			local valueDD = Widgets.CreateDropdown(row, VALUE_DD_W)
 			valueDD:ClearAllPoints()
 			Widgets.SetPoint(valueDD, 'LEFT', typeDD, 'RIGHT', C.Spacing.base, 0)
+			Widgets.SetPoint(valueDD, 'RIGHT', remBtn, 'LEFT', -C.Spacing.base, 0)
 			valueDD:SetOnSelect(saveAllBindings)
 			row._valueDD = valueDD
 
@@ -506,15 +516,6 @@ F.Settings.RegisterPanel({
 				updateValueDropdown(value)
 				valueDD:SetValue(nil)
 				saveAllBindings()
-			end)
-
-			-- Remove button (icon matching settings close button)
-			local remBtn = Widgets.CreateIconButton(row, F.Media.GetIcon('Close'), REM_BTN_W)
-			remBtn:ClearAllPoints()
-			Widgets.SetPoint(remBtn, 'RIGHT', row, 'RIGHT', 0, 0)
-			local capturedRow = row
-			remBtn:SetOnClick(function()
-				removeRow(capturedRow)
 			end)
 
 			bindingRows[idx] = row
