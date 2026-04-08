@@ -1,0 +1,35 @@
+name: Auto Tag
+
+on:
+  push:
+    branches: [main]
+    paths: ['Framed.toc']
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from TOC
+        id: version
+        run: |
+          ver=$(grep -oP '## Version:\s*\K\S+' Framed.toc)
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "tag=v$ver" >> "$GITHUB_OUTPUT"
+
+      - name: Create tag and trigger release
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          tag="${{ steps.version.outputs.tag }}"
+          if git ls-remote --tags origin "refs/tags/$tag" | grep -q .; then
+            echo "Tag $tag already exists, skipping"
+          else
+            git tag "$tag"
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}" "$tag"
+            echo "Created and pushed tag $tag"
+          fi
