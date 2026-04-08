@@ -42,12 +42,19 @@ local VALUE_TYPES = { spell = true, macro = true }
 local function getSpellItems()
 	local items = {}
 	local seen = {}
-	for i = 1, (C_SpellBook.GetNumSpellBookItems(Enum.SpellBookSpellBank.Player) or 0) do
+	local numSpells = C_SpellBook.GetNumSpellBookItems(Enum.SpellBookSpellBank.Player) or 0
+	for i = 1, numSpells do
 		local info = C_SpellBook.GetSpellBookItemInfo(i, Enum.SpellBookSpellBank.Player)
-		if(info and info.itemType == Enum.SpellBookItemType.Spell and info.name) then
-			if(not seen[info.name] and not IsPassiveSpell(info.spellID)) then
-				seen[info.name] = true
-				items[#items + 1] = { text = info.name, value = info.name }
+		if(info and info.spellID) then
+			local isFlyout = (info.itemType == Enum.SpellBookItemType.Flyout)
+			local isSpell = (info.itemType == Enum.SpellBookItemType.Spell)
+			if(isSpell and not isFlyout) then
+				local name = C_Spell.GetSpellName(info.spellID)
+				local isPassive = C_Spell.IsSpellPassive(info.spellID)
+				if(name and not isPassive and not seen[name]) then
+					seen[name] = true
+					items[#items + 1] = { text = name, value = name }
+				end
 			end
 		end
 	end
@@ -366,10 +373,11 @@ F.Settings.RegisterPanel({
 				saveAllBindings()
 			end)
 
-			-- Remove button
-			local remBtn = Widgets.CreateButton(row, 'X', 'widget', REM_BTN_W, EDITBOX_H)
+			-- Remove button (icon matching settings close button)
+			local remBtn = Widgets.CreateIconButton(row, F.Media.GetIcon('Close'), REM_BTN_W)
 			remBtn:ClearAllPoints()
-			Widgets.SetPoint(remBtn, 'LEFT', valueDD, 'RIGHT', C.Spacing.base, 0)
+			Widgets.SetPoint(remBtn, 'RIGHT', row, 'RIGHT', 0, 0)
+			remBtn:SetBackdrop(nil)
 			local capturedRow = row
 			remBtn:SetOnClick(function()
 				removeRow(capturedRow)
