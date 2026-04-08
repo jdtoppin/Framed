@@ -39,13 +39,17 @@ local VALUE_TYPES = { spell = true, macro = true }
 -- Spell / Macro data helpers
 -- ============================================================
 
+local ICON_SIZE = 18
+
 local function makeSpellDecorator(iconID, spellID)
 	return function(row)
 		if(iconID) then
+			row._swatch:SetSize(ICON_SIZE, ICON_SIZE)
 			row._swatch:SetTexture(iconID)
 			row._swatch:SetVertexColor(1, 1, 1, 1)
+			row._swatch:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 			row._swatch:Show()
-			row._label:SetPoint('LEFT', row, 'LEFT', 30, 0)
+			row._label:SetPoint('LEFT', row, 'LEFT', ICON_SIZE + 8, 0)
 		end
 		row:SetScript('OnEnter', function(self)
 			GameTooltip:SetOwner(self, 'ANCHOR_RIGHT')
@@ -83,6 +87,7 @@ local function getSpellItems()
 							items[#items + 1] = {
 								text = name .. '  |cff888888(' .. itemInfo.spellID .. ')|r',
 								value = name,
+								_iconTexture = itemInfo.iconID,
 								_decorateRow = makeSpellDecorator(itemInfo.iconID, itemInfo.spellID),
 							}
 						end
@@ -98,10 +103,12 @@ end
 local function makeMacroDecorator(iconTexture)
 	return function(row)
 		if(iconTexture) then
+			row._swatch:SetSize(ICON_SIZE, ICON_SIZE)
 			row._swatch:SetTexture(iconTexture)
 			row._swatch:SetVertexColor(1, 1, 1, 1)
+			row._swatch:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 			row._swatch:Show()
-			row._label:SetPoint('LEFT', row, 'LEFT', 30, 0)
+			row._label:SetPoint('LEFT', row, 'LEFT', ICON_SIZE + 8, 0)
 		end
 	end
 end
@@ -115,6 +122,7 @@ local function getMacroItems()
 			items[#items + 1] = {
 				text = name,
 				value = name,
+				_iconTexture = iconTexture,
 				_decorateRow = makeMacroDecorator(iconTexture),
 			}
 		end
@@ -125,6 +133,7 @@ local function getMacroItems()
 			items[#items + 1] = {
 				text = name .. ' (char)',
 				value = name,
+				_iconTexture = iconTexture,
 				_decorateRow = makeMacroDecorator(iconTexture),
 			}
 		end
@@ -427,6 +436,49 @@ F.Settings.RegisterPanel({
 			valueDD:SetOnSelect(saveAllBindings)
 			row._valueDD = valueDD
 
+			-- Button icon on the dropdown face (shows selected spell/macro icon)
+			local btnIcon = valueDD:CreateTexture(nil, 'ARTWORK')
+			btnIcon:SetSize(ICON_SIZE - 4, ICON_SIZE - 4)
+			btnIcon:SetPoint('LEFT', valueDD, 'LEFT', 4, 0)
+			btnIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+			btnIcon:Hide()
+			valueDD._buttonIcon = btnIcon
+
+			--- Update the dropdown button face icon from item data.
+			local function updateButtonIcon(dd, value)
+				local icon = nil
+				if(value and dd._items) then
+					for _, itm in next, dd._items do
+						if(itm.value == value) then
+							icon = itm._iconTexture
+							break
+						end
+					end
+				end
+				if(icon) then
+					dd._buttonIcon:SetTexture(icon)
+					dd._buttonIcon:Show()
+					dd._label:SetPoint('LEFT', dd, 'LEFT', ICON_SIZE + 4, 0)
+				else
+					dd._buttonIcon:Hide()
+					dd._label:SetPoint('LEFT', dd, 'LEFT', 6, 0)
+				end
+			end
+
+			-- Hook _SelectItem to also update button icon
+			local baseSelectItem = valueDD._SelectItem
+			function valueDD:_SelectItem(item)
+				baseSelectItem(self, item)
+				updateButtonIcon(self, item.value)
+			end
+
+			-- Hook SetValue to also update button icon
+			local baseSetValue = valueDD.SetValue
+			function valueDD:SetValue(value)
+				baseSetValue(self, value)
+				updateButtonIcon(self, value)
+			end
+
 			-- Populate and show/hide value dropdown based on type
 			local function updateValueDropdown(bindType)
 				if(bindType == 'spell') then
@@ -436,6 +488,8 @@ F.Settings.RegisterPanel({
 					valueDD:SetItems(getMacroItems())
 					valueDD:Show()
 				else
+					valueDD._buttonIcon:Hide()
+					valueDD._label:SetPoint('LEFT', valueDD, 'LEFT', 6, 0)
 					valueDD:Hide()
 				end
 			end
