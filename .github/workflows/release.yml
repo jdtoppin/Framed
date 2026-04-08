@@ -25,14 +25,20 @@ jobs:
           echo "tag=v$ver" >> "$GITHUB_OUTPUT"
 
       - name: Create tag if it doesn't exist
+        id: tagging
         run: |
           if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
             echo "Tag ${{ steps.version.outputs.tag }} already exists, skipping"
+            echo "created=false" >> "$GITHUB_OUTPUT"
           else
             git tag "${{ steps.version.outputs.tag }}"
             git push origin "${{ steps.version.outputs.tag }}"
             echo "Created and pushed tag ${{ steps.version.outputs.tag }}"
+            echo "created=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Checkout tag ref
+        run: git checkout "refs/tags/${{ steps.version.outputs.tag }}"
 
       - uses: BigWigsMods/packager@v2
         with:
