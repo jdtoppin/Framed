@@ -73,7 +73,8 @@ local function getSpellItems()
 
 	for tab = 1, numTabs do
 		local skillLineInfo = C_SpellBook.GetSpellBookSkillLineInfo(tab)
-		if(skillLineInfo and not skillLineInfo.shouldHide) then
+		-- Skip the General tab (no specID) — only include class/spec spells
+		if(skillLineInfo and not skillLineInfo.shouldHide and skillLineInfo.specID) then
 			local offset = skillLineInfo.itemIndexOffset or 0
 			local count = skillLineInfo.numSpellBookItems or 0
 			for i = offset + 1, offset + count do
