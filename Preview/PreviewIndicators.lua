@@ -152,7 +152,7 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig, animated)
 		local sf = indConfig.stackFont or {}
 		local stackText = f:CreateFontString(nil, 'OVERLAY')
 		stackText:SetFont(F.Media.GetActiveFont(), sf.size or 9, sf.outline or 'OUTLINE')
-		stackText:SetPoint(sf.anchor or 'BOTTOMRIGHT', f, sf.anchor or 'BOTTOMRIGHT', sf.offsetX or 0, sf.offsetY or 0)
+		stackText:SetPoint(sf.anchor or 'BOTTOMRIGHT', f, sf.anchor or 'BOTTOMRIGHT', sf.xOffset or 0, sf.yOffset or 0)
 		stackText:SetText(tostring(FAKE_STACKS))
 		if(sf.shadow ~= false) then stackText:SetShadowOffset(1, -1) end
 	end
@@ -162,7 +162,7 @@ function PI.CreateIcon(parent, iconTexture, w, h, indConfig, animated)
 		local df = indConfig.durationFont or {}
 		local durText = f:CreateFontString(nil, 'OVERLAY')
 		durText:SetFont(F.Media.GetActiveFont(), df.size or 9, df.outline or 'OUTLINE')
-		durText:SetPoint(df.anchor or 'BOTTOM', f, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
+		durText:SetPoint(df.anchor or 'BOTTOM', f, df.anchor or 'BOTTOM', df.xOffset or 0, df.yOffset or 0)
 		durText:SetText('18')
 		if(df.shadow ~= false) then durText:SetShadowOffset(1, -1) end
 		if(df.colorProgression) then

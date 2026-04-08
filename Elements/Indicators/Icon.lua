@@ -113,7 +113,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 				cdText:ClearAllPoints()
 				local df = self._durationFont
 				if(df) then
-					cdText:SetPoint(df.anchor or 'BOTTOM', self._textOverlay, df.anchor or 'BOTTOM', df.offsetX or 0, df.offsetY or 0)
+					cdText:SetPoint(df.anchor or 'BOTTOM', self._textOverlay, df.anchor or 'BOTTOM', df.xOffset or 0, df.yOffset or 0)
 				end
 				self._cdText = cdText
 
@@ -376,7 +376,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 		local sf = config.stackFont or {}
 		local sfAnchor = sf.anchor or 'BOTTOMRIGHT'
 		stacksText = Widgets.CreateFontString(textOverlay, sf.size or C.Font.sizeSmall, C.Colors.textActive, sf.outline or '', sf.shadow)
-		stacksText:SetPoint(sfAnchor, textOverlay, sfAnchor, sf.offsetX or 0, sf.offsetY or 0)
+		stacksText:SetPoint(sfAnchor, textOverlay, sfAnchor, sf.xOffset or 0, sf.yOffset or 0)
 		stacksText:Hide()
 	end
 
