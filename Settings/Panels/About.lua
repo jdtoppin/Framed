@@ -131,28 +131,22 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - creditsHeadingH
 
 		local creditLines = {
-			{ label = 'oUF',                 detail = 'Embedded unit frame framework (MIT). Authored by Haste & contributors.' },
-			{ label = 'AbstractFramework',   detail = 'UI library design inspiration (GPL v3). Pixel-perfect sizing approach.' },
-			{ label = 'LibSharedMedia-3.0',  detail = 'Font and statusbar texture registry.' },
+			'oUF — Embedded unit frame framework (MIT). Authored by Haste & contributors.',
+			'AbstractFramework — UI library design inspiration (GPL v3). Pixel-perfect sizing approach.',
+			'LibSharedMedia-3.0 — Font and statusbar texture registry.',
 		}
 
-		for _, entry in next, creditLines do
-			local nameFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textActive)
-			nameFS:SetJustifyH('LEFT')
-			nameFS:ClearAllPoints()
-			Widgets.SetPoint(nameFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-			nameFS:SetText(entry.label)
-			yOffset = yOffset - C.Font.sizeSmall - C.Spacing.base
-
-			local detailFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
-			detailFS:SetJustifyH('LEFT')
-			detailFS:ClearAllPoints()
-			Widgets.SetPoint(detailFS, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.tight, yOffset)
-			detailFS:SetWidth(width - C.Spacing.tight)
-			detailFS:SetWordWrap(true)
-			detailFS:SetText(entry.detail)
-			yOffset = yOffset - detailFS:GetStringHeight() - C.Spacing.normal
+		for _, line in next, creditLines do
+			local lineFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+			lineFS:SetJustifyH('LEFT')
+			lineFS:ClearAllPoints()
+			Widgets.SetPoint(lineFS, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.tight, yOffset)
+			lineFS:SetWidth(width - C.Spacing.tight)
+			lineFS:SetWordWrap(true)
+			lineFS:SetText('• ' .. line)
+			yOffset = yOffset - lineFS:GetStringHeight() - C.Spacing.base
 		end
+		yOffset = yOffset - C.Spacing.tight
 
 		-- ── License ────────────────────────────────────────────
 		local licenseHeading, licenseHeadingH = Widgets.CreateHeading(content, 'License', 2)
