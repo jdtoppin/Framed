@@ -176,10 +176,10 @@ local function CreateCatcher(def, overlay)
 		-- Switch to selected visuals during drag
 		ApplySelectedVisuals(self)
 
-		-- ElvUI-style: track click offset from frame center in frame-space.
+		-- ElvUI-style: track click offset from frame anchor in frame-space.
 		-- GetCenter() and GetCursorPosition()/fScale are both in frame-space
 		-- (1 unit = fScale screen pixels). Since fScale differs from uiScale,
-		-- UIParent center must be converted to frame-space before subtracting.
+		-- UIParent reference must be converted to frame-space before subtracting.
 		local fScale = frame:GetEffectiveScale()
 		local uiScale = UIParent:GetEffectiveScale()
 		local fCX, fCY = frame:GetCenter()
@@ -193,6 +193,10 @@ local function CreateCatcher(def, overlay)
 		self._frameW = frame:GetWidth()
 		self._frameH = frame:GetHeight()
 		self._isDragging = true
+
+		-- Group frames use TOPLEFT anchor; solo frames use CENTER
+		local isGroupDrag = self._isGroup
+		self._isGroupDrag = isGroupDrag
 
 		F.EventBus:Fire('EDIT_MODE_DRAG_STARTED', frameKey)
 
@@ -216,19 +220,29 @@ local function CreateCatcher(def, overlay)
 			newX = snapX / scaleRatio
 			newY = snapY / scaleRatio
 
-			-- Store last computed position for OnDragStop
-			s._lastX = newX
-			s._lastY = newY
-
 			-- Move frame to follow cursor (raw SetPoint to avoid pixel-rounding drift)
 			frame:ClearAllPoints()
 			frame:SetPoint('CENTER', UIParent, 'CENTER', newX, newY)
+
+			-- Convert CENTER-relative offset to TOPLEFT-relative for group frames
+			-- so stored values match what LiveUpdate expects
+			local savedX, savedY = newX, newY
+			if(isGroupDrag) then
+				local uiW = UIParent:GetWidth() * uiScale / fScale
+				local uiH = UIParent:GetHeight() * uiScale / fScale
+				savedX = newX + uiW / 2 - s._frameW / 2
+				savedY = -(uiH / 2 - newY - s._frameH / 2)
+			end
+
+			-- Store last computed position for OnDragStop
+			s._lastX = savedX
+			s._lastY = savedY
 
 			-- NOTE: Do NOT re-anchor catcher here — WoW's drag system
 			-- fights with SetAllPoints during drag, causing compounding drift.
 
 			-- Live position update for sliders
-			F.EventBus:Fire('EDIT_MODE_DRAGGING', frameKey, Widgets.Round(newX), Widgets.Round(newY))
+			F.EventBus:Fire('EDIT_MODE_DRAGGING', frameKey, Widgets.Round(savedX), Widgets.Round(savedY))
 
 			-- Update alignment guides (convert frame-space → UIParent-space)
 			local uiHalfW = UIParent:GetWidth() / 2
