@@ -52,10 +52,82 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - versionHeadingH
 
 		local versionFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textNormal)
+		versionFS:SetJustifyH('LEFT')
 		versionFS:ClearAllPoints()
 		Widgets.SetPoint(versionFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		versionFS:SetText('Framed  v' .. getVersion() .. '  by ' .. getAuthor())
 		yOffset = yOffset - C.Font.sizeNormal - C.Spacing.loose
+
+		-- ── About ──────────────────────────────────────────────
+		local aboutHeading, aboutHeadingH = Widgets.CreateHeading(content, 'About', 2)
+		aboutHeading:ClearAllPoints()
+		Widgets.SetPoint(aboutHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - aboutHeadingH
+
+		local aboutFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+		aboutFS:SetJustifyH('LEFT')
+		aboutFS:ClearAllPoints()
+		Widgets.SetPoint(aboutFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		aboutFS:SetWidth(width)
+		aboutFS:SetWordWrap(true)
+		aboutFS:SetText(
+			'Framed is a modern, customizable unit frame and raid frame addon for World of Warcraft. ' ..
+			'It replaces Blizzard\'s default unit frames with fully configurable alternatives for ' ..
+			'player, target, focus, party, raid, boss, arena, and pet frames.')
+		yOffset = yOffset - aboutFS:GetStringHeight() - C.Spacing.normal
+
+		-- ── Getting Started ────────────────────────────────────
+		local startHeading, startHeadingH = Widgets.CreateHeading(content, 'Getting Started', 2)
+		startHeading:ClearAllPoints()
+		Widgets.SetPoint(startHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - startHeadingH
+
+		local startLines = {
+			'|cff00ccff/framed|r or |cff00ccff/fr|r — Open this settings window',
+			'|cff00ccff/framed edit|r — Enter edit mode to drag and reposition frames',
+			'|cff00ccffLeft-click|r the minimap icon to open settings',
+			'|cff00ccffRight-click|r the minimap icon to toggle edit mode',
+		}
+
+		for _, line in next, startLines do
+			local lineFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+			lineFS:SetJustifyH('LEFT')
+			lineFS:ClearAllPoints()
+			Widgets.SetPoint(lineFS, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.tight, yOffset)
+			lineFS:SetWidth(width - C.Spacing.tight)
+			lineFS:SetWordWrap(true)
+			lineFS:SetText(line)
+			yOffset = yOffset - lineFS:GetStringHeight() - C.Spacing.base
+		end
+		yOffset = yOffset - C.Spacing.tight
+
+		-- ── Features ───────────────────────────────────────────
+		local featHeading, featHeadingH = Widgets.CreateHeading(content, 'Features', 2)
+		featHeading:ClearAllPoints()
+		Widgets.SetPoint(featHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
+		yOffset = yOffset - featHeadingH
+
+		local featureLines = {
+			'Fully configurable health, power, and cast bars',
+			'Aura indicators: buffs, debuffs, defensives, externals, dispellable, missing buffs, private auras, and targeted spells',
+			'Custom indicator system with icons, bars, border glows, color overlays, and border icons',
+			'Click casting with per-spec defaults',
+			'Preset system with content-based auto-switching (raid, dungeon, PvP)',
+			'Drag-and-drop edit mode with snap-to-grid and alignment guides',
+			'Profile import and export',
+		}
+
+		for _, line in next, featureLines do
+			local lineFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+			lineFS:SetJustifyH('LEFT')
+			lineFS:ClearAllPoints()
+			Widgets.SetPoint(lineFS, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.tight, yOffset)
+			lineFS:SetWidth(width - C.Spacing.tight)
+			lineFS:SetWordWrap(true)
+			lineFS:SetText('• ' .. line)
+			yOffset = yOffset - lineFS:GetStringHeight() - C.Spacing.base
+		end
+		yOffset = yOffset - C.Spacing.tight
 
 		-- ── Credits ────────────────────────────────────────────
 		local creditsHeading, creditsHeadingH = Widgets.CreateHeading(content, 'Credits', 2)
@@ -71,12 +143,14 @@ F.Settings.RegisterPanel({
 
 		for _, entry in next, creditLines do
 			local nameFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textActive)
+			nameFS:SetJustifyH('LEFT')
 			nameFS:ClearAllPoints()
 			Widgets.SetPoint(nameFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 			nameFS:SetText(entry.label)
 			yOffset = yOffset - C.Font.sizeNormal - C.Spacing.base
 
 			local detailFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+			detailFS:SetJustifyH('LEFT')
 			detailFS:ClearAllPoints()
 			Widgets.SetPoint(detailFS, 'TOPLEFT', content, 'TOPLEFT', C.Spacing.tight, yOffset)
 			detailFS:SetWidth(width - C.Spacing.tight)
@@ -92,6 +166,7 @@ F.Settings.RegisterPanel({
 		yOffset = yOffset - licenseHeadingH
 
 		local licenseFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+		licenseFS:SetJustifyH('LEFT')
 		licenseFS:ClearAllPoints()
 		Widgets.SetPoint(licenseFS, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		licenseFS:SetWidth(width)
