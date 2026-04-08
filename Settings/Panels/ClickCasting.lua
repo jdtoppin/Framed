@@ -435,7 +435,12 @@ F.Settings.RegisterPanel({
 			Widgets.SetPoint(remBtn, 'RIGHT', row, 'RIGHT', 0, 0)
 			local capturedRow = row
 			remBtn:SetOnClick(function()
-				removeRow(capturedRow)
+				local bindText = FormatBindText(capturedRow._modifier, capturedRow._button)
+				Widgets.ShowConfirmDialog(
+					'Remove Binding',
+					'Remove the ' .. bindText .. ' binding?',
+					function() removeRow(capturedRow) end
+				)
 			end)
 
 			-- Value dropdown (spell or macro list) — stretches to fill between type and delete
