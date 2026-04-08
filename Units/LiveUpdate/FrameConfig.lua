@@ -1854,7 +1854,48 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		return
 	end
 
-	-- Health text changes (show, format, fontSize, color, outline, shadow, offsets)
+	-- Name text changes (show, fontSize, outline, shadow, anchor, offsets)
+	if(petKey:match('^name') or petKey == 'showName') then
+		local show     = petCfg.showName ~= false
+		local fontSize = petCfg.nameFontSize or C.Font.sizeSmall
+		local outline  = petCfg.nameOutline or ''
+		local shadow   = petCfg.nameShadow ~= false
+		local anchor   = petCfg.nameAnchor or 'TOP'
+		local offX     = petCfg.nameOffsetX or 0
+		local offY     = petCfg.nameOffsetY or -2
+
+		ForEachFrame('partypet', function(frame)
+			if(show and not frame.Name) then
+				-- Create name text on first enable
+				local nameOverlay = CreateFrame('Frame', nil, frame)
+				nameOverlay:SetAllPoints(frame)
+				nameOverlay:SetFrameLevel(frame:GetFrameLevel() + 5)
+				local name = Widgets.CreateFontString(nameOverlay, fontSize, C.Colors.textActive, outline, shadow)
+				name:SetPoint(anchor, frame, anchor, offX, offY)
+				frame:Tag(name, '[name]')
+				frame.Name = name
+			end
+
+			if(frame.Name) then
+				frame.Name:SetShown(show)
+				local fontPath = frame.Name:GetFont()
+				if(fontPath) then
+					frame.Name:SetFont(fontPath, fontSize, outline)
+				end
+				if(shadow) then
+					frame.Name:SetShadowOffset(1, -1)
+					frame.Name:SetShadowColor(0, 0, 0, 1)
+				else
+					frame.Name:SetShadowOffset(0, 0)
+				end
+				frame.Name:ClearAllPoints()
+				frame.Name:SetPoint(anchor, frame, anchor, offX, offY)
+			end
+		end)
+		return
+	end
+
+	-- Health text changes (show, format, fontSize, color, outline, shadow, anchor, offsets)
 	if(petKey:match('^healthText') or petKey == 'showHealthText') then
 		local show     = petCfg.showHealthText ~= false
 		local format   = petCfg.healthTextFormat
@@ -1862,6 +1903,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		local outline  = petCfg.healthTextOutline
 		local shadow   = petCfg.healthTextShadow ~= false
 		local colorMode = petCfg.healthTextColor
+		local anchor   = petCfg.healthTextAnchor or 'CENTER'
 		local offX     = petCfg.healthTextOffsetX
 		local offY     = petCfg.healthTextOffsetY
 
@@ -1880,7 +1922,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					frame._textOverlay = textOverlay
 				end
 				local text = Widgets.CreateFontString(textOverlay, fontSize, C.Colors.textActive, outline, shadow)
-				text:SetPoint('BOTTOM', frame.Health._wrapper or frame.Health, 'BOTTOM', offX, offY)
+				text:SetPoint(anchor, frame.Health._wrapper or frame.Health, anchor, offX, offY)
 				frame.Health.text = text
 			end
 
@@ -1897,9 +1939,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				else
 					frame.Health.text:SetShadowOffset(0, 0)
 				end
-				-- Reposition for offset changes
+				-- Reposition for anchor/offset changes
 				frame.Health.text:ClearAllPoints()
-				frame.Health.text:SetPoint('BOTTOM', frame.Health._wrapper or frame.Health, 'BOTTOM', offX, offY)
+				frame.Health.text:SetPoint(anchor, frame.Health._wrapper or frame.Health, anchor, offX, offY)
 			end
 			if(frame.Health.ForceUpdate) then frame.Health:ForceUpdate() end
 		end)
