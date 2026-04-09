@@ -553,6 +553,14 @@ function F.PresetDefaults.EnsureDefaults()
 						end
 					end
 				end
+				-- Migrate raidRole: was inherited as true from base config
+				-- for party/raid before it was explicitly disabled
+				for _, ut in next, { 'party', 'raid' } do
+					if(savedUC[ut] and savedUC[ut].statusIcons) then
+						savedUC[ut].statusIcons.raidRole = false
+					end
+				end
+
 				-- General backfill: deep-merge any missing keys from defaults
 				-- into existing unit configs. This handles all new keys added
 				-- by the canonical defaults expansion.
