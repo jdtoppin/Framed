@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.19-alpha
+
+- Fix memory leak: reuse table pools in aura Update handlers instead of creating throwaway tables per UNIT_AURA event
+
 ## v0.7.18-alpha
 
 - Fix duplicate auras showing in both Defensives and Externals (IMPORTANT fallback overlap)
