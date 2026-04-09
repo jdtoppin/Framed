@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.25-alpha
+
+- Eliminate auraEntry table allocations in Buffs: annotate auraData in-place instead of copying
+
 ## v0.7.24-alpha
 
 - Fix MissingBuffs: zero-table inline scan instead of building intermediate sets

@@ -70,9 +70,9 @@ local BUFF_FILTER_MAP = {
 }
 
 -- Reusable containers — wiped each Update to avoid per-call allocation.
--- Inner entry tables are fresh each call (secret values must be GC'd).
-local iconsAurasPool = {} -- [idx] = reusable sub-array
-local matchedPool = {}    -- [idx] = auraEntry or false
+-- Stores auraData references directly (no copy tables).
+local iconsAurasPool = {} -- [idx] = reusable sub-array of auraData refs
+local matchedPool = {}    -- [idx] = auraData ref or false
 
 -- Pre-created sort comparator (sortPriority set before each sort call)
 local sortPriority
@@ -125,7 +125,7 @@ local function Update(self, event, unit)
 
 	-- Collect per-indicator aura lists for Icons-type renderers,
 	-- and track first-match for single-value renderers.
-	-- Reuse outer containers, fresh inner entries (secret values must GC).
+	-- Stores auraData references directly — zero intermediate table allocations.
 	for idx in next, indicators do
 		local sub = iconsAurasPool[idx]
 		if(not sub) then
@@ -143,8 +143,8 @@ local function Update(self, event, unit)
 	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
-			local auraEntry
 			local sourceUnit = auraData.sourceUnit
+			local annotated = false
 
 			-- Check spell-specific indicators
 			local indicatorIndices = spellLookup[spellId]
@@ -152,23 +152,19 @@ local function Update(self, event, unit)
 				for _, idx in next, indicatorIndices do
 					local ind = indicators[idx]
 					if(passesCastByFilter(sourceUnit, ind._castBy)) then
-						if(not auraEntry) then
-							auraEntry = {
-								unit           = unit,
-								auraInstanceID = auraData.auraInstanceID,
-								spellId        = spellId,
-								icon           = auraData.icon,
-								duration       = auraData.duration,
-								expirationTime = auraData.expirationTime,
-								stacks         = auraData.applications,
-								dispelType     = auraData.dispelName,
-							}
+						-- Annotate auraData with renderer-expected field names
+						-- (non-conflicting keys: auraData has no .stacks/.dispelType/.unit)
+						if(not annotated) then
+							auraData.unit      = unit
+							auraData.stacks    = auraData.applications
+							auraData.dispelType = auraData.dispelName
+							annotated = true
 						end
 						if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
 							local list = iconsAurasPool[idx]
-							list[#list + 1] = auraEntry
+							list[#list + 1] = auraData
 						elseif(not matchedPool[idx]) then
-							matchedPool[idx] = auraEntry
+							matchedPool[idx] = auraData
 						end
 					end
 				end
@@ -178,23 +174,17 @@ local function Update(self, event, unit)
 			for _, idx in next, hasTrackAll do
 				local ind = indicators[idx]
 				if(passesCastByFilter(sourceUnit, ind._castBy)) then
-					if(not auraEntry) then
-						auraEntry = {
-							unit           = unit,
-							auraInstanceID = auraData.auraInstanceID,
-							spellId        = spellId,
-							icon           = auraData.icon,
-							duration       = auraData.duration,
-							expirationTime = auraData.expirationTime,
-							stacks         = auraData.applications,
-							dispelType     = auraData.dispelName,
-						}
+					if(not annotated) then
+						auraData.unit      = unit
+						auraData.stacks    = auraData.applications
+						auraData.dispelType = auraData.dispelName
+						annotated = true
 					end
 					if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
 						local list = iconsAurasPool[idx]
-						list[#list + 1] = auraEntry
+						list[#list + 1] = auraData
 					elseif(not matchedPool[idx]) then
-						matchedPool[idx] = auraEntry
+						matchedPool[idx] = auraData
 					end
 				end
 			end
