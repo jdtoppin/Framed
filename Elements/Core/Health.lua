@@ -492,6 +492,9 @@ function F.Elements.Health.Setup(self, width, height, config)
 		absorbBar:SetStatusBarColor(dc[1], dc[2], dc[3], dc[4] or 0.6)
 		absorbBar:SetAllPoints(health)
 		absorbBar:SetReverseFill(true)
+		local absorbTex = absorbBar:GetStatusBarTexture()
+		absorbTex:SetHorizTile(true)
+		absorbTex:SetVertTile(true)
 		health._damageAbsorbBar = absorbBar
 
 		local overAbsorbFrame = CreateFrame('Frame', nil, health._wrapper)

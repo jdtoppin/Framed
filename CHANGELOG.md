@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.27-alpha
+
+- Fix absorb shield stripe texture stretching instead of tiling
+
 ## v0.7.26-alpha
 
 - Fix oversized border on private aura icons (borderScale = -100)
