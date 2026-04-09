@@ -52,6 +52,7 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 	tex:SetColorTexture(HANDLE_COLOR[1], HANDLE_COLOR[2], HANDLE_COLOR[3], HANDLE_COLOR[4])
 	handle._tex = tex
 
+
 	-- Tooltip
 	handle:SetScript('OnEnter', function(self)
 		self._tex:SetColorTexture(HANDLE_HOVER[1], HANDLE_HOVER[2], HANDLE_HOVER[3], HANDLE_HOVER[4])
@@ -70,6 +71,7 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 	handle:RegisterForDrag('LeftButton')
 
 	handle:SetScript('OnDragStart', function(self)
+		self._tex:SetColorTexture(HANDLE_HOVER[1], HANDLE_HOVER[2], HANDLE_HOVER[3], HANDLE_HOVER[4])
 		local scale = targetFrame:GetEffectiveScale()
 		local sx, sy = GetCursorPosition()
 		local startW = targetFrame:GetWidth()
@@ -155,6 +157,7 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 
 	handle:SetScript('OnDragStop', function(self)
 		self:SetScript('OnUpdate', nil)
+		self._tex:SetColorTexture(HANDLE_COLOR[1], HANDLE_COLOR[2], HANDLE_COLOR[3], HANDLE_COLOR[4])
 	end)
 
 	return handle
@@ -214,6 +217,22 @@ F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, v
 			elseif(isPos) then
 				local x = EditCache.Get(frameKey, 'position.x') or 0
 				local y = EditCache.Get(frameKey, 'position.y') or 0
+
+				-- Clamp so frame stays on screen
+				local w = frame:GetWidth()
+				local h = frame:GetHeight()
+				local fScale = frame:GetEffectiveScale()
+				local uiScale = UIParent:GetEffectiveScale()
+				local scaleRatio = fScale / uiScale
+				local uiW = UIParent:GetWidth()
+				local uiH = UIParent:GetHeight()
+				local halfFW = w / 2 * scaleRatio
+				local halfFH = h / 2 * scaleRatio
+				local uiHalfW = uiW / 2
+				local uiHalfH = uiH / 2
+				x = math.max(-(uiHalfW - halfFW) / scaleRatio, math.min((uiHalfW - halfFW) / scaleRatio, x))
+				y = math.max(-(uiHalfH - halfFH) / scaleRatio, math.min((uiHalfH - halfFH) / scaleRatio, y))
+
 				frame:ClearAllPoints()
 				Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
 			end

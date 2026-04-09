@@ -98,18 +98,31 @@ local function GetSmartSide(targetFrame)
 	end
 end
 
+--- Compute absolute panel position from target frame and anchor to UIParent.
+--- This prevents the panel from moving when the target frame is repositioned.
+local function AnchorPanelAbsolute(side)
+	if(not panel or not targetRef) then return end
+	local tScale = targetRef:GetEffectiveScale()
+	local uiScale = UIParent:GetEffectiveScale()
+	local ratio = tScale / uiScale
+
+	panel:ClearAllPoints()
+	local topY = (targetRef:GetTop() or 0) * ratio
+	if(side == 'RIGHT') then
+		local rightX = (targetRef:GetRight() or 0) * ratio
+		panel:SetPoint('TOPLEFT', UIParent, 'BOTTOMLEFT', rightX + EDGE_MARGIN, topY)
+	else
+		local leftX = (targetRef:GetLeft() or 0) * ratio
+		panel:SetPoint('TOPRIGHT', UIParent, 'BOTTOMLEFT', leftX - EDGE_MARGIN, topY)
+	end
+end
+
 --- Re-anchor the panel to the opposite side if needed.
 local function UpdatePanelSide()
 	if(not panel or not targetRef) then return end
 	local newSide = GetSmartSide(targetRef)
-	if(newSide == currentSide) then return end
 	currentSide = newSide
-	panel:ClearAllPoints()
-	if(newSide == 'RIGHT') then
-		panel:SetPoint('TOPLEFT', targetRef, 'TOPRIGHT', EDGE_MARGIN, 0)
-	else
-		panel:SetPoint('TOPRIGHT', targetRef, 'TOPLEFT', -EDGE_MARGIN, 0)
-	end
+	AnchorPanelAbsolute(newSide)
 end
 
 local function BuildPanel(frameKey, targetFrame)
@@ -127,15 +140,11 @@ local function BuildPanel(frameKey, targetFrame)
 	panel:SetClampedToScreen(true)
 	panel:EnableMouse(true)  -- consume clicks so they don't deselect via overlay
 
-	-- Position relative to target frame
+	-- Position relative to target frame (absolute anchor to UIParent so
+	-- slider-driven frame moves don't drag the panel along)
 	targetRef = targetFrame
 	currentSide = GetSmartSide(targetFrame)
-	panel:ClearAllPoints()
-	if(currentSide == 'RIGHT') then
-		panel:SetPoint('TOPLEFT', targetFrame, 'TOPRIGHT', EDGE_MARGIN, 0)
-	else
-		panel:SetPoint('TOPRIGHT', targetFrame, 'TOPLEFT', -EDGE_MARGIN, 0)
-	end
+	AnchorPanelAbsolute(currentSide)
 
 	-- ── Resolve frame definition ────────────────────────────
 	local frameDef = nil

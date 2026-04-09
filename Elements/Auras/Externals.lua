@@ -35,14 +35,27 @@ local function Update(self, event, unit)
 		local show = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
 			unit, id, 'HELPFUL|EXTERNAL_DEFENSIVE')
 
-		-- Step 2: IMPORTANT fallback — catch spells like PI that aren't
-		-- classified as EXTERNAL_DEFENSIVE. Exclude BIG_DEFENSIVE to avoid
-		-- duplicating spells that already appear in the Defensives element.
+		-- Step 2: IMPORTANT fallback — catch spells that aren't classified
+		-- as EXTERNAL_DEFENSIVE. Exclude BIG_DEFENSIVE to avoid duplicating
+		-- spells that already appear in the Defensives element.
 		-- NOTE: IMPORTANT may be removed in 12.0.5 per Blizzard feedback.
 		if(not show) then
 			local isImportant = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
 				unit, id, 'HELPFUL|IMPORTANT')
 			if(isImportant) then
+				local isBigDef = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+					unit, id, 'HELPFUL|BIG_DEFENSIVE')
+				show = not isBigDef
+			end
+		end
+
+		-- Step 3: RAID fallback — catch raid-important buffs like Power
+		-- Infusion that aren't classified as EXTERNAL_DEFENSIVE or IMPORTANT.
+		-- Exclude BIG_DEFENSIVE to avoid duplicating with Defensives.
+		if(not show) then
+			local isRaid = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+				unit, id, 'HELPFUL|RAID')
+			if(isRaid) then
 				local isBigDef = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
 					unit, id, 'HELPFUL|BIG_DEFENSIVE')
 				show = not isBigDef

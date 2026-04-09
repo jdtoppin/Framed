@@ -16,6 +16,42 @@ local EditCache = F.EditCache
 local catchers = {}
 local DIM_OVERLAY_ALPHA = 0.7
 
+--- Clamp frame position so all edges stay on screen.
+--- @param x number Offset X (frame-space)
+--- @param y number Offset Y (frame-space)
+--- @param frameW number Frame width (frame-space)
+--- @param frameH number Frame height (frame-space)
+--- @param scaleRatio number fScale / uiScale
+--- @param isGroup boolean True for TOPLEFT-anchored group frames
+--- @return number, number Clamped x, y
+local function clampToScreen(x, y, frameW, frameH, scaleRatio, isGroup)
+	local uiW = UIParent:GetWidth()
+	local uiH = UIParent:GetHeight()
+
+	if(isGroup) then
+		-- TOPLEFT anchor: x >= 0 (left), x + frameW*scaleRatio <= uiW (right)
+		-- y <= 0 (top), y - frameH*scaleRatio >= -uiH (bottom)
+		local maxX = (uiW - frameW * scaleRatio) / scaleRatio
+		local minY = -(uiH - frameH * scaleRatio) / scaleRatio
+		x = math.max(0, math.min(maxX, x))
+		y = math.min(0, math.max(minY, y))
+	else
+		-- CENTER anchor: center ± half frame must stay within screen
+		local halfFW = frameW / 2 * scaleRatio
+		local halfFH = frameH / 2 * scaleRatio
+		local uiHalfW = uiW / 2
+		local uiHalfH = uiH / 2
+		local minX = -(uiHalfW - halfFW) / scaleRatio
+		local maxX = (uiHalfW - halfFW) / scaleRatio
+		local minY = -(uiHalfH - halfFH) / scaleRatio
+		local maxY = (uiHalfH - halfFH) / scaleRatio
+		x = math.max(minX, math.min(maxX, x))
+		y = math.max(minY, math.min(maxY, y))
+	end
+
+	return x, y
+end
+
 local function DestroyCatchers()
 	for _, catcher in next, catchers do
 		catcher:Hide()
@@ -231,6 +267,9 @@ local function CreateCatcher(def, overlay)
 			local snapX, snapY = EditMode.SnapToGrid(newX * scaleRatio, newY * scaleRatio, s._frameW * scaleRatio, s._frameH * scaleRatio)
 			newX = snapX / scaleRatio
 			newY = snapY / scaleRatio
+
+			-- Clamp so frame stays on screen
+			newX, newY = clampToScreen(newX, newY, s._frameW, s._frameH, scaleRatio, isGroupDrag)
 
 			-- Store last computed position for OnDragStop
 			s._lastX = newX

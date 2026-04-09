@@ -235,24 +235,52 @@ local function AttachInteraction(slider, isVertical)
 
 	track:EnableMouse(true)
 
+	-- Shared drag start: capture cursor position for relative tracking
+	local function BeginDrag(snapToClick)
+		slider._dragging = true
+		local cx, cy = GetCursorPosition()
+		if(snapToClick) then
+			-- Track click: snap value to cursor, then track relative from there
+			ApplyFraction(slider, FractionFromCursor(slider, isVertical))
+		end
+		-- Store start state for relative drag
+		slider._dragStartCursor = isVertical and cy or cx
+		slider._dragStartValue = slider._value
+	end
+
+	local function EndDrag()
+		slider._dragging = false
+		slider._dragStartCursor = nil
+		slider._dragStartValue = nil
+		if(slider._afterValueChanged) then
+			slider._afterValueChanged(slider._value)
+		end
+	end
+
 	track:SetScript('OnMouseDown', function(self, button)
 		if(button ~= 'LeftButton') then return end
 		if(not slider:IsEnabled()) then return end
-		slider._dragging = true
-		ApplyFraction(slider, FractionFromCursor(slider, isVertical))
+		BeginDrag(not slider._noTrackSnap)
 	end)
 
 	track:SetScript('OnMouseUp', function(self, button)
 		if(button ~= 'LeftButton') then return end
-		slider._dragging = false
-		if(slider._afterValueChanged) then
-			slider._afterValueChanged(slider._value)
-		end
+		EndDrag()
 	end)
 
 	track:SetScript('OnUpdate', function(self)
-		if(not slider._dragging) then return end
-		ApplyFraction(slider, FractionFromCursor(slider, isVertical))
+		if(not slider._dragging or not slider._dragStartCursor) then return end
+		local cx, cy = GetCursorPosition()
+		local cursor = isVertical and cy or cx
+		local delta = cursor - slider._dragStartCursor
+		local scale = slider._track:GetEffectiveScale()
+		local trackSize = isVertical and slider._track:GetHeight() or slider._track:GetWidth()
+		if(trackSize <= 0) then return end
+		local range = slider._max - slider._min
+		local valueDelta = (delta / scale / trackSize) * range
+		local newValue = slider._dragStartValue + valueDelta
+		local fraction = (newValue - slider._min) / range
+		ApplyFraction(slider, fraction)
 	end)
 
 	-- Also allow thumb to receive mouse events and forward to track
@@ -260,14 +288,11 @@ local function AttachInteraction(slider, isVertical)
 	slider._thumb:SetScript('OnMouseDown', function(self, button)
 		if(button ~= 'LeftButton') then return end
 		if(not slider:IsEnabled()) then return end
-		slider._dragging = true
+		BeginDrag(false) -- never snap on thumb grab
 	end)
 	slider._thumb:SetScript('OnMouseUp', function(self, button)
 		if(button ~= 'LeftButton') then return end
-		slider._dragging = false
-		if(slider._afterValueChanged) then
-			slider._afterValueChanged(slider._value)
-		end
+		EndDrag()
 	end)
 end
 

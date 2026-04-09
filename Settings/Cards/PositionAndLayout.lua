@@ -105,20 +105,39 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	local actualX = getConfig('position.x')
 	local actualY = getConfig('position.y')
 
-	-- Frame Position sliders (X / Y)
+	-- Frame Position sliders (X / Y) — range matches actual screen, accounting for UI scale
 	cardY = B.PlaceHeading(inner, 'Frame Position', 4, cardY)
+	local posRangeX = math.floor(UIParent:GetWidth() / 2)
+	local posRangeY = math.floor(UIParent:GetHeight() / 2)
 
-	local posXSlider = Widgets.CreateSlider(inner, 'X', widgetW, -1000, 1000, 1)
+	local posUpdateTime = 0
+	local POS_THROTTLE = 0.03
+
+	local posXSlider = Widgets.CreateSlider(inner, 'X', widgetW, -posRangeX, posRangeX, 1)
 	posXSlider:SetValue(actualX)
+	posXSlider:SetOnValueChanged(function(value)
+		local now = GetTime()
+		if(now - posUpdateTime < POS_THROTTLE) then return end
+		posUpdateTime = now
+		F.EditCache.Set(unitType, 'position.x', value)
+	end)
 	posXSlider:SetAfterValueChanged(function(value)
 		setConfig('position.x', value)
+		F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', unitType)
 	end)
 	cardY = B.PlaceWidget(posXSlider, inner, cardY, B.SLIDER_H)
 
-	local posYSlider = Widgets.CreateSlider(inner, 'Y', widgetW, -1000, 1000, 1)
+	local posYSlider = Widgets.CreateSlider(inner, 'Y', widgetW, -posRangeY, posRangeY, 1)
 	posYSlider:SetValue(actualY)
+	posYSlider:SetOnValueChanged(function(value)
+		local now = GetTime()
+		if(now - posUpdateTime < POS_THROTTLE) then return end
+		posUpdateTime = now
+		F.EditCache.Set(unitType, 'position.y', value)
+	end)
 	posYSlider:SetAfterValueChanged(function(value)
 		setConfig('position.y', value)
+		F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', unitType)
 	end)
 	cardY = B.PlaceWidget(posYSlider, inner, cardY, B.SLIDER_H)
 

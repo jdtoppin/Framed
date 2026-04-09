@@ -339,9 +339,11 @@ F.EventBus:Register('EDIT_MODE_EXITED', function()
 	end
 end, 'PreviewManager.exited')
 
--- Live update from EditCache
+-- Live update from EditCache (skip position/size — they don't affect preview)
 F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
 	if(frameKey ~= activeFrameKey) then return end
+	if(configPath == 'position.x' or configPath == 'position.y'
+		or configPath == 'width' or configPath == 'height') then return end
 	PM.ShowPreview(activeFrameKey)
 end, 'PreviewManager.cacheChanged')
 
