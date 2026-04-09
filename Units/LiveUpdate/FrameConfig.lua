@@ -793,7 +793,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	if(key == 'showName') then
 		local config = F.StyleBuilder.GetConfig(unitType)
 		ForEachFrame(unitType, function(frame)
-			if(frame.Name) then frame.Name:SetShown(config.showName ~= false) end
+			if(frame.Name) then frame.Name:SetShown(config.showName) end
 		end)
 		return
 	end
@@ -1575,7 +1575,7 @@ local function applyFullConfig(frame, config)
 
 	-- ── Name element ────────────────────────────────────────
 	if(frame.Name) then
-		frame.Name:SetShown(config.showName ~= false)
+		frame.Name:SetShown(config.showName)
 
 		local nc = config.name
 

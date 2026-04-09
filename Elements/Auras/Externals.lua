@@ -49,21 +49,26 @@ local function Update(self, event, unit)
 			end
 		end
 
-		-- Step 3: RAID fallback — catch raid-important buffs like Power
-		-- Infusion that aren't classified as EXTERNAL_DEFENSIVE or IMPORTANT.
-		-- Exclude BIG_DEFENSIVE to avoid duplicating with Defensives.
+		-- Step 3: RAID fallback — only for secret auras (combat) where
+		-- spell-level classification isn't available. Catches Power Infusion
+		-- and similar raid-important buffs. Too broad out of combat (catches
+		-- basic HoTs like Rejuvenation). Exclude BIG_DEFENSIVE to avoid
+		-- duplicating with Defensives.
 		if(not show) then
-			local isRaid = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
-				unit, id, 'HELPFUL|RAID')
-			if(isRaid) then
-				local isBigDef = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
-					unit, id, 'HELPFUL|BIG_DEFENSIVE')
-				show = not isBigDef
+			local isSecret = not F.IsValueNonSecret(auraData.spellId)
+			if(isSecret) then
+				local isRaid = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+					unit, id, 'HELPFUL|RAID')
+				if(isRaid) then
+					local isBigDef = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+						unit, id, 'HELPFUL|BIG_DEFENSIVE')
+					show = not isBigDef
+				end
 			end
 		end
 
-		-- Skip long-duration buffs (flasks, food, racials) that pass RAID
-		-- filter but aren't real externals. duration == 0 means permanent.
+		-- Skip long-duration buffs (flasks, food, racials) that slip through
+		-- classification filters. duration == 0 means permanent.
 		if(show) then
 			local dur = auraData.duration
 			if(F.IsValueNonSecret(dur) and (dur == 0 or dur > 600)) then

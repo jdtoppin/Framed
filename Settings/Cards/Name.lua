@@ -14,7 +14,7 @@ function F.SettingsCards.Name(parent, width, unitType, getConfig, setConfig, onR
 	local showNameCheck = Widgets.CreateCheckButton(inner, 'Show Name', function(checked)
 		setConfig('showName', checked)
 	end)
-	showNameCheck:SetChecked(getConfig('showName') ~= false)
+	showNameCheck:SetChecked(getConfig('showName'))
 	cardY = B.PlaceWidget(showNameCheck, inner, cardY, B.CHECK_H)
 
 	-- Name color mode switch

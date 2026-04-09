@@ -16,6 +16,7 @@ local function baseUnitConfig()
 	return {
 		width  = 200,
 		height = 40,
+		showName = true,
 		position = { x = 0, y = 0, anchor = 'CENTER' },
 		health = {
 			colorMode          = 'class',
@@ -288,6 +289,7 @@ local function partyConfig()
 	c.threat = defaultThreat()
 	c.statusIcons.combat  = false
 	c.statusIcons.resting = false
+	c.statusIcons.raidRole = false
 	return c
 end
 
@@ -304,6 +306,7 @@ local function raidConfig()
 	c.name.fontSize = C.Font.sizeSmall
 	c.statusIcons.combat  = false
 	c.statusIcons.resting = false
+	c.statusIcons.raidRole = false
 	return c
 end
 
