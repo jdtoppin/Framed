@@ -1,5 +1,11 @@
 # Framed Changelog
 
+## v0.7.21-alpha
+
+- Reduce memory churn: reuse outer container tables in aura Update handlers
+- Fix health.lossCustomColor nil error when opening settings on older profiles
+- Hide missing buff icons on dead/ghost units
+
 ## v0.7.20-alpha
 
 - Revert table pooling (investigating interaction with other addons)
