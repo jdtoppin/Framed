@@ -6,11 +6,8 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.Defensives = {}
 
--- Reusable container — wiped each Update to avoid per-call allocation.
-local auraList = {}
-
 -- ============================================================
--- Update
+-- Update — single-pass filter + display (zero intermediate tables)
 -- ============================================================
 
 local function Update(self, event, unit)
@@ -24,14 +21,23 @@ local function Update(self, event, unit)
 	local visibilityMode = cfg.visibilityMode
 	local playerColor    = cfg.playerColor
 	local otherColor     = cfg.otherColor
+	local pool           = element._pool
+	local iconSize       = cfg.iconSize
+	local orientation    = cfg.orientation
+	local anchor         = cfg.anchor
+	local anchorPoint    = anchor[1]
+	local anchorX        = anchor[4]
+	local anchorY        = anchor[5]
 
 	-- BIG_DEFENSIVE is a classification filter, not a query filter —
 	-- GetUnitAuras does not support it. Fetch all helpful auras, then
 	-- classify each one via IsAuraFilteredOutByInstanceID.
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 
-	wipe(auraList)
+	local displayed = 0
 	for _, auraData in next, rawAuras do
+		if(displayed >= maxDisplayed) then break end
+
 		local id = auraData.auraInstanceID -- NeverSecret
 
 		-- Step 1: BIG_DEFENSIVE (primary classification)
@@ -64,79 +70,55 @@ local function Update(self, event, unit)
 			elseif(visibilityMode == 'others' and isPlayerCast) then
 				-- Skip player-cast auras in "others" mode
 			else
-				auraList[#auraList + 1] = {
-					auraInstanceID = id,
-					spellId        = auraData.spellId,
-					icon           = auraData.icon,
-					duration       = auraData.duration,
-					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications,
-					isPlayerCast   = isPlayerCast,
-				}
+				-- Display directly — no intermediate table
+				displayed = displayed + 1
+
+				if(not pool[displayed]) then
+					pool[displayed] = F.Indicators.BorderIcon.Create(self, iconSize, {
+						showCooldown = true,
+						showStacks   = cfg.showStacks ~= false,
+						showDuration = cfg.showDuration ~= false,
+						frameLevel   = cfg.frameLevel,
+						stackFont    = cfg.stackFont,
+						durationFont = cfg.durationFont,
+					})
+				end
+
+				local bi = pool[displayed]
+				bi:ClearAllPoints()
+				bi:SetSize(iconSize)
+
+				local offset = (displayed - 1) * (iconSize + 2)
+				if(orientation == 'RIGHT') then
+					bi:SetPoint(anchorPoint, self, anchorPoint, anchorX + offset, anchorY)
+				elseif(orientation == 'LEFT') then
+					bi:SetPoint(anchorPoint, self, anchorPoint, anchorX - offset, anchorY)
+				elseif(orientation == 'DOWN') then
+					bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY - offset)
+				elseif(orientation == 'UP') then
+					bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY + offset)
+				end
+
+				local borderColor = isPlayerCast and playerColor or otherColor
+				if(bi.SetBorderColor) then
+					bi:SetBorderColor(borderColor[1], borderColor[2], borderColor[3])
+				end
+
+				bi:SetAura(
+					unit, id,
+					auraData.spellId,
+					auraData.icon,
+					auraData.duration,
+					auraData.expirationTime,
+					auraData.applications,
+					nil
+				)
+				bi:Show()
 			end
 		end
 	end
 
-	-- Display up to maxDisplayed using BorderIcon pool
-	local count = math.min(#auraList, maxDisplayed)
-	local pool = element._pool
-	local iconSize    = cfg.iconSize
-	local orientation = cfg.orientation
-	local anchor      = cfg.anchor
-	local anchorPoint = anchor[1]
-	local anchorX     = anchor[4]
-	local anchorY     = anchor[5]
-
-	for idx = 1, count do
-		local aura = auraList[idx]
-
-		if(not pool[idx]) then
-			pool[idx] = F.Indicators.BorderIcon.Create(self, iconSize, {
-				showCooldown = true,
-				showStacks   = cfg.showStacks ~= false,
-				showDuration = cfg.showDuration ~= false,
-				frameLevel   = cfg.frameLevel,
-				stackFont    = cfg.stackFont,
-				durationFont = cfg.durationFont,
-			})
-		end
-
-		local bi = pool[idx]
-
-		bi:ClearAllPoints()
-		bi:SetSize(iconSize)
-
-		-- Position: anchor directly to the unit frame, offset by prior icons
-		local offset = (idx - 1) * (iconSize + 2)
-
-		if(orientation == 'RIGHT') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX + offset, anchorY)
-		elseif(orientation == 'LEFT') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX - offset, anchorY)
-		elseif(orientation == 'DOWN') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY - offset)
-		elseif(orientation == 'UP') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY + offset)
-		end
-
-		local borderColor = aura.isPlayerCast and playerColor or otherColor
-		if(bi.SetBorderColor) then
-			bi:SetBorderColor(borderColor[1], borderColor[2], borderColor[3])
-		end
-
-		bi:SetAura(
-			unit, aura.auraInstanceID,
-			aura.spellId,
-			aura.icon,
-			aura.duration,
-			aura.expirationTime,
-			aura.stacks,
-			nil
-		)
-		bi:Show()
-	end
-
-	for idx = count + 1, #pool do
+	for idx = displayed + 1, #pool do
 		pool[idx]:Clear()
 	end
 end

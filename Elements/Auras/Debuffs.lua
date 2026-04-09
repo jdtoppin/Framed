@@ -20,12 +20,65 @@ local FILTER_MAP = {
 	encounter    = 'HARMFUL|RAID',
 }
 
--- Reusable container — wiped each updateIndicator call.
-local auraList = {}
+-- ============================================================
+-- Per-indicator update — single-pass filter + display
+-- ============================================================
 
--- ============================================================
--- Per-indicator update
--- ============================================================
+--- Display one aura directly from auraData fields (no intermediate table).
+--- Returns the new running pixel offset for the next icon.
+local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, dispelType)
+	local iconSize    = cfg.iconSize
+	local bigIconSize = cfg.bigIconSize
+	local orientation = cfg.orientation
+	local anchor      = cfg.anchor
+	local anchorPoint = anchor[1]
+	local anchorX     = anchor[4]
+	local anchorY     = anchor[5]
+
+	if(not pool[displayed]) then
+		pool[displayed] = F.Indicators.BorderIcon.Create(self, iconSize, {
+			showCooldown = true,
+			showStacks   = cfg.showStacks ~= false,
+			showDuration = cfg.showDuration ~= false,
+			frameLevel   = cfg.frameLevel,
+			stackFont    = cfg.stackFont,
+			durationFont = cfg.durationFont,
+		})
+	end
+
+	local bi = pool[displayed]
+
+	-- Size: big for boss auras (isBossAura may be secret in instances)
+	local isBoss = F.IsValueNonSecret(auraData.isBossAura) and auraData.isBossAura
+	local size = isBoss and bigIconSize or iconSize
+
+	bi:ClearAllPoints()
+	bi:SetSize(size)
+
+	if(orientation == 'RIGHT') then
+		bi:SetPoint(anchorPoint, self, anchorPoint, anchorX + runOffset, anchorY)
+	elseif(orientation == 'LEFT') then
+		bi:SetPoint(anchorPoint, self, anchorPoint, anchorX - runOffset, anchorY)
+	elseif(orientation == 'DOWN') then
+		bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY - runOffset)
+	elseif(orientation == 'UP') then
+		bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY + runOffset)
+	end
+
+	bi:SetBorderColor(1, 0, 0, 1)
+	bi:SetAura(
+		unit, auraData.auraInstanceID,
+		auraData.spellId,
+		auraData.icon,
+		auraData.duration,
+		auraData.expirationTime,
+		auraData.applications,
+		dispelType
+	)
+	bi:Show()
+
+	return runOffset + size + 2
+end
 
 local function updateIndicator(self, unit, ind)
 	local cfg = ind._config
@@ -41,7 +94,6 @@ local function updateIndicator(self, unit, ind)
 	if(filterMode == 'encounter') then
 		if(not C_InstanceEncounter or not C_InstanceEncounter.IsEncounterInProgress
 			or not C_InstanceEncounter.IsEncounterInProgress()) then
-			-- Not in an encounter — hide all pool entries and bail
 			for idx = 1, #ind._pool do
 				ind._pool[idx]:Clear()
 			end
@@ -51,132 +103,44 @@ local function updateIndicator(self, unit, ind)
 
 	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter, nil, Enum.UnitAuraSortRule.Default)
+	local pool = ind._pool
 
-	-- Always include auras regardless of secret status.
+	-- Single-pass: filter and display directly from auraData.
 	-- auraInstanceID is NeverSecret; BorderIcon.SetAura uses C-level APIs
-	-- (DurationObject, dispel color curve, etc.) for display when unit +
-	-- auraInstanceID are provided. Lua-level fields (spellId, icon, duration)
-	-- may be secret in instanced content — SetTexture and other C-level frame
-	-- methods accept them directly.
-	wipe(auraList)
+	-- for secret fields (icon, duration, etc.).
+	local displayed = 0
+	local runOffset = 0
 	for _, auraData in next, rawAuras do
-		-- Skip long-duration debuffs (Sated, Exhaustion, etc.) that aren't
-		-- real combat debuffs. duration == 0 means permanent.
+		if(displayed >= maxDisplayed) then break end
+
 		local dur = auraData.duration
 		local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
 
 		if(not skip) then
-			auraList[#auraList + 1] = {
-				auraInstanceID = auraData.auraInstanceID,
-				spellId        = auraData.spellId,
-				icon           = auraData.icon,
-				duration       = auraData.duration,
-				expirationTime = auraData.expirationTime,
-				stacks         = auraData.applications,
-				dispelType     = auraData.dispelName,
-				isBossAura     = auraData.isBossAura,
-			}
+			displayed = displayed + 1
+			runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, auraData.dispelName)
 		end
 	end
 
 	-- When filterMode is 'dispellable', also include Physical/bleed debuffs
 	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them).
-	-- Always included here (unlike Dispellable which has a showPhysicalDebuffs toggle)
-	-- because the Debuffs element is a general display and bleeds provide context.
-	-- Supplementary results are appended after the server-sorted dispellable set,
-	-- so they appear lower priority when maxDisplayed truncates.
-	if(filterMode == 'dispellable') then
+	-- Supplementary results appear after the server-sorted dispellable set.
+	if(filterMode == 'dispellable' and displayed < maxDisplayed) then
 		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
 		for _, auraData in next, raidAuras do
+			if(displayed >= maxDisplayed) then break end
+
 			local dn = auraData.dispelName
-			-- Only non-secret dispelName can be string-compared; if secret, skip
-			-- (secret Physical debuffs are an edge case — the main HARMFUL query
-			-- already captured this aura if it exists)
 			local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
 			if(isPhysical) then
-				auraList[#auraList + 1] = {
-					auraInstanceID = auraData.auraInstanceID,
-					spellId        = auraData.spellId,
-					icon           = auraData.icon,
-					duration       = auraData.duration,
-					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications,
-					dispelType     = nil,
-					isBossAura     = auraData.isBossAura,
-				}
+				displayed = displayed + 1
+				runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, nil)
 			end
 		end
 	end
 
-	-- Display up to maxDisplayed using BorderIcon pool
-	local count = math.min(#auraList, maxDisplayed)
-	local pool = ind._pool
-	local iconSize    = cfg.iconSize
-	local bigIconSize = cfg.bigIconSize
-	local orientation = cfg.orientation
-	local anchor      = cfg.anchor
-	local anchorPoint = anchor[1]
-	local anchorX     = anchor[4]
-	local anchorY     = anchor[5]
-
-	for idx = 1, count do
-		local aura = auraList[idx]
-
-		-- Lazily create pool entries
-		if(not pool[idx]) then
-			pool[idx] = F.Indicators.BorderIcon.Create(self, iconSize, {
-				showCooldown = true,
-				showStacks   = cfg.showStacks ~= false,
-				showDuration = cfg.showDuration ~= false,
-				frameLevel   = cfg.frameLevel,
-				stackFont    = cfg.stackFont,
-				durationFont = cfg.durationFont,
-			})
-		end
-
-		local bi = pool[idx]
-
-		-- Size: big for boss auras (isBossAura may be secret in instances)
-		local isBoss = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura
-		local size = isBoss and bigIconSize or iconSize
-
-		bi:ClearAllPoints()
-		bi:SetSize(size)
-
-		-- Position: anchor directly to the unit frame, offset by prior icons
-		local offset = 0
-		for j = 1, idx - 1 do
-			local prevBoss = F.IsValueNonSecret(auraList[j].isBossAura) and auraList[j].isBossAura
-			local prevSize = prevBoss and bigIconSize or iconSize
-			offset = offset + prevSize + 2
-		end
-
-		if(orientation == 'RIGHT') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX + offset, anchorY)
-		elseif(orientation == 'LEFT') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX - offset, anchorY)
-		elseif(orientation == 'DOWN') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY - offset)
-		elseif(orientation == 'UP') then
-			bi:SetPoint(anchorPoint, self, anchorPoint, anchorX, anchorY + offset)
-		end
-
-		-- Red border as default for debuffs
-		bi:SetBorderColor(1, 0, 0, 1)
-		bi:SetAura(
-			unit, aura.auraInstanceID,
-			aura.spellId,
-			aura.icon,
-			aura.duration,
-			aura.expirationTime,
-			aura.stacks,
-			aura.dispelType
-		)
-		bi:Show()
-	end
-
 	-- Hide pool entries beyond active count
-	for idx = count + 1, #pool do
+	for idx = displayed + 1, #pool do
 		pool[idx]:Clear()
 	end
 end

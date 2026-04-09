@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.22-alpha
+
+- Zero-allocation single-pass filter+display for Externals, Defensives, and Debuffs aura elements
+
 ## v0.7.21-alpha
 
 - Reduce memory churn: reuse outer container tables in aura Update handlers
