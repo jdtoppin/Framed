@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.16-alpha
+
+- Filter out long-duration (>10 min) and permanent buffs from Defensives and Externals
+
 ## v0.7.15-alpha
 
 - Add live frame position preview while dragging position sliders

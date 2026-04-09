@@ -55,6 +55,15 @@ local function Update(self, event, unit)
 			end
 		end
 
+		-- Skip long-duration buffs (flasks, food, racials) that aren't
+		-- real defensives. duration == 0 means permanent.
+		if(show) then
+			local dur = auraData.duration
+			if(F.IsValueNonSecret(dur) and (dur == 0 or dur > 600)) then
+				show = false
+			end
+		end
+
 		if(show) then
 			-- Determine if player-cast via |PLAYER filter (avoids secret sourceUnit)
 			local isPlayerCast = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
