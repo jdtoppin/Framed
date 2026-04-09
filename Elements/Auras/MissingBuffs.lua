@@ -147,8 +147,8 @@ local function Update(self, event, unit)
 	unit = self.unit
 	if(not unit) then return end
 
-	-- Pets don't receive raid buffs — hide all slots on pet frames
-	if(unit:match('pet')) then
+	-- Pets and dead units don't receive raid buffs — hide all slots
+	if(unit:match('pet') or UnitIsDeadOrGhost(unit)) then
 		for _, slot in next, element._slots do
 			slot.bi:Hide()
 			if(slot.glow:IsActive()) then slot.glow:Stop() end
