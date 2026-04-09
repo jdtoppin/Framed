@@ -6,6 +6,9 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.Defensives = {}
 
+-- Reusable container — wiped each Update to avoid per-call allocation.
+local auraList = {}
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -27,7 +30,7 @@ local function Update(self, event, unit)
 	-- classify each one via IsAuraFilteredOutByInstanceID.
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 
-	local auraList = {}
+	wipe(auraList)
 	for _, auraData in next, rawAuras do
 		local id = auraData.auraInstanceID -- NeverSecret
 

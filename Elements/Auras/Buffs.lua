@@ -69,6 +69,19 @@ local BUFF_FILTER_MAP = {
 	raidCombat  = 'HELPFUL|RAID_IN_COMBAT',
 }
 
+-- Reusable containers — wiped each Update to avoid per-call allocation.
+-- Inner entry tables are fresh each call (secret values must be GC'd).
+local iconsAurasPool = {} -- [idx] = reusable sub-array
+local matchedPool = {}    -- [idx] = auraEntry or false
+
+-- Pre-created sort comparator (sortPriority set before each sort call)
+local sortPriority
+local function prioritySort(a, b)
+	local pa = sortPriority[a.spellId] or 999
+	local pb = sortPriority[b.spellId] or 999
+	return pa < pb
+end
+
 -- ============================================================
 -- castBy filter helper
 -- ============================================================
@@ -112,12 +125,16 @@ local function Update(self, event, unit)
 
 	-- Collect per-indicator aura lists for Icons-type renderers,
 	-- and track first-match for single-value renderers.
-	local iconsAuras = {}
-	local matched = {}
-
-	for idx, _ in next, indicators do
-		iconsAuras[idx] = {}
-		matched[idx] = false
+	-- Reuse outer containers, fresh inner entries (secret values must GC).
+	for idx in next, indicators do
+		local sub = iconsAurasPool[idx]
+		if(not sub) then
+			sub = {}
+			iconsAurasPool[idx] = sub
+		else
+			wipe(sub)
+		end
+		matchedPool[idx] = false
 	end
 
 	-- Build filter string from config
@@ -148,10 +165,10 @@ local function Update(self, event, unit)
 							}
 						end
 						if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
-							local list = iconsAuras[idx]
+							local list = iconsAurasPool[idx]
 							list[#list + 1] = auraEntry
-						elseif(not matched[idx]) then
-							matched[idx] = auraEntry
+						elseif(not matchedPool[idx]) then
+							matchedPool[idx] = auraEntry
 						end
 					end
 				end
@@ -174,10 +191,10 @@ local function Update(self, event, unit)
 						}
 					end
 					if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
-						local list = iconsAuras[idx]
+						local list = iconsAurasPool[idx]
 						list[#list + 1] = auraEntry
-					elseif(not matched[idx]) then
-						matched[idx] = auraEntry
+					elseif(not matchedPool[idx]) then
+						matchedPool[idx] = auraEntry
 					end
 				end
 			end
@@ -190,16 +207,12 @@ local function Update(self, event, unit)
 		local rendererType = ind._type
 
 		if(rendererType == C.IndicatorType.ICONS) then
-			local list = iconsAuras[idx]
+			local list = iconsAurasPool[idx]
 			if(#list > 0) then
 				-- Sort by spell list priority (lower index = higher priority)
-				local priority = ind._spellPriority
-				if(priority) then
-					table.sort(list, function(a, b)
-						local pa = priority[a.spellId] or 999
-						local pb = priority[b.spellId] or 999
-						return pa < pb
-					end)
+				if(ind._spellPriority) then
+					sortPriority = ind._spellPriority
+					table.sort(list, prioritySort)
 				end
 				renderer:SetIcons(list)
 				renderer:Show()
@@ -209,7 +222,7 @@ local function Update(self, event, unit)
 			end
 
 		elseif(rendererType == C.IndicatorType.ICON) then
-			local aura = matched[idx]
+			local aura = matchedPool[idx]
 			if(aura) then
 				renderer:SetSpell(
 					aura.unit,
@@ -226,7 +239,7 @@ local function Update(self, event, unit)
 			end
 
 		elseif(rendererType == C.IndicatorType.BAR) then
-			local aura = matched[idx]
+			local aura = matchedPool[idx]
 			if(aura) then
 				-- Apply spell color before showing
 				local sc = ind._spellColors and ind._spellColors[aura.spellId]
@@ -254,16 +267,12 @@ local function Update(self, event, unit)
 			end
 
 		elseif(rendererType == C.IndicatorType.BARS) then
-			local list = iconsAuras[idx]
+			local list = iconsAurasPool[idx]
 			if(#list > 0) then
 				-- Sort by spell list priority
-				local priority = ind._spellPriority
-				if(priority) then
-					table.sort(list, function(a, b)
-						local pa = priority[a.spellId] or 999
-						local pb = priority[b.spellId] or 999
-						return pa < pb
-					end)
+				if(ind._spellPriority) then
+					sortPriority = ind._spellPriority
+					table.sort(list, prioritySort)
 				end
 				renderer:SetBars(list)
 				renderer:Show()
@@ -278,7 +287,7 @@ local function Update(self, event, unit)
 			end
 
 		elseif(rendererType == C.IndicatorType.BORDER) then
-			local aura = matched[idx]
+			local aura = matchedPool[idx]
 			if(aura) then
 				local mode = ind._borderGlowMode
 				if(mode == 'Border') then
@@ -300,7 +309,7 @@ local function Update(self, event, unit)
 			end
 
 		elseif(rendererType == C.IndicatorType.RECTANGLE) then
-			local aura = matched[idx]
+			local aura = matchedPool[idx]
 			if(aura) then
 				local color = ind._color
 				renderer:SetColor(color[1], color[2], color[3], color[4])
@@ -316,7 +325,7 @@ local function Update(self, event, unit)
 			end
 
 		elseif(rendererType == C.IndicatorType.OVERLAY) then
-			local aura = matched[idx]
+			local aura = matchedPool[idx]
 			if(aura) then
 				local color = ind._color
 				if(color) then renderer:SetColor(color[1], color[2], color[3], color[4]) end

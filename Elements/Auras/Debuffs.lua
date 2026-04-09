@@ -20,6 +20,9 @@ local FILTER_MAP = {
 	encounter    = 'HARMFUL|RAID',
 }
 
+-- Reusable container — wiped each updateIndicator call.
+local auraList = {}
+
 -- ============================================================
 -- Per-indicator update
 -- ============================================================
@@ -55,7 +58,7 @@ local function updateIndicator(self, unit, ind)
 	-- auraInstanceID are provided. Lua-level fields (spellId, icon, duration)
 	-- may be secret in instanced content — SetTexture and other C-level frame
 	-- methods accept them directly.
-	local auraList = {}
+	wipe(auraList)
 	for _, auraData in next, rawAuras do
 		-- Skip long-duration debuffs (Sated, Exhaustion, etc.) that aren't
 		-- real combat debuffs. duration == 0 means permanent.
