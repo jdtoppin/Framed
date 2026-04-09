@@ -1,5 +1,10 @@
 # Framed Changelog
 
+## v0.7.20-alpha
+
+- Revert table pooling (investigating interaction with other addons)
+- Hide missing buff icons on dead/ghost units
+
 ## v0.7.19-alpha
 
 - Fix memory leak: reuse table pools in aura Update handlers instead of creating throwaway tables per UNIT_AURA event
