@@ -1,5 +1,12 @@
 # Framed Changelog
 
+## v0.7.18-alpha
+
+- Fix duplicate auras showing in both Defensives and Externals (IMPORTANT fallback overlap)
+- Filter Sated/Exhaustion and other long-duration debuffs (>=10 min) from debuff indicators
+- Gate Externals RAID fallback to secret auras only (combat only)
+- Migrate saved profiles to disable main tank/assist icons on party/raid frames
+
 ## v0.7.17-alpha
 
 - Gate Externals RAID fallback to secret auras only (fixes basic HoTs showing)
