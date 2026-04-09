@@ -130,7 +130,7 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local lossPicker = Widgets.CreateColorPicker(inner, 'Loss Color', false,
 		nil,
 		function(r, g, b) setConfig('health.lossCustomColor', { r, g, b }) end)
-	local savedLoss = getConfig('health.lossCustomColor')
+	local savedLoss = getConfig('health.lossCustomColor') or { 0.15, 0.15, 0.15, 1 }
 	lossPicker:SetColor(savedLoss[1], savedLoss[2], savedLoss[3], 1)
 	local lossPickerH = 22
 
