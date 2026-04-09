@@ -41,20 +41,6 @@ local function Update(self, event, unit)
 			if(isExtDef) then show = false end
 		end
 
-		-- Step 2: IMPORTANT fallback — catch spells like Fade that aren't
-		-- classified as BIG_DEFENSIVE. Exclude EXTERNAL_DEFENSIVE to avoid
-		-- duplicating spells that already appear in the Externals element.
-		-- NOTE: IMPORTANT may be removed in 12.0.5 per Blizzard feedback.
-		if(not show) then
-			local isImportant = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
-				unit, id, 'HELPFUL|IMPORTANT')
-			if(isImportant) then
-				local isExtDef = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
-					unit, id, 'HELPFUL|EXTERNAL_DEFENSIVE')
-				show = not isExtDef
-			end
-		end
-
 		-- Skip long-duration buffs (flasks, food, racials) that aren't
 		-- real defensives. duration == 0 means permanent.
 		if(show) then
