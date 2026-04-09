@@ -26,6 +26,22 @@ Download the latest release from the [Releases](https://github.com/jdtoppin/Fram
 - `/framed edit` — Toggle edit mode
 - `/framed help` — Show all commands
 
+## Development
+
+Run the local lint check with:
+
+```bash
+luacheck . --config .luacheckrc
+```
+
+If `luacheck` is not installed yet, one option is:
+
+```bash
+luarocks --lua-version=5.1 install luacheck
+```
+
+GitHub Actions runs the same check on pushes to `main` and on pull requests.
+
 ## License
 
 GPL v3. See [LICENSE](LICENSE) for details.
