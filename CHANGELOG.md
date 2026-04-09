@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.24-alpha
+
+- Fix MissingBuffs: zero-table inline scan instead of building intermediate sets
+
 ## v0.7.23-alpha
 
 - Replace per-spell aura queries in MissingBuffs with single GetUnitAuras lookup

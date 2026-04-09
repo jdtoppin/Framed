@@ -93,27 +93,23 @@ local function ensureCached(spellId)
 	end
 end
 
---- Build a set of spellIds and names present in a single HELPFUL aura query.
---- Uses the same GetUnitAuras call as other aura elements — one allocation
---- from the API, then we scan it. The returned sets are used for all
---- tracked buff checks, avoiding per-spell API calls and table creation.
+--- Check whether a buff matching targetSpellId exists in the pre-fetched
+--- aura list. Avoids any table creation — just iterates the API result
+--- and compares spellId/name directly.
 --- @param rawAuras table  Result of C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
---- @return table spellIds  { [spellId] = true, ... }
---- @return table names     { [name] = true, ... }
-local function buildBuffSets(rawAuras)
-	local spellIds = {}
-	local names = {}
+--- @param targetSpellId number
+--- @return boolean
+local function auraListHasBuff(rawAuras, targetSpellId)
+	local targetName = ensureCached(targetSpellId)
 	for _, auraData in next, rawAuras do
 		local sid = auraData.spellId
-		if(F.IsValueNonSecret(sid)) then
-			spellIds[sid] = true
-		end
-		local n = auraData.name
-		if(F.IsValueNonSecret(n) and n) then
-			names[n] = true
+		if(F.IsValueNonSecret(sid) and sid == targetSpellId) then return true end
+		if(targetName) then
+			local n = auraData.name
+			if(F.IsValueNonSecret(n) and n == targetName) then return true end
 		end
 	end
-	return spellIds, names
+	return false
 end
 
 -- ============================================================
@@ -160,23 +156,16 @@ local function Update(self, event, unit)
 	local anchorY      = anchor[5]
 	local visibleIndex = 0
 
-	-- Single aura query for all buff checks (replaces per-spell unitHasBuff)
+	-- Single aura query for all buff checks — zero intermediate tables.
+	-- auraListHasBuff scans this directly per tracked buff.
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
-	local presentIds, presentNames = buildBuffSets(rawAuras)
 
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
 		local slot = slots[spellId]
 		if(not slot) then break end
 
-		-- Check presence via spellId set, fall back to name set for secret spellIds
-		local hasBuff = presentIds[spellId]
-		if(not hasBuff) then
-			local name = ensureCached(spellId)
-			if(name) then hasBuff = presentNames[name] end
-		end
-
-		if(providingClass and groupClasses[providingClass] and not hasBuff) then
+		if(providingClass and groupClasses[providingClass] and not auraListHasBuff(rawAuras, spellId)) then
 			-- Missing buff from a class in the group — show and reposition
 			slot.bi.icon:SetTexture(iconCache[spellId])
 			slot.bi:ClearAllPoints()
