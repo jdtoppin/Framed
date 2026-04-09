@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.26-alpha
+
+- Fix oversized border on private aura icons (borderScale = -100)
+
 ## v0.7.25-alpha
 
 - Eliminate auraEntry table allocations in Buffs: annotate auraData in-place instead of copying

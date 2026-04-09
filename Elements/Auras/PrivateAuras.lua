@@ -38,9 +38,10 @@ local function RegisterAnchors(element, unit)
 			showCountdownFrame   = true,
 			showCountdownNumbers = true,
 			iconInfo             = {
-				iconWidth  = iconSize,
-				iconHeight = iconSize,
-				iconAnchor = {
+				iconWidth   = iconSize,
+				iconHeight  = iconSize,
+				borderScale = -100,
+				iconAnchor  = {
 					point         = 'CENTER',
 					relativeTo    = slot.frame,
 					relativePoint = 'CENTER',
