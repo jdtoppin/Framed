@@ -1,5 +1,12 @@
 # Framed Changelog
 
+## v0.7.17-alpha
+
+- Gate Externals RAID fallback to secret auras only (fixes basic HoTs showing)
+- Filter long-duration (>=10 min) and permanent debuffs from debuff indicators (Sated, Exhaustion)
+- Add showName to canonical defaults, remove fallback patterns
+- Disable main tank/assist indicator for party and raid frames
+
 ## v0.7.16-alpha
 
 - Filter out long-duration (>10 min) and permanent buffs from Defensives and Externals
