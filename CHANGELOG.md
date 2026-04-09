@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.7.23-alpha
+
+- Replace per-spell aura queries in MissingBuffs with single GetUnitAuras lookup
+
 ## v0.7.22-alpha
 
 - Zero-allocation single-pass filter+display for Externals, Defensives, and Debuffs aura elements

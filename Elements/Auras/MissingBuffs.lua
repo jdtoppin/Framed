@@ -93,32 +93,27 @@ local function ensureCached(spellId)
 	end
 end
 
---- Check whether the unit currently has a buff matching the given spellId.
---- Tries GetAuraDataBySpellName first (fast), then falls back to slot-based
---- iteration. The fallback is needed because GetAuraDataBySpellName returns
---- nil in combat for certain spells (Arcane Intellect, Skyfury) where the
---- aura name or lookup is restricted.
---- @param unit string
---- @param targetSpellId number
---- @return boolean
-local function unitHasBuff(unit, targetSpellId)
-	local name = ensureCached(targetSpellId)
-	if(not name) then return false end
-	-- Try direct name lookup first (fast, works out of combat)
-	local aura = C_UnitAuras.GetAuraDataBySpellName(unit, name, 'HELPFUL')
-	if(aura) then return true end
-	-- Fallback: iterate slots — GetAuraDataBySpellName can return nil in
-	-- combat for specific spells where the aura name differs from the cast
-	-- spell name, or when aura data is restricted.
-	local slots = {C_UnitAuras.GetAuraSlots(unit, 'HELPFUL')}
-	for i = 2, #slots do
-		local data = C_UnitAuras.GetAuraDataBySlot(unit, slots[i])
-		if(data) then
-			if(F.IsValueNonSecret(data.spellId) and data.spellId == targetSpellId) then return true end
-			if(F.IsValueNonSecret(data.name) and data.name == name) then return true end
+--- Build a set of spellIds and names present in a single HELPFUL aura query.
+--- Uses the same GetUnitAuras call as other aura elements — one allocation
+--- from the API, then we scan it. The returned sets are used for all
+--- tracked buff checks, avoiding per-spell API calls and table creation.
+--- @param rawAuras table  Result of C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+--- @return table spellIds  { [spellId] = true, ... }
+--- @return table names     { [name] = true, ... }
+local function buildBuffSets(rawAuras)
+	local spellIds = {}
+	local names = {}
+	for _, auraData in next, rawAuras do
+		local sid = auraData.spellId
+		if(F.IsValueNonSecret(sid)) then
+			spellIds[sid] = true
+		end
+		local n = auraData.name
+		if(F.IsValueNonSecret(n) and n) then
+			names[n] = true
 		end
 	end
-	return false
+	return spellIds, names
 end
 
 -- ============================================================
@@ -165,12 +160,23 @@ local function Update(self, event, unit)
 	local anchorY      = anchor[5]
 	local visibleIndex = 0
 
+	-- Single aura query for all buff checks (replaces per-spell unitHasBuff)
+	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	local presentIds, presentNames = buildBuffSets(rawAuras)
+
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
 		local slot = slots[spellId]
 		if(not slot) then break end
 
-		if(providingClass and groupClasses[providingClass] and not unitHasBuff(unit, spellId)) then
+		-- Check presence via spellId set, fall back to name set for secret spellIds
+		local hasBuff = presentIds[spellId]
+		if(not hasBuff) then
+			local name = ensureCached(spellId)
+			if(name) then hasBuff = presentNames[name] end
+		end
+
+		if(providingClass and groupClasses[providingClass] and not hasBuff) then
 			-- Missing buff from a class in the group — show and reposition
 			slot.bi.icon:SetTexture(iconCache[spellId])
 			slot.bi:ClearAllPoints()
