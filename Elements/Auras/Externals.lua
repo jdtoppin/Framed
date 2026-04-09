@@ -7,6 +7,13 @@ F.Elements = F.Elements or {}
 F.Elements.Externals = {}
 
 -- ============================================================
+-- Reusable table pool — avoids allocations on every UNIT_AURA
+-- ============================================================
+
+local auraPool = {}
+local auraCount = 0
+
+-- ============================================================
 -- Update
 -- ============================================================
 
@@ -27,7 +34,7 @@ local function Update(self, event, unit)
 	-- classify each one via IsAuraFilteredOutByInstanceID.
 	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 
-	local auraList = {}
+	auraCount = 0
 	for _, auraData in next, rawAuras do
 		local id = auraData.auraInstanceID -- NeverSecret
 
@@ -87,21 +94,25 @@ local function Update(self, event, unit)
 			elseif(visibilityMode == 'others' and isPlayerCast) then
 				-- Skip player-cast auras in "others" mode
 			else
-				auraList[#auraList + 1] = {
-					auraInstanceID = id,
-					spellId        = auraData.spellId,
-					icon           = auraData.icon,
-					duration       = auraData.duration,
-					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications,
-					isPlayerCast   = isPlayerCast,
-				}
+				auraCount = auraCount + 1
+				local entry = auraPool[auraCount]
+				if(not entry) then
+					entry = {}
+					auraPool[auraCount] = entry
+				end
+				entry.auraInstanceID = id
+				entry.spellId        = auraData.spellId
+				entry.icon           = auraData.icon
+				entry.duration       = auraData.duration
+				entry.expirationTime = auraData.expirationTime
+				entry.stacks         = auraData.applications
+				entry.isPlayerCast   = isPlayerCast
 			end
 		end
 	end
 
 	-- Display up to maxDisplayed using BorderIcon pool
-	local count = math.min(#auraList, maxDisplayed)
+	local count = math.min(auraCount, maxDisplayed)
 	local pool = element._pool
 	local iconSize    = cfg.iconSize
 	local orientation = cfg.orientation
@@ -111,7 +122,7 @@ local function Update(self, event, unit)
 	local anchorY     = anchor[5]
 
 	for idx = 1, count do
-		local aura = auraList[idx]
+		local aura = auraPool[idx]
 
 		-- Lazily create pool entries
 		if(not pool[idx]) then

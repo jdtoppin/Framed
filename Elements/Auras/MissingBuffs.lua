@@ -52,9 +52,12 @@ local function cacheSpellData()
 end
 
 --- Scan the current group for which classes are present.
+--- Reuses a module-level table to avoid allocations.
 --- @return table classSet  { ['PRIEST'] = true, ['MAGE'] = true, ... }
+local groupClassesCache = {}
 local function getGroupClasses()
-	local classes = {}
+	wipe(groupClassesCache)
+	local classes = groupClassesCache
 
 	-- Include player
 	local _, playerClass = UnitClass('player')

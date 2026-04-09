@@ -20,6 +20,10 @@ local FILTER_MAP = {
 	encounter    = 'HARMFUL|RAID',
 }
 
+-- Reusable table pool — avoids allocations on every UNIT_AURA
+local auraPool = {}
+local auraCount = 0
+
 -- ============================================================
 -- Per-indicator update
 -- ============================================================
@@ -55,7 +59,7 @@ local function updateIndicator(self, unit, ind)
 	-- auraInstanceID are provided. Lua-level fields (spellId, icon, duration)
 	-- may be secret in instanced content — SetTexture and other C-level frame
 	-- methods accept them directly.
-	local auraList = {}
+	auraCount = 0
 	for _, auraData in next, rawAuras do
 		-- Skip long-duration debuffs (Sated, Exhaustion, etc.) that aren't
 		-- real combat debuffs. duration == 0 means permanent.
@@ -63,16 +67,20 @@ local function updateIndicator(self, unit, ind)
 		local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
 
 		if(not skip) then
-			auraList[#auraList + 1] = {
-				auraInstanceID = auraData.auraInstanceID,
-				spellId        = auraData.spellId,
-				icon           = auraData.icon,
-				duration       = auraData.duration,
-				expirationTime = auraData.expirationTime,
-				stacks         = auraData.applications,
-				dispelType     = auraData.dispelName,
-				isBossAura     = auraData.isBossAura,
-			}
+			auraCount = auraCount + 1
+			local entry = auraPool[auraCount]
+			if(not entry) then
+				entry = {}
+				auraPool[auraCount] = entry
+			end
+			entry.auraInstanceID = auraData.auraInstanceID
+			entry.spellId        = auraData.spellId
+			entry.icon           = auraData.icon
+			entry.duration       = auraData.duration
+			entry.expirationTime = auraData.expirationTime
+			entry.stacks         = auraData.applications
+			entry.dispelType     = auraData.dispelName
+			entry.isBossAura     = auraData.isBossAura
 		end
 	end
 
@@ -91,22 +99,26 @@ local function updateIndicator(self, unit, ind)
 			-- already captured this aura if it exists)
 			local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
 			if(isPhysical) then
-				auraList[#auraList + 1] = {
-					auraInstanceID = auraData.auraInstanceID,
-					spellId        = auraData.spellId,
-					icon           = auraData.icon,
-					duration       = auraData.duration,
-					expirationTime = auraData.expirationTime,
-					stacks         = auraData.applications,
-					dispelType     = nil,
-					isBossAura     = auraData.isBossAura,
-				}
+				auraCount = auraCount + 1
+				local entry = auraPool[auraCount]
+				if(not entry) then
+					entry = {}
+					auraPool[auraCount] = entry
+				end
+				entry.auraInstanceID = auraData.auraInstanceID
+				entry.spellId        = auraData.spellId
+				entry.icon           = auraData.icon
+				entry.duration       = auraData.duration
+				entry.expirationTime = auraData.expirationTime
+				entry.stacks         = auraData.applications
+				entry.dispelType     = nil
+				entry.isBossAura     = auraData.isBossAura
 			end
 		end
 	end
 
 	-- Display up to maxDisplayed using BorderIcon pool
-	local count = math.min(#auraList, maxDisplayed)
+	local count = math.min(auraCount, maxDisplayed)
 	local pool = ind._pool
 	local iconSize    = cfg.iconSize
 	local bigIconSize = cfg.bigIconSize
@@ -117,7 +129,7 @@ local function updateIndicator(self, unit, ind)
 	local anchorY     = anchor[5]
 
 	for idx = 1, count do
-		local aura = auraList[idx]
+		local aura = auraPool[idx]
 
 		-- Lazily create pool entries
 		if(not pool[idx]) then
@@ -143,7 +155,7 @@ local function updateIndicator(self, unit, ind)
 		-- Position: anchor directly to the unit frame, offset by prior icons
 		local offset = 0
 		for j = 1, idx - 1 do
-			local prevBoss = F.IsValueNonSecret(auraList[j].isBossAura) and auraList[j].isBossAura
+			local prevBoss = F.IsValueNonSecret(auraPool[j].isBossAura) and auraPool[j].isBossAura
 			local prevSize = prevBoss and bigIconSize or iconSize
 			offset = offset + prevSize + 2
 		end
