@@ -59,7 +59,7 @@ local function Update(self, event, unit)
 		-- real defensives. duration == 0 means permanent.
 		if(show) then
 			local dur = auraData.duration
-			if(F.IsValueNonSecret(dur) and (dur == 0 or dur > 600)) then
+			if(F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)) then
 				show = false
 			end
 		end

@@ -57,16 +57,23 @@ local function updateIndicator(self, unit, ind)
 	-- methods accept them directly.
 	local auraList = {}
 	for _, auraData in next, rawAuras do
-		auraList[#auraList + 1] = {
-			auraInstanceID = auraData.auraInstanceID,
-			spellId        = auraData.spellId,
-			icon           = auraData.icon,
-			duration       = auraData.duration,
-			expirationTime = auraData.expirationTime,
-			stacks         = auraData.applications,
-			dispelType     = auraData.dispelName,
-			isBossAura     = auraData.isBossAura,
-		}
+		-- Skip long-duration debuffs (Sated, Exhaustion, etc.) that aren't
+		-- real combat debuffs. duration == 0 means permanent.
+		local dur = auraData.duration
+		local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
+
+		if(not skip) then
+			auraList[#auraList + 1] = {
+				auraInstanceID = auraData.auraInstanceID,
+				spellId        = auraData.spellId,
+				icon           = auraData.icon,
+				duration       = auraData.duration,
+				expirationTime = auraData.expirationTime,
+				stacks         = auraData.applications,
+				dispelType     = auraData.dispelName,
+				isBossAura     = auraData.isBossAura,
+			}
+		end
 	end
 
 	-- When filterMode is 'dispellable', also include Physical/bleed debuffs
