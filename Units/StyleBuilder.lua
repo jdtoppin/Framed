@@ -119,7 +119,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 		local anchor = F.Config:Get('general.tooltipAnchor') or 'ANCHOR_RIGHT'
 		local offX = F.Config:Get('general.tooltipOffsetX') or 0
 		local offY = F.Config:Get('general.tooltipOffsetY') or 0
-		GameTooltip_SetDefaultAnchor(GameTooltip, frame)
+		GameTooltip:SetOwner(frame, anchor, offX, offY)
 		GameTooltip:SetUnit(frame.unit)
 		GameTooltip:Show()
 	end)
