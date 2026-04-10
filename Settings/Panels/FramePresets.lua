@@ -469,8 +469,12 @@ F.Settings.RegisterPanel({
 			specCardY = specCardY - ROW_H - C.Spacing.normal
 		end
 
-		-- Initial layout
+		-- Initial layout — compute collapsed height for EndCard,
+		-- then let reflowSpecs handle the actual card sizing
 		if(#specSections > 0) then
+			-- EndCard needs a negative yOffset representing total inner height.
+			-- Collapsed height = N headers × (ROW_H + 1px gap)
+			specCardY = -(#specSections * (ROW_H + 1))
 			reflowSpecs()
 		end
 
