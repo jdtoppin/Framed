@@ -13,7 +13,6 @@ local DROPDOWN_H = 22
 local BUTTON_H   = 22
 local WIDGET_W   = 220
 local SELECT_W   = 60
-local LABEL_W    = 120
 
 local CONTENT_TYPES = {
 	{ key = 'solo',         label = 'Solo Content' },
