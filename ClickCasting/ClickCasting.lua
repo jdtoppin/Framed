@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
 
@@ -121,8 +121,6 @@ function F.ClickCasting.ApplyBindings(frame)
 	-- Hook enter/leave for keyboard bindings (only if there are any)
 	if(#keyBindings > 0 and not frame.__framedKeyHooked) then
 		frame.__framedKeyHooked = true
-		local oldOnEnter = frame:GetScript('OnEnter')
-		local oldOnLeave = frame:GetScript('OnLeave')
 
 		frame:HookScript('OnEnter', function(self)
 			local frameName = self:GetName()
