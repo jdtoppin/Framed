@@ -421,6 +421,16 @@ OpenDropdownList = function(owner)
 				end
 			end
 
+			-- Reset OnEnter/OnLeave to defaults (decorators may override)
+			row:SetScript('OnEnter', function(self)
+				self:SetBackdropColor(
+					C.Colors.widget[1], C.Colors.widget[2], C.Colors.widget[3], C.Colors.widget[4] or 1)
+			end)
+			row:SetScript('OnLeave', function(self)
+				self:SetBackdropColor(
+					C.Colors.panel[1], C.Colors.panel[2], C.Colors.panel[3], C.Colors.panel[4] or 0.85)
+			end)
+
 			-- Swatch (texture preview)
 			if(item._texturePath) then
 				row._swatch:SetTexture(item._texturePath)
