@@ -215,6 +215,9 @@ local function setBindings(bindings)
 	if(F.Config) then
 		F.Config:SetChar('clickCastBindings.' .. specID, bindings)
 	end
+	if(F.ClickCasting and F.ClickCasting.RefreshAll) then
+		F.ClickCasting.RefreshAll()
+	end
 	if(F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED:clickCasting')
 	end
