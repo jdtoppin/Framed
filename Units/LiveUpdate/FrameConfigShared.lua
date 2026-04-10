@@ -1,7 +1,5 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
-local oUF = F.oUF
-local C = F.Constants
 local Widgets = F.Widgets
 
 -- ============================================================
@@ -19,7 +17,7 @@ Shared.ForEachFrame = F.StyleBuilder.ForEachFrame
 -- ============================================================
 
 local pendingGroupChanges = {}
-local combatQueueStatus
+local combatQueueStatus -- luacheck: ignore 221 (set by future settings UI)
 
 function Shared.applyOrQueue(header, attr, value)
 	if(InCombatLockdown()) then

@@ -1,8 +1,6 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
-local C = F.Constants
-local Widgets = F.Widgets
 
 -- ============================================================
 -- CONFIG_CHANGED: health coloring, shields, absorbs, smooth
