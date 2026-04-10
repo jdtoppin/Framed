@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 
 local Widgets = F.Widgets
@@ -477,7 +477,6 @@ local function AnimatedReflow(grid)
 	for _, entry in next, grid._cards do
 		if(entry.built and entry.card) then
 			local oldH = entry._lastHeight or entry.card:GetHeight()
-			local curH = entry.card:GetHeight()
 			oldState[entry.id] = {
 				h = oldH,
 				x = entry._layoutX or 0,
@@ -494,10 +493,8 @@ local function AnimatedReflow(grid)
 	for _, entry in next, grid._cards do
 		if(entry.built and entry.card and oldState[entry.id]) then
 			local old = oldState[entry.id]
-			local newH = entry.card:GetHeight()
 			local newX = entry._layoutX
 			local newY = entry._layoutY
-			local dh = newH - old.h
 			local dx = newX - old.x
 			local dy = newY - old.y
 

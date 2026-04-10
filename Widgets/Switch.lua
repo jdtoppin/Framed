@@ -1,5 +1,4 @@
-local addonName, Framed = ...
-local F = Framed
+local _, Framed = ...
 
 local Widgets = Framed.Widgets
 local C = Framed.Constants
