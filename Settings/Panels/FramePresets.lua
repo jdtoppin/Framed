@@ -309,46 +309,66 @@ F.Settings.RegisterPanel({
 		-- ============================================================
 		-- Section 4: Spec Overrides
 		-- ============================================================
-		yOffset = placeHeading(content, 'Spec Overrides', 2, yOffset)
+		yOffset = placeHeading(content, 'Spec Overrides (Character Specific)', 2, yOffset)
 
 		local specCard, specInner, specCardY
 		specCard, specInner, specCardY = Widgets.StartCard(content, width, yOffset)
 
+		local ARROW_RIGHT = [[Interface\AddOns\Framed\Media\Icons\ArrowRight1]]
+		local ARROW_DOWN  = [[Interface\AddOns\Framed\Media\Icons\ArrowDown1]]
+		local ARROW_SIZE  = 12
+		local SPEC_ICON_SIZE = ROW_H - 8
+
 		-- Get player specializations
 		local numSpecs = GetNumSpecializations and GetNumSpecializations() or 0
 
+		-- Track all spec sections for reflow on expand/collapse
+		local specSections = {}
+
 		for i = 1, numSpecs do
-			local specID, specName = GetSpecializationInfo(i)
+			local specID, specName, _, specIcon = GetSpecializationInfo(i)
 			if(specID and specName) then
+				local section = {}
+				section.expanded = false
+
 				-- Collapsible header for this spec
 				local specHeader = CreateFrame('Frame', nil, specInner, 'BackdropTemplate')
 				specHeader._bgColor     = C.Colors.widget
 				specHeader._borderColor = C.Colors.border
 				Widgets.ApplyBackdrop(specHeader, C.Colors.widget, C.Colors.border)
-				specHeader:ClearAllPoints()
-				Widgets.SetPoint(specHeader, 'TOPLEFT', specInner, 'TOPLEFT', 0, specCardY)
-				specHeader:SetPoint('TOPRIGHT', specInner, 'TOPRIGHT', 0, specCardY)
 				specHeader:SetHeight(ROW_H)
 				specHeader:EnableMouse(true)
+				section.header = specHeader
 
-				local arrow = Widgets.CreateFontString(specHeader, C.Font.sizeNormal, C.Colors.textSecondary)
-				arrow:ClearAllPoints()
-				Widgets.SetPoint(arrow, 'LEFT', specHeader, 'LEFT', C.Spacing.tight, 0)
-				arrow:SetText('\226\150\184') -- ▸
+				-- Arrow icon (texture, not font string)
+				local arrow = specHeader:CreateTexture(nil, 'ARTWORK')
+				arrow:SetSize(ARROW_SIZE, ARROW_SIZE)
+				arrow:SetPoint('LEFT', specHeader, 'LEFT', C.Spacing.tight, 0)
+				arrow:SetTexture(ARROW_RIGHT)
+				local ts = C.Colors.textSecondary
+				arrow:SetVertexColor(ts[1], ts[2], ts[3], ts[4] or 1)
+				section.arrow = arrow
+
+				-- Spec icon
+				local labelAnchor = arrow
+				if(specIcon) then
+					local icon = specHeader:CreateTexture(nil, 'ARTWORK')
+					icon:SetSize(SPEC_ICON_SIZE, SPEC_ICON_SIZE)
+					icon:SetPoint('LEFT', arrow, 'RIGHT', C.Spacing.base, 0)
+					icon:SetTexture(specIcon)
+					icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+					labelAnchor = icon
+				end
 
 				local specLabel = Widgets.CreateFontString(specHeader, C.Font.sizeNormal, C.Colors.textNormal)
 				specLabel:ClearAllPoints()
-				Widgets.SetPoint(specLabel, 'LEFT', arrow, 'RIGHT', C.Spacing.base, 0)
+				Widgets.SetPoint(specLabel, 'LEFT', labelAnchor, 'RIGHT', C.Spacing.base, 0)
 				specLabel:SetText(specName)
-
-				specCardY = specCardY - ROW_H - 1
 
 				-- Content area for this spec's overrides
 				local specContent = CreateFrame('Frame', nil, specInner)
-				specContent:ClearAllPoints()
-				Widgets.SetPoint(specContent, 'TOPLEFT', specInner, 'TOPLEFT', C.Spacing.loose, specCardY)
-				specContent:SetPoint('TOPRIGHT', specInner, 'TOPRIGHT', 0, specCardY)
 				specContent:Hide()
+				section.content = specContent
 
 				local specContentY = 0
 				local capturedSpecID = specID
@@ -392,34 +412,52 @@ F.Settings.RegisterPanel({
 
 				local specContentHeight = math.abs(specContentY)
 				specContent:SetHeight(specContentHeight)
+				section.contentHeight = specContentHeight
 
-				-- Toggle collapse
-				local expanded = false
-				specHeader:SetScript('OnMouseDown', function()
-					expanded = not expanded
-					if(expanded) then
-						arrow:SetText('\226\150\190') -- ▾
-						specContent:Show()
-						-- Shift everything below down
-					else
-						arrow:SetText('\226\150\184') -- ▸
-						specContent:Hide()
-					end
-				end)
-
-				-- Row highlight
-				specHeader:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
-				specHeader:SetScript('OnLeave', function(self)
-					if(self:IsMouseOver()) then return end
-					Widgets.SetBackdropHighlight(self, false)
-				end)
-
-				-- Reserve space for expanded content (hidden by default)
-				-- When collapsed, the content is hidden so no extra space is needed
-				-- We use a wrapper approach: always reserve the space
-				-- For simplicity, always reserve space (content is just hidden/shown)
-				specCardY = specCardY - specContentHeight - C.Spacing.base
+				specSections[#specSections + 1] = section
 			end
+		end
+
+		-- Reflow all spec sections based on expanded state
+		local function reflowSpecs()
+			local y = specCardY
+			for _, sec in next, specSections do
+				sec.header:ClearAllPoints()
+				Widgets.SetPoint(sec.header, 'TOPLEFT', specInner, 'TOPLEFT', 0, y)
+				sec.header:SetPoint('TOPRIGHT', specInner, 'TOPRIGHT', 0, y)
+				y = y - ROW_H - 1
+
+				sec.content:ClearAllPoints()
+				Widgets.SetPoint(sec.content, 'TOPLEFT', specInner, 'TOPLEFT', C.Spacing.loose, y)
+				sec.content:SetPoint('TOPRIGHT', specInner, 'TOPRIGHT', 0, y)
+
+				if(sec.expanded) then
+					sec.content:Show()
+					y = y - sec.contentHeight - C.Spacing.base
+				else
+					sec.content:Hide()
+				end
+			end
+
+			-- Resize the card to fit
+			local totalHeight = math.abs(y)
+			specInner:SetHeight(totalHeight)
+			specCard:SetHeight(totalHeight + Widgets.CARD_PADDING * 2)
+		end
+
+		-- Wire up expand/collapse for each section
+		for _, sec in next, specSections do
+			sec.header:SetScript('OnMouseDown', function()
+				sec.expanded = not sec.expanded
+				sec.arrow:SetTexture(sec.expanded and ARROW_DOWN or ARROW_RIGHT)
+				reflowSpecs()
+			end)
+
+			sec.header:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
+			sec.header:SetScript('OnLeave', function(self)
+				if(self:IsMouseOver()) then return end
+				Widgets.SetBackdropHighlight(self, false)
+			end)
 		end
 
 		-- Fallback if no specs found (not in-game)
@@ -429,6 +467,11 @@ F.Settings.RegisterPanel({
 			Widgets.SetPoint(noSpecLabel, 'TOPLEFT', specInner, 'TOPLEFT', 0, specCardY)
 			noSpecLabel:SetText('Spec overrides available in-game')
 			specCardY = specCardY - ROW_H - C.Spacing.normal
+		end
+
+		-- Initial layout
+		if(#specSections > 0) then
+			reflowSpecs()
 		end
 
 		yOffset = Widgets.EndCard(specCard, content, specCardY)
