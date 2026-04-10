@@ -115,6 +115,7 @@ Units/Raid.lua
 Units/Boss.lua
 Units/Arena.lua
 Units/LiveUpdate/FrameConfigShared.lua
+Units/LiveUpdate/FrameConfigLayout.lua
 Units/LiveUpdate/FrameConfig.lua
 Units/LiveUpdate/AuraConfig.lua
 
