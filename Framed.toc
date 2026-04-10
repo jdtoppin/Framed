@@ -117,6 +117,7 @@ Units/Arena.lua
 Units/LiveUpdate/FrameConfigShared.lua
 Units/LiveUpdate/FrameConfigLayout.lua
 Units/LiveUpdate/FrameConfigElements.lua
+Units/LiveUpdate/FrameConfigHealth.lua
 Units/LiveUpdate/FrameConfig.lua
 Units/LiveUpdate/AuraConfig.lua
 
