@@ -3,7 +3,7 @@ name: Luacheck
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, working, working-testing]
 
 jobs:
   luacheck:
