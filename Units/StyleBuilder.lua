@@ -337,7 +337,7 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	end
 
 	local missingBuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'missingBuffs')
-	if(missingBuffsConfig and missingBuffsConfig.enabled and F.Elements.MissingBuffs) then
+	if(missingBuffsConfig and next(missingBuffsConfig) and F.Elements.MissingBuffs) then
 		F.Elements.MissingBuffs.Setup(self, missingBuffsConfig)
 	end
 

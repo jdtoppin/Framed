@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
 
@@ -10,6 +10,34 @@ local combatQueueFrame = nil
 -- used by OnEnter/OnLeave to activate per-frame override bindings.
 -- keyBindings[i] = { key = 'SHIFT-1', virtualBtn = 'FramedKey1' }
 local keyBindings = {}
+
+local function trackBindingAttr(frame, key)
+	frame.__framedBindingAttrs = frame.__framedBindingAttrs or {}
+	frame.__framedBindingAttrs[key] = true
+end
+
+local function setTrackedAttribute(frame, key, value)
+	frame:SetAttribute(key, value)
+	trackBindingAttr(frame, key)
+end
+
+local function clearBindingState(frame)
+	-- Clear oUF defaults so only explicit click-cast bindings remain.
+	frame:SetAttribute('*type1', nil)
+	frame:SetAttribute('*type2', nil)
+
+	-- Clear any dynamic override bindings currently active on the frame.
+	ClearOverrideBindings(frame)
+
+	-- Remove any secure attributes we previously applied so stale bindings
+	-- don't survive when a row is edited, removed, or changes type.
+	if(frame.__framedBindingAttrs) then
+		for key in next, frame.__framedBindingAttrs do
+			frame:SetAttribute(key, nil)
+		end
+		wipe(frame.__framedBindingAttrs)
+	end
+end
 
 --- Check if Clique is installed and active.
 --- @return boolean
@@ -23,19 +51,14 @@ end
 --- are activated dynamically on frame enter/leave.
 --- @param frame Frame The oUF unit frame
 function F.ClickCasting.ApplyBindings(frame)
+	clearBindingState(frame)
+
 	if(F.ClickCasting.HasClique()) then
 		return
 	end
 
 	local bindings = F.ClickCasting.GetBindings()
 	if(not bindings) then return end
-
-	-- Clear oUF's hardcoded defaults so only configured bindings are active
-	frame:SetAttribute('*type1', nil)
-	frame:SetAttribute('*type2', nil)
-
-	-- Clear any previous keyboard override bindings
-	ClearOverrideBindings(frame)
 
 	for i, binding in next, bindings do
 		local prefix = (binding.modifier and binding.modifier ~= '') and (binding.modifier .. '-') or ''
@@ -48,22 +71,22 @@ function F.ClickCasting.ApplyBindings(frame)
 			local attrKey = 'type-' .. virtualBtn
 
 			if(binding.type == 'spell') then
-				frame:SetAttribute(attrKey, 'spell')
-				frame:SetAttribute('spell-' .. virtualBtn, binding.spell)
+				setTrackedAttribute(frame, attrKey, 'spell')
+				setTrackedAttribute(frame, 'spell-' .. virtualBtn, binding.spell)
 			elseif(binding.type == 'macro') then
 				local macroIndex = binding.macro and GetMacroIndexByName(binding.macro)
 				if(macroIndex and macroIndex > 0) then
-					frame:SetAttribute(attrKey, 'macro')
-					frame:SetAttribute('macro-' .. virtualBtn, macroIndex)
+					setTrackedAttribute(frame, attrKey, 'macro')
+					setTrackedAttribute(frame, 'macro-' .. virtualBtn, macroIndex)
 				end
 			elseif(binding.type == 'target') then
-				frame:SetAttribute(attrKey, 'target')
+				setTrackedAttribute(frame, attrKey, 'target')
 			elseif(binding.type == 'focus') then
-				frame:SetAttribute(attrKey, 'focus')
+				setTrackedAttribute(frame, attrKey, 'focus')
 			elseif(binding.type == 'assist') then
-				frame:SetAttribute(attrKey, 'assist')
+				setTrackedAttribute(frame, attrKey, 'assist')
 			elseif(binding.type == 'menu') then
-				frame:SetAttribute(attrKey, 'togglemenu')
+				setTrackedAttribute(frame, attrKey, 'togglemenu')
 			end
 		else
 			-- Mouse button binding
@@ -75,22 +98,22 @@ function F.ClickCasting.ApplyBindings(frame)
 			local attrKey = prefix .. 'type' .. buttonNum
 
 			if(binding.type == 'spell') then
-				frame:SetAttribute(attrKey, 'spell')
-				frame:SetAttribute(prefix .. 'spell-' .. button, binding.spell)
+				setTrackedAttribute(frame, attrKey, 'spell')
+				setTrackedAttribute(frame, prefix .. 'spell-' .. button, binding.spell)
 			elseif(binding.type == 'macro') then
 				local macroIndex = binding.macro and GetMacroIndexByName(binding.macro)
 				if(macroIndex and macroIndex > 0) then
-					frame:SetAttribute(attrKey, 'macro')
-					frame:SetAttribute(prefix .. 'macro-' .. button, macroIndex)
+					setTrackedAttribute(frame, attrKey, 'macro')
+					setTrackedAttribute(frame, prefix .. 'macro-' .. button, macroIndex)
 				end
 			elseif(binding.type == 'target') then
-				frame:SetAttribute(attrKey, 'target')
+				setTrackedAttribute(frame, attrKey, 'target')
 			elseif(binding.type == 'focus') then
-				frame:SetAttribute(attrKey, 'focus')
+				setTrackedAttribute(frame, attrKey, 'focus')
 			elseif(binding.type == 'assist') then
-				frame:SetAttribute(attrKey, 'assist')
+				setTrackedAttribute(frame, attrKey, 'assist')
 			elseif(binding.type == 'menu') then
-				frame:SetAttribute(attrKey, 'togglemenu')
+				setTrackedAttribute(frame, attrKey, 'togglemenu')
 			end
 		end
 	end
@@ -98,8 +121,6 @@ function F.ClickCasting.ApplyBindings(frame)
 	-- Hook enter/leave for keyboard bindings (only if there are any)
 	if(#keyBindings > 0 and not frame.__framedKeyHooked) then
 		frame.__framedKeyHooked = true
-		local oldOnEnter = frame:GetScript('OnEnter')
-		local oldOnLeave = frame:GetScript('OnLeave')
 
 		frame:HookScript('OnEnter', function(self)
 			local frameName = self:GetName()
@@ -181,3 +202,13 @@ function F.ClickCasting.RefreshAll()
 		F.ClickCasting.ApplyBindings(frame)
 	end
 end
+
+-- Register an init callback so that header-spawned frames (party/raid)
+-- that are created asynchronously by SecureGroupHeader also get
+-- click-cast bindings applied. This runs after oUF's initialConfigFunction
+-- sets *type2='togglemenu', overriding it with the user's bindings.
+oUF:RegisterInitCallback(function(frame)
+	if(not InCombatLockdown()) then
+		F.ClickCasting.ApplyBindings(frame)
+	end
+end)

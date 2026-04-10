@@ -223,6 +223,16 @@ local function Enable(self, unit)
 
 	self:RegisterEvent('UNIT_AURA', Update)
 	self:RegisterEvent('GROUP_ROSTER_UPDATE', Update, true)
+	self:RegisterEvent('PLAYER_ENTERING_WORLD', Update, true)
+
+	-- On first login, group roster and spell data may not be ready when
+	-- Enable fires. Schedule a delayed refresh so missing buffs appear
+	-- without requiring /reload.
+	C_Timer.After(2, function()
+		if(self.FramedMissingBuffs and self:IsVisible()) then
+			Update(self, 'DelayedInit', self.unit)
+		end
+	end)
 
 	return true
 end
@@ -241,6 +251,7 @@ local function Disable(self)
 
 	self:UnregisterEvent('UNIT_AURA', Update)
 	self:UnregisterEvent('GROUP_ROSTER_UPDATE', Update)
+	self:UnregisterEvent('PLAYER_ENTERING_WORLD', Update)
 end
 
 -- ============================================================

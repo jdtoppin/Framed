@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 
 local Widgets = F.Widgets
@@ -214,6 +214,9 @@ local function setBindings(bindings)
 	local specID = getSpecID()
 	if(F.Config) then
 		F.Config:SetChar('clickCastBindings.' .. specID, bindings)
+	end
+	if(F.ClickCasting and F.ClickCasting.RefreshAll) then
+		F.ClickCasting.RefreshAll()
 	end
 	if(F.EventBus) then
 		F.EventBus:Fire('CONFIG_CHANGED:clickCasting')
