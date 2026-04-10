@@ -158,7 +158,7 @@ local function Update(self, event, unit)
 
 	-- Single aura query for all buff checks — zero intermediate tables.
 	-- auraListHasBuff scans this directly per tracked buff.
-	local rawAuras = F.AuraCache.GetUnitAuras(unit, 'HELPFUL')
+	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
