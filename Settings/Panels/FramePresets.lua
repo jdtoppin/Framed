@@ -14,10 +14,6 @@ local BUTTON_H   = 22
 local WIDGET_W   = 220
 local SELECT_W   = 60
 local LABEL_W    = 120
-local ARROW_RIGHT = [[Interface\AddOns\Framed\Media\Icons\ArrowRight1]]
-local ARROW_DOWN  = [[Interface\AddOns\Framed\Media\Icons\ArrowDown1]]
-local ARROW_SIZE  = 12
-local SPEC_ICON_SIZE = ROW_H - 8
 
 local CONTENT_TYPES = {
 	{ key = 'solo',         label = 'Solo Content' },
@@ -260,158 +256,148 @@ local function AutoSwitchCard(parent, width)
 	return card
 end
 
---- Spec Overrides card: collapsible per-spec preset overrides
+--- Spec Overrides card: tab-style spec selector with preset dropdowns
 local function SpecOverridesCard(parent, width)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 
 	local numSpecs = GetNumSpecializations and GetNumSpecializations() or 0
 
-	-- Track all spec sections for reflow on expand/collapse
-	local specSections = {}
-
-	for i = 1, numSpecs do
-		local specID, specName, _, specIcon = GetSpecializationInfo(i)
-		if(specID and specName) then
-			local section = {}
-			section.expanded = false
-
-			local specHeader = CreateFrame('Frame', nil, inner, 'BackdropTemplate')
-			specHeader._bgColor     = C.Colors.widget
-			specHeader._borderColor = C.Colors.border
-			Widgets.ApplyBackdrop(specHeader, C.Colors.widget, C.Colors.border)
-			specHeader:SetHeight(ROW_H)
-			specHeader:EnableMouse(true)
-			section.header = specHeader
-
-			local arrow = specHeader:CreateTexture(nil, 'ARTWORK')
-			arrow:SetSize(ARROW_SIZE, ARROW_SIZE)
-			arrow:SetPoint('LEFT', specHeader, 'LEFT', C.Spacing.tight, 0)
-			arrow:SetTexture(ARROW_RIGHT)
-			local ts = C.Colors.textSecondary
-			arrow:SetVertexColor(ts[1], ts[2], ts[3], ts[4] or 1)
-			section.arrow = arrow
-
-			local labelAnchor = arrow
-			if(specIcon) then
-				local icon = specHeader:CreateTexture(nil, 'ARTWORK')
-				icon:SetSize(SPEC_ICON_SIZE, SPEC_ICON_SIZE)
-				icon:SetPoint('LEFT', arrow, 'RIGHT', C.Spacing.base, 0)
-				icon:SetTexture(specIcon)
-				icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-				labelAnchor = icon
-			end
-
-			local specLabel = Widgets.CreateFontString(specHeader, C.Font.sizeNormal, C.Colors.textNormal)
-			specLabel:ClearAllPoints()
-			Widgets.SetPoint(specLabel, 'LEFT', labelAnchor, 'RIGHT', C.Spacing.base, 0)
-			specLabel:SetText(specName)
-
-			local specContent = CreateFrame('Frame', nil, inner)
-			specContent:Hide()
-			section.content = specContent
-
-			local specContentY = 0
-			local capturedSpecID = specID
-
-			for _, ct in next, CONTENT_TYPES do
-				local ctLabel = Widgets.CreateFontString(specContent, C.Font.sizeSmall, C.Colors.textSecondary)
-				ctLabel:ClearAllPoints()
-				Widgets.SetPoint(ctLabel, 'TOPLEFT', specContent, 'TOPLEFT', 0, specContentY)
-				ctLabel:SetText(ct.label)
-
-				local ctDD = Widgets.CreateDropdown(specContent, WIDGET_W - C.Spacing.loose)
-				ctDD:ClearAllPoints()
-				Widgets.SetPoint(ctDD, 'TOPLEFT', specContent, 'TOPLEFT', LABEL_W + C.Spacing.normal + 20, specContentY)
-				ctDD:SetItems(getPresetItemsWithDefault())
-
-				local configPath = 'specOverrides.' .. capturedSpecID .. '.' .. ct.key
-				local currentVal = F.Config and F.Config:GetChar(configPath)
-				if(currentVal) then
-					ctDD:SetValue(currentVal)
-				else
-					ctDD:SetValue('')
-				end
-
-				local capturedCTKey = ct.key
-				ctDD:SetOnSelect(function(value)
-					if(F.Config) then
-						if(value == '') then
-							F.Config:SetChar('specOverrides.' .. capturedSpecID .. '.' .. capturedCTKey, nil)
-						else
-							F.Config:SetChar('specOverrides.' .. capturedSpecID .. '.' .. capturedCTKey, value)
-						end
-					end
-					if(F.EventBus) then
-						F.EventBus:Fire('CONFIG_CHANGED:specOverrides')
-					end
-				end)
-
-				specContentY = specContentY - DROPDOWN_H - C.Spacing.base
-			end
-
-			local specContentHeight = math.abs(specContentY)
-			specContent:SetHeight(specContentHeight)
-			section.contentHeight = specContentHeight
-
-			specSections[#specSections + 1] = section
-		end
-	end
-
-	-- Reflow all spec sections based on expanded state
-	local function reflowSpecs()
-		local y = 0
-		for _, sec in next, specSections do
-			sec.header:ClearAllPoints()
-			Widgets.SetPoint(sec.header, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-			sec.header:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', 0, y)
-			y = y - ROW_H - 1
-
-			sec.content:ClearAllPoints()
-			Widgets.SetPoint(sec.content, 'TOPLEFT', inner, 'TOPLEFT', C.Spacing.loose, y)
-			sec.content:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', 0, y)
-
-			if(sec.expanded) then
-				sec.content:Show()
-				y = y - sec.contentHeight - C.Spacing.base
-			else
-				sec.content:Hide()
-			end
-		end
-
-		local totalHeight = math.abs(y)
-		inner:SetHeight(totalHeight)
-		card:SetHeight(totalHeight + Widgets.CARD_PADDING * 2 + (card._cardGridTitleH or 0))
-	end
-
-	-- Wire up expand/collapse
-	for _, sec in next, specSections do
-		sec.header:SetScript('OnMouseDown', function()
-			sec.expanded = not sec.expanded
-			sec.arrow:SetTexture(sec.expanded and ARROW_DOWN or ARROW_RIGHT)
-			reflowSpecs()
-		end)
-
-		sec.header:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
-		sec.header:SetScript('OnLeave', function(self)
-			if(self:IsMouseOver()) then return end
-			Widgets.SetBackdropHighlight(self, false)
-		end)
-	end
-
-	-- Fallback if no specs found
 	if(numSpecs == 0) then
 		local noSpecLabel = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
 		noSpecLabel:ClearAllPoints()
 		Widgets.SetPoint(noSpecLabel, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		noSpecLabel:SetText('Spec overrides available in-game')
 		cardY = cardY - ROW_H - C.Spacing.normal
+		Widgets.EndCard(card, parent, cardY)
+		return card
 	end
 
-	-- Initial layout
-	if(#specSections > 0) then
-		cardY = -(#specSections * (ROW_H + 1))
-		reflowSpecs()
+	-- Collect spec data
+	local specs = {}
+	for i = 1, numSpecs do
+		local specID, specName, _, specIcon = GetSpecializationInfo(i)
+		if(specID and specName) then
+			specs[#specs + 1] = { id = specID, name = specName, icon = specIcon }
+		end
 	end
+
+	-- ── Spec tab bar ───────────────────────────────────────
+	local TAB_SIZE = 32
+	local TAB_GAP = C.Spacing.base
+	local tabBarW = #specs * TAB_SIZE + (#specs - 1) * TAB_GAP
+	local tabBar = CreateFrame('Frame', nil, inner)
+	tabBar:SetHeight(TAB_SIZE)
+	tabBar:ClearAllPoints()
+	-- Center the tab bar
+	Widgets.SetPoint(tabBar, 'TOP', inner, 'TOP', 0, cardY)
+	tabBar:SetWidth(tabBarW)
+
+	local tabs = {}
+	local selectedSpec = 1
+
+	for i, spec in next, specs do
+		local tab = CreateFrame('Button', nil, tabBar, 'BackdropTemplate')
+		tab:SetSize(TAB_SIZE, TAB_SIZE)
+		tab:ClearAllPoints()
+		Widgets.SetPoint(tab, 'LEFT', tabBar, 'LEFT', (i - 1) * (TAB_SIZE + TAB_GAP), 0)
+		Widgets.ApplyBackdrop(tab, C.Colors.widget, C.Colors.border)
+
+		if(spec.icon) then
+			local icon = tab:CreateTexture(nil, 'ARTWORK')
+			icon:SetSize(TAB_SIZE - 6, TAB_SIZE - 6)
+			icon:SetPoint('CENTER', tab, 'CENTER', 0, 0)
+			icon:SetTexture(spec.icon)
+			icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+		end
+
+		Widgets.SetTooltip(tab, spec.name)
+		tabs[i] = tab
+	end
+
+	cardY = cardY - TAB_SIZE - C.Spacing.normal
+
+	-- ── Dropdown panels (one per spec, only active one visible) ──
+	local panels = {}
+
+	for i, spec in next, specs do
+		local panel = CreateFrame('Frame', nil, inner)
+		panel:ClearAllPoints()
+		Widgets.SetPoint(panel, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		panel:SetPoint('TOPRIGHT', inner, 'TOPRIGHT', 0, cardY)
+		panel:Hide()
+
+		local panelY = 0
+		local capturedSpecID = spec.id
+
+		for _, ct in next, CONTENT_TYPES do
+			local ctLabel = Widgets.CreateFontString(panel, C.Font.sizeNormal, C.Colors.textNormal)
+			ctLabel:ClearAllPoints()
+			Widgets.SetPoint(ctLabel, 'TOPLEFT', panel, 'TOPLEFT', 0, panelY)
+			ctLabel:SetText(ct.label)
+
+			local ctDD = Widgets.CreateDropdown(panel, WIDGET_W)
+			ctDD:ClearAllPoints()
+			Widgets.SetPoint(ctDD, 'TOPLEFT', panel, 'TOPLEFT', LABEL_W + C.Spacing.normal + 40, panelY)
+			ctDD:SetItems(getPresetItemsWithDefault())
+
+			local configPath = 'specOverrides.' .. capturedSpecID .. '.' .. ct.key
+			local currentVal = F.Config and F.Config:GetChar(configPath)
+			if(currentVal) then
+				ctDD:SetValue(currentVal)
+			else
+				ctDD:SetValue('')
+			end
+
+			local capturedCTKey = ct.key
+			ctDD:SetOnSelect(function(value)
+				if(F.Config) then
+					if(value == '') then
+						F.Config:SetChar('specOverrides.' .. capturedSpecID .. '.' .. capturedCTKey, nil)
+					else
+						F.Config:SetChar('specOverrides.' .. capturedSpecID .. '.' .. capturedCTKey, value)
+					end
+				end
+				if(F.EventBus) then
+					F.EventBus:Fire('CONFIG_CHANGED:specOverrides')
+				end
+			end)
+
+			panelY = panelY - DROPDOWN_H - C.Spacing.normal
+		end
+
+		panel:SetHeight(math.abs(panelY))
+		panels[i] = panel
+	end
+
+	-- ── Tab selection logic ────────────────────────────────
+	local function selectTab(index)
+		selectedSpec = index
+		for i, tab in next, tabs do
+			if(i == index) then
+				Widgets.ApplyBackdrop(tab, C.Colors.widget, C.Colors.accent)
+				panels[i]:Show()
+			else
+				Widgets.ApplyBackdrop(tab, C.Colors.widget, C.Colors.border)
+				panels[i]:Hide()
+			end
+		end
+	end
+
+	for i, tab in next, tabs do
+		tab:SetScript('OnClick', function()
+			selectTab(i)
+		end)
+		tab:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
+		tab:SetScript('OnLeave', function(self)
+			Widgets.SetBackdropHighlight(self, false)
+		end)
+	end
+
+	-- Select first spec by default
+	selectTab(1)
+
+	-- Card height: tab bar + one panel (all panels are same height)
+	cardY = cardY - (panels[1] and panels[1]:GetHeight() or 0)
 
 	Widgets.EndCard(card, parent, cardY)
 	return card
