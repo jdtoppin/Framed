@@ -263,9 +263,9 @@ F.Settings.RegisterPanel({
 		yOffset = Widgets.EndCard(actionsCard, content, actionsCardY)
 
 		-- ============================================================
-		-- Section 3: Auto-Switch
+		-- Section 3: Auto-Switch (per-character)
 		-- ============================================================
-		yOffset = placeHeading(content, 'Auto-Switch', 2, yOffset)
+		yOffset = placeHeading(content, 'Auto-Switch (Character Specific)', 2, yOffset)
 
 		local autoCard, autoInner, autoCardY
 		autoCard, autoInner, autoCardY = Widgets.StartCard(content, width, yOffset)
