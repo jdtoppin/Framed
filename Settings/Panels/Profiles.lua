@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 
 local Widgets = F.Widgets
@@ -18,8 +18,6 @@ local BUTTON_H     = 22
 local SWITCH_H     = 22
 local EDITBOX_H    = 80      -- multi-line box height
 local LABEL_H      = C.Font.sizeSmall + 4
-local ROW_H        = 28      -- standard row spacing
-
 -- ── Scope constants ────────────────────────────────────────
 local SCOPE_FULL        = 'full'
 local SCOPE_LAYOUT      = 'layout'
@@ -110,14 +108,12 @@ F.Settings.RegisterPanel({
 		layoutLabel:ClearAllPoints()
 		Widgets.SetPoint(layoutLabel, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		layoutLabel:SetText('LAYOUT')
-		local layoutLabelOffset = yOffset
 		yOffset = yOffset - LABEL_H
 
 		local layoutDropdown = Widgets.CreateDropdown(content, width)
 		layoutDropdown:ClearAllPoints()
 		Widgets.SetPoint(layoutDropdown, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
 		layoutDropdown:SetItems(getLayoutItems())
-		local layoutDropdownOffset = yOffset
 		-- Select first item by default
 		local layoutItems = getLayoutItems()
 		if(#layoutItems > 0) then
@@ -264,6 +260,9 @@ F.Settings.RegisterPanel({
 		-- ── Import button logic ────────────────────────────
 		importBtn:SetOnClick(function()
 			local inputStr = importBox:GetText()
+			if(inputStr) then
+				inputStr = inputStr:match('^%s*(.-)%s*$')
+			end
 			if(not inputStr or inputStr == '') then
 				setTextColor(statusFS, C.Colors.textSecondary)
 				statusFS:SetText('Paste an import string above.')
