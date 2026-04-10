@@ -440,6 +440,7 @@ F.Settings.RegisterPanel({
 		local grid = Widgets.CreateCardGrid(content, width)
 
 		grid:AddCard('presets',      'Presets',                                PresetsCard,      {})
+		grid:SetFullWidth('presets')
 		grid:AddCard('autoSwitch',   'Auto-Switch (Character Specific)',       AutoSwitchCard,   {})
 		grid:AddCard('specOverrides','Spec Overrides (Character Specific)',    SpecOverridesCard, {})
 

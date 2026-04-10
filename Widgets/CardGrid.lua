@@ -182,23 +182,39 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 	local EST_CARD_H = grid._avgCardHeight or 150
 
 	for _, entry in next, sorted do
-		-- Find the shortest column
-		local shortestCol = 0
-		local shortestY = colY[0]
-		for c = 1, cols - 1 do
-			if(colY[c] < shortestY) then
-				shortestCol = c
-				shortestY = colY[c]
+		-- Full-width cards span all columns; start below the tallest column
+		local isFullWidth = entry.fullWidth and cols > 1
+		local shortestCol, shortestY
+
+		if(isFullWidth) then
+			-- Find the tallest column so the full-width card clears everything above
+			shortestCol = 0
+			shortestY = colY[0]
+			for c = 1, cols - 1 do
+				if(colY[c] > shortestY) then
+					shortestY = colY[c]
+				end
+			end
+		else
+			-- Find the shortest column
+			shortestCol = 0
+			shortestY = colY[0]
+			for c = 1, cols - 1 do
+				if(colY[c] < shortestY) then
+					shortestCol = c
+					shortestY = colY[c]
+				end
 			end
 		end
 
 		local cardTopY = shortestY
+		local buildW = isFullWidth and grid._width or cardW
 
 		-- Lazy build: only build if within visible window
 		if(not entry.built) then
 			local estBottom = cardTopY + EST_CARD_H
 			if(estBottom >= windowTop and cardTopY <= windowBottom) then
-				entry.card  = entry.builder(grid._container, cardW, unpack(entry.builderArgs))
+				entry.card  = entry.builder(grid._container, buildW, unpack(entry.builderArgs))
 				entry.card:ClearAllPoints()
 				entry.built = true
 				addCardTitle(entry)
@@ -207,7 +223,7 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 		end
 
 		if(entry.built and entry.card) then
-			local x = shortestCol * (cardW + CARD_GAP)
+			local x = isFullWidth and 0 or shortestCol * (cardW + CARD_GAP)
 			local y = cardTopY
 
 			-- Store natural grid position
@@ -232,7 +248,7 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 						entry.card:SetFrameLevel(entry._origFrameLevel + 50)
 						entry.card:ClearAllPoints()
 						Widgets.SetPoint(entry.card, 'TOPLEFT', scrollParent, 'TOPLEFT', x, 0)
-						entry.card:SetWidth(cardW)
+						entry.card:SetWidth(buildW)
 					end
 				elseif(not shouldStick and entry._stickyActive) then
 					-- Transition → normal: reparent back to grid
@@ -244,12 +260,12 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 					end
 					entry.card:ClearAllPoints()
 					Widgets.SetPoint(entry.card, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
-					entry.card:SetWidth(cardW)
+					entry.card:SetWidth(buildW)
 				elseif(not shouldStick) then
 					-- Normal grid position (not yet scrolled past)
 					entry.card:ClearAllPoints()
 					Widgets.SetPoint(entry.card, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
-					entry.card:SetWidth(cardW)
+					entry.card:SetWidth(buildW)
 				end
 				-- While sticky: do nothing — card is anchored to viewport
 			elseif(animated and oldPos[entry.id]) then
@@ -262,7 +278,7 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 					-- Start at old position
 					entry.card:ClearAllPoints()
 					entry.card:SetPoint('TOPLEFT', grid._container, 'TOPLEFT', old.x, -old.y)
-					entry.card:SetWidth(cardW)
+					entry.card:SetWidth(buildW)
 
 					-- Single-channel animation interpolating both axes
 					Widgets.StartAnimation(entry.card, 'gridMove', 0, 1, ANIM_DURATION, function(frame, t)
@@ -278,21 +294,36 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 					-- No meaningful movement, just snap
 					entry.card:ClearAllPoints()
 					Widgets.SetPoint(entry.card, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
-					entry.card:SetWidth(cardW)
+					entry.card:SetWidth(buildW)
 				end
 			else
 				-- No animation: snap directly
 				entry.card:ClearAllPoints()
 				Widgets.SetPoint(entry.card, 'TOPLEFT', grid._container, 'TOPLEFT', x, -y)
-				entry.card:SetWidth(cardW)
+				entry.card:SetWidth(buildW)
 			end
 
 			local cardH = entry.card:GetHeight()
 			entry._lastHeight = cardH
-			colY[shortestCol] = cardTopY + cardH + CARD_V_GAP
+			-- Full-width cards advance all columns
+			if(isFullWidth) then
+				local nextY = cardTopY + cardH + CARD_V_GAP
+				for c = 0, cols - 1 do
+					colY[c] = nextY
+				end
+			else
+				colY[shortestCol] = cardTopY + cardH + CARD_V_GAP
+			end
 		else
 			-- Unbuilt card: advance the column by estimated height
-			colY[shortestCol] = cardTopY + EST_CARD_H + CARD_V_GAP
+			if(isFullWidth) then
+				local nextY = cardTopY + EST_CARD_H + CARD_V_GAP
+				for c = 0, cols - 1 do
+					colY[c] = nextY
+				end
+			else
+				colY[shortestCol] = cardTopY + EST_CARD_H + CARD_V_GAP
+			end
 		end
 	end
 
@@ -408,6 +439,16 @@ local function SetPinned(grid, id, pinned)
 	local entry = grid._cardIndex[id]
 	if(entry) then
 		entry.pinned = pinned
+	end
+end
+
+--- Mark a card as full-width (spans all columns instead of one).
+--- @param grid table
+--- @param id   string  Card id
+local function SetFullWidth(grid, id)
+	local entry = grid._cardIndex[id]
+	if(entry) then
+		entry.fullWidth = true
 	end
 end
 
@@ -565,6 +606,7 @@ function Widgets.CreateCardGrid(parent, width)
 	grid.RemoveCard       = RemoveCard
 	grid.RemoveAllCards   = RemoveAllCards
 	grid.SetPinned        = SetPinned
+	grid.SetFullWidth     = SetFullWidth
 	grid.SetSticky        = SetSticky
 	grid.GetColumnLayout  = GetColumnLayout
 	grid.GetSortedCards   = GetSortedCards
