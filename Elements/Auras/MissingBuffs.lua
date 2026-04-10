@@ -223,6 +223,7 @@ local function Enable(self, unit)
 
 	self:RegisterEvent('UNIT_AURA', Update)
 	self:RegisterEvent('GROUP_ROSTER_UPDATE', Update, true)
+	self:RegisterEvent('PLAYER_ENTERING_WORLD', Update, true)
 
 	return true
 end
@@ -241,6 +242,7 @@ local function Disable(self)
 
 	self:UnregisterEvent('UNIT_AURA', Update)
 	self:UnregisterEvent('GROUP_ROSTER_UPDATE', Update)
+	self:UnregisterEvent('PLAYER_ENTERING_WORLD', Update)
 end
 
 -- ============================================================
