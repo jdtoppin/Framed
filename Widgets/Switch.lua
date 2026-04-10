@@ -168,7 +168,7 @@ end
 --- @param parent Frame
 --- @param width number Logical total width
 --- @param height number Logical height
---- @param options table Array of { text = string, value = any }
+--- @param options table Array of { text = string, value = any, icon = number|string? }
 --- @return Frame switch
 function Widgets.CreateSwitch(parent, width, height, options)
 	options = options or {}
@@ -212,9 +212,26 @@ function Widgets.CreateSwitch(parent, width, height, options)
 		seg._value = opt.value
 		seg._index = i
 
+		-- Optional icon (left of label)
+		if(opt.icon) then
+			local iconSize = height - 8
+			local ico = seg:CreateTexture(nil, 'ARTWORK')
+			ico:SetSize(iconSize, iconSize)
+			ico:SetTexture(opt.icon)
+			ico:SetTexCoord(0.08, 0.92, 0.08, 0.92)
+			ico:SetPoint('LEFT', seg, 'LEFT', 4, 0)
+			seg._icon = ico
+		end
+
 		-- Label
 		local label = Widgets.CreateFontString(seg, C.Font.sizeSmall, C.Colors.textNormal)
-		label:SetPoint('CENTER', seg, 'CENTER', 0, 0)
+		if(seg._icon) then
+			label:SetPoint('LEFT', seg._icon, 'RIGHT', 4, 0)
+			label:SetPoint('RIGHT', seg, 'RIGHT', -4, 0)
+			label:SetJustifyH('CENTER')
+		else
+			label:SetPoint('CENTER', seg, 'CENTER', 0, 0)
+		end
 		label:SetText(opt.text or '')
 		seg._label = label
 

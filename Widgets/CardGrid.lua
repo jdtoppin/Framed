@@ -218,7 +218,9 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 				entry.card:ClearAllPoints()
 				entry.built = true
 				addCardTitle(entry)
-				addPinButton(entry, grid)
+				if(grid._pinEnabled ~= false) then
+					addPinButton(entry, grid)
+				end
 			end
 		end
 

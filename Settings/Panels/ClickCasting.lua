@@ -264,11 +264,6 @@ F.Settings.RegisterPanel({
 		end
 
 		-- ── Binding list ───────────────────────────────────────
-		local bindingsHeading, bindingsHeadingH = Widgets.CreateHeading(content, 'Click Bindings', 2)
-		bindingsHeading:ClearAllPoints()
-		Widgets.SetPoint(bindingsHeading, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-		yOffset = yOffset - bindingsHeadingH
-
 		local bindCard, bindInner, bindCardY
 		bindCard, bindInner, bindCardY = Widgets.StartCard(content, width, yOffset)
 		local innerWidth = width - Widgets.CARD_PADDING * 2
