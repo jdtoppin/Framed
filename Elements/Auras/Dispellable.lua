@@ -227,7 +227,7 @@ local function Update(self, event, unit)
 	-- NeverSecret — safe to store and pass to curve APIs.
 	local dispelAuraID = nil
 	local primaryFilter = onlyDispellableByMe and 'HARMFUL|RAID_PLAYER_DISPELLABLE' or 'HARMFUL'
-	local allAuras = C_UnitAuras.GetUnitAuras(unit, primaryFilter)
+	local allAuras = F.AuraCache.GetUnitAuras(unit, primaryFilter)
 
 	for _, auraData in next, allAuras do
 		if(auraData.dispelName) then

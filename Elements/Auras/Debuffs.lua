@@ -102,7 +102,7 @@ local function updateIndicator(self, unit, ind)
 	end
 
 	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
-	local rawAuras = C_UnitAuras.GetUnitAuras(unit, filter, nil, Enum.UnitAuraSortRule.Default)
+	local rawAuras = F.AuraCache.GetUnitAuras(unit, filter)
 	local pool = ind._pool
 
 	-- Single-pass: filter and display directly from auraData.
@@ -126,7 +126,7 @@ local function updateIndicator(self, unit, ind)
 	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them).
 	-- Supplementary results appear after the server-sorted dispellable set.
 	if(filterMode == 'dispellable' and displayed < maxDisplayed) then
-		local raidAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|RAID')
+		local raidAuras = F.AuraCache.GetUnitAuras(unit, 'HARMFUL|RAID')
 		for _, auraData in next, raidAuras do
 			if(displayed >= maxDisplayed) then break end
 
