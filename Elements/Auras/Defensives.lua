@@ -32,7 +32,7 @@ local function Update(self, event, unit)
 	-- BIG_DEFENSIVE is a classification filter, not a query filter —
 	-- GetUnitAuras does not support it. Fetch all helpful auras, then
 	-- classify each one via IsAuraFilteredOutByInstanceID.
-	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	local rawAuras = F.AuraCache.GetUnitAuras(unit, 'HELPFUL')
 
 	local displayed = 0
 	for _, auraData in next, rawAuras do

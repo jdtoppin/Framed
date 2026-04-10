@@ -139,7 +139,7 @@ local function Update(self, event, unit)
 
 	-- Build filter string from config
 	local buffFilter = BUFF_FILTER_MAP[element._buffFilterMode]
-	local auras = C_UnitAuras.GetUnitAuras(unit, buffFilter)
+	local auras = F.AuraCache.GetUnitAuras(unit, buffFilter)
 	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
