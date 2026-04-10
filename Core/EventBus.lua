@@ -8,6 +8,17 @@ F.EventBus = EventBus
 local registry = {}
 local nextId = 1
 
+local function removeByOwner(eventName, owner)
+	local listeners = registry[eventName]
+	if(not listeners) then return end
+
+	for id, entry in next, listeners do
+		if(entry.owner == owner) then
+			listeners[id] = nil
+		end
+	end
+end
+
 --- Register a callback for an event.
 --- @param eventName string The event to listen for
 --- @param callback function The function to call when the event fires
@@ -16,6 +27,12 @@ local nextId = 1
 function EventBus:Register(eventName, callback, owner)
 	if(not registry[eventName]) then
 		registry[eventName] = {}
+	end
+
+	-- Treat owner as a stable handle per event. Re-registering the same owner
+	-- replaces the old listener instead of accumulating duplicates.
+	if(type(owner) == 'string') then
+		removeByOwner(eventName, owner)
 	end
 
 	local id = nextId
@@ -30,11 +47,14 @@ function EventBus:Register(eventName, callback, owner)
 end
 
 --- Unregister a specific callback by ID.
+--- Also accepts an owner string to remove all listeners for that owner on the event.
 --- @param eventName string The event name
---- @param id number The registration ID returned by Register
-function EventBus:Unregister(eventName, id)
-	if(registry[eventName]) then
-		registry[eventName][id] = nil
+--- @param handle number|string The registration ID returned by Register, or an owner key
+function EventBus:Unregister(eventName, handle)
+	if(type(handle) == 'string') then
+		removeByOwner(eventName, handle)
+	elseif(registry[eventName]) then
+		registry[eventName][handle] = nil
 	end
 end
 
