@@ -3,7 +3,6 @@ local F = Framed
 
 local Widgets = F.Widgets
 local C = F.Constants
-local B = F.FrameSettingsBuilder
 
 -- ============================================================
 -- Constants
@@ -138,7 +137,6 @@ local function PresetsCard(parent, width)
 
 	-- ── Actions ────────────────────────────────────────────
 	-- Copy Settings From
-	local widgetW = width - Widgets.CARD_PADDING * 2
 	local copyLabel = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textNormal)
 	copyLabel:ClearAllPoints()
 	Widgets.SetPoint(copyLabel, 'TOPLEFT', inner, 'TOPLEFT', 0, cardY)
@@ -218,7 +216,7 @@ local function PresetsCard(parent, width)
 				row.__tagFS:SetText(getPresetTag(row.__presetName))
 			end
 			updateResetVisibility()
-		end)
+		end, 'FramePresets.editingChanged')
 	end
 
 	Widgets.EndCard(card, parent, cardY)
@@ -444,6 +442,18 @@ F.Settings.RegisterPanel({
 		grid:AddCard('presets',      'Presets',                                PresetsCard,      {})
 		grid:AddCard('autoSwitch',   'Auto-Switch (Character Specific)',       AutoSwitchCard,   {})
 		grid:AddCard('specOverrides','Spec Overrides (Character Specific)',    SpecOverridesCard, {})
+
+		-- Load pinned state
+		local pinnedCards = F.Config:Get('general.pinnedPresetCards')
+		if(pinnedCards) then
+			for cardId, isPinned in next, pinnedCards do
+				if(isPinned) then grid:SetPinned(cardId, true) end
+			end
+		end
+
+		grid._onPinChanged = function(cardId, pinned)
+			F.Config:Set('general.pinnedPresetCards.' .. cardId, pinned or nil)
+		end
 
 		grid:SetTopOffset(C.Spacing.normal)
 		grid:Layout(0, parentH)

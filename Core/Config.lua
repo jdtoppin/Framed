@@ -30,6 +30,7 @@ local accountDefaults = {
 		mouseoverHighlightWidth = 2,
 		pinnedCards = {},
 		pinnedAppearanceCards = {},
+		pinnedPresetCards = {},
 		editModeGridSnap = true,
 		editModeAnimate = false,
 	},
