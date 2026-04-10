@@ -33,6 +33,7 @@ Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
 Core/CastTracker.lua
+Core/AuraCache.lua
 
 # Widgets
 Widgets/Base.lua
