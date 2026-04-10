@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 
 local Config = {}
@@ -57,6 +57,19 @@ local charDefaults = {
 	lastEditingUnitType = nil,
 }
 
+local function applyRuntimeConfig()
+	-- Clamp UI scale to safe range
+	FramedDB.general.uiScale = math.max(0.2, math.min(FramedDB.general.uiScale or 1.0, 1.5))
+
+	-- Apply accent color from saved config to Constants
+	local accent = FramedDB.general.accentColor
+	if(accent) then
+		Constants.Colors.accent      = { accent[1], accent[2], accent[3], 1 }
+		Constants.Colors.accentDim   = { accent[1], accent[2], accent[3], 0.3 }
+		Constants.Colors.accentHover = { accent[1], accent[2], accent[3], 0.6 }
+	end
+end
+
 -- ============================================================
 -- Merge defaults into saved data (non-destructive)
 -- Adds missing keys from defaults without overwriting existing values.
@@ -100,18 +113,27 @@ function Config:Initialize()
 		mergeDefaults(FramedCharDB, charDefaults)
 	end
 
-	-- Clamp UI scale to safe range
-	FramedDB.general.uiScale = math.max(0.2, math.min(FramedDB.general.uiScale or 1.0, 1.5))
-
-	-- Apply accent color from saved config to Constants
-	local accent = FramedDB.general.accentColor
-	if(accent) then
-		Constants.Colors.accent      = { accent[1], accent[2], accent[3], 1 }
-		Constants.Colors.accentDim   = { accent[1], accent[2], accent[3], 0.3 }
-		Constants.Colors.accentHover = { accent[1], accent[2], accent[3], 0.6 }
-	end
+	applyRuntimeConfig()
 
 	EventBus:Fire('CONFIG_INITIALIZED')
+end
+
+--- Ensure current saved data has all defaults and re-apply runtime-derived values.
+--- Useful after importing raw tables that bypass Config:Set / SetChar.
+function Config:EnsureDefaults()
+	if(not FramedDB) then
+		FramedDB = F.DeepCopy(accountDefaults)
+	else
+		mergeDefaults(FramedDB, accountDefaults)
+	end
+
+	if(not FramedCharDB) then
+		FramedCharDB = F.DeepCopy(charDefaults)
+	else
+		mergeDefaults(FramedCharDB, charDefaults)
+	end
+
+	applyRuntimeConfig()
 end
 
 -- ============================================================

@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 
 F.ImportExport = {}
@@ -17,6 +17,52 @@ local LibDeflate   = LibStub and LibStub('LibDeflate', true)
 -- ============================================================
 
 local VERSION_PREFIX = '!FRM1!'
+
+local function makeImportedName(baseName)
+	local name = baseName
+	local suffix = 2
+	while(FramedDB and FramedDB.presets and FramedDB.presets[name]) do
+		if(suffix == 2) then
+			name = baseName .. ' (imported)'
+		else
+			name = baseName .. ' (imported ' .. suffix .. ')'
+		end
+		suffix = suffix + 1
+	end
+	return name
+end
+
+local function refreshAfterImport(scope)
+	if(F.Config and F.Config.EnsureDefaults) then
+		F.Config:EnsureDefaults()
+	end
+
+	if(F.PresetDefaults and F.PresetDefaults.EnsureDefaults) then
+		F.PresetDefaults.EnsureDefaults()
+	end
+
+	if(F.ClickCasting and F.ClickCasting.RefreshAll) then
+		F.ClickCasting.RefreshAll()
+	end
+
+	if(F.AutoSwitch and F.AutoSwitch.Check) then
+		F.AutoSwitch.Check()
+	end
+
+	if(F.EventBus) then
+		F.EventBus:Fire('CONFIG_CHANGED', 'general.targetHighlightColor')
+		F.EventBus:Fire('CONFIG_CHANGED', 'general.targetHighlightWidth')
+		F.EventBus:Fire('CONFIG_CHANGED', 'general.mouseoverHighlightColor')
+		F.EventBus:Fire('CONFIG_CHANGED', 'general.mouseoverHighlightWidth')
+		F.EventBus:Fire('CONFIG_CHANGED:autoSwitch')
+		F.EventBus:Fire('CONFIG_CHANGED:specOverrides')
+		F.EventBus:Fire('CONFIG_CHANGED:clickCasting')
+
+		if(scope == 'full' and F.AutoSwitch and F.AutoSwitch.GetCurrentPreset) then
+			F.EventBus:Fire('PRESET_CHANGED', F.AutoSwitch.GetCurrentPreset())
+		end
+	end
+end
 
 -- ============================================================
 -- Export
@@ -123,7 +169,10 @@ function ImportExport.ExportFullProfile()
 
 	local data = {
 		general    = F.DeepCopy(FramedDB.general)    or {},
+		minimap    = F.DeepCopy(FramedDB.minimap)    or {},
 		presets    = F.DeepCopy(FramedDB.presets)    or {},
+		profiles   = F.DeepCopy(FramedDB.profiles)   or {},
+		char       = F.DeepCopy(FramedCharDB)        or {},
 	}
 
 	return ImportExport.Export(data, 'full')
@@ -187,13 +236,25 @@ function ImportExport.ApplyImport(payload, mode)
 	if(scope == 'full') then
 		if(mode == 'replace') then
 			if(data.general)     then FramedDB.general     = F.DeepCopy(data.general) end
+			if(data.minimap)     then FramedDB.minimap     = F.DeepCopy(data.minimap) end
 			if(data.presets)     then FramedDB.presets     = F.DeepCopy(data.presets) end
+			if(data.profiles)    then FramedDB.profiles    = F.DeepCopy(data.profiles) end
+			if(data.char)        then FramedCharDB         = F.DeepCopy(data.char) end
 		else  -- merge
 			if(data.general and type(data.general) == 'table') then
 				deepMerge(FramedDB.general, data.general)
 			end
+			if(data.minimap and type(data.minimap) == 'table') then
+				deepMerge(FramedDB.minimap, data.minimap)
+			end
 			if(data.presets and type(data.presets) == 'table') then
 				deepMerge(FramedDB.presets, data.presets)
+			end
+			if(data.profiles and type(data.profiles) == 'table') then
+				deepMerge(FramedDB.profiles, data.profiles)
+			end
+			if(data.char and type(data.char) == 'table') then
+				deepMerge(FramedCharDB, data.char)
 			end
 		end
 
@@ -207,10 +268,7 @@ function ImportExport.ApplyImport(payload, mode)
 		if(mode == 'replace') then
 			FramedDB.presets[name] = F.DeepCopy(layout)
 		else  -- merge
-			-- Append " (imported)" suffix on name conflict
-			if(FramedDB.presets[name]) then
-				name = name .. ' (imported)'
-			end
+			name = makeImportedName(name)
 			FramedDB.presets[name] = F.DeepCopy(layout)
 		end
 
@@ -219,6 +277,8 @@ function ImportExport.ApplyImport(payload, mode)
 		end
 
 	end
+
+	refreshAfterImport(scope)
 
 	-- Fire event so UI panels can refresh
 	if(F.EventBus) then
