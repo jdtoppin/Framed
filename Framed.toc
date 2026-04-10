@@ -120,7 +120,7 @@ Units/LiveUpdate/FrameConfigElements.lua
 Units/LiveUpdate/FrameConfigHealth.lua
 Units/LiveUpdate/FrameConfigText.lua
 Units/LiveUpdate/FrameConfigPreset.lua
-Units/LiveUpdate/FrameConfig.lua
+Units/LiveUpdate/FrameConfigPets.lua
 Units/LiveUpdate/AuraConfig.lua
 
 # Click Casting
