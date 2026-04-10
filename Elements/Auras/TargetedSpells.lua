@@ -7,6 +7,17 @@ local Widgets = F.Widgets
 F.Elements = F.Elements or {}
 F.Elements.TargetedSpells = {}
 
+-- Pre-computed 'unitTarget' strings to avoid per-cast allocation.
+local targetUnitCache = {}
+local function getTargetUnit(sourceUnit)
+	local cached = targetUnitCache[sourceUnit]
+	if(not cached) then
+		cached = sourceUnit .. 'target'
+		targetUnitCache[sourceUnit] = cached
+	end
+	return cached
+end
+
 -- ============================================================
 -- Display mode constants
 -- ============================================================
@@ -119,7 +130,7 @@ local function showCastsSecret(element, castList, unit)
 				-- against party units as of 12.1 (returns nil). Still
 				-- permitted against 'player', 'target', 'focus', etc.
 				-- Fall back to showing on all frames when unresolvable.
-				local targeting = UnitIsUnit(cast.sourceUnit .. 'target', unit)
+				local targeting = UnitIsUnit(getTargetUnit(cast.sourceUnit), unit)
 				if(type(targeting) == 'boolean') then
 					bi._frame:SetAlphaFromBoolean(targeting, 1, 0)
 				else
@@ -142,7 +153,7 @@ local function showCastsSecret(element, castList, unit)
 		end
 		if(element._glowFrame) then
 			element._glowFrame:Show()
-			local targeting = UnitIsUnit(castList[1].sourceUnit .. 'target', unit)
+			local targeting = UnitIsUnit(getTargetUnit(castList[1].sourceUnit), unit)
 			if(type(targeting) == 'boolean') then
 				element._glowFrame:SetAlphaFromBoolean(targeting, 1, 0)
 			else

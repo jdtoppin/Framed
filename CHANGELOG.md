@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.8.1-alpha
+
+- Cache string concatenations in AuraCache and TargetedSpells hot paths to reduce per-event allocations
+
 ## v0.8-alpha
 
 - Refactor Frame Presets panel to use CardGrid layout with full-width cards

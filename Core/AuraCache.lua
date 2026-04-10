@@ -10,6 +10,9 @@ local generation = {}
 -- Tables are reused across generations to avoid allocation.
 local cache = {}
 
+-- Pre-computed key strings to avoid per-call string concatenation.
+local keyCache = {}
+
 -- Raw frame to catch UNIT_AURA before oUF dispatches to elements.
 local eventFrame = CreateFrame('Frame')
 eventFrame:RegisterEvent('UNIT_AURA')
@@ -27,7 +30,16 @@ end)
 --- @return table
 function F.AuraCache.GetUnitAuras(unit, filter)
 	local gen = generation[unit] or 0
-	local key = unit .. '\0' .. filter
+	local unitKeys = keyCache[unit]
+	if(not unitKeys) then
+		unitKeys = {}
+		keyCache[unit] = unitKeys
+	end
+	local key = unitKeys[filter]
+	if(not key) then
+		key = unit .. '\0' .. filter
+		unitKeys[filter] = key
+	end
 	local entry = cache[key]
 
 	if(entry and entry.gen == gen) then
