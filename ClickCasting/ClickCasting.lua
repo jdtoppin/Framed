@@ -202,3 +202,13 @@ function F.ClickCasting.RefreshAll()
 		F.ClickCasting.ApplyBindings(frame)
 	end
 end
+
+-- Register an init callback so that header-spawned frames (party/raid)
+-- that are created asynchronously by SecureGroupHeader also get
+-- click-cast bindings applied. This runs after oUF's initialConfigFunction
+-- sets *type2='togglemenu', overriding it with the user's bindings.
+oUF:RegisterInitCallback(function(frame)
+	if(not InCombatLockdown()) then
+		F.ClickCasting.ApplyBindings(frame)
+	end
+end)
