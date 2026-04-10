@@ -26,7 +26,7 @@ local function Update(self, event, unit)
 	local foundExpiry = nil
 	local foundCount  = 0
 
-	local ccAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL|PLAYER')
+	local ccAuras = F.AuraCache.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL|PLAYER')
 
 	for _, auraData in next, ccAuras do
 		local spellId = auraData.spellId

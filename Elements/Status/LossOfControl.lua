@@ -103,7 +103,7 @@ local function Update(self, event, unit)
 	local bestIcon     = nil
 	local bestExpiry   = nil
 
-	local ccAuras = C_UnitAuras.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL')
+	local ccAuras = F.AuraCache.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL')
 
 	for _, auraData in next, ccAuras do
 		local spellId = auraData.spellId
