@@ -116,10 +116,19 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	self:SetScript('OnEnter', function(frame)
 		if(F.Config:Get('general.tooltipEnabled') == false) then return end
 		if(F.Config:Get('general.tooltipHideInCombat') and InCombatLockdown()) then return end
-		local anchor = F.Config:Get('general.tooltipAnchor') or 'ANCHOR_RIGHT'
+		local mode = F.Config:Get('general.tooltipMode') or 'frame'
+		local anchor = F.Config:Get('general.tooltipAnchor') or 'RIGHT'
 		local offX = F.Config:Get('general.tooltipOffsetX') or 0
 		local offY = F.Config:Get('general.tooltipOffsetY') or 0
-		GameTooltip:SetOwner(frame, anchor, offX, offY)
+		if(mode == 'cursor') then
+			GameTooltip:SetOwner(frame, 'ANCHOR_CURSOR')
+		elseif(mode == 'screen') then
+			GameTooltip:SetOwner(frame, 'ANCHOR_NONE')
+			GameTooltip:ClearAllPoints()
+			GameTooltip:SetPoint(anchor, UIParent, anchor, offX, offY)
+		else
+			GameTooltip:SetOwner(frame, 'ANCHOR_' .. anchor, offX, offY)
+		end
 		GameTooltip:SetUnit(frame.unit)
 		GameTooltip:Show()
 	end)
