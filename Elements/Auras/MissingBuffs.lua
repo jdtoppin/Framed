@@ -112,6 +112,18 @@ local function auraListHasBuff(rawAuras, targetSpellId)
 	return false
 end
 
+--- Fallback for NPC party members (delves) where aura data is fully secret.
+--- Uses GetAuraDataBySpellName which is a server-side lookup that works
+--- regardless of secret status.
+--- @param unit string
+--- @param targetSpellId number
+--- @return boolean
+local function npcUnitHasBuff(unit, targetSpellId)
+	local name = ensureCached(targetSpellId)
+	if(not name) then return false end
+	return C_UnitAuras.GetAuraDataBySpellName(unit, name, 'HELPFUL') ~= nil
+end
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -156,16 +168,25 @@ local function Update(self, event, unit)
 	local anchorY      = anchor[5]
 	local visibleIndex = 0
 
-	-- Single aura query for all buff checks — zero intermediate tables.
-	-- auraListHasBuff scans this directly per tracked buff.
-	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	-- For real players, raid buff spellIds are non-secret — iterate the
+	-- bulk query result (zero extra allocation). For NPC party members
+	-- (delves), aura data is fully secret — fall back to server-side
+	-- GetAuraDataBySpellName lookups per tracked buff.
+	local isNpc = not UnitIsPlayer(unit)
+	local rawAuras = not isNpc and C_UnitAuras.GetUnitAuras(unit, 'HELPFUL') or nil
 
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
 		local slot = slots[spellId]
 		if(not slot) then break end
 
-		if(providingClass and groupClasses[providingClass] and not auraListHasBuff(rawAuras, spellId)) then
+		local hasBuff
+		if(isNpc) then
+			hasBuff = npcUnitHasBuff(unit, spellId)
+		else
+			hasBuff = auraListHasBuff(rawAuras, spellId)
+		end
+		if(providingClass and groupClasses[providingClass] and not hasBuff) then
 			-- Missing buff from a class in the group — show and reposition
 			slot.bi.icon:SetTexture(iconCache[spellId])
 			slot.bi:ClearAllPoints()
