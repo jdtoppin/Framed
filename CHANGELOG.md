@@ -1,5 +1,19 @@
 # Framed Changelog
 
+## v0.8-alpha
+
+- Refactor Frame Presets panel to use CardGrid layout with full-width cards
+- Combine Auto-Switch and Spec Overrides into side-by-side wrapper card
+- Replace spec override tab bar with segmented switch (icons + text)
+- Add icon support to Switch widget
+- Add tooltip positioning modes: frame, screen, and cursor anchoring
+- Fix tooltip anchor/offset settings not being applied
+- Fix spell tooltips leaking to non-spell dropdown rows
+- Fix NPC missing buffs: only track player-provided buffs
+- Remove redundant Click Bindings heading from Click Casting panel
+- Add pin toggle support per CardGrid instance
+- Labels above dropdowns for UX consistency across settings panels
+
 ## v0.7.27-alpha
 
 - Fix absorb shield stripe texture stretching instead of tiling
