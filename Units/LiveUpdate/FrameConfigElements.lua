@@ -210,6 +210,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			ForEachFrame(unitType, function(frame)
 				if(enabled) then
 					frame:EnableElement(elementName)
+					local el = frame[elementName]
+					if(el and el.ForceUpdate) then el:ForceUpdate() end
 				else
 					frame:DisableElement(elementName)
 				end
