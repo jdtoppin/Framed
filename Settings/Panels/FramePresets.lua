@@ -420,7 +420,7 @@ F.Settings.RegisterPanel({
 
 		-- Reflow all spec sections based on expanded state
 		local function reflowSpecs()
-			local y = specCardY
+			local y = 0
 			for _, sec in next, specSections do
 				sec.header:ClearAllPoints()
 				Widgets.SetPoint(sec.header, 'TOPLEFT', specInner, 'TOPLEFT', 0, y)
