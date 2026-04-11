@@ -27,6 +27,16 @@ for spellId in next, RAID_BUFFS do
 end
 table.sort(BUFF_ORDER)
 
+local DEFAULT_CONFIG = {
+	iconSize      = 12,
+	growDirection = 'LEFT',
+	spacing       = 2,
+	frameLevel    = 2,
+	glowType      = 'Pixel',
+	glowColor     = { 1, 0.82, 0, 1 },
+	anchor        = { 'TOPRIGHT', nil, 'TOPLEFT', -2, 0 },
+}
+
 -- ============================================================
 -- Helpers
 -- ============================================================
@@ -109,6 +119,20 @@ local function auraListHasBuff(rawAuras, targetSpellId)
 		end
 	end
 	return false
+end
+
+local function normalizeConfig(config)
+	config = config or {}
+
+	return {
+		iconSize      = config.iconSize or DEFAULT_CONFIG.iconSize,
+		growDirection = config.growDirection or DEFAULT_CONFIG.growDirection,
+		spacing       = config.spacing or DEFAULT_CONFIG.spacing,
+		frameLevel    = config.frameLevel or DEFAULT_CONFIG.frameLevel,
+		glowType      = config.glowType or DEFAULT_CONFIG.glowType,
+		glowColor     = config.glowColor or DEFAULT_CONFIG.glowColor,
+		anchor        = config.anchor or DEFAULT_CONFIG.anchor,
+	}
 end
 
 -- ============================================================
@@ -273,6 +297,7 @@ end
 -- ============================================================
 
 local function Rebuild(element, config)
+	config = normalizeConfig(config)
 	element._config = config
 	if(element._slots) then
 		for _, slot in next, element._slots do
@@ -348,7 +373,7 @@ oUF:AddElement('FramedMissingBuffs', Update, Enable, Disable)
 --- @param self Frame  The oUF unit frame
 --- @param config? table  iconSize, anchor, frameLevel, glowType, glowColor, growDirection, spacing
 function F.Elements.MissingBuffs.Setup(self, config)
-	config = config or {}
+	config = normalizeConfig(config)
 
 	if(not self.FramedAuraState and F.AuraState) then
 		self.FramedAuraState = F.AuraState.Create(self)
