@@ -1,7 +1,6 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
-local C = F.Constants
 local Widgets = F.Widgets
 
 F.Elements = F.Elements or {}
@@ -102,7 +101,8 @@ local function updateIndicator(self, unit, ind)
 	end
 
 	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
-	local rawAuras = F.AuraCache.GetUnitAuras(unit, filter)
+	local auraState = self.FramedAuraState
+	local rawAuras = auraState and auraState:GetHarmful(filter) or F.AuraCache.GetUnitAuras(unit, filter)
 	local pool = ind._pool
 
 	-- Single-pass: filter and display directly from auraData.
@@ -126,7 +126,7 @@ local function updateIndicator(self, unit, ind)
 	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them).
 	-- Supplementary results appear after the server-sorted dispellable set.
 	if(filterMode == 'dispellable' and displayed < maxDisplayed) then
-		local raidAuras = F.AuraCache.GetUnitAuras(unit, 'HARMFUL|RAID')
+		local raidAuras = auraState and auraState:GetHarmful('HARMFUL|RAID') or F.AuraCache.GetUnitAuras(unit, 'HARMFUL|RAID')
 		for _, auraData in next, raidAuras do
 			if(displayed >= maxDisplayed) then break end
 
@@ -149,11 +149,20 @@ end
 -- Update — iterates all indicators
 -- ============================================================
 
-local function Update(self, event, unit)
+local function Update(self, event, unit, updateInfo)
 	local element = self.FramedDebuffs
 	if(not element) then return end
 
 	if(not unit or self.unit ~= unit) then return end
+
+	local auraState = self.FramedAuraState
+	if(auraState) then
+		if(event == 'UNIT_AURA') then
+			auraState:ApplyUpdateInfo(unit, updateInfo)
+		else
+			auraState:EnsureInitialized(unit)
+		end
+	end
 
 	for _, ind in next, element._indicators do
 		if(ind._config.enabled ~= false) then
@@ -268,6 +277,10 @@ oUF:AddElement('FramedDebuffs', Update, Enable, Disable)
 --- @param config table  { enabled, indicators = { [name] = indicatorConfig, ... } }
 function F.Elements.Debuffs.Setup(self, config)
 	config = config or {}
+
+	if(not self.FramedAuraState and F.AuraState) then
+		self.FramedAuraState = F.AuraState.Create(self)
+	end
 
 	-- Backward compatibility: flat config (no indicators key) → single indicator
 	if(not config.indicators) then

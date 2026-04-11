@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
 local C = F.Constants
@@ -213,12 +213,21 @@ end
 -- Update
 -- ============================================================
 
-local function Update(self, event, unit)
+local function Update(self, event, unit, updateInfo)
 	local element = self.FramedDispellable
 	if(not element) then return end
 
 	if(not unit or self.unit ~= unit) then return end
 	if(not curvesReady) then return end
+
+	local auraState = self.FramedAuraState
+	if(auraState) then
+		if(event == 'UNIT_AURA') then
+			auraState:ApplyUpdateInfo(unit, updateInfo)
+		else
+			auraState:EnsureInitialized(unit)
+		end
+	end
 
 	local onlyDispellableByMe = element._onlyDispellableByMe
 
@@ -227,7 +236,7 @@ local function Update(self, event, unit)
 	-- NeverSecret — safe to store and pass to curve APIs.
 	local dispelAuraID = nil
 	local primaryFilter = onlyDispellableByMe and 'HARMFUL|RAID_PLAYER_DISPELLABLE' or 'HARMFUL'
-	local allAuras = F.AuraCache.GetUnitAuras(unit, primaryFilter)
+	local allAuras = auraState and auraState:GetHarmful(primaryFilter) or F.AuraCache.GetUnitAuras(unit, primaryFilter)
 
 	for _, auraData in next, allAuras do
 		if(auraData.dispelName) then
@@ -307,6 +316,11 @@ oUF:AddElement('FramedDispellable', Update, Enable, Disable)
 --- @param config? table  { enabled, onlyDispellableByMe, highlightType, iconSize, anchor, frameLevel }
 function F.Elements.Dispellable.Setup(self, config)
 	config = config or {}
+
+	if(not self.FramedAuraState and F.AuraState) then
+		self.FramedAuraState = F.AuraState.Create(self)
+	end
+
 	local iconSize       = config.iconSize
 	local highlightType  = config.highlightType
 	local frameLevel     = config.frameLevel
