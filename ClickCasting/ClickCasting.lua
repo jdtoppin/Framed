@@ -6,8 +6,15 @@ F.ClickCasting = {}
 
 local combatQueueFrame = nil
 
--- Cached keyboard binding data built during ApplyBindings,
--- used by OnEnter/OnLeave to activate per-frame override bindings.
+-- Secure header for keyboard override bindings.
+-- SetOverrideBindingClick is protected from addon Lua in combat, but the
+-- restricted environment in RestrictedFrames.lua holds direct C-function
+-- references captured at load time, so restricted snippets can call
+-- SetBindingClick/ClearBindings during combat lockdown.
+local header = CreateFrame('Frame', 'FramedClickCastHeader', UIParent, 'SecureHandlerEnterLeaveTemplate')
+
+-- Cached keyboard binding data built during RefreshAll,
+-- used to populate header attributes for restricted snippets.
 -- keyBindings[i] = { key = 'SHIFT-1', virtualBtn = 'FramedKey1' }
 local keyBindings = {}
 
@@ -26,8 +33,9 @@ local function clearBindingState(frame)
 	frame:SetAttribute('*type1', nil)
 	frame:SetAttribute('*type2', nil)
 
-	-- Clear any dynamic override bindings currently active on the frame.
+	-- Clear any override bindings owned by the frame (legacy) or header.
 	ClearOverrideBindings(frame)
+	ClearOverrideBindings(header)
 
 	-- Remove any secure attributes we previously applied so stale bindings
 	-- don't survive when a row is edited, removed, or changes type.
@@ -47,8 +55,8 @@ end
 
 --- Apply click-cast bindings to a unit frame.
 --- Mouse bindings are set as attributes (work on click).
---- Keyboard bindings set attributes here but override bindings
---- are activated dynamically on frame enter/leave.
+--- Keyboard bindings use a secure header with restricted snippets
+--- that activate override bindings on frame enter/leave (works in combat).
 --- @param frame Frame The oUF unit frame
 function F.ClickCasting.ApplyBindings(frame)
 	clearBindingState(frame)
@@ -66,7 +74,7 @@ function F.ClickCasting.ApplyBindings(frame)
 
 		if(binding.isKey) then
 			-- Keyboard binding: set attributes for the virtual button now,
-			-- override bindings are activated on frame enter/leave
+			-- override bindings are activated via secure header on frame enter/leave
 			local virtualBtn = 'FramedKey' .. i
 			local attrKey = 'type-' .. virtualBtn
 
@@ -118,31 +126,52 @@ function F.ClickCasting.ApplyBindings(frame)
 		end
 	end
 
-	-- Hook enter/leave for keyboard bindings (only if there are any)
-	if(#keyBindings > 0 and not frame.__framedKeyHooked) then
-		frame.__framedKeyHooked = true
+	-- Wrap frame with secure header for keyboard override bindings (once per frame).
+	-- In the restricted environment (from SecureHandlers.lua Wrapped_OnEnter):
+	--   self  = the frame being entered (mapped via signature "self")
+	--   owner = the header (from ctrlHandle via environment manager)
+	-- Bindings are owned by the header so ClearBindings on leave clears all
+	-- header-owned bindings regardless of which frame set them.
+	if(#keyBindings > 0 and not frame.__framedKeyWrapped) then
+		frame.__framedKeyWrapped = true
 
-		frame:HookScript('OnEnter', function(self)
-			local frameName = self:GetName()
-			if(not frameName or InCombatLockdown()) then return end
-			for _, kb in next, keyBindings do
-				SetOverrideBindingClick(self, false, kb.key, frameName, kb.virtualBtn)
+		SecureHandlerWrapScript(frame, 'OnEnter', header, [[
+			owner:ClearBindings()
+			local count = owner:GetAttribute('key-count') or 0
+			local name = self:GetName()
+			if name and count > 0 then
+				for i = 1, count do
+					local key = owner:GetAttribute('key-' .. i)
+					local btn = owner:GetAttribute('btn-' .. i)
+					if key and btn then
+						owner:SetBindingClick(false, key, name, btn)
+					end
+				end
 			end
-		end)
+		]])
 
-		frame:HookScript('OnLeave', function(self)
-			if(InCombatLockdown()) then return end
-			ClearOverrideBindings(self)
-		end)
+		SecureHandlerWrapScript(frame, 'OnLeave', header, [[
+			owner:ClearBindings()
+		]])
 	end
 end
 
---- Build the cached keyboard binding table from current bindings.
+--- Build the cached keyboard binding table from current bindings
+--- and push binding data to header attributes for restricted snippets.
 --- Called once during RefreshAll before iterating frames.
 local function buildKeyBindings()
-	keyBindings = {}
+	local oldCount = #keyBindings
+	wipe(keyBindings)
+
 	local bindings = F.ClickCasting.GetBindings()
-	if(not bindings) then return end
+	if(not bindings) then
+		header:SetAttribute('key-count', 0)
+		for i = 1, oldCount do
+			header:SetAttribute('key-' .. i, nil)
+			header:SetAttribute('btn-' .. i, nil)
+		end
+		return
+	end
 
 	for i, binding in next, bindings do
 		if(binding.isKey) then
@@ -153,6 +182,18 @@ local function buildKeyBindings()
 				virtualBtn = 'FramedKey' .. i,
 			}
 		end
+	end
+
+	-- Push binding data to header attributes so restricted snippets can read them
+	header:SetAttribute('key-count', #keyBindings)
+	for i, kb in next, keyBindings do
+		header:SetAttribute('key-' .. i, kb.key)
+		header:SetAttribute('btn-' .. i, kb.virtualBtn)
+	end
+	-- Clear stale attributes from a previous larger binding set
+	for i = #keyBindings + 1, oldCount do
+		header:SetAttribute('key-' .. i, nil)
+		header:SetAttribute('btn-' .. i, nil)
 	end
 end
 
@@ -179,7 +220,7 @@ function F.ClickCasting.GetBindings()
 end
 
 --- Refresh all bindings on all spawned frames.
---- Must be called out of combat.
+--- Must be called out of combat (SetAttribute is protected).
 function F.ClickCasting.RefreshAll()
 	if(InCombatLockdown()) then
 		if(not combatQueueFrame) then
@@ -195,8 +236,11 @@ function F.ClickCasting.RefreshAll()
 
 	if(not oUF or not oUF.objects) then return end
 
-	-- Build keyboard binding cache once before iterating frames
+	-- Build keyboard binding cache and update header attributes
 	buildKeyBindings()
+
+	-- Clear any active header-owned override bindings before re-applying
+	ClearOverrideBindings(header)
 
 	for _, frame in next, oUF.objects do
 		F.ClickCasting.ApplyBindings(frame)
