@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
 local C = F.Constants
@@ -92,18 +92,27 @@ local StopTimer
 -- Update
 -- ============================================================
 
-local function Update(self, event, unit)
+local function Update(self, event, unit, updateInfo)
 	local element = self.FramedLossOfControl
 	if(not element) then return end
 
 	if(unit ~= self.unit) then return end
+
+	local auraState = self.FramedAuraState
+	if(auraState) then
+		if(event == 'UNIT_AURA') then
+			auraState:ApplyUpdateInfo(unit, updateInfo)
+		else
+			auraState:EnsureInitialized(unit)
+		end
+	end
 
 	-- Scan for crowd control debuffs — server identifies CC auras
 	local bestPriority = nil
 	local bestIcon     = nil
 	local bestExpiry   = nil
 
-	local ccAuras = F.AuraCache.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL')
+	local ccAuras = auraState and auraState:GetHarmful('HARMFUL|CROWD_CONTROL') or F.AuraCache.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL')
 
 	for _, auraData in next, ccAuras do
 		local spellId = auraData.spellId
@@ -283,6 +292,11 @@ oUF:AddElement('FramedLossOfControl', Update, Enable, Disable)
 --- @param config? table  Optional config: iconSize, point
 function F.Elements.LossOfControl.Setup(self, config)
 	config = config or {}
+
+	if(not self.FramedAuraState and F.AuraState) then
+		self.FramedAuraState = F.AuraState.Create(self)
+	end
+
 	local iconSize = config.iconSize or 20
 	local point    = config.point    or { 'CENTER', self, 'CENTER', 0, 0 }
 
