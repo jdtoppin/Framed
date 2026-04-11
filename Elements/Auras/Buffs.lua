@@ -1,8 +1,7 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
 local C = F.Constants
-local Widgets = F.Widgets
 
 F.Elements = F.Elements or {}
 F.Elements.Buffs = {}
@@ -113,7 +112,7 @@ end
 -- Update
 -- ============================================================
 
-local function Update(self, event, unit)
+local function Update(self, event, unit, updateInfo)
 	local element = self.FramedBuffs
 	if(not element) then return end
 
@@ -139,7 +138,15 @@ local function Update(self, event, unit)
 
 	-- Build filter string from config
 	local buffFilter = BUFF_FILTER_MAP[element._buffFilterMode]
-	local auras = F.AuraCache.GetUnitAuras(unit, buffFilter)
+	local auraState = self.FramedAuraState
+	if(auraState) then
+		if(event == 'UNIT_AURA') then
+			auraState:ApplyUpdateInfo(unit, updateInfo)
+		else
+			auraState:EnsureInitialized(unit)
+		end
+	end
+	local auras = auraState and auraState:GetHelpful(buffFilter) or F.AuraCache.GetUnitAuras(unit, buffFilter)
 	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
@@ -610,6 +617,10 @@ end
 --- @param self Frame The oUF unit frame
 --- @param config table Configuration with indicators[] array
 function F.Elements.Buffs.Setup(self, config)
+	if(not self.FramedAuraState and F.AuraState) then
+		self.FramedAuraState = F.AuraState.Create(self)
+	end
+
 	local indicators = {}
 	local spellLookup = {}   -- spellID → { indicatorIndex, ... }
 	local hasTrackAll = {}   -- indices of indicators that track all spells (empty spells list)
