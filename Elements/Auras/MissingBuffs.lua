@@ -1,7 +1,6 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
-local C = F.Constants
 local Widgets = F.Widgets
 
 F.Elements = F.Elements or {}
@@ -116,7 +115,7 @@ end
 -- Update
 -- ============================================================
 
-local function Update(self, event, unit)
+local function Update(self, event, unit, updateInfo)
 	local element = self.FramedMissingBuffs
 	if(not element) then return end
 
@@ -161,7 +160,15 @@ local function Update(self, event, unit)
 	-- raid buff spellIds are non-secret and all buffs are detectable.
 	local isNpc = not UnitIsPlayer(unit)
 	local _, playerClass = UnitClass('player')
-	local rawAuras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	local auraState = self.FramedAuraState
+	if(auraState) then
+		if(event == 'UNIT_AURA') then
+			auraState:ApplyUpdateInfo(unit, updateInfo)
+		else
+			auraState:EnsureInitialized(unit)
+		end
+	end
+	local rawAuras = auraState and auraState:GetHelpful('HELPFUL') or C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
@@ -342,6 +349,10 @@ oUF:AddElement('FramedMissingBuffs', Update, Enable, Disable)
 --- @param config? table  iconSize, anchor, frameLevel, glowType, glowColor, growDirection, spacing
 function F.Elements.MissingBuffs.Setup(self, config)
 	config = config or {}
+
+	if(not self.FramedAuraState and F.AuraState) then
+		self.FramedAuraState = F.AuraState.Create(self)
+	end
 
 	local iconSize = config.iconSize
 	local spacing  = config.spacing
