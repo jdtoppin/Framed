@@ -486,15 +486,23 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 		-- Always create absorb bars so live toggles can show/hide them
 		local dc = config.damageAbsorbColor
+		local STRIPE_TILE_SIZE = 64
 		local absorbBar = CreateFrame('StatusBar', nil, health)
 		absorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
-		absorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
-		absorbBar:SetStatusBarColor(dc[1], dc[2], dc[3], dc[4] or 0.6)
+		absorbBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+		absorbBar:SetStatusBarColor(0, 0, 0, 0)
 		absorbBar:SetAllPoints(health)
 		absorbBar:SetReverseFill(true)
-		local absorbTex = absorbBar:GetStatusBarTexture()
-		absorbTex:SetHorizTile(true)
-		absorbTex:SetVertTile(true)
+
+		-- Stripe overlay — a plain Texture with SetHorizTile/SetVertTile.
+		-- Unlike StatusBar textures, plain Texture tiling uses actual
+		-- rendered pixel size, so stripes stay consistent at any width.
+		local stripeOverlay = absorbBar:CreateTexture(nil, 'OVERLAY')
+		stripeOverlay:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		stripeOverlay:SetVertexColor(dc[1], dc[2], dc[3], dc[4])
+		stripeOverlay:SetHorizTile(true)
+		stripeOverlay:SetVertTile(true)
+		stripeOverlay:SetAllPoints(absorbBar:GetStatusBarTexture())
 		health._damageAbsorbBar = absorbBar
 
 		local overAbsorbFrame = CreateFrame('Frame', nil, health._wrapper)
@@ -522,10 +530,17 @@ function F.Elements.Health.Setup(self, width, height, config)
 		local hac = config.healAbsorbColor
 		local healAbsorbBar = CreateFrame('StatusBar', nil, health)
 		healAbsorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
-		healAbsorbBar:SetStatusBarTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
-		healAbsorbBar:SetStatusBarColor(hac[1], hac[2], hac[3], hac[4] or 0.5)
+		healAbsorbBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+		healAbsorbBar:SetStatusBarColor(0, 0, 0, 0)
 		healAbsorbBar:SetReverseFill(true)
 		healAbsorbBar:SetAllPoints(health)
+
+		local healStripeOverlay = healAbsorbBar:CreateTexture(nil, 'OVERLAY')
+		healStripeOverlay:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		healStripeOverlay:SetVertexColor(hac[1], hac[2], hac[3], hac[4])
+		healStripeOverlay:SetHorizTile(true)
+		healStripeOverlay:SetVertTile(true)
+		healStripeOverlay:SetAllPoints(healAbsorbBar:GetStatusBarTexture())
 		health._healAbsorbBar = healAbsorbBar
 
 		local overHealAbsorb = (self._iconOverlay or health._wrapper):CreateTexture(nil, 'OVERLAY')
