@@ -31,6 +31,30 @@ end
 local AuraState = {}
 AuraState.__index = AuraState
 
+function AuraState:ResetHelpfulMatches()
+	for _, matches in next, self._helpfulMatches do
+		wipe(matches)
+	end
+end
+
+function AuraState:ResetHarmfulMatches()
+	for _, matches in next, self._harmfulMatches do
+		wipe(matches)
+	end
+end
+
+function AuraState:InvalidateHelpfulMatch(auraInstanceID)
+	for _, matches in next, self._helpfulMatches do
+		matches[auraInstanceID] = nil
+	end
+end
+
+function AuraState:InvalidateHarmfulMatch(auraInstanceID)
+	for _, matches in next, self._harmfulMatches do
+		matches[auraInstanceID] = nil
+	end
+end
+
 function AuraState:MarkHelpfulDirty()
 	for _, view in next, self._helpfulViews do
 		view.dirty = true
@@ -55,6 +79,15 @@ function AuraState:EnsureHelpfulView(filter)
 	return view
 end
 
+function AuraState:EnsureHelpfulMatches(filter)
+	local matches = self._helpfulMatches[filter]
+	if(not matches) then
+		matches = {}
+		self._helpfulMatches[filter] = matches
+	end
+	return matches
+end
+
 function AuraState:EnsureHarmfulView(filter)
 	local view = self._harmfulViews[filter]
 	if(not view) then
@@ -67,11 +100,22 @@ function AuraState:EnsureHarmfulView(filter)
 	return view
 end
 
+function AuraState:EnsureHarmfulMatches(filter)
+	local matches = self._harmfulMatches[filter]
+	if(not matches) then
+		matches = {}
+		self._harmfulMatches[filter] = matches
+	end
+	return matches
+end
+
 function AuraState:FullRefresh(unit)
 	self._unit = unit
 	self._initialized = true
 	wipe(self._helpfulById)
 	wipe(self._harmfulById)
+	self:ResetHelpfulMatches()
+	self:ResetHarmfulMatches()
 	self:MarkHelpfulDirty()
 	self:MarkHarmfulDirty()
 
@@ -129,10 +173,12 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 		for _, aura in next, updateInfo.addedAuras do
 			if(aura and aura.auraInstanceID and isHelpfulAura(unit, aura)) then
 				self._helpfulById[aura.auraInstanceID] = aura
+				self:InvalidateHelpfulMatch(aura.auraInstanceID)
 				helpfulChanged = true
 			end
 			if(aura and aura.auraInstanceID and isHarmfulAura(unit, aura)) then
 				self._harmfulById[aura.auraInstanceID] = aura
+				self:InvalidateHarmfulMatch(aura.auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -143,17 +189,21 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 			local aura = GetAuraDataByAuraInstanceID(unit, auraInstanceID)
 			if(aura and aura.auraInstanceID and isHelpfulAura(unit, aura)) then
 				self._helpfulById[auraInstanceID] = aura
+				self:InvalidateHelpfulMatch(auraInstanceID)
 				helpfulChanged = true
 			elseif(self._helpfulById[auraInstanceID]) then
 				self._helpfulById[auraInstanceID] = nil
+				self:InvalidateHelpfulMatch(auraInstanceID)
 				helpfulChanged = true
 			end
 
 			if(aura and aura.auraInstanceID and isHarmfulAura(unit, aura)) then
 				self._harmfulById[auraInstanceID] = aura
+				self:InvalidateHarmfulMatch(auraInstanceID)
 				harmfulChanged = true
 			elseif(self._harmfulById[auraInstanceID]) then
 				self._harmfulById[auraInstanceID] = nil
+				self:InvalidateHarmfulMatch(auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -163,10 +213,12 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 		for _, auraInstanceID in next, updateInfo.removedAuraInstanceIDs do
 			if(self._helpfulById[auraInstanceID]) then
 				self._helpfulById[auraInstanceID] = nil
+				self:InvalidateHelpfulMatch(auraInstanceID)
 				helpfulChanged = true
 			end
 			if(self._harmfulById[auraInstanceID]) then
 				self._harmfulById[auraInstanceID] = nil
+				self:InvalidateHarmfulMatch(auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -189,9 +241,22 @@ function AuraState:GetHelpful(filter)
 	view.dirty = false
 	wipe(view.list)
 
+	if(filter == 'HELPFUL') then
+		for _, aura in next, self._helpfulById do
+			view.list[#view.list + 1] = aura
+		end
+		return view.list
+	end
+
+	local matches = self:EnsureHelpfulMatches(filter)
+
 	for auraInstanceID, aura in next, self._helpfulById do
-		if(filter == 'HELPFUL'
-			or (IsAuraFilteredOutByInstanceID and not IsAuraFilteredOutByInstanceID(self._unit, auraInstanceID, filter))) then
+		local include = matches[auraInstanceID]
+		if(include == nil and IsAuraFilteredOutByInstanceID) then
+			include = not IsAuraFilteredOutByInstanceID(self._unit, auraInstanceID, filter)
+			matches[auraInstanceID] = include
+		end
+		if(include) then
 			view.list[#view.list + 1] = aura
 		end
 	end
@@ -208,9 +273,22 @@ function AuraState:GetHarmful(filter)
 	view.dirty = false
 	wipe(view.list)
 
+	if(filter == 'HARMFUL') then
+		for _, aura in next, self._harmfulById do
+			view.list[#view.list + 1] = aura
+		end
+		return view.list
+	end
+
+	local matches = self:EnsureHarmfulMatches(filter)
+
 	for auraInstanceID, aura in next, self._harmfulById do
-		if(filter == 'HARMFUL'
-			or (IsAuraFilteredOutByInstanceID and not IsAuraFilteredOutByInstanceID(self._unit, auraInstanceID, filter))) then
+		local include = matches[auraInstanceID]
+		if(include == nil and IsAuraFilteredOutByInstanceID) then
+			include = not IsAuraFilteredOutByInstanceID(self._unit, auraInstanceID, filter)
+			matches[auraInstanceID] = include
+		end
+		if(include) then
 			view.list[#view.list + 1] = aura
 		end
 	end
@@ -227,7 +305,9 @@ function F.AuraState.Create(owner)
 		_lastUpdateUnit = nil,
 		_helpfulById = {},
 		_helpfulViews = {},
+		_helpfulMatches = {},
 		_harmfulById = {},
 		_harmfulViews = {},
+		_harmfulMatches = {},
 	}, AuraState)
 end
