@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
 local C = F.Constants
@@ -15,18 +15,26 @@ local StopTimer
 -- Update
 -- ============================================================
 
-local function Update(self, event, unit)
+local function Update(self, event, unit, updateInfo)
 	local element = self.FramedCrowdControl
 	if(not element) then return end
 
 	if(unit ~= self.unit) then return end
 
+	local auraState = self.FramedAuraState
+	if(auraState) then
+		if(event == 'UNIT_AURA') then
+			auraState:ApplyUpdateInfo(unit, updateInfo)
+		else
+			auraState:EnsureInitialized(unit)
+		end
+	end
+
 	-- Scan for player-cast crowd control debuffs
 	local foundIcon   = nil
 	local foundExpiry = nil
-	local foundCount  = 0
 
-	local ccAuras = F.AuraCache.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL|PLAYER')
+	local ccAuras = auraState and auraState:GetHarmful('HARMFUL|CROWD_CONTROL|PLAYER') or F.AuraCache.GetUnitAuras(unit, 'HARMFUL|CROWD_CONTROL|PLAYER')
 
 	for _, auraData in next, ccAuras do
 		local spellId = auraData.spellId
@@ -35,7 +43,6 @@ local function Update(self, event, unit)
 			if(foundIcon == nil) then
 				foundIcon   = auraData.icon
 				foundExpiry = auraData.expirationTime
-				foundCount  = auraData.applications or 1
 			end
 		end
 	end
@@ -184,6 +191,11 @@ oUF:AddElement('FramedCrowdControl', Update, Enable, Disable)
 --- @param config? table  Optional config: iconSize, point
 function F.Elements.CrowdControl.Setup(self, config)
 	config = config or {}
+
+	if(not self.FramedAuraState and F.AuraState) then
+		self.FramedAuraState = F.AuraState.Create(self)
+	end
+
 	local iconSize = config.iconSize or 24
 	local point    = config.point    or { 'CENTER', self, 'CENTER', 0, 0 }
 
