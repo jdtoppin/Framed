@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
 local C = F.Constants
@@ -189,13 +189,13 @@ function F.Elements.Health.Setup(self, width, height, config)
 				config.gradientColor3, config.gradientThreshold3
 			))
 		elseif(config.colorMode == 'dark') then
-			health.UpdateColor = function(self)
-				self.Health:SetStatusBarColor(0.25, 0.25, 0.25)
+			health.UpdateColor = function(frame)
+				frame.Health:SetStatusBarColor(0.25, 0.25, 0.25)
 			end
 		elseif(config.colorMode == 'custom') then
-			health.UpdateColor = function(self)
-				local cc = self.Health._customColor or { 0.2, 0.8, 0.2 }
-				self.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
+			health.UpdateColor = function(frame)
+				local cc = frame.Health._customColor or { 0.2, 0.8, 0.2 }
+				frame.Health:SetStatusBarColor(cc[1], cc[2], cc[3])
 			end
 		end
 	end
@@ -486,7 +486,6 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 		-- Always create absorb bars so live toggles can show/hide them
 		local dc = config.damageAbsorbColor
-		local STRIPE_TILE_SIZE = 64
 		local absorbBar = CreateFrame('StatusBar', nil, health)
 		absorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
 		absorbBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])

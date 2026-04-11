@@ -1,22 +1,9 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
-local C = F.Constants
-local Widgets = F.Widgets
 
 F.Elements = F.Elements or {}
 F.Elements.TargetedSpells = {}
-
--- Pre-computed 'unitTarget' strings to avoid per-cast allocation.
-local targetUnitCache = {}
-local function getTargetUnit(sourceUnit)
-	local cached = targetUnitCache[sourceUnit]
-	if(not cached) then
-		cached = sourceUnit .. 'target'
-		targetUnitCache[sourceUnit] = cached
-	end
-	return cached
-end
 
 -- ============================================================
 -- Display mode constants
@@ -100,71 +87,6 @@ local function showCasts(element, castList)
 		end
 	elseif(element._glow) then
 		element._glow:Stop()
-	end
-end
-
---- Display casts on this element (secret path — uses SetAlphaFromBoolean).
---- @param element table
---- @param castList table  All active casts from CastTracker
---- @param unit string  This frame's unit token
-local function showCastsSecret(element, castList, unit)
-	local displayMode = element._displayMode
-	local maxDisplayed = element._maxDisplayed
-	local count = math.min(#castList, maxDisplayed)
-	local pool = element._pool
-
-	-- Icons display
-	if(displayMode == DisplayMode.ICONS or displayMode == DisplayMode.BOTH) then
-		for i = 1, count do
-			local cast = castList[i]
-			local bi = pool[i]
-			if(bi) then
-				local duration = cast.endTime - cast.startTime
-				bi.cooldown:SetReverse(not cast.isChanneling)
-				bi:SetAura(cast.spellId, cast.icon, duration, cast.endTime, 0, nil)
-				local bc = element._borderColor
-				if(bc) then
-					bi:SetBorderColor(bc[1], bc[2], bc[3], bc[4] or 1)
-				end
-				-- UnitIsUnit with compound nameplate tokens is disallowed
-				-- against party units as of 12.1 (returns nil). Still
-				-- permitted against 'player', 'target', 'focus', etc.
-				-- Fall back to showing on all frames when unresolvable.
-				local targeting = UnitIsUnit(getTargetUnit(cast.sourceUnit), unit)
-				if(type(targeting) == 'boolean') then
-					bi._frame:SetAlphaFromBoolean(targeting, 1, 0)
-				else
-					bi._frame:SetAlpha(1)
-				end
-				bi:Show()
-			end
-		end
-		-- Hide unused pool entries
-		for i = count + 1, #pool do
-			pool[i]:Clear()
-			pool[i]._frame:SetAlpha(1)
-		end
-	end
-
-	-- Glow display
-	if(count > 0 and (displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH)) then
-		if(element._glow) then
-			element._glow:Start(element._glowColor, element._glowType, element._glowConfig)
-		end
-		if(element._glowFrame) then
-			element._glowFrame:Show()
-			local targeting = UnitIsUnit(getTargetUnit(castList[1].sourceUnit), unit)
-			if(type(targeting) == 'boolean') then
-				element._glowFrame:SetAlphaFromBoolean(targeting, 1, 0)
-			else
-				element._glowFrame:SetAlpha(1)
-			end
-		end
-	elseif(element._glow) then
-		element._glow:Stop()
-		if(element._glowFrame) then
-			element._glowFrame:SetAlpha(1)
-		end
 	end
 end
 
