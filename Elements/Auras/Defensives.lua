@@ -1,7 +1,6 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 local oUF = F.oUF
-local Widgets = F.Widgets
 
 F.Elements = F.Elements or {}
 F.Elements.Defensives = {}
@@ -10,7 +9,7 @@ F.Elements.Defensives = {}
 -- Update — single-pass filter + display (zero intermediate tables)
 -- ============================================================
 
-local function Update(self, event, unit)
+local function Update(self, event, unit, updateInfo)
 	local element = self.FramedDefensives
 	if(not element) then return end
 
@@ -32,7 +31,15 @@ local function Update(self, event, unit)
 	-- BIG_DEFENSIVE is a classification filter, not a query filter —
 	-- GetUnitAuras does not support it. Fetch all helpful auras, then
 	-- classify each one via IsAuraFilteredOutByInstanceID.
-	local rawAuras = F.AuraCache.GetUnitAuras(unit, 'HELPFUL')
+	local auraState = self.FramedAuraState
+	if(auraState) then
+		if(event == 'UNIT_AURA') then
+			auraState:ApplyUpdateInfo(unit, updateInfo)
+		else
+			auraState:EnsureInitialized(unit)
+		end
+	end
+	local rawAuras = auraState and auraState:GetHelpful('HELPFUL') or F.AuraCache.GetUnitAuras(unit, 'HELPFUL')
 
 	local displayed = 0
 	for _, auraData in next, rawAuras do
@@ -65,11 +72,8 @@ local function Update(self, event, unit)
 				unit, id, 'HELPFUL|PLAYER')
 
 			-- Apply visibility mode filter
-			if(visibilityMode == 'player' and not isPlayerCast) then
-				-- Skip non-player auras in "player" mode
-			elseif(visibilityMode == 'others' and isPlayerCast) then
-				-- Skip player-cast auras in "others" mode
-			else
+			if(not ((visibilityMode == 'player' and not isPlayerCast)
+				or (visibilityMode == 'others' and isPlayerCast))) then
 				-- Display directly — no intermediate table
 				displayed = displayed + 1
 
@@ -200,6 +204,10 @@ oUF:AddElement('FramedDefensives', Update, Enable, Disable)
 ---                       playerColor, otherColor
 function F.Elements.Defensives.Setup(self, config)
 	config = config or {}
+
+	if(not self.FramedAuraState and F.AuraState) then
+		self.FramedAuraState = F.AuraState.Create(self)
+	end
 
 	local element = {
 		_config    = config,
