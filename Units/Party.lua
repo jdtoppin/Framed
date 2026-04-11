@@ -41,7 +41,9 @@ local function PetStyle(self, unit)
 		local anchor = F.Config:Get('general.tooltipAnchor') or 'RIGHT'
 		local offX = F.Config:Get('general.tooltipOffsetX') or 0
 		local offY = F.Config:Get('general.tooltipOffsetY') or 0
-		if(mode == 'cursor') then
+		if(mode == 'default') then
+			GameTooltip_SetDefaultAnchor(GameTooltip, frame)
+		elseif(mode == 'cursor') then
 			GameTooltip:SetOwner(frame, 'ANCHOR_CURSOR')
 		elseif(mode == 'screen') then
 			GameTooltip:SetOwner(frame, 'ANCHOR_NONE')

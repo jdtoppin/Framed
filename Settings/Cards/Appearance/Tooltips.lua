@@ -61,6 +61,7 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 	-- Mode dropdown (frame / screen / cursor)
 	local ttMode = Widgets.CreateDropdown(inner, widgetW)
 	ttMode:SetItems({
+		{ text = 'Default',          value = 'default' },
 		{ text = 'Anchor to Frame',  value = 'frame' },
 		{ text = 'Anchor to Screen', value = 'screen' },
 		{ text = 'Follow Cursor',    value = 'cursor' },
@@ -91,7 +92,7 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 
 	-- Update visibility and items based on mode
 	local function updateForMode(mode)
-		if(mode == 'cursor') then
+		if(mode == 'default' or mode == 'cursor') then
 			ttAnchor:Hide()
 			ttOffX:Hide()
 			ttOffY:Hide()
