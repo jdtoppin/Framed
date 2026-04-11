@@ -11,10 +11,6 @@ local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFiltered
 local function isHelpfulAura(unit, aura)
 	if(not aura or not aura.auraInstanceID) then return false end
 
-	if(F.IsValueNonSecret(aura.isHelpful)) then
-		return aura.isHelpful
-	end
-
 	if(IsAuraFilteredOutByInstanceID) then
 		return not IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, 'HELPFUL')
 	end
@@ -24,10 +20,6 @@ end
 
 local function isHarmfulAura(unit, aura)
 	if(not aura or not aura.auraInstanceID) then return false end
-
-	if(F.IsValueNonSecret(aura.isHarmful)) then
-		return aura.isHarmful
-	end
 
 	if(IsAuraFilteredOutByInstanceID) then
 		return not IsAuraFilteredOutByInstanceID(unit, aura.auraInstanceID, 'HARMFUL')
@@ -109,15 +101,26 @@ function AuraState:EnsureInitialized(unit)
 end
 
 function AuraState:ApplyUpdateInfo(unit, updateInfo)
+	if(self._lastUpdateInfo == updateInfo and self._lastUpdateUnit == unit) then
+		return
+	end
+
 	if(not updateInfo or updateInfo.isFullUpdate) then
+		self._lastUpdateInfo = updateInfo
+		self._lastUpdateUnit = unit
 		self:FullRefresh(unit)
 		return
 	end
 
 	if(not self._initialized or self._unit ~= unit) then
+		self._lastUpdateInfo = updateInfo
+		self._lastUpdateUnit = unit
 		self:FullRefresh(unit)
 		return
 	end
+
+	self._lastUpdateInfo = updateInfo
+	self._lastUpdateUnit = unit
 
 	local helpfulChanged = false
 	local harmfulChanged = false
@@ -220,6 +223,8 @@ function F.AuraState.Create(owner)
 		_owner = owner,
 		_unit = nil,
 		_initialized = false,
+		_lastUpdateInfo = nil,
+		_lastUpdateUnit = nil,
 		_helpfulById = {},
 		_helpfulViews = {},
 		_harmfulById = {},
