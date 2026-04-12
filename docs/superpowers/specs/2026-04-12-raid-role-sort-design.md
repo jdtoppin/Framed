@@ -62,13 +62,17 @@ function Layout.GroupAttrs(config, unitType)
         }
     elseif(unitType == 'party' and config.sortMode == 'role') then
         return {
-            sortMethod    = 'INDEX',
-            groupBy       = 'ASSIGNEDROLE',
-            groupingOrder = config.roleOrder .. ',NONE',
+            sortMethod     = 'INDEX',
+            groupBy        = 'ASSIGNEDROLE',
+            groupingOrder  = config.roleOrder .. ',NONE',
+            maxColumns     = 4,  -- Tank/Healer/DPS + NONE
+            unitsPerColumn = 5,
         }
     else -- party / index
         return {
-            sortMethod = 'INDEX',
+            sortMethod     = 'INDEX',
+            maxColumns     = 1,
+            unitsPerColumn = 5,
         }
     end
 end
@@ -79,6 +83,10 @@ end
 ### Why `maxColumns=10` for raid role mode
 
 Worst-case 40-person comp with role-based grouping needs up to 9 columns (e.g., 3 tanks → 1 col, 8 healers → 2 cols, 29 dps → 6 cols = 9). `maxColumns=10` provides safe headroom. Group mode stays at `8` because 8 raid groups × 5 units is exactly 40.
+
+### Why `maxColumns=4` for party role mode
+
+`SecureGroupHeaderTemplate` with `groupBy='ASSIGNEDROLE'` creates one sub-column per unique role value among the members, in `groupingOrder` order. A 5-person party may have up to 4 role buckets present (Tank + Healer + DPS + NONE), so `maxColumns=4` is the minimum that guarantees all members render. Party's current (index mode) setup hardcodes `maxColumns=1` because there's a single column of up to 5 frames; that value must be restored when `sortMode='index'` and bumped to `4` when `sortMode='role'`. Party role mode also needs a `columnSpacing` attribute (currently absent from `Units/Party.lua`); the implementation will add `columnSpacing = config.spacing` alongside the other role-mode attributes so sub-columns are spaced correctly.
 
 ## LiveUpdate Handler
 
