@@ -36,6 +36,29 @@ local EnsureDropdownList
 local CloseDropdownList
 local OpenDropdownList
 
+-- ── Icon-row decoration helpers ─────────────────────────────
+
+--- Lazily create `count` icon textures on `row`, cached in
+--- row._customDecorations. Returns the array of textures.
+--- @param row Frame
+--- @param count number
+--- @param iconSize number
+--- @return table  Array of count textures, all shown
+local function ensureCustomDecorations(row, count, iconSize)
+	row._customDecorations = row._customDecorations or {}
+	local decorations = row._customDecorations
+	for i = 1, count do
+		local tex = decorations[i]
+		if(not tex) then
+			tex = row:CreateTexture(nil, 'OVERLAY')
+			decorations[i] = tex
+		end
+		tex:SetSize(iconSize, iconSize)
+		tex:Show()
+	end
+	return decorations
+end
+
 -- ── Scroll helpers ─────────────────────────────────────────
 
 local function Clamp(v, lo, hi)
@@ -862,6 +885,74 @@ function Widgets.CreateTextureDropdown(parent, width, mediaType)
 	-- Initial population (LSM may already be present at load time)
 	if(LSM) then
 		dropdown:SetItems(BuildItems(LSM))
+	end
+
+	return dropdown
+end
+
+-- ============================================================
+-- CreateIconRowDropdown — dropdown with N inline icons per row
+-- ============================================================
+--
+-- Items supply `icons` as an array of { texture, texCoord, label }
+-- tuples where `texture` is a path string, `texCoord` is
+-- { left, right, top, bottom }, and `label` is the text that goes
+-- after the icons (optional; if the item also has `text`, that is
+-- used as the primary label instead).
+--
+-- Layout per row: icon1, icon2, ... iconN, text
+-- Icon size matches label font size (16px default).
+
+local ICON_ROW_SIZE    = 16
+local ICON_ROW_PADDING = 4
+local ICON_ROW_GAP     = 2
+
+--- Factory for a dropdown button whose list rows render a fixed
+--- number of inline icons (with tex coords) followed by the label.
+--- Shares the singleton dropdown list with Widgets.CreateDropdown.
+--- @param parent Frame
+--- @param width number
+--- @param iconsPerRow number
+--- @return Frame dropdown
+function Widgets.CreateIconRowDropdown(parent, width, iconsPerRow)
+	local dropdown = Widgets.CreateDropdown(parent, width)
+
+	-- Replace the default SetItems with a version that attaches a
+	-- per-item _decorateRow callback before delegating.
+	local originalSetItems = dropdown.SetItems
+	dropdown.SetItems = function(self, items)
+		for _, item in next, items do
+			item._decorateRow = function(row, itm)
+				local decorations = ensureCustomDecorations(row, iconsPerRow, ICON_ROW_SIZE)
+				local x = ICON_ROW_PADDING
+				for i = 1, iconsPerRow do
+					local iconSpec = itm.icons and itm.icons[i]
+					local tex = decorations[i]
+					if(iconSpec and iconSpec.texture) then
+						tex:SetTexture(iconSpec.texture)
+						local tc = iconSpec.texCoord
+						if(tc) then
+							tex:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
+						else
+							tex:SetTexCoord(0, 1, 0, 1)
+						end
+						tex:ClearAllPoints()
+						tex:SetPoint('LEFT', row, 'LEFT', x, 0)
+						tex:Show()
+						x = x + ICON_ROW_SIZE + ICON_ROW_GAP
+					else
+						tex:Hide()
+					end
+				end
+				-- Shift label to start after the icons
+				row._label:ClearAllPoints()
+				row._label:SetPoint('LEFT',  row, 'LEFT', x, 0)
+				row._label:SetPoint('RIGHT', row, 'RIGHT', -4, 0)
+				-- Hide the default swatch since this widget uses custom textures
+				row._swatch:Hide()
+			end
+		end
+		originalSetItems(self, items)
 	end
 
 	return dropdown
