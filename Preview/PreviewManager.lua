@@ -216,24 +216,73 @@ local function showGroupPreview(frameKey)
 	local realFrame = getRealFrame(frameKey)
 	local auraConfig = getAuraConfig(frameKey)
 
+	-- Build full unit list first (so we can bucket by role if needed)
+	local units = {}
 	for i = 1, count do
 		local fakeUnit = GROUP_FAKES[((i - 1) % #GROUP_FAKES) + 1]
-		local varied = {
+		units[i] = {
 			name = fakeUnit.name .. (i > #GROUP_FAKES and (' ' .. i) or ''),
 			class = fakeUnit.class,
+			role = fakeUnit.role,
 			healthPct = math.max(0.1, (fakeUnit.healthPct or 0.8) - (i * 0.03)),
 			powerPct = fakeUnit.powerPct or 0.5,
 		}
+	end
 
-		-- Column-based layout: 5 units per column, then wrap to next column
-		local idx = i - 1
-		local col = math.floor(idx / UNITS_PER_COLUMN)
-		local row = idx % UNITS_PER_COLUMN
+	-- Role-aware ordering: each role becomes its own column group, matching
+	-- SecureGroupHeader's groupBy='ASSIGNEDROLE' column-break behaviour.
+	local orderedList
+	local roleBreaks -- indices at which a new column MUST start (nil in flat mode)
+	if(config.sortMode == 'role' and config.roleOrder) then
+		orderedList, roleBreaks = {}, { [1] = true }
+		local tokens = {}
+		for token in config.roleOrder:gmatch('[^,]+') do
+			tokens[#tokens + 1] = token
+		end
+		local buckets = {}
+		for _, token in next, tokens do
+			buckets[token] = {}
+		end
+		local leftovers = {}
+		for _, unit in next, units do
+			if(unit.role and buckets[unit.role]) then
+				local b = buckets[unit.role]
+				b[#b + 1] = unit
+			else
+				leftovers[#leftovers + 1] = unit
+			end
+		end
+		for _, token in next, tokens do
+			if(#buckets[token] > 0) then
+				roleBreaks[#orderedList + 1] = true
+				for _, u in next, buckets[token] do
+					orderedList[#orderedList + 1] = u
+				end
+			end
+		end
+		if(#leftovers > 0) then
+			roleBreaks[#orderedList + 1] = true
+			for _, u in next, leftovers do
+				orderedList[#orderedList + 1] = u
+			end
+		end
+	else
+		orderedList = units
+	end
+
+	-- Walk the ordered list, breaking to a new column either at
+	-- unitsPerColumn or at a role break.
+	local col, row = 0, 0
+	for i = 1, #orderedList do
+		if(i > 1 and ((roleBreaks and roleBreaks[i]) or row == UNITS_PER_COLUMN)) then
+			col = col + 1
+			row = 0
+		end
+		local varied = orderedList[i]
 		local offX = row * primaryX + col * colX
 		local offY = row * primaryY + col * colY
 
 		local pf = F.PreviewFrame.Create(container, config, varied, realFrame, auraConfig)
-		-- Anchor to real frame so previews follow during drag
 		if(realFrame) then
 			pf:SetPoint(anchorPoint, realFrame, anchorPoint, offX, offY)
 		else
@@ -241,6 +290,8 @@ local function showGroupPreview(frameKey)
 		end
 		previewFrames[i] = pf
 		pf:Show()
+
+		row = row + 1
 	end
 
 	-- Party pet preview — anchored beside the first party frame
