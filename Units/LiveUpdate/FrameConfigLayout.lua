@@ -82,11 +82,25 @@ function Layout.ApplySortConfig(unitType)
 	local config = F.StyleBuilder.GetConfig(unitType)
 	local attrs  = Layout.GroupAttrs(config, unitType)
 
+	-- SecureGroupHeaderTemplate re-runs its sort pass on every write to a
+	-- sort-related attribute, not at end of batch, so intermediate state has
+	-- to be self-consistent. Ordering matters:
+	--   • Enabling grouping (role mode): write groupingOrder BEFORE groupBy,
+	--     so the first trigger already sees a populated list.
+	--   • Disabling grouping (index mode): clear groupBy FIRST, so subsequent
+	--     writes don't cause the secure header to look up an empty key.
+	-- Empty string '' is truthy in Lua, so we clear with real nil.
 	applyOrQueue(header, 'sortMethod',     attrs.sortMethod)
-	applyOrQueue(header, 'groupBy',        attrs.groupBy or '')
-	applyOrQueue(header, 'groupingOrder',  attrs.groupingOrder or '')
 	applyOrQueue(header, 'maxColumns',     attrs.maxColumns)
 	applyOrQueue(header, 'unitsPerColumn', attrs.unitsPerColumn)
+
+	if(attrs.groupBy) then
+		applyOrQueue(header, 'groupingOrder', attrs.groupingOrder)
+		applyOrQueue(header, 'groupBy',       attrs.groupBy)
+	else
+		applyOrQueue(header, 'groupBy',       nil)
+		applyOrQueue(header, 'groupingOrder', nil)
+	end
 
 	-- Re-anchor party pets after the secure header resettles.
 	-- C_Timer.After(0, ...) defers one frame so SecureGroupHeader_Update
