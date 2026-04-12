@@ -1,5 +1,17 @@
 # Framed Changelog
 
+## v0.8.2-alpha
+
+- Rework StatusText: gradient backdrop, split label/timer layout, new FEIGN and DRINKING statuses, red AFK with elapsed timer
+- Add default tooltip anchor mode using WoW's built-in tooltip position
+- Fix keyboard click-casting bindings not working in combat (#71)
+- Fix absorb bar stripe texture distortion on wide frames
+- Share aura state across helpful elements (Buffs, Defensives, Externals, Missing Buffs) to reduce redundant scans
+- Share aura state across harmful elements (Debuffs, Dispellable, Crowd Control) to reduce redundant scans
+- Deduplicate aura update processing per UNIT_AURA event
+- Cache aura filter membership by instance for faster repeat lookups
+- Default missing buffs config on setup (fixes nil error on older profiles)
+
 ## v0.8.1-alpha
 
 - Cache string concatenations in AuraCache and TargetedSpells hot paths to reduce per-event allocations
