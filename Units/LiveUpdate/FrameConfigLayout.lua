@@ -60,6 +60,42 @@ function Layout.GroupAttrs(config, unitType)
 	end
 end
 
+--- Push the current sort config to a spawned group header.
+--- Re-applies every attribute that GroupAttrs controls, so that
+--- switching sortMode from 'group' to 'role' or back produces the
+--- correct layout. All writes go through Shared.applyOrQueue to
+--- respect combat lockdown.
+---
+--- Party pets are separate oUF spawns anchored to party header
+--- children by unit attribute (see Units/Party.lua AnchorPetFrames).
+--- When the secure header re-sorts, its children have their `unit`
+--- attribute reassigned, so any pet frame SetPoint'd to a specific
+--- child will now visually sit next to the WRONG party member.
+--- We re-run AnchorPetFrames on the next frame (C_Timer.After(0))
+--- so the secure template has time to finish its attribute-driven
+--- re-layout before we re-resolve owners.
+--- @param unitType string  'raid' or 'party'
+function Layout.ApplySortConfig(unitType)
+	local header = getGroupHeader(unitType)
+	if(not header) then return end
+
+	local config = F.StyleBuilder.GetConfig(unitType)
+	local attrs  = Layout.GroupAttrs(config, unitType)
+
+	applyOrQueue(header, 'sortMethod',     attrs.sortMethod)
+	applyOrQueue(header, 'groupBy',        attrs.groupBy or '')
+	applyOrQueue(header, 'groupingOrder',  attrs.groupingOrder or '')
+	applyOrQueue(header, 'maxColumns',     attrs.maxColumns)
+	applyOrQueue(header, 'unitsPerColumn', attrs.unitsPerColumn)
+
+	-- Re-anchor party pets after the secure header resettles.
+	-- C_Timer.After(0, ...) defers one frame so SecureGroupHeader_Update
+	-- has finished reassigning unit attributes to its children.
+	if(unitType == 'party' and F.Units.Party and F.Units.Party.AnchorPetFrames) then
+		C_Timer.After(0, F.Units.Party.AnchorPetFrames)
+	end
+end
+
 -- ============================================================
 -- CONFIG_CHANGED: position, dimensions, group layout
 -- ============================================================
@@ -218,6 +254,13 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				end)
 			end
 		end)
+		return
+	end
+
+	-- Sort config: sortMode, roleOrder
+	if(key == 'sortMode' or key == 'roleOrder') then
+		if(not GROUP_TYPES[unitType]) then return end
+		Layout.ApplySortConfig(unitType)
 		return
 	end
 
