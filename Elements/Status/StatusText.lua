@@ -61,13 +61,19 @@ local function getDrinkNames()
 end
 
 local function checkDrinking(unit)
+	-- Player-combat early-out: you can't drink in combat, and if the player
+	-- is in combat, party members are almost certainly too (so their aura
+	-- names will be secret anyway). Skip the scan entirely.
 	if(InCombatLockdown()) then return false end
 	local names = getDrinkNames()
 	if(not next(names)) then return false end
 	local slots = { C_UnitAuras.GetAuraSlots(unit, 'HELPFUL') }
 	for i = 2, #slots do
 		local aura = C_UnitAuras.GetAuraDataBySlot(unit, slots[i])
-		if(aura and aura.name and names[aura.name]) then
+		-- A unit can be in combat independently of the player — in that
+		-- case aura.name is a secret string (truthy but taints table keys).
+		-- Guard per-aura so we gracefully skip units we can't inspect.
+		if(aura and F.IsValueNonSecret(aura.name) and names[aura.name]) then
 			return true
 		end
 	end
