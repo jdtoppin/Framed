@@ -35,7 +35,6 @@ Commit after each task per the repo convention (see memory: `feedback_commit_aft
 **Modified files**
 - `Presets/Defaults.lua` — `raidConfig()` and `partyConfig()` add `sortMode`/`roleOrder`
 - `Units/LiveUpdate/FrameConfigLayout.lua` — new `Layout` namespace with `GroupAttrs`, `ApplySortConfig`; new `CONFIG_CHANGED` branches; new `PLAYER_ROLES_ASSIGNED` handler
-- `Units/LiveUpdate/FrameConfigShared.lua` — expose `combatQueueStatus` setter so the Sorting card can register a status line
 - `Units/Raid.lua` — spawn consumes `Layout.GroupAttrs` instead of inline attributes
 - `Units/Party.lua` — spawn consumes `Layout.GroupAttrs` instead of inline attributes
 - `Widgets/Dropdown.lua` — new `Widgets.CreateIconRowDropdown(parent, width, iconsPerRow)` factory
@@ -833,69 +832,12 @@ git push
 - Create: `Settings/Cards/Sorting.lua`
 - Modify: `Framed.toc` (add the new card file to the load list)
 - Modify: `Settings/FrameSettingsBuilder.lua` (register the Sorting card for raid/party)
-- Modify: `Units/LiveUpdate/FrameConfigShared.lua` (expose `combatQueueStatus` setter)
 
 This is the largest task in the plan. It produces the end-user UI.
 
-- [ ] **Step 1: Expose a `combatQueueStatus` setter on Shared**
+**No combat-queue status line:** `Settings.Toggle()` at `Settings/Framework.lua:500` blocks opening the settings window during combat, so a "Changes queued — will apply after combat" footer only applies to the edge case where the user opens settings out of combat, leaves it open, and changes a dropdown mid-fight. The `Shared.applyOrQueue` infrastructure already handles that path silently — the attribute writes land in `PLAYER_REGEN_ENABLED` and the header reflows — so we deliberately omit the UI surface. This keeps the card simple and drops the `FrameConfigShared.lua` changes from this task.
 
-`FrameConfigShared.lua:20` currently has:
-
-```lua
-local combatQueueStatus -- luacheck: ignore 221 (set by future settings UI)
-```
-
-We need a way for the Sorting card to register its status text. Replace lines 18-42 (the `pendingGroupChanges` + `combatQueueStatus` + `applyOrQueue` + `PLAYER_REGEN_ENABLED` block) with:
-
-```lua
--- ============================================================
--- Combat queue for group layout (SetAttribute locked in combat)
--- ============================================================
-
-local pendingGroupChanges = {}
-local combatQueueStatus
-
-function Shared.SetCombatQueueStatus(frame)
-    combatQueueStatus = frame
-    if(frame) then
-        frame:Hide()
-    end
-end
-
-function Shared.applyOrQueue(header, attr, value)
-    if(InCombatLockdown()) then
-        pendingGroupChanges[#pendingGroupChanges + 1] = { header, attr, value }
-        if(combatQueueStatus) then
-            combatQueueStatus:SetText('Changes queued — will apply after combat')
-            combatQueueStatus:Show()
-        end
-    else
-        header:SetAttribute(attr, value)
-    end
-end
-
-F.EventBus:Register('PLAYER_REGEN_ENABLED', function()
-    for _, change in next, pendingGroupChanges do
-        change[1]:SetAttribute(change[2], change[3])
-    end
-    wipe(pendingGroupChanges)
-    if(combatQueueStatus) then
-        combatQueueStatus:Hide()
-    end
-end, 'LiveUpdate.CombatQueue')
-```
-
-The only substantive change: `Shared.SetCombatQueueStatus(frame)` replaces the old "set by future settings UI" placeholder comment, and the `local combatQueueStatus` no longer needs the `luacheck: ignore 221` annotation (it is now read via the setter).
-
-- [ ] **Step 2: Run luacheck on FrameConfigShared.lua**
-
-```bash
-luacheck Units/LiveUpdate/FrameConfigShared.lua
-```
-
-Expected: no new warnings. (If luacheck complains about the removed `ignore` comment, that's fine — the comment was a hint to an older luacheck rule, not a real issue.)
-
-- [ ] **Step 3: Create `Settings/Cards/Sorting.lua`**
+- [ ] **Step 1: Create `Settings/Cards/Sorting.lua`**
 
 Create the file with:
 
@@ -1008,23 +950,14 @@ function F.SettingsCards.Sorting(parent, width, unitType, getConfig, setConfig)
         setConfig('roleOrder', value)
     end)
 
-    -- ── Combat queue status line ────────────────────────────
-    local statusText = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
-    statusText:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
-    statusText:SetJustifyH('LEFT')
-    statusText:SetText('')
-    statusText:Hide()
-    F.LiveUpdate.FrameConfigShared.SetCombatQueueStatus(statusText)
-    cardY = cardY - B.CHECK_H - C.Spacing.normal
-
     Widgets.EndCard(card, inner, cardY)
     return card
 end
 ```
 
-**Note on `SetEnabled`:** if `Widgets.CreateDropdown` does not expose `SetEnabled`, the alpha fallback is the visible-but-unclickable state. The plan executor should confirm during Step 4 below which the existing widget supports. If neither works, a third fallback is to hide the dropdown entirely and only show it when mode is 'role' — acceptable UX either way.
+**Note on `SetEnabled`:** if `Widgets.CreateDropdown` does not expose `SetEnabled`, the alpha fallback is the visible-but-unclickable state. The plan executor should confirm during Step 3 below which the existing widget supports. If neither works, a third fallback is to hide the dropdown entirely and only show it when mode is 'role' — acceptable UX either way.
 
-- [ ] **Step 4: Add the card to `Framed.toc`**
+- [ ] **Step 2: Add the card to `Framed.toc`**
 
 In `Framed.toc`, find the block where `Settings/Cards/*.lua` files are listed (search for `Settings/Cards/PositionAndLayout.lua`) and add after it:
 
@@ -1032,7 +965,7 @@ In `Framed.toc`, find the block where `Settings/Cards/*.lua` files are listed (s
 Settings/Cards/Sorting.lua
 ```
 
-- [ ] **Step 5: Register the Sorting card in `FrameSettingsBuilder.lua`**
+- [ ] **Step 3: Register the Sorting card in `FrameSettingsBuilder.lua`**
 
 In `Settings/FrameSettingsBuilder.lua`, find the block of `grid:AddCard(...)` calls (around line 165). After the `position` card registration (line 165), add:
 
@@ -1044,15 +977,15 @@ In `Settings/FrameSettingsBuilder.lua`, find the block of `grid:AddCard(...)` ca
 
 This places the Sorting card right after Position & Layout, keeping related layout/grouping controls together.
 
-- [ ] **Step 6: Run luacheck**
+- [ ] **Step 4: Run luacheck**
 
 ```bash
-luacheck Settings/Cards/Sorting.lua Settings/FrameSettingsBuilder.lua Units/LiveUpdate/FrameConfigShared.lua
+luacheck Settings/Cards/Sorting.lua Settings/FrameSettingsBuilder.lua
 ```
 
 Expected: no new warnings.
 
-- [ ] **Step 7: Manual verification — card renders and works** *(AC-3, AC-5, AC-8)*
+- [ ] **Step 5: Manual verification — card renders and works** *(AC-3, AC-5, AC-8)*
 
 Sync + `/reload`. Open Framed settings (`/framed` or the minimap icon), navigate to the raid settings panel. Expected:
 
@@ -1066,26 +999,30 @@ Sync + `/reload`. Open Framed settings (`/framed` or the minimap icon), navigate
 
 If `SetEnabled` doesn't exist on the dropdown, observe whether the alpha fallback produces an acceptable "disabled" look. If not, iterate on the greying approach in-place and include the fix in the same commit.
 
-- [ ] **Step 8: Manual verification — combat queue status line** *(AC-4)*
+- [ ] **Step 6: Manual verification — combat queue silent path** *(AC-4)*
 
-Pull something and enter combat. Open settings (settings panels work in combat since they're not secure). Change raid `sortMode` from "By raid group" to "By role". Expected:
+Out of combat, open Framed settings to the raid panel. Leave the window open. Pull a training dummy or a low-level mob so you enter combat while the settings window is still visible. Click the Sort Mode dropdown and change it (e.g., "By raid group" → "By role"). Expected:
 
-1. The "Changes queued — will apply after combat" text appears below the dropdowns.
-2. Raid frames do NOT reflow yet.
-3. Leave combat. The status text disappears. Raid frames reflow.
+1. No Lua errors. The dropdown accepts the click.
+2. Raid frames do NOT reflow yet (the header attributes are queued).
+3. Leave combat. Raid frames reflow to the new sort order.
 
-- [ ] **Step 9: Commit and push**
+No on-card status UI for this path — the queue works silently.
+
+- [ ] **Step 7: Commit and push**
 
 ```bash
-git add Settings/Cards/Sorting.lua Framed.toc Settings/FrameSettingsBuilder.lua Units/LiveUpdate/FrameConfigShared.lua
+git add Settings/Cards/Sorting.lua Framed.toc Settings/FrameSettingsBuilder.lua
 git commit -m "$(cat <<'EOF'
 Add Sorting settings card for raid and party frames
 
 Two dropdowns: sort mode (group/role for raid, index/role for
 party) and a 6-preset role-order dropdown that renders inline
-role icons via the new CreateIconRowDropdown widget. A combat
-queue status line wires Shared.SetCombatQueueStatus so queued
-attribute writes get a visible "will apply after combat" hint.
+role icons via the new CreateIconRowDropdown widget. Combat
+queue handling is silent — Settings.Toggle blocks opening the
+window in combat, and the edge case of an already-open window
+is covered by the existing Shared.applyOrQueue path draining
+on PLAYER_REGEN_ENABLED.
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
@@ -1463,7 +1400,7 @@ Sync + `/reload` before each criterion if state needs resetting.
 
 - [ ] **AC-3b: Party pets track sort changes** — In a party with a pet-class player, flip party between index and role mode. Pet frames stay visually next to their owners across both transitions. No pets stranded next to the wrong character.
 
-- [ ] **AC-4: Raid role sort, in combat** — Pull a mob. Settings → change role order. "Changes queued — will apply after combat" appears. Leave combat. Layout updates, message disappears.
+- [ ] **AC-4: Raid role sort, combat queue silent path** — Open settings out of combat, leave the window open, pull a mob. Change `sortMode` or `roleOrder` via the dropdowns. No Lua errors; frames do not reflow yet. Leave combat; frames reflow to the new sort.
 
 - [ ] **AC-5: Role order change** — In role mode, switch from "Tank, Healer, DPS" to "Healer, Tank, DPS". Columns swap positions. No `/reload`.
 
