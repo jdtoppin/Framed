@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.8.4-alpha
+
+- Fix stale target/focus frame auras after retarget — aura cache now invalidates on token reassignment events (PLAYER_TARGET_CHANGED, PLAYER_FOCUS_CHANGED, UNIT_TARGET, group/arena/boss/nameplate updates) instead of only UNIT_AURA
+
 ## v0.8.3-alpha
 
 - Fix StatusText drinking scan erroring ("table index is secret") when scanning party members who are in combat independently of the player

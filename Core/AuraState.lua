@@ -112,6 +112,7 @@ end
 function AuraState:FullRefresh(unit)
 	self._unit = unit
 	self._initialized = true
+	self._gen = F.AuraCache.GetGeneration(unit)
 	wipe(self._helpfulById)
 	wipe(self._harmfulById)
 	self:ResetHelpfulMatches()
@@ -139,7 +140,10 @@ function AuraState:FullRefresh(unit)
 end
 
 function AuraState:EnsureInitialized(unit)
-	if(not self._initialized or self._unit ~= unit) then
+	-- Compare generation from AuraCache, not the token string — the token
+	-- (e.g. 'target') stays identical on retarget even when it now points
+	-- at a different entity. AuraCache bumps generation on reassignment.
+	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
 		self:FullRefresh(unit)
 	end
 end
@@ -156,7 +160,7 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 		return
 	end
 
-	if(not self._initialized or self._unit ~= unit) then
+	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
 		self._lastUpdateInfo = updateInfo
 		self._lastUpdateUnit = unit
 		self:FullRefresh(unit)
@@ -301,6 +305,7 @@ function F.AuraState.Create(owner)
 		_owner = owner,
 		_unit = nil,
 		_initialized = false,
+		_gen = 0,
 		_lastUpdateInfo = nil,
 		_lastUpdateUnit = nil,
 		_helpfulById = {},
