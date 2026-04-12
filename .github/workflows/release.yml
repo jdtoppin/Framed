@@ -20,3 +20,34 @@ jobs:
         env:
           CF_API_KEY: ${{ secrets.CF_API_KEY }}
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+      # Packager creates the GitHub release under the default token, which
+      # means the `release: [published]` event is suppressed (GitHub's
+      # recursion guard). Read the just-created release explicitly and feed
+      # it to the Discord action as overrides.
+      - name: Fetch release info
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          name=$(gh release view "$tag" --json name -q .name)
+          url=$(gh release view "$tag" --json url -q .url)
+          body=$(gh release view "$tag" --json body -q .body)
+          {
+            echo "name=$name"
+            echo "url=$url"
+            echo "body<<RELEASE_BODY_EOF"
+            echo "$body"
+            echo "RELEASE_BODY_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post release to Discord
+        uses: SethCohen/github-releases-to-discord@v1
+        continue-on-error: true
+        with:
+          webhook_url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          release_name: ${{ steps.release.outputs.name }}
+          release_html_url: ${{ steps.release.outputs.url }}
+          release_body: ${{ steps.release.outputs.body }}
+          reduce_headings: true
