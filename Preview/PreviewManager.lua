@@ -229,12 +229,13 @@ local function showGroupPreview(frameKey)
 		}
 	end
 
-	-- Role-aware ordering: each role becomes its own column group, matching
-	-- SecureGroupHeader's groupBy='ASSIGNEDROLE' column-break behaviour.
+	-- Role-aware ordering: flat sort by roleOrder, same as the live header's
+	-- computed nameList (Units/LiveUpdate/FrameConfigLayout.ComputeRoleNameList).
+	-- Party role mode has maxColumns=1 so it becomes a single sorted column;
+	-- raid role mode flows by orientation/anchor and wraps at UNITS_PER_COLUMN.
 	local orderedList
-	local roleBreaks -- indices at which a new column MUST start (nil in flat mode)
 	if(config.sortMode == 'role' and config.roleOrder) then
-		orderedList, roleBreaks = {}, { [1] = true }
+		orderedList = {}
 		local tokens = {}
 		for token in config.roleOrder:gmatch('[^,]+') do
 			tokens[#tokens + 1] = token
@@ -253,28 +254,22 @@ local function showGroupPreview(frameKey)
 			end
 		end
 		for _, token in next, tokens do
-			if(#buckets[token] > 0) then
-				roleBreaks[#orderedList + 1] = true
-				for _, u in next, buckets[token] do
-					orderedList[#orderedList + 1] = u
-				end
-			end
-		end
-		if(#leftovers > 0) then
-			roleBreaks[#orderedList + 1] = true
-			for _, u in next, leftovers do
+			for _, u in next, buckets[token] do
 				orderedList[#orderedList + 1] = u
 			end
+		end
+		for _, u in next, leftovers do
+			orderedList[#orderedList + 1] = u
 		end
 	else
 		orderedList = units
 	end
 
-	-- Walk the ordered list, breaking to a new column either at
-	-- unitsPerColumn or at a role break.
+	-- Walk the ordered list, breaking to a new column at UNITS_PER_COLUMN.
+	-- Party caps at 5 so it stays a single column; raid wraps as normal.
 	local col, row = 0, 0
 	for i = 1, #orderedList do
-		if(i > 1 and ((roleBreaks and roleBreaks[i]) or row == UNITS_PER_COLUMN)) then
+		if(i > 1 and row == UNITS_PER_COLUMN) then
 			col = col + 1
 			row = 0
 		end

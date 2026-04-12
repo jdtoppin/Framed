@@ -74,4 +74,9 @@ function F.Units.Raid.Spawn()
 	Widgets.RegisterForUIScale(header)
 
 	F.Units.Raid.header = header
+
+	-- Apply the full sort config (nameList for role mode, groupBy for group mode).
+	-- Required so the initial nameList is populated on login — GroupAttrs alone
+	-- doesn't know about the roster, so the SpawnHeader call above can't set it.
+	F.LiveUpdate.FrameConfigLayout.ApplySortConfig('raid')
 end

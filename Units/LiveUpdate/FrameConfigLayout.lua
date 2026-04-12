@@ -23,19 +23,19 @@ local Layout = {}
 --- unit type and its config. Consumed by Units/Raid.lua and
 --- Units/Party.lua spawn paths, and by Layout.ApplySortConfig at
 --- runtime.
+---
+--- Role-mode sorting is implemented via `nameList` (computed in
+--- Layout.ComputeRoleNameList), NOT via groupBy. SecureGroupHeader's
+--- groupBy='ASSIGNEDROLE' always creates one column per role, which
+--- is not what we want — we want a flat sort that flows by the
+--- orientation/anchor point and breaks columns only at unitsPerColumn.
+--- nameList overrides groupBy/sortMethod and renders units in the
+--- exact order we provide.
 --- @param config table  Unit config from F.StyleBuilder.GetConfig
 --- @param unitType string  'raid' or 'party'
 --- @return table  Map of SecureGroupHeader attribute → value
 function Layout.GroupAttrs(config, unitType)
-	if(unitType == 'raid' and config.sortMode == 'role') then
-		return {
-			sortMethod     = 'INDEX',
-			groupBy        = 'ASSIGNEDROLE',
-			groupingOrder  = config.roleOrder .. ',NONE',
-			maxColumns     = 10,
-			unitsPerColumn = 5,
-		}
-	elseif(unitType == 'raid') then
+	if(unitType == 'raid' and config.sortMode == 'group') then
 		return {
 			sortMethod     = 'INDEX',
 			groupBy        = 'GROUP',
@@ -43,12 +43,18 @@ function Layout.GroupAttrs(config, unitType)
 			maxColumns     = 8,
 			unitsPerColumn = 5,
 		}
-	elseif(unitType == 'party' and config.sortMode == 'role') then
+	elseif(unitType == 'raid') then
+		-- Raid role mode — flat flow, column breaks only at unitsPerColumn
 		return {
 			sortMethod     = 'INDEX',
-			groupBy        = 'ASSIGNEDROLE',
-			groupingOrder  = config.roleOrder .. ',NONE',
-			maxColumns     = 4,
+			maxColumns     = 8,
+			unitsPerColumn = 5,
+		}
+	elseif(unitType == 'party' and config.sortMode == 'role') then
+		-- Party role mode — single column sorted by role
+		return {
+			sortMethod     = 'INDEX',
+			maxColumns     = 1,
 			unitsPerColumn = 5,
 		}
 	else -- party / index
@@ -58,6 +64,69 @@ function Layout.GroupAttrs(config, unitType)
 			unitsPerColumn = 5,
 		}
 	end
+end
+
+--- Compute a comma-separated nameList for the given unit type,
+--- ordered by the configured roleOrder. Used only when
+--- config.sortMode == 'role'. Returns nil when the roster is empty
+--- or unitType doesn't apply (e.g., raid mode while solo).
+---
+--- Names with cross-realm suffixes are preserved as "Name-Realm"
+--- so SecureGroupHeader can disambiguate collisions.
+--- @param unitType string  'raid' or 'party'
+--- @return string|nil  Comma-separated nameList or nil
+function Layout.ComputeRoleNameList(unitType)
+	local config = F.StyleBuilder.GetConfig(unitType)
+	local roleOrder = config.roleOrder
+	if(not roleOrder or roleOrder == '') then return nil end
+
+	local tokens = {}
+	for token in roleOrder:gmatch('[^,]+') do
+		tokens[#tokens + 1] = token
+	end
+
+	local buckets = {}
+	for _, token in next, tokens do buckets[token] = {} end
+	local leftovers = {}
+
+	local function addUnit(unit)
+		if(not UnitExists(unit)) then return end
+		local name, realm = UnitName(unit)
+		if(not name) then return end
+		local full = (realm and realm ~= '') and (name .. '-' .. realm) or name
+		local role = UnitGroupRolesAssigned(unit)
+		if(role and buckets[role]) then
+			local b = buckets[role]
+			b[#b + 1] = full
+		else
+			leftovers[#leftovers + 1] = full
+		end
+	end
+
+	if(unitType == 'raid') then
+		if(not IsInRaid()) then return nil end
+		for i = 1, GetNumGroupMembers() do
+			addUnit('raid' .. i)
+		end
+	else -- party
+		addUnit('player')
+		for i = 1, 4 do
+			addUnit('party' .. i)
+		end
+	end
+
+	local ordered = {}
+	for _, token in next, tokens do
+		for _, name in next, buckets[token] do
+			ordered[#ordered + 1] = name
+		end
+	end
+	for _, name in next, leftovers do
+		ordered[#ordered + 1] = name
+	end
+
+	if(#ordered == 0) then return nil end
+	return table.concat(ordered, ',')
 end
 
 --- Push the current sort config to a spawned group header.
@@ -81,25 +150,33 @@ function Layout.ApplySortConfig(unitType)
 
 	local config = F.StyleBuilder.GetConfig(unitType)
 	local attrs  = Layout.GroupAttrs(config, unitType)
+	local nameList
+	if(config.sortMode == 'role') then
+		nameList = Layout.ComputeRoleNameList(unitType)
+	end
 
 	-- SecureGroupHeaderTemplate re-runs its sort pass on every write to a
-	-- sort-related attribute, not at end of batch, so intermediate state has
-	-- to be self-consistent. Ordering matters:
-	--   • Enabling grouping (role mode): write groupingOrder BEFORE groupBy,
-	--     so the first trigger already sees a populated list.
-	--   • Disabling grouping (index mode): clear groupBy FIRST, so subsequent
-	--     writes don't cause the secure header to look up an empty key.
-	-- Empty string '' is truthy in Lua, so we clear with real nil.
+	-- sort-related attribute, so every intermediate state must be
+	-- self-consistent. Empty string '' is truthy in Lua, so we clear with
+	-- real nil rather than ''.
+	--
+	-- Clear everything sort-related FIRST, then set. This way no transition
+	-- leaves stale grouping state visible to an intermediate update pass.
+	applyOrQueue(header, 'nameList',      nil)
+	applyOrQueue(header, 'groupBy',       nil)
+	applyOrQueue(header, 'groupingOrder', nil)
+
 	applyOrQueue(header, 'sortMethod',     attrs.sortMethod)
 	applyOrQueue(header, 'maxColumns',     attrs.maxColumns)
 	applyOrQueue(header, 'unitsPerColumn', attrs.unitsPerColumn)
 
-	if(attrs.groupBy) then
+	if(nameList) then
+		-- Role mode — nameList overrides sortMethod/groupBy
+		applyOrQueue(header, 'nameList', nameList)
+	elseif(attrs.groupBy) then
+		-- Raid group mode — groupBy with groupingOrder
 		applyOrQueue(header, 'groupingOrder', attrs.groupingOrder)
 		applyOrQueue(header, 'groupBy',       attrs.groupBy)
-	else
-		applyOrQueue(header, 'groupBy',       nil)
-		applyOrQueue(header, 'groupingOrder', nil)
 	end
 
 	-- Re-anchor party pets after the secure header resettles.
@@ -294,26 +371,26 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 end, 'LiveUpdate.FrameConfigLayout')
 
 -- ============================================================
--- PLAYER_ROLES_ASSIGNED: force a re-sort when sortMode == 'role'
+-- Roster / role change re-sort
 -- ============================================================
 --
--- SecureGroupHeaderTemplate watches GROUP_ROSTER_UPDATE but not
--- PLAYER_ROLES_ASSIGNED, so a spec/role swap that doesn't change
--- roster membership leaves the header with stale role assignments.
--- Re-running ApplySortConfig re-writes groupingOrder which forces
--- the secure template to re-evaluate its sort pass.
---
--- Spec/role changes are out-of-combat only in retail WoW, so this
--- always takes the immediate-apply branch of applyOrQueue.
+-- Role mode uses a computed nameList, so any change to the roster
+-- or to anyone's assigned role requires rebuilding that list and
+-- pushing it to the header. Both PLAYER_ROLES_ASSIGNED and
+-- GROUP_ROSTER_UPDATE trigger a full ApplySortConfig for any unit
+-- type currently in role mode.
 
-F.EventBus:Register('PLAYER_ROLES_ASSIGNED', function()
+local function resortRoleModeFrames()
 	for _, unitType in next, { 'raid', 'party' } do
 		local config = F.StyleBuilder.GetConfig(unitType)
 		if(config.sortMode == 'role') then
 			Layout.ApplySortConfig(unitType)
 		end
 	end
-end, 'LiveUpdate.RoleResort')
+end
+
+F.EventBus:Register('PLAYER_ROLES_ASSIGNED', resortRoleModeFrames, 'LiveUpdate.RoleResort')
+F.EventBus:Register('GROUP_ROSTER_UPDATE',   resortRoleModeFrames, 'LiveUpdate.RosterResort')
 
 -- ============================================================
 -- Export
