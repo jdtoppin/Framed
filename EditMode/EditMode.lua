@@ -353,22 +353,35 @@ end
 
 --- Reposition all frames to the new preset's saved positions and
 --- update the pre-edit snapshot so discard restores correctly.
+---
+--- Not every frame key exists in every preset: the Raid preset has no
+--- `party` unitConfig, Party has no `raid`, Solo has neither group.
+--- For frames the target preset doesn't own, we leave the live frame
+--- exactly where it is — moving it to the (nil → 0, 0) fallback would
+--- snap it to the top-left corner, and there's no correct destination
+--- because the preset has no opinion about it.
 local function ApplyPresetPositions()
+	local presetName = F.Settings.GetEditingPreset()
 	for _, def in next, FRAME_KEYS do
-		local frame = def.getter()
-		if(frame) then
-			local x = EditCache.Get(def.key, 'position.x') or 0
-			local y = EditCache.Get(def.key, 'position.y') or 0
-			local w = EditCache.Get(def.key, 'width')
-			local h = EditCache.Get(def.key, 'height')
-			frame:ClearAllPoints()
-			if(def.isGroup) then
-				Widgets.SetPoint(frame, 'TOPLEFT', UIParent, 'TOPLEFT', x, y)
-			else
-				Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
-			end
-			if(w and h) then
-				Widgets.SetSize(frame, w, h)
+		local hasConfig = F.Config:Get('presets.' .. presetName .. '.unitConfigs.' .. def.key)
+		if(hasConfig) then
+			local frame = def.getter()
+			if(frame) then
+				local x = EditCache.Get(def.key, 'position.x')
+				local y = EditCache.Get(def.key, 'position.y')
+				local w = EditCache.Get(def.key, 'width')
+				local h = EditCache.Get(def.key, 'height')
+				if(x and y) then
+					frame:ClearAllPoints()
+					if(def.isGroup) then
+						Widgets.SetPoint(frame, 'TOPLEFT', UIParent, 'TOPLEFT', x, y)
+					else
+						Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+					end
+				end
+				if(w and h) then
+					Widgets.SetSize(frame, w, h)
+				end
 			end
 		end
 	end
