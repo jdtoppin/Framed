@@ -108,7 +108,7 @@ local function baseUnitConfig()
 		},
 		statusText = {
 			enabled  = true,
-			fontSize = C.Font.sizeSmall,
+			fontSize = 7,
 			outline  = 'OUTLINE',
 			shadow   = false,
 			anchor   = 'CENTER',

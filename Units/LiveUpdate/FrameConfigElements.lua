@@ -155,6 +155,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				if(stCfg.enabled ~= false) then
 					F.Elements.StatusText.Setup(frame, stCfg)
 					frame:EnableElement('FramedStatusText')
+					if(frame.FramedStatusText and frame.FramedStatusText.ForceUpdate) then
+						frame.FramedStatusText:ForceUpdate()
+					end
 				else
 					frame:DisableElement('FramedStatusText')
 				end
@@ -164,6 +167,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(stCfg.enabled == false) then return end
 			ForEachFrame(unitType, function(frame)
 				F.Elements.StatusText.Setup(frame, stCfg)
+				if(frame.FramedStatusText and frame.FramedStatusText.ForceUpdate) then
+					frame.FramedStatusText:ForceUpdate()
+				end
 			end)
 		end
 		return
