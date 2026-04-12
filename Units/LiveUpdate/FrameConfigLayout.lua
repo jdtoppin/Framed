@@ -14,6 +14,53 @@ local applyGroupLayoutToHeader = Shared.applyGroupLayoutToHeader
 local debouncedApply  = Shared.debouncedApply
 
 -- ============================================================
+-- Layout namespace — exposed as F.LiveUpdate.FrameConfigLayout
+-- ============================================================
+
+local Layout = {}
+
+--- Produce the SecureGroupHeader attribute set for a given group
+--- unit type and its config. Consumed by Units/Raid.lua and
+--- Units/Party.lua spawn paths, and by Layout.ApplySortConfig at
+--- runtime.
+--- @param config table  Unit config from F.StyleBuilder.GetConfig
+--- @param unitType string  'raid' or 'party'
+--- @return table  Map of SecureGroupHeader attribute → value
+function Layout.GroupAttrs(config, unitType)
+	if(unitType == 'raid' and config.sortMode == 'role') then
+		return {
+			sortMethod     = 'INDEX',
+			groupBy        = 'ASSIGNEDROLE',
+			groupingOrder  = config.roleOrder .. ',NONE',
+			maxColumns     = 10,
+			unitsPerColumn = 5,
+		}
+	elseif(unitType == 'raid') then
+		return {
+			sortMethod     = 'INDEX',
+			groupBy        = 'GROUP',
+			groupingOrder  = '1,2,3,4,5,6,7,8',
+			maxColumns     = 8,
+			unitsPerColumn = 5,
+		}
+	elseif(unitType == 'party' and config.sortMode == 'role') then
+		return {
+			sortMethod     = 'INDEX',
+			groupBy        = 'ASSIGNEDROLE',
+			groupingOrder  = config.roleOrder .. ',NONE',
+			maxColumns     = 4,
+			unitsPerColumn = 5,
+		}
+	else -- party / index
+		return {
+			sortMethod     = 'INDEX',
+			maxColumns     = 1,
+			unitsPerColumn = 5,
+		}
+	end
+end
+
+-- ============================================================
 -- CONFIG_CHANGED: position, dimensions, group layout
 -- ============================================================
 
@@ -188,3 +235,9 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 		return
 	end
 end, 'LiveUpdate.FrameConfigLayout')
+
+-- ============================================================
+-- Export
+-- ============================================================
+
+F.LiveUpdate.FrameConfigLayout = Layout
