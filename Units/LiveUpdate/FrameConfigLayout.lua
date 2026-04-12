@@ -280,6 +280,28 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 end, 'LiveUpdate.FrameConfigLayout')
 
 -- ============================================================
+-- PLAYER_ROLES_ASSIGNED: force a re-sort when sortMode == 'role'
+-- ============================================================
+--
+-- SecureGroupHeaderTemplate watches GROUP_ROSTER_UPDATE but not
+-- PLAYER_ROLES_ASSIGNED, so a spec/role swap that doesn't change
+-- roster membership leaves the header with stale role assignments.
+-- Re-running ApplySortConfig re-writes groupingOrder which forces
+-- the secure template to re-evaluate its sort pass.
+--
+-- Spec/role changes are out-of-combat only in retail WoW, so this
+-- always takes the immediate-apply branch of applyOrQueue.
+
+F.EventBus:Register('PLAYER_ROLES_ASSIGNED', function()
+	for _, unitType in next, { 'raid', 'party' } do
+		local config = F.StyleBuilder.GetConfig(unitType)
+		if(config.sortMode == 'role') then
+			Layout.ApplySortConfig(unitType)
+		end
+	end
+end, 'LiveUpdate.RoleResort')
+
+-- ============================================================
 -- Export
 -- ============================================================
 
