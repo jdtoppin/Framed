@@ -193,6 +193,8 @@ function F.Units.Party.Spawn()
 		colAnchor = (anchor == 'TOPLEFT' or anchor == 'TOPRIGHT') and 'TOP' or 'BOTTOM'
 	end
 
+	local attrs = F.LiveUpdate.FrameConfigLayout.GroupAttrs(config, 'party')
+
 	local header = oUF:SpawnHeader(
 		'FramedPartyHeader',
 		nil,
@@ -202,10 +204,13 @@ function F.Units.Party.Spawn()
 		'point', point,
 		'xOffset', xOff,
 		'yOffset', yOff,
+		'columnSpacing', spacing,
 		'columnAnchorPoint', colAnchor,
-		'maxColumns', 1,
-		'unitsPerColumn', 5,
-		'sortMethod', 'INDEX',
+		'maxColumns', attrs.maxColumns,
+		'unitsPerColumn', attrs.unitsPerColumn,
+		'sortMethod', attrs.sortMethod,
+		'groupBy', attrs.groupBy,
+		'groupingOrder', attrs.groupingOrder,
 		'initial-width', config.width,
 		'initial-height', config.height
 	)

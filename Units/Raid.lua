@@ -44,6 +44,8 @@ function F.Units.Raid.Spawn()
 		colAnchor = (anchor == 'TOPLEFT' or anchor == 'TOPRIGHT') and 'TOP' or 'BOTTOM'
 	end
 
+	local attrs = F.LiveUpdate.FrameConfigLayout.GroupAttrs(config, 'raid')
+
 	local header = oUF:SpawnHeader(
 		'FramedRaidHeader',
 		nil,
@@ -53,13 +55,13 @@ function F.Units.Raid.Spawn()
 		'point', point,
 		'xOffset', xOff,
 		'yOffset', yOff,
-		'maxColumns', 8,
-		'unitsPerColumn', 5,
 		'columnSpacing', spacing,
 		'columnAnchorPoint', colAnchor,
-		'sortMethod', 'INDEX',
-		'groupBy', 'GROUP',
-		'groupingOrder', '1,2,3,4,5,6,7,8',
+		'maxColumns', attrs.maxColumns,
+		'unitsPerColumn', attrs.unitsPerColumn,
+		'sortMethod', attrs.sortMethod,
+		'groupBy', attrs.groupBy,
+		'groupingOrder', attrs.groupingOrder,
 		'initial-width', config.width,
 		'initial-height', config.height
 	)
