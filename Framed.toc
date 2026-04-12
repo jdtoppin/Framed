@@ -164,6 +164,7 @@ Settings/MainFrame.lua
 Settings/Sidebar.lua
 Settings/FrameSettingsBuilder.lua
 Settings/Cards/PositionAndLayout.lua
+Settings/Cards/Sorting.lua
 Settings/Cards/HealthColor.lua
 Settings/Cards/ShieldsAndAbsorbs.lua
 Settings/Cards/PowerBar.lua

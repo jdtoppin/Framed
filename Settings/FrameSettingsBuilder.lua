@@ -164,6 +164,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- Register cards in display order
 	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig })
 
+	if(unitType == 'party' or unitType == 'raid') then
+		grid:AddCard('sorting', 'Sorting', F.SettingsCards.Sorting, { unitType, getConfig, setConfig })
+	end
+
 	grid:AddCard('healthColor', 'Portrait & Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, setConfig, relayout })
 
 	grid:AddCard('shields', 'Shields & Absorbs', F.SettingsCards.ShieldsAndAbsorbs, { unitType, getConfig, setConfig })
