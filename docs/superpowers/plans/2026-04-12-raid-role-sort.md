@@ -469,6 +469,19 @@ In `Units/LiveUpdate/FrameConfigLayout.lua`, add immediately after the `Layout.G
 --- switching sortMode from 'group' to 'role' or back produces the
 --- correct layout. All writes go through Shared.applyOrQueue to
 --- respect combat lockdown.
+---
+--- Party pets are separate oUF spawns anchored to party header
+--- children by unit attribute (see Units/Party.lua AnchorPetFrames).
+--- When the secure header re-sorts, its children have their `unit`
+--- attribute reassigned, so any pet frame SetPoint'd to a specific
+--- child will now visually sit next to the WRONG party member.
+--- We re-run AnchorPetFrames on the next frame (C_Timer.After(0))
+--- so the secure template has time to finish its attribute-driven
+--- re-layout before we re-resolve owners. AnchorPetFrames only
+--- calls ClearAllPoints/SetPoint, which are not combat-protected
+--- on insecure frames, so this is safe during the combat-queued
+--- replay as well — by the time applyOrQueue drains, we're already
+--- out of combat.
 --- @param unitType string  'raid' or 'party'
 function Layout.ApplySortConfig(unitType)
     local header = getGroupHeader(unitType)
@@ -482,10 +495,19 @@ function Layout.ApplySortConfig(unitType)
     applyOrQueue(header, 'groupingOrder',  attrs.groupingOrder or '')
     applyOrQueue(header, 'maxColumns',     attrs.maxColumns)
     applyOrQueue(header, 'unitsPerColumn', attrs.unitsPerColumn)
+
+    -- Re-anchor party pets after the secure header resettles.
+    -- C_Timer.After(0, ...) defers one frame so SecureGroupHeader_Update
+    -- has finished reassigning unit attributes to its children.
+    if(unitType == 'party' and F.Units.Party and F.Units.Party.AnchorPetFrames) then
+        C_Timer.After(0, F.Units.Party.AnchorPetFrames)
+    end
 end
 ```
 
 **Why `or ''` on `groupBy` / `groupingOrder`:** in index mode `GroupAttrs` returns these as nil; `SetAttribute` with an empty string clears the attribute, which is what we want (no grouping).
+
+**Why the deferred pet re-anchor:** `SecureGroupHeaderTemplate` re-sorts by reassigning the `unit` attribute on its existing child buttons (not by moving which physical frame holds which unit). Party pet frames are `SetPoint`'d to whichever party header child currently holds `unit='partyN'` (`Units/Party.lua:283-305`), so after a sort change, pet1 is still parented to the child that used to be party1 — which now displays a different party member. `AnchorPetFrames` re-runs `findOwnerFrame(header, 'partyN')` and repoints; deferring one frame via `C_Timer.After(0, ...)` ensures the secure template has finished its attribute pass before we re-resolve owners.
 
 - [ ] **Step 2: Add a new branch in the `CONFIG_CHANGED` handler**
 
@@ -534,7 +556,24 @@ Switch role order:
 
 Expected: columns swap so healers come first.
 
-- [ ] **Step 5: Commit and push**
+- [ ] **Step 5: Manual verification — party pets follow their owners across a sort change** *(AC-3)*
+
+Get into a party with at least one hunter/warlock/DK/mage (anyone with a persistent pet). With `partyPets.enabled = true` (the default), flip party to role mode:
+
+```
+/run F.Config:Set('presets.' .. F.AutoSwitch.GetCurrentPreset() .. '.unitConfigs.party.sortMode', 'role')
+```
+
+Expected: each pet frame visually sits next to its owner's party frame in the new role-sorted layout. No pet frames stranded next to the wrong character. If you see a pet next to the wrong owner, `C_Timer.After(0, AnchorPetFrames)` didn't fire late enough — bump to `C_Timer.After(0.05, ...)` and retest.
+
+Switch back:
+```
+/run F.Config:Set('presets.' .. F.AutoSwitch.GetCurrentPreset() .. '.unitConfigs.party.sortMode', 'index')
+```
+
+Expected: pets follow their owners back to the index layout.
+
+- [ ] **Step 6: Commit and push**
 
 ```bash
 git add Units/LiveUpdate/FrameConfigLayout.lua
@@ -544,7 +583,9 @@ Add Layout.ApplySortConfig LiveUpdate handler
 Routes sortMode/roleOrder CONFIG_CHANGED events through
 Shared.applyOrQueue so combat lockdown is respected. Writes five
 SecureGroupHeader attributes in one batch; empty strings clear
-groupBy/groupingOrder for party index mode.
+groupBy/groupingOrder for party index mode. For party, defers
+AnchorPetFrames by one frame so pets follow their owners after
+the secure header finishes reassigning unit attributes.
 
 Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
@@ -610,6 +651,8 @@ Have the other player:
 Watch their frame in your raid. Expected: their frame **moves to the new role column immediately**, no `/reload`.
 
 Fallback verification if no human available: set your own sortMode and force a role change via the talent UI, observe your own player frame in the raid column.
+
+**Party pet verification:** repeat the same test in party with a pet-class friend, with party in role mode. When they swap specs, expected: their frame moves to the new role column AND their pet (if they still have one) reappears next to their new position. Pet re-anchoring flows through `ApplySortConfig` — no additional wiring needed in this handler.
 
 - [ ] **Step 4: Commit and push**
 
@@ -1418,6 +1461,8 @@ Sync + `/reload` before each criterion if state needs resetting.
 
 - [ ] **AC-3: Raid role sort, out of combat** — Settings → raid → Sorting → "By role" + "Tank, Healer, DPS". In an actual raid: frames reflow to three role columns. No `/reload`.
 
+- [ ] **AC-3b: Party pets track sort changes** — In a party with a pet-class player, flip party between index and role mode. Pet frames stay visually next to their owners across both transitions. No pets stranded next to the wrong character.
+
 - [ ] **AC-4: Raid role sort, in combat** — Pull a mob. Settings → change role order. "Changes queued — will apply after combat" appears. Leave combat. Layout updates, message disappears.
 
 - [ ] **AC-5: Role order change** — In role mode, switch from "Tank, Healer, DPS" to "Healer, Tank, DPS". Columns swap positions. No `/reload`.
@@ -1451,6 +1496,8 @@ If all ACs pass and the working-testing branch is clean, hand back to the user f
 3. **Preview layout discrepancy with real header** (Task 8) — the preview's column-break logic is an approximation of `SecureGroupHeader`'s. If playtesting shows a noticeable mismatch (e.g., real header breaks at different column boundaries), the fix is to adjust the preview's `roleBreaks` logic to match the observed real-header behavior. Spec AC-9 explicitly states the preview is an approximation, not a pixel-perfect mirror.
 
 4. **`PLAYER_ROLES_ASSIGNED` firing during combat** (Task 5) — the plan assumes this is out-of-combat only. In practice, some edge cases (e.g., LFG role assignment) can fire the event outside the player's control. The call still routes through `applyOrQueue`, which handles in-combat queuing, so the worst case is a one-frame delay until combat ends. Not a bug.
+
+5. **Party pet re-anchor timing** (Task 4) — `C_Timer.After(0, AnchorPetFrames)` defers one frame so `SecureGroupHeader_Update` has finished reassigning `unit` attributes to its children before `findOwnerFrame` resolves owners. If playtesting shows pets briefly flashing to the wrong owner or not following at all, bump the delay to `0.05` seconds. The underlying assumption — that the secure header resettles within a frame of `SetAttribute` calls landing — holds for the out-of-combat path. For the combat-queued path, the attribute writes drain in `PLAYER_REGEN_ENABLED`, still out of combat, so the deferred re-anchor is safe.
 
 ## Memory References
 
