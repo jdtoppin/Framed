@@ -1,5 +1,9 @@
 # Framed Changelog
 
+## v0.8.3-alpha
+
+- Fix StatusText drinking scan erroring ("table index is secret") when scanning party members who are in combat independently of the player
+
 ## v0.8.2-alpha
 
 - Rework StatusText: gradient backdrop, split label/timer layout, new FEIGN and DRINKING statuses, red AFK with elapsed timer
