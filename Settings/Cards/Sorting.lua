@@ -11,12 +11,12 @@ F.SettingsCards = F.SettingsCards or {}
 
 local MODE_ITEMS = {
 	raid = {
-		{ text = 'By raid group', value = 'group' },
-		{ text = 'By role',       value = 'role'  },
+		{ text = 'By group', value = 'group' },
+		{ text = 'By role',  value = 'role'  },
 	},
 	party = {
-		{ text = 'By join order', value = 'index' },
-		{ text = 'By role',       value = 'role'  },
+		{ text = 'Default',  value = 'index' },
+		{ text = 'By role',  value = 'role'  },
 	},
 }
 
