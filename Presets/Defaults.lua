@@ -283,6 +283,8 @@ local function partyConfig()
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
 	c.position    = { x = 40, y = -48, anchor = 'TOPLEFT' }
+	c.sortMode  = 'index'
+	c.roleOrder = 'HEALER,TANK,DAMAGER'
 	c.health.showText   = true
 	c.health.textFormat = 'percent'
 	c.name.fontSize = C.Font.sizeSmall
@@ -301,6 +303,8 @@ local function raidConfig()
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
 	c.position    = { x = 40, y = -48, anchor = 'TOPLEFT' }
+	c.sortMode    = 'group'
+	c.roleOrder   = 'TANK,HEALER,DAMAGER'
 	c.health.showText   = true
 	c.health.textFormat = 'percent'
 	c.name.fontSize = C.Font.sizeSmall
