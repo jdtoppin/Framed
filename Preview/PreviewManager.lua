@@ -55,6 +55,35 @@ function PM.SetGroupPreviewCount(frameKey, count)
 	end
 end
 
+--- Compute the outer-bounding rectangle a group preview occupies
+--- given its unit config. Both sort modes flow the same way — a flat
+--- column flow that wraps at UNITS_PER_COLUMN — so the math is the
+--- same for role and group/index modes. Single source of truth for
+--- ClickCatchers and any future consumer that needs to know how big
+--- a group preview is without actually spawning one.
+--- @param config table  Unit config (width/height/spacing/orientation)
+--- @param frameKey string  'party' | 'raid' | 'arena' | 'boss'
+--- @return number? width
+--- @return number? height
+function PM.GetGroupBounds(config, frameKey)
+	local count = GROUP_FRAME_COUNTS[frameKey]
+	if(not count) then return nil end
+
+	local w = config.width
+	local h = config.height
+	local spacing = config.spacing
+	local isVertical = (config.orientation == 'vertical')
+
+	local cols = math.ceil(count / UNITS_PER_COLUMN)
+	local rows = math.min(count, UNITS_PER_COLUMN)
+
+	if(isVertical) then
+		return cols * w + (cols - 1) * spacing, rows * h + (rows - 1) * spacing
+	else
+		return rows * w + (rows - 1) * spacing, cols * h + (cols - 1) * spacing
+	end
+end
+
 -- ============================================================
 -- Config reading
 -- ============================================================

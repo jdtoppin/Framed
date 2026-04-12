@@ -79,29 +79,10 @@ end
 
 -- ── Group layout helpers ─────────────────────────────────────
 
-local GROUP_FRAME_COUNTS = {
-	party = 5,
-	raid  = 20,
-	arena = 3,
-	boss  = 4,
-}
-
-local UNITS_PER_COLUMN = 5
-
+-- Delegates to PreviewManager so the catcher outline stays pixel-aligned
+-- with the actual preview layout, regardless of sort mode.
 local function getGroupBounds(config, frameKey)
-	local count = F.PreviewManager.GetGroupPreviewCount(frameKey) or GROUP_FRAME_COUNTS[frameKey]
-	if(not count) then return nil end
-	local isVertical = (config.orientation == 'vertical')
-	local w = config.width
-	local h = config.height
-	local spacing = config.spacing
-	local cols = math.ceil(count / UNITS_PER_COLUMN)
-	local rows = math.min(count, UNITS_PER_COLUMN)
-	if(isVertical) then
-		return cols * w + (cols - 1) * spacing, rows * h + (rows - 1) * spacing
-	else
-		return rows * w + (rows - 1) * spacing, cols * h + (cols - 1) * spacing
-	end
+	return F.PreviewManager.GetGroupBounds(config, frameKey)
 end
 
 -- ── Catcher creation ─────────────────────────────────────────
