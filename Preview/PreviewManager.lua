@@ -42,6 +42,8 @@ local GROUP_FRAME_COUNTS = {
 
 local GROUP_FAKES = nil  -- Lazy-init from Preview.GetFakeUnits
 
+local UNITS_PER_COLUMN = 5
+
 function PM.GetGroupPreviewCount(frameKey)
 	return GROUP_FRAME_COUNTS[frameKey]
 end
@@ -188,8 +190,6 @@ end
 -- ============================================================
 -- Group preview
 -- ============================================================
-
-local UNITS_PER_COLUMN = 5
 
 local function showGroupPreview(frameKey)
 	local container = getPreviewContainer()
