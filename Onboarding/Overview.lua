@@ -276,11 +276,12 @@ local function buildModalFrame()
 	bodyCopy:SetJustifyH('LEFT')
 	bodyCopy:SetJustifyV('TOP')
 
-	-- Keyboard handling placeholder (Escape consumes event — minimize wired in Task 9)
+	-- Keyboard handling — Escape minimizes to pip
 	frame:EnableKeyboard(true)
 	frame:SetScript('OnKeyDown', function(self, key)
 		if(key == 'ESCAPE') then
 			self:SetPropagateKeyboardInput(false)
+			Onboarding.MinimizeOverview()
 		else
 			self:SetPropagateKeyboardInput(true)
 		end
