@@ -192,7 +192,7 @@ local function BuildDialog()
 				Widgets.SetSize(self, self._activeWidth, select(2, self:GetSize()))
 			end
 		else
-			local w1 = FitButton(self._btnOK)
+			FitButton(self._btnOK)
 			self._btnOK:ClearAllPoints()
 			self._btnOK:SetPoint('BOTTOM', self, 'BOTTOM', 0, PAD)
 			self._btnOK:Show()

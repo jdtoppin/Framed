@@ -366,7 +366,6 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 
 	-- Hook type dropdown to update description and displayType row
 	typeDD:SetOnSelect(function(value)
-		selectedType = value
 		typeDescFS:SetText(TYPE_DESCRIPTIONS[value] or '')
 		if(isIconType(value)) then
 			displayTypeRow:Show()

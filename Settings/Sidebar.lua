@@ -160,7 +160,6 @@ local function createNavButton(parent, panelInfo, yOffset)
 	btn._label = label
 
 	-- Push effect
-	local origOffsetY = 0
 	btn:SetScript('OnMouseDown', function(self)
 		if(self._icon) then
 			local point, rel, relPoint, x, _ = self._icon:GetPoint()
@@ -450,7 +449,6 @@ local function buildSidebarContent(sidebar, contentParent)
 				container._isCollapsed = function() return isCollapsed end
 				container._recalc = function(animate)
 					local newH = recalcContainerHeight(children)
-					fullHeight = newH
 					if(isCollapsed) then return end
 					local oldH = container:GetHeight()
 					local delta = newH - oldH

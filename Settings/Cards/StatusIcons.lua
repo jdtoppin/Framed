@@ -142,7 +142,7 @@ local GROUP_ICON_DEFS = {
 }
 
 function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfig, onResize)
-	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local card, inner = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local reflowRef = {}
@@ -277,7 +277,7 @@ local STATUS_ICON_DEFS = {
 }
 
 function F.SettingsCards.StatusIcons(parent, width, unitType, getConfig, setConfig, onResize)
-	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local card, inner = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local reflowRef = {}
@@ -309,7 +309,7 @@ local MARKER_ICON_DEFS = {
 }
 
 function F.SettingsCards.Markers(parent, width, unitType, getConfig, setConfig, onResize)
-	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local card, inner = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local reflowRef = {}
