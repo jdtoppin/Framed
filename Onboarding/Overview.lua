@@ -100,6 +100,100 @@ local function buildAtlasIllustration(host, atlasName, iconSize)
 	return container
 end
 
+local function buildCardsIllustration(host, w, h)
+	if(not F.AppearanceCards or not F.AppearanceCards.Tooltips) then
+		return buildAtlasIllustration(host, 'Garr_BuildingIcon-Barracks', 96)
+	end
+
+	local container = CreateFrame('Frame', nil, host)
+	container:ClearAllPoints()
+	container:SetAllPoints(host)
+
+	local cardConfig = {
+		tooltipEnabled = true,
+		tooltipHideInCombat = false,
+		tooltipMode = 'frame',
+		tooltipAnchor = 'RIGHT',
+		tooltipOffsetX = 0,
+		tooltipOffsetY = 0,
+	}
+	local function getConfig(key) return cardConfig[key] end
+	local function setConfig(key, value) cardConfig[key] = value end
+	local function fireChange() end
+	local function onResize() end
+
+	-- BUG: Appearance card builders can raise if the Widgets library
+	-- isn't fully initialized or if an internal dependency is missing.
+	-- Guard to degrade to an empty illustration rather than break the overview.
+	local ok, card = pcall(F.AppearanceCards.Tooltips, container, w, getConfig, setConfig, fireChange, onResize)
+	if(not ok or not card) then
+		container:Hide()
+		return nil
+	end
+
+	card:ClearAllPoints()
+	card:SetPoint('TOP', container, 'TOP', 0, 0)
+	return container
+end
+
+local function buildIndicatorsIllustration(host, _w, _h)
+	local container = CreateFrame('Frame', nil, host)
+	container:ClearAllPoints()
+	container:SetAllPoints(host)
+
+	local iconSize = 48
+	local gap = C.Spacing.normal
+
+	local leftBg = CreateFrame('Frame', nil, container, 'BackdropTemplate')
+	Widgets.ApplyBackdrop(leftBg, C.Colors.widget, { 0.2, 0.8, 0.3, 1 })
+	Widgets.SetSize(leftBg, iconSize, iconSize)
+	leftBg:ClearAllPoints()
+	Widgets.SetPoint(leftBg, 'CENTER', container, 'CENTER', -(iconSize + gap) / 2, 0)
+	local leftIcon = leftBg:CreateTexture(nil, 'ARTWORK')
+	leftIcon:SetTexture(F.Media.GetIcon('Fluent_Color_Yes'))
+	leftIcon:SetPoint('CENTER', leftBg, 'CENTER', 0, 0)
+	leftIcon:SetSize(iconSize - 4, iconSize - 4)
+
+	local rightBg = CreateFrame('Frame', nil, container, 'BackdropTemplate')
+	Widgets.ApplyBackdrop(rightBg, C.Colors.widget, C.Colors.accent)
+	Widgets.SetSize(rightBg, iconSize, iconSize)
+	rightBg:ClearAllPoints()
+	Widgets.SetPoint(rightBg, 'CENTER', container, 'CENTER', (iconSize + gap) / 2, 0)
+	local rightIcon = rightBg:CreateTexture(nil, 'ARTWORK')
+	rightIcon:SetTexture(F.Media.GetIcon('Star'))
+	rightIcon:SetPoint('CENTER', rightBg, 'CENTER', 0, 0)
+	rightIcon:SetSize(iconSize - 4, iconSize - 4)
+
+	return container
+end
+
+local function buildDefensivesIllustration(host, _w, _h)
+	local container = CreateFrame('Frame', nil, host)
+	container:ClearAllPoints()
+	container:SetAllPoints(host)
+
+	local iconSize = 64
+	local bg = CreateFrame('Frame', nil, container, 'BackdropTemplate')
+	Widgets.ApplyBackdrop(bg, C.Colors.widget, C.Colors.accent)
+	Widgets.SetSize(bg, iconSize, iconSize)
+	bg:ClearAllPoints()
+	Widgets.SetPoint(bg, 'CENTER', container, 'CENTER', 0, 0)
+
+	local icon = bg:CreateTexture(nil, 'ARTWORK')
+	icon:SetTexture(F.Media.GetIcon('Mark'))
+	icon:SetPoint('CENTER', bg, 'CENTER', 0, 0)
+	icon:SetSize(iconSize - 6, iconSize - 6)
+
+	local glow = bg:CreateTexture(nil, 'OVERLAY')
+	glow:SetTexture(F.Media.GetIcon('Circle'))
+	glow:SetPoint('CENTER', bg, 'CENTER', 0, 0)
+	glow:SetSize(iconSize + 12, iconSize + 12)
+	local ac = C.Colors.accent
+	glow:SetVertexColor(ac[1], ac[2], ac[3], 0.5)
+
+	return container
+end
+
 -- ============================================================
 -- Page registry
 -- ============================================================
@@ -127,6 +221,9 @@ local PAGES = {
 			return buildAtlasIllustration(host, 'editmode-new-icon', 96)
 		end,
 	},
+	{ id = 'cards',      title = 'Settings Cards',           body = 'Each unit has a grid of focused cards — Position, Health, Power, Auras, and more. Pin the ones you use most so they stick to the top of the grid.',                                                                      buildIllustration = buildCardsIllustration      },
+	{ id = 'indicators', title = 'Buffs, Debuffs & Dispels', body = 'Build custom indicators for specific spells — borders, overlays, or icons. Dispellable debuffs get their own highlight system so healers can spot them instantly.',                                                     buildIllustration = buildIndicatorsIllustration },
+	{ id = 'defensives', title = 'Defensives & Externals',   body = 'Track raid cooldowns cast on units — personal defensives on yourself, externals cast on someone else. Same indicator builder UX as buffs and debuffs.', buildIllustration = buildDefensivesIllustration },
 }
 
 -- ============================================================
