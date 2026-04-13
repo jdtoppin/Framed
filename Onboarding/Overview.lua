@@ -233,6 +233,24 @@ local function clearActiveIllustration()
 	end
 end
 
+local function updateProgressRail()
+	if(not headerProgress or not headerProgress._slots) then return end
+	local ac = C.Colors.accent
+	for i = 1, PROGRESS_SLOTS do
+		local slot = headerProgress._slots[i]
+		if(i < currentStep) then
+			-- Completed: full color, full alpha
+			slot:SetVertexColor(1, 1, 1, 1)
+		elseif(i == currentStep) then
+			-- Current: accent tinted
+			slot:SetVertexColor(ac[1], ac[2], ac[3], 1)
+		else
+			-- Future: desaturated, low alpha
+			slot:SetVertexColor(0.6, 0.6, 0.6, 0.3)
+		end
+	end
+end
+
 showPage = function(n)
 	if(not modalFrame) then return end
 	if(n < 1 or n > #PAGES) then return end
@@ -257,6 +275,8 @@ showPage = function(n)
 	footerBackBtn:SetEnabled(n > 1)
 	local isLast = (n == #PAGES)
 	footerNextBtn:SetText(isLast and 'Done' or 'Next →')
+
+	updateProgressRail()
 end
 
 local function buildModalFrame()
@@ -312,11 +332,22 @@ local function buildModalFrame()
 	Widgets.SetupAccentHover(headerMinimizeBtn, headerMinimizeBtn._icon, true)
 	-- Click wiring added in Task 8
 
-	-- Progress rail slot host — populated in Task 7
+	-- Progress rail slot host
 	headerProgress = CreateFrame('Frame', nil, header)
 	headerProgress:ClearAllPoints()
 	Widgets.SetPoint(headerProgress, 'RIGHT', headerMinimizeBtn, 'LEFT', -C.Spacing.normal, 0)
 	Widgets.SetSize(headerProgress, PROGRESS_SLOTS * PROGRESS_SIZE + (PROGRESS_SLOTS - 1) * PROGRESS_GAP, PROGRESS_SIZE)
+
+	-- Build 6 slot textures stored on headerProgress._slots
+	headerProgress._slots = {}
+	for i = 1, PROGRESS_SLOTS do
+		local slot = headerProgress:CreateTexture(nil, 'ARTWORK')
+		slot:SetTexture(F.Media.GetIcon('Fluent_Color_Yes'))
+		slot:SetSize(PROGRESS_SIZE, PROGRESS_SIZE)
+		slot:ClearAllPoints()
+		slot:SetPoint('LEFT', headerProgress, 'LEFT', (i - 1) * (PROGRESS_SIZE + PROGRESS_GAP), 0)
+		headerProgress._slots[i] = slot
+	end
 
 	-- ── Footer row ────────────────────────────────────────────
 	local footer = CreateFrame('Frame', nil, frame)
