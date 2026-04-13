@@ -1,8 +1,6 @@
 local addonName, Framed = ...
 local F = Framed
 
-local Widgets = F.Widgets
-local C = F.Constants
 local EditMode = F.EditMode
 
 -- ============================================================

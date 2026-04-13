@@ -1,6 +1,5 @@
 local addonName, Framed = ...
 local F = Framed
-local C = F.Constants
 local Widgets = F.Widgets
 
 F.Indicators = F.Indicators or {}

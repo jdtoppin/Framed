@@ -1,8 +1,5 @@
 local addonName, Framed = ...
 local F = Framed
-local oUF = F.oUF
-local C = F.Constants
-local Widgets = F.Widgets
 
 F.Elements = F.Elements or {}
 F.Elements.Absorbs = {}
