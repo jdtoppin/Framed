@@ -64,8 +64,6 @@ local function buildWelcomeIllustration(host, w, _h)
 	end
 
 	local container = CreateFrame('Frame', nil, host)
-	container:ClearAllPoints()
-	container:SetAllPoints(host)
 
 	local units = F.Preview.GetFakeUnits(3)
 	if(not units or #units == 0) then return nil end
@@ -77,13 +75,7 @@ local function buildWelcomeIllustration(host, w, _h)
 		local pf = F.Preview.CreatePreviewFrame(container, 'party', unitW, unitH)
 		pf:ClearAllPoints()
 		Widgets.SetPoint(pf, 'TOP', container, 'TOP', 0, -((i - 1) * (unitH + gap)))
-		-- Apply fake unit data using Preview's public helper if available,
-		-- else inline a minimal fallback (name only).
-		if(F.Preview.ApplyUnitToFrame) then
-			F.Preview.ApplyUnitToFrame(pf, unit)
-		else
-			if(pf._nameText) then pf._nameText:SetText(unit.name or '') end
-		end
+		F.Preview.ApplyUnitToFrame(pf, unit)
 		pf:Show()
 	end
 
@@ -300,8 +292,7 @@ function Onboarding.ShowOverview()
 	if(pipFrame) then pipFrame:Hide() end
 	Widgets.FadeIn(modalFrame)
 
-	-- Page content wired in Task 4
-	if(showPage) then showPage(1) end
+	showPage(1)
 end
 
 function Onboarding.MinimizeOverview()
