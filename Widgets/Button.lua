@@ -613,3 +613,68 @@ function Widgets.CreateInfoButton(parent, title, body)
 	button:SetWidgetTooltip(title, body)
 	return button
 end
+
+-- ============================================================
+-- Accent hover helper
+-- Animates a button's icon or label from textSecondary → accent
+-- on enter, and back on leave. Used by icon buttons in the main
+-- settings header and the Overview modal.
+-- ============================================================
+
+--- Override a button's hover to smoothly fade between dim and accent color.
+--- @param btn Button  The button frame
+--- @param target Texture|FontString  The element to tint
+--- @param isTexture boolean  true for SetVertexColor, false for SetTextColor
+function Widgets.SetupAccentHover(btn, target, isTexture)
+	local ac  = C.Colors.accent
+	local dim = C.Colors.textSecondary
+	local dur = C.Animation.durationFast
+
+	local function setColor(r, g, b)
+		if(isTexture) then
+			target:SetVertexColor(r, g, b)
+		else
+			target:SetTextColor(r, g, b)
+		end
+	end
+
+	local function getColor()
+		if(isTexture) then
+			return target:GetVertexColor()
+		else
+			return target:GetTextColor()
+		end
+	end
+
+	btn:SetScript('OnEnter', function(self)
+		local startR, startG, startB = getColor()
+		local elapsed = 0
+		self:SetScript('OnUpdate', function(_, dt)
+			elapsed = elapsed + dt
+			local t = math.min(elapsed / dur, 1)
+			setColor(
+				startR + (ac[1] - startR) * t,
+				startG + (ac[2] - startG) * t,
+				startB + (ac[3] - startB) * t)
+			if(t >= 1) then self:SetScript('OnUpdate', nil) end
+		end)
+		if(Widgets.ShowTooltip and self._tooltipTitle) then
+			Widgets.ShowTooltip(self, self._tooltipTitle, self._tooltipBody)
+		end
+	end)
+
+	btn:SetScript('OnLeave', function(self)
+		local startR, startG, startB = getColor()
+		local elapsed = 0
+		self:SetScript('OnUpdate', function(_, dt)
+			elapsed = elapsed + dt
+			local t = math.min(elapsed / dur, 1)
+			setColor(
+				startR + (dim[1] - startR) * t,
+				startG + (dim[2] - startG) * t,
+				startB + (dim[3] - startB) * t)
+			if(t >= 1) then self:SetScript('OnUpdate', nil) end
+		end)
+		if(Widgets.HideTooltip) then Widgets.HideTooltip() end
+	end)
+end
