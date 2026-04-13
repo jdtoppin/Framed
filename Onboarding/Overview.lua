@@ -82,6 +82,24 @@ local function buildWelcomeIllustration(host, w, _h)
 	return container
 end
 
+local function buildAtlasIllustration(host, atlasName, iconSize)
+	local container = CreateFrame('Frame', nil, host)
+
+	local tex = container:CreateTexture(nil, 'ARTWORK')
+	tex:SetSize(iconSize or 96, iconSize or 96)
+	tex:SetPoint('CENTER', container, 'CENTER', 0, 0)
+
+	-- BUG: SetAtlas can raise on missing/renamed atlases in some client
+	-- builds; no query-before-set API exists. Guard the call so a bad
+	-- atlas name degrades to an empty illustration instead of a hard error.
+	local ok = pcall(tex.SetAtlas, tex, atlasName, false)
+	if(not ok) then
+		container:Hide()
+		return nil
+	end
+	return container
+end
+
 -- ============================================================
 -- Page registry
 -- ============================================================
@@ -92,6 +110,22 @@ local PAGES = {
 		title = 'Welcome to Framed',
 		body = 'Modern unit frames and raid frames, built around live previews, presets, and per-unit settings cards. Use this overview to get oriented — you can relaunch it anytime from Appearance → Setup Wizard.',
 		buildIllustration = buildWelcomeIllustration,
+	},
+	{
+		id = 'layouts',
+		title = 'Layouts & Auto-Switch',
+		body = 'Framed ships layouts for Solo, Party, Raid, Mythic Raid, World Raid, Battleground, and Arena — and swaps them automatically when content changes. You can still edit any layout manually from the Layouts sidebar.',
+		buildIllustration = function(host, _w, _h)
+			return buildAtlasIllustration(host, 'groupfinder-eye-frame', 96)
+		end,
+	},
+	{
+		id = 'editmode',
+		title = 'Edit Mode',
+		body = 'Drag any frame to reposition it. The inline panel jumps you to that frame\'s settings, and edits stay live until you click Save or Discard.',
+		buildIllustration = function(host, _w, _h)
+			return buildAtlasIllustration(host, 'editmode-new-icon', 96)
+		end,
 	},
 }
 
