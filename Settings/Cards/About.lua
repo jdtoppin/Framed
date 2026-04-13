@@ -112,6 +112,11 @@ local CHANGELOG = {
 	{
 		version = 'v0.8.5-alpha',
 		entries = {
+			'Add **Framed Overview** — a 6-page illustrated walkthrough covering layouts, edit mode, settings cards, aura indicators, and defensives/externals; auto-shows on first login after the setup wizard and can be relaunched from Appearance → Setup Wizard → Take Overview',
+			'Escape collapses the Overview to a top-right pip instead of leaking to the game menu; click the pip to resume',
+			'Replace the unreachable guided tour with the new Overview (old `Onboarding/Tour.lua` removed)',
+			'Promote `SetupAccentHover` to the shared Widgets library so other panels can reuse the accent fade',
+			'Export `F.Preview.ApplyUnitToFrame` so the Overview welcome page can render a live 3-member party sample',
 			'Add role sorting for raid and party frames (Tank/Healer/DPS ordering via SecureGroupHeader nameList)',
 			'Raid role mode: flat sort across groups, follows orientation and anchor point',
 			'Party role mode: single sorted column',
