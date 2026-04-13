@@ -131,7 +131,6 @@ function BarMethods:SetValue(current, max)
 		self._statusBar:SetMinMaxValues(0, 1)
 		self._statusBar:SetValue(0)
 	else
-		
 		self._statusBar:SetMinMaxValues(0, max)
 		self._statusBar:SetValue(current)
 	end

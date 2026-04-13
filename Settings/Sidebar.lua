@@ -584,13 +584,14 @@ local function buildSidebarContent(sidebar, contentParent)
 		local shouldHide = (activePanelId == 'pet')
 		local changed = false
 		for panelId, btn in next, hiddenAuraBtns do
-			if(not PANELS_HIDDEN_ON_PET[panelId]) then
-			elseif(shouldHide and btn:IsShown()) then
-				btn:Hide()
-				changed = true
-			elseif(not shouldHide and not btn:IsShown()) then
-				btn:Show()
-				changed = true
+			if(PANELS_HIDDEN_ON_PET[panelId]) then
+				if(shouldHide and btn:IsShown()) then
+					btn:Hide()
+					changed = true
+				elseif(not shouldHide and not btn:IsShown()) then
+					btn:Show()
+					changed = true
+				end
 			end
 		end
 		if(not changed) then return end

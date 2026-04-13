@@ -133,12 +133,7 @@ local function buildDialog(configKey, panelLabel, panelId)
 	-- Wire multi-select group
 	multiGroup = Widgets.CreateMultiSelectButtonGroup(activeBtns, function(selected)
 		-- Enable confirm only when at least one target is selected
-		local hasSelection = false
-		for _ in next, selected do
-			hasSelection = true
-			break
-		end
-		if(hasSelection) then
+		if(next(selected) ~= nil) then
 			dialog._confirmBtn:Enable()
 		else
 			dialog._confirmBtn:Disable()
