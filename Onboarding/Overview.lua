@@ -46,8 +46,103 @@ local headerTitle, headerProgress, headerCloseBtn, headerMinimizeBtn
 local bodyIllustrationHost, bodyTitle, bodyCopy
 local footerBackBtn, footerSkipBtn, footerNextBtn
 
-local showPage -- luacheck: ignore 221
--- forward declaration, defined in Task 4
+local showPage
+-- forward declaration, defined below
+
+-- ============================================================
+-- Illustration builders
+-- Each returns a frame parented to `host`, positioned and sized.
+-- Failures (nil deps) return nil — caller hides the left column.
+-- ============================================================
+
+local illustrationTrash = CreateFrame('Frame')
+illustrationTrash:Hide()
+
+local function buildWelcomeIllustration(host, w, _h)
+	if(not F.Preview or not F.Preview.GetFakeUnits or not F.Preview.CreatePreviewFrame) then
+		return nil
+	end
+
+	local container = CreateFrame('Frame', nil, host)
+	container:ClearAllPoints()
+	container:SetAllPoints(host)
+
+	local units = F.Preview.GetFakeUnits(3)
+	if(not units or #units == 0) then return nil end
+
+	local unitW = w - 8
+	local unitH = 32
+	local gap = 4
+	for i, unit in next, units do
+		local pf = F.Preview.CreatePreviewFrame(container, 'party', unitW, unitH)
+		pf:ClearAllPoints()
+		Widgets.SetPoint(pf, 'TOP', container, 'TOP', 0, -((i - 1) * (unitH + gap)))
+		-- Apply fake unit data using Preview's public helper if available,
+		-- else inline a minimal fallback (name only).
+		if(F.Preview.ApplyUnitToFrame) then
+			F.Preview.ApplyUnitToFrame(pf, unit)
+		else
+			if(pf._nameText) then pf._nameText:SetText(unit.name or '') end
+		end
+		pf:Show()
+	end
+
+	return container
+end
+
+-- ============================================================
+-- Page registry
+-- ============================================================
+
+local PAGES = {
+	{
+		id = 'welcome',
+		title = 'Welcome to Framed',
+		body = 'Modern unit frames and raid frames, built around live previews, presets, and per-unit settings cards. Use this overview to get oriented — you can relaunch it anytime from Appearance → Setup Wizard.',
+		buildIllustration = buildWelcomeIllustration,
+	},
+}
+
+-- ============================================================
+-- Page switcher
+-- ============================================================
+
+local activeIllustration = nil
+
+local function clearActiveIllustration()
+	if(activeIllustration) then
+		activeIllustration:Hide()
+		activeIllustration:SetParent(illustrationTrash)
+		activeIllustration:ClearAllPoints()
+		activeIllustration = nil
+	end
+end
+
+showPage = function(n)
+	if(not modalFrame) then return end
+	if(n < 1 or n > #PAGES) then return end
+
+	currentStep = n
+	local page = PAGES[n]
+
+	clearActiveIllustration()
+	if(page.buildIllustration) then
+		activeIllustration = page.buildIllustration(bodyIllustrationHost, ILLUSTRATION_W, ILLUSTRATION_H)
+		if(activeIllustration) then
+			activeIllustration:ClearAllPoints()
+			activeIllustration:SetAllPoints(bodyIllustrationHost)
+			activeIllustration:Show()
+		end
+	end
+
+	bodyTitle:SetText(page.title)
+	bodyCopy:SetText(page.body)
+
+	-- Footer button state
+	footerBackBtn:SetEnabled(n > 1)
+	local isLast = (n == #PAGES)
+	footerNextBtn:SetText(isLast and 'Done' or 'Next →')
+end
 
 local function buildModalFrame()
 	if(modalFrame) then return end
@@ -136,8 +231,11 @@ local function buildModalFrame()
 	footerNextBtn:ClearAllPoints()
 	Widgets.SetPoint(footerNextBtn, 'RIGHT', footer, 'RIGHT', 0, 0)
 	footerNextBtn:SetOnClick(function()
-		-- Real behavior wired in Task 4 once showPage exists.
-		if(showPage and currentStep < PROGRESS_SLOTS) then
+		if(currentStep >= #PAGES) then
+			-- Done on last page → mark completed + close
+			F.Config:Set('general.overviewCompleted', true)
+			Onboarding.CloseOverview()
+		else
 			showPage(currentStep + 1)
 		end
 	end)
