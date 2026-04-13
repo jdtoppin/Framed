@@ -14,7 +14,6 @@ local CU = F.ColorUtils
 
 local Round = Round or function(v) return math.floor(v + 0.5) end
 local format = string.format
-local floor = math.floor
 
 -- ============================================================
 -- Singleton color picker frame (created on first use)
@@ -589,7 +588,6 @@ end
 -- ============================================================
 
 local SWATCH_SIZE = 14
-local DARK_BG = { 0.08, 0.08, 0.08, 1 }
 
 --- Create a color swatch button that opens the custom picker.
 --- @param parent Frame Parent frame

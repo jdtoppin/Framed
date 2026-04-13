@@ -57,7 +57,7 @@ local function BuildBuffIndicators(frame, buffsConfig, animated)
 	for _, indCfg in next, buffsConfig.indicators or {} do
 		if(indCfg.enabled ~= false) then
 			local indType = indCfg.type
-			local pt, relFrame, relPt, offX, offY = PI.UnpackAnchor(indCfg.anchor, { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 })
+			local pt, _, relPt, offX, offY = PI.UnpackAnchor(indCfg.anchor, { 'TOPLEFT', nil, 'TOPLEFT', 2, -2 })
 
 			if(indType == C.IndicatorType.ICON) then
 				local w = indCfg.iconWidth or 14

@@ -9,23 +9,15 @@ F.Settings.Builders = F.Settings.Builders or {}
 -- ============================================================
 -- Layout constants
 -- ============================================================
-local CHECK_H      = 22
 local BUTTON_H     = 24
 local ROW_HEIGHT   = 28
 local MAX_VISIBLE_ROWS = 7
 local LIST_HEIGHT  = MAX_VISIBLE_ROWS * ROW_HEIGHT
-local PAD          = 16
 local PAD_H        = 6
 
 -- ============================================================
 -- Layout helpers
 -- ============================================================
-local function placeWidget(widget, content, yOffset, height)
-	widget:ClearAllPoints()
-	Widgets.SetPoint(widget, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	return yOffset - height - C.Spacing.normal
-end
-
 local function placeHeading(content, text, level, yOffset)
 	local heading, height = Widgets.CreateHeading(content, text, level)
 	heading:ClearAllPoints()
@@ -477,7 +469,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 			row.__enabledCB:SetChecked(iData.enabled ~= false)
 
 			-- Dynamic callback for this row's enabled checkbox
-			local capName, capData, capIdx = iName, iData, idx
+			local capName, capData = iName, iData
 			row.__onEnabledChanged = function(checked)
 				capData.enabled = checked
 				setIndicator(capName, capData)

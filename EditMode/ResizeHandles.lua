@@ -22,16 +22,7 @@ local HANDLE_POINTS = {
 	'BOTTOMLEFT', 'BOTTOM', 'BOTTOMRIGHT',
 }
 
-local CURSORS = {
-	TOPLEFT     = 'UI_RESIZE_TOPLEFT',
-	TOP         = 'UI_RESIZE_TOP',
-	TOPRIGHT    = 'UI_RESIZE_TOPRIGHT',
-	LEFT        = 'UI_RESIZE_LEFT',
-	RIGHT       = 'UI_RESIZE_RIGHT',
-	BOTTOMLEFT  = 'UI_RESIZE_BOTTOMLEFT',
-	BOTTOM      = 'UI_RESIZE_BOTTOM',
-	BOTTOMRIGHT = 'UI_RESIZE_BOTTOMRIGHT',
-}
+
 
 local function DestroyHandles()
 	for _, handle in next, handles do

@@ -14,7 +14,6 @@ local SIDEBAR_SECTION_H  = 20
 local SIDEBAR_BTN_H      = 22
 local SIDEBAR_BTN_GAP    = 6
 local HEADER_HEIGHT       = 24
-local SUB_HEADER_H        = 32
 local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
 
 --- Forward mouse wheel from sidebar children to the sidebar scroll frame.
@@ -216,8 +215,6 @@ end
 -- ============================================================
 -- Sub-heading Heights
 -- ============================================================
-
-local SUBHEADING_H    = 16   -- vertical space consumed by a sub-heading label
 
 -- ============================================================
 -- Dynamic Group Frame Label

@@ -10,7 +10,6 @@ F.Settings.Builders = F.Settings.Builders or {}
 local SLIDER_H     = 26
 local CHECK_H      = 22
 local DROPDOWN_H   = 22
-local LABEL_H      = 16
 
 -- Helper: get/set config values scoped to the editing preset + unit type + config key
 local function makeConfigHelpers(unitType, configKey)

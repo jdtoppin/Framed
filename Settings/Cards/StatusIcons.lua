@@ -276,8 +276,6 @@ local STATUS_ICON_DEFS = {
 	{ 'Show Summon Icon',    'summon',      false },
 }
 
-local GROUP_UNIT_TYPES = { party = true, raid = true, arena = true }
-
 function F.SettingsCards.StatusIcons(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2

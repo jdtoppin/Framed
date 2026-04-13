@@ -2,7 +2,6 @@ local addonName, Framed = ...
 local F = Framed
 local C = F.Constants
 local Widgets = F.Widgets
-local Settings = F.Settings
 
 -- Shared layout constants (match FrameSettingsBuilder.lua)
 local DROPDOWN_H  = 22
@@ -14,14 +13,6 @@ local function placeWidget(widget, parent, yOffset, height)
 	widget:ClearAllPoints()
 	Widgets.SetPoint(widget, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
 	return yOffset - height - C.Spacing.normal
-end
-
-local function placeHeading(parent, text, level, yOffset)
-	local fs = Widgets.CreateFontString(parent, level == 2 and C.Font.sizeSmall or C.Font.sizeNormal, C.Colors.textSecondary)
-	fs:SetText(text)
-	fs:ClearAllPoints()
-	Widgets.SetPoint(fs, 'TOPLEFT', parent, 'TOPLEFT', 0, yOffset)
-	return yOffset - (level == 2 and C.Font.sizeSmall or C.Font.sizeNormal) - C.Spacing.tight
 end
 
 -- ============================================================

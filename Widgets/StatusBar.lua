@@ -5,14 +5,6 @@ local Widgets = F.Widgets
 local C = F.Constants
 
 -- ============================================================
--- Feature Detection
--- WoW 12.0.1 introduced Enum.StatusBarInterpolation for smooth bar animation.
--- Check at load time; no pcall.
--- ============================================================
-
-local hasNativeInterpolation = Enum and Enum.StatusBarInterpolation ~= nil
-
--- ============================================================
 -- StatusBar Widget
 -- ============================================================
 

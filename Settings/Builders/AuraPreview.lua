@@ -49,10 +49,6 @@ local function getFrameSize(unitType, maxWidth)
 	return w, h
 end
 
--- ── Aura group keys ─────────────────────────────────────────
-local AURA_GROUPS = { 'buffs', 'debuffs', 'externals', 'defensives', 'dispellable',
-                      'missingBuffs', 'privateAuras', 'lossOfControl', 'crowdControl', 'targetedSpells' }
-
 -- ── Build the preview frame (just the mock unit frame) ──────
 local function createPreviewFrame(parent, unitType, maxWidth)
 	local fw, fh = getFrameSize(unitType, maxWidth)

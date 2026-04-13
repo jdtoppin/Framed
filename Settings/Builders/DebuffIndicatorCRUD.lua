@@ -12,7 +12,6 @@ F.Settings.Builders = F.Settings.Builders or {}
 local ROW_HEIGHT       = 28
 local MAX_VISIBLE_ROWS = 5
 local BUTTON_H         = 24
-local DROPDOWN_H       = 22
 local PAD_H            = 6
 
 -- ============================================================
