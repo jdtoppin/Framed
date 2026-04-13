@@ -78,6 +78,28 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 			end)
 		end
 
+		-- First-run overview (shown after wizard on next login)
+		if(F.Config:Get('general.wizardCompleted') and not F.Config:Get('general.overviewCompleted')) then
+			local function showOverviewDelayed()
+				C_Timer.After(1, function()
+					if(F.Onboarding and F.Onboarding.ShowOverview) then
+						F.Onboarding.ShowOverview()
+					end
+				end)
+			end
+
+			if(InCombatLockdown()) then
+				local deferFrame = CreateFrame('Frame')
+				deferFrame:RegisterEvent('PLAYER_REGEN_ENABLED')
+				deferFrame:SetScript('OnEvent', function(frame)
+					frame:UnregisterAllEvents()
+					showOverviewDelayed()
+				end)
+			else
+				showOverviewDelayed()
+			end
+		end
+
 		self:UnregisterEvent('PLAYER_LOGIN')
 	elseif(event == 'PLAYER_LOGOUT') then
 		-- Snapshot config to backup SavedVariable for recovery
