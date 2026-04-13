@@ -37,7 +37,6 @@ local CLOSE_BTN_SIZE = 20
 local modalFrame  = nil
 local pipFrame    = nil
 local currentStep = 1
-local isMinimized = false -- luacheck: ignore 231
 
 -- ============================================================
 -- Modal frame construction (lazy)
@@ -297,7 +296,6 @@ end
 -- ============================================================
 
 local pipLabel
-local pipIcon
 
 local function buildPipFrame()
 	if(pipFrame) then return end
@@ -310,11 +308,11 @@ local function buildPipFrame()
 	pip:EnableMouse(true)
 	pip:Hide()
 
-	pipIcon = pip:CreateTexture(nil, 'ARTWORK')
+	local pipIcon = pip:CreateTexture(nil, 'ARTWORK')
 	pipIcon:SetTexture(F.Media.GetIcon('Fluent_Color_Yes'))
 	pipIcon:SetSize(16, 16)
 	pipIcon:ClearAllPoints()
-	pipIcon:SetPoint('LEFT', pip, 'LEFT', 8, 0)
+	pipIcon:SetPoint('LEFT', pip, 'LEFT', C.Spacing.tight, 0)
 
 	pipLabel = Widgets.CreateFontString(pip, C.Font.sizeSmall, C.Colors.textNormal)
 	pipLabel:ClearAllPoints()
@@ -362,7 +360,6 @@ function Onboarding.ShowOverview()
 	end
 
 	currentStep = 1
-	isMinimized = false
 	if(pipFrame) then pipFrame:Hide() end
 	Widgets.FadeIn(modalFrame)
 
@@ -374,7 +371,6 @@ function Onboarding.MinimizeOverview()
 	if(not pipFrame) then
 		buildPipFrame()
 	end
-	isMinimized = true
 	modalFrame:Hide()
 	updatePipLabel()
 	pipFrame:Show()
@@ -382,13 +378,9 @@ end
 
 function Onboarding.RestoreOverview()
 	if(not pipFrame or not pipFrame:IsShown()) then return end
-	isMinimized = false
 	pipFrame:Hide()
-	if(not modalFrame) then
-		buildModalFrame()
-	end
 	modalFrame:Show()
-	if(showPage) then showPage(currentStep) end
+	showPage(currentStep)
 end
 
 function Onboarding.CloseOverview()
@@ -398,7 +390,6 @@ function Onboarding.CloseOverview()
 	if(pipFrame) then
 		pipFrame:Hide()
 	end
-	isMinimized = false
 end
 
 function Onboarding.IsOverviewActive()
