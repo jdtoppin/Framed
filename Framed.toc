@@ -218,4 +218,5 @@ ImportExport/ImportExport.lua
 
 # Onboarding
 Onboarding/Wizard.lua
+Onboarding/OverviewIllustrations.lua
 Onboarding/Overview.lua
