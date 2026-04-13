@@ -6,7 +6,7 @@ local B = F.FrameSettingsBuilder
 F.AppearanceCards = F.AppearanceCards or {}
 
 local BUTTON_H = 28
-local TOUR_TOOLTIP_BODY = 'The guided tour will walk you through Framed\'s features step by step.'
+local OVERVIEW_TOOLTIP_BODY = 'The overview walks you through Framed\'s core features: layouts, edit mode, settings cards, and aura indicators.'
 
 function F.AppearanceCards.SetupWizard(parent, width, getConfig, setConfig, fireChange)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
@@ -20,16 +20,14 @@ function F.AppearanceCards.SetupWizard(parent, width, getConfig, setConfig, fire
 	end)
 	cardY = B.PlaceWidget(wizardBtn, inner, cardY, BUTTON_H)
 
-	local tourBtn = Widgets.CreateButton(inner, 'Take Tour', 'widget', widgetW, BUTTON_H)
-	tourBtn:SetWidgetTooltip('Take Tour', TOUR_TOOLTIP_BODY)
-	tourBtn:SetOnClick(function()
-		if(F.Onboarding and F.Onboarding.StartTour) then
-			F.Onboarding.StartTour()
-		elseif(DEFAULT_CHAT_FRAME) then
-			DEFAULT_CHAT_FRAME:AddMessage('|cff00ccffFramed:|r Guided tour coming in a future update.')
+	local overviewBtn = Widgets.CreateButton(inner, 'Take Overview', 'widget', widgetW, BUTTON_H)
+	overviewBtn:SetWidgetTooltip('Take Overview', OVERVIEW_TOOLTIP_BODY)
+	overviewBtn:SetOnClick(function()
+		if(F.Onboarding and F.Onboarding.ShowOverview) then
+			F.Onboarding.ShowOverview()
 		end
 	end)
-	cardY = B.PlaceWidget(tourBtn, inner, cardY, BUTTON_H)
+	cardY = B.PlaceWidget(overviewBtn, inner, cardY, BUTTON_H)
 
 	Widgets.EndCard(card, parent, cardY)
 	return card
