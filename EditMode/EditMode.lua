@@ -2,7 +2,6 @@ local addonName, Framed = ...
 local F = Framed
 
 local Widgets = F.Widgets
-local C = F.Constants
 local EditCache = F.EditCache
 
 F.EditMode = {}

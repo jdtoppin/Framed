@@ -97,7 +97,7 @@ local function CreateCatcher(def, overlay)
 		local config = F.Config:Get('presets.' .. preset .. '.unitConfigs.' .. frameKey)
 		if(not config) then return end
 
-		local totalW, totalH = getGroupBounds(config, frameKey)
+		local totalW = getGroupBounds(config, frameKey)
 		local anchor = config.anchorPoint
 		if(not totalW or not anchor) then
 			-- Missing layout config — fall back to real frame if available

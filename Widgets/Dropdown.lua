@@ -32,7 +32,6 @@ local dropdownBlocker       -- invisible full-screen click-catcher
 local currentOwner          -- which dropdown button currently owns the list
 
 -- Forward declarations
-local EnsureDropdownList
 local CloseDropdownList
 local OpenDropdownList
 
@@ -708,8 +707,8 @@ function Widgets.CreateDropdown(parent, width)
 			Widgets.ApplyBackdrop(self, C.Colors.widget, C.Colors.border)
 			local tn = C.Colors.textNormal
 			self._label:SetTextColor(tn[1], tn[2], tn[3], tn[4] or 1)
-			local ts = C.Colors.textSecondary
-			self._arrow:SetVertexColor(ts[1], ts[2], ts[3], ts[4] or 1)
+			local arrowColor = C.Colors.textSecondary
+			self._arrow:SetVertexColor(arrowColor[1], arrowColor[2], arrowColor[3], arrowColor[4] or 1)
 		else
 			-- Close if open
 			if(currentOwner == self) then CloseDropdownList() end
@@ -753,7 +752,6 @@ function Widgets.CreateTextureDropdown(parent, width, mediaType)
 	-- --------------------------------------------------------
 	-- Override _SelectItem to expose texture path + name
 	-- --------------------------------------------------------
-	local baseSelectItem = dropdown._SelectItem
 	function dropdown:_SelectItem(item)
 		self._value = item.value  -- stores LSM name as value
 
