@@ -100,14 +100,12 @@ local function buildAtlasIllustration(host, atlasName, iconSize)
 	return container
 end
 
-local function buildCardsIllustration(host, w, h)
+local function buildCardsIllustration(host, w, _h)
 	if(not F.AppearanceCards or not F.AppearanceCards.Tooltips) then
 		return buildAtlasIllustration(host, 'Garr_BuildingIcon-Barracks', 96)
 	end
 
 	local container = CreateFrame('Frame', nil, host)
-	container:ClearAllPoints()
-	container:SetAllPoints(host)
 
 	local cardConfig = {
 		tooltipEnabled = true,
@@ -122,11 +120,8 @@ local function buildCardsIllustration(host, w, h)
 	local function fireChange() end
 	local function onResize() end
 
-	-- BUG: Appearance card builders can raise if the Widgets library
-	-- isn't fully initialized or if an internal dependency is missing.
-	-- Guard to degrade to an empty illustration rather than break the overview.
-	local ok, card = pcall(F.AppearanceCards.Tooltips, container, w, getConfig, setConfig, fireChange, onResize)
-	if(not ok or not card) then
+	local card = F.AppearanceCards.Tooltips(container, w, getConfig, setConfig, fireChange, onResize)
+	if(not card) then
 		container:Hide()
 		return nil
 	end
@@ -138,14 +133,13 @@ end
 
 local function buildIndicatorsIllustration(host, _w, _h)
 	local container = CreateFrame('Frame', nil, host)
-	container:ClearAllPoints()
-	container:SetAllPoints(host)
 
 	local iconSize = 48
 	local gap = C.Spacing.normal
 
 	local leftBg = CreateFrame('Frame', nil, container, 'BackdropTemplate')
-	Widgets.ApplyBackdrop(leftBg, C.Colors.widget, { 0.2, 0.8, 0.3, 1 })
+	local dispelColor = C.Colors.dispel.Magic
+	Widgets.ApplyBackdrop(leftBg, C.Colors.widget, { dispelColor[1], dispelColor[2], dispelColor[3], 1 })
 	Widgets.SetSize(leftBg, iconSize, iconSize)
 	leftBg:ClearAllPoints()
 	Widgets.SetPoint(leftBg, 'CENTER', container, 'CENTER', -(iconSize + gap) / 2, 0)
@@ -169,8 +163,6 @@ end
 
 local function buildDefensivesIllustration(host, _w, _h)
 	local container = CreateFrame('Frame', nil, host)
-	container:ClearAllPoints()
-	container:SetAllPoints(host)
 
 	local iconSize = 64
 	local bg = CreateFrame('Frame', nil, container, 'BackdropTemplate')
