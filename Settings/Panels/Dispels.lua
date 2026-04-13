@@ -12,12 +12,6 @@ local CHECK_H    = 22
 local DROPDOWN_H = 22
 
 -- ============================================================
--- Config helpers (assigned per-panel in create; card builders close over these)
--- ============================================================
-
-local get, set
-
--- ============================================================
 -- Layout helper
 -- ============================================================
 
@@ -151,8 +145,8 @@ F.Settings.RegisterPanel({
 		local unitType   = F.Settings.GetEditingUnitType and F.Settings.GetEditingUnitType() or 'party'
 		local basePath   = 'presets.' .. presetName .. '.auras.' .. unitType .. '.dispellable'
 
-		get = function(key) return F.Config and F.Config:Get(basePath .. '.' .. key) end
-		set = function(key, value)
+		local get = function(key) return F.Config and F.Config:Get(basePath .. '.' .. key) end
+		local set = function(key, value)
 			if(F.Config) then F.Config:Set(basePath .. '.' .. key, value) end
 			if(F.PresetManager) then F.PresetManager.MarkCustomized(presetName) end
 			if(key ~= 'enabled' and F.EventBus) then

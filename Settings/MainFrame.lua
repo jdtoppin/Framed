@@ -114,10 +114,8 @@ function Settings.CreateMainFrame()
 
 	-- ── Outer window ──────────────────────────────────────────
 	WINDOW_W, WINDOW_H = GetDefaultSize()
-	local maxW = GetWindowMaxW()
-	local maxH = GetWindowMaxH()
-	local initW = math.min(WINDOW_W, maxW)
-	local initH = math.min(WINDOW_H, maxH)
+	local initW = math.min(WINDOW_W, GetWindowMaxW())
+	local initH = math.min(WINDOW_H, GetWindowMaxH())
 	local frame, header = Widgets.CreateHeaderedFrame(UIParent, 'Framed', initW, initH)
 	frame:SetFrameStrata('HIGH')
 	frame:EnableMouse(true)
@@ -358,7 +356,7 @@ function Settings.CreateMainFrame()
 		Widgets.ApplyUIScale(frame)
 		-- Clamp height to screen on every show (scale may have changed)
 		local maxH = GetWindowMaxH()
-		local w, h = frame:GetSize()
+		local _, h = frame:GetSize()
 		if(h > maxH) then
 			frame:SetHeight(maxH)
 			if(Settings._contentParent) then

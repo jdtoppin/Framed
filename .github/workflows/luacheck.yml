@@ -33,7 +33,7 @@ jobs:
             head_sha="${{ github.sha }}"
           fi
 
-          git diff --name-only "$base_sha" "$head_sha" -- '*.lua' ':!Libs/**' > changed_lua_files.txt
+          git diff --name-only --diff-filter=ACMR "$base_sha" "$head_sha" -- '*.lua' ':!Libs/**' > changed_lua_files.txt
 
           if [ -s changed_lua_files.txt ]; then
             echo "has_files=true" >> "$GITHUB_OUTPUT"

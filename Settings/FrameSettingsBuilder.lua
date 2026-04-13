@@ -1,4 +1,4 @@
-local addonName, Framed = ...
+local _, Framed = ...
 local F = Framed
 
 local Widgets = F.Widgets
@@ -88,9 +88,6 @@ function F.FrameSettingsBuilder.PlaceHeading(content, text, level, yOffset, widt
 	return yOffset - height
 end
 
-local placeWidget  = F.FrameSettingsBuilder.PlaceWidget
-local placeHeading = F.FrameSettingsBuilder.PlaceHeading
-
 -- ============================================================
 -- FrameSettingsBuilder.Create
 -- ============================================================
@@ -100,9 +97,6 @@ local placeHeading = F.FrameSettingsBuilder.PlaceHeading
 --- @param unitType string  Unit identifier (e.g. 'player', 'party', 'raid')
 --- @return Frame
 function F.FrameSettingsBuilder.Create(parent, unitType)
-	local isGroup    = GROUP_TYPES[unitType] or false
-	local isNpcFrame = NPC_FRAME_TYPES[unitType] or false
-
 	-- ── Scroll frame wrapping the whole panel ─────────────────
 	local parentW = parent._explicitWidth or parent:GetWidth() or 530
 	local parentH = parent._explicitHeight or parent:GetHeight() or 400

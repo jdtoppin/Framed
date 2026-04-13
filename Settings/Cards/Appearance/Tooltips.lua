@@ -1,6 +1,5 @@
 local _, Framed = ...
 local F = Framed
-local C = F.Constants
 local Widgets = F.Widgets
 local B = F.FrameSettingsBuilder
 
@@ -22,7 +21,7 @@ local SCREEN_ANCHORS = {
 
 
 function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireChange, onResize)
-	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
+	local card, inner = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	-- Show Tooltips

@@ -433,7 +433,6 @@ function Widgets.StartAnimation(frame, key, fromVal, toVal, duration, onUpdate, 
 		frame._animOnUpdate = true
 		frame:HookScript('OnUpdate', function(self, elapsed)
 			if(not self._anim) then return end
-			local hasActive = false
 			for animKey, anim in next, self._anim do
 				anim.elapsed = anim.elapsed + elapsed
 				local progress = math.min(anim.elapsed / anim.duration, 1)
@@ -444,8 +443,6 @@ function Widgets.StartAnimation(frame, key, fromVal, toVal, duration, onUpdate, 
 					if(anim.onComplete) then
 						anim.onComplete(self)
 					end
-				else
-					hasActive = true
 				end
 			end
 		end)
@@ -522,7 +519,7 @@ function Widgets.MakeDraggable(frame, onDragStart, onDragStop, clampToParent, on
 			self._dragOnMove = onMove
 			self._prevOnUpdate = self:GetScript('OnUpdate')
 			self:SetScript('OnUpdate', function(s)
-				local point, _, relPoint, x, y = s:GetPoint()
+				local _, _, _, x, y = s:GetPoint()
 				if(s._dragOnMove) then s._dragOnMove(s, x, y) end
 			end)
 		end
@@ -535,7 +532,7 @@ function Widgets.MakeDraggable(frame, onDragStart, onDragStop, clampToParent, on
 			self._dragOnMove = nil
 			self._prevOnUpdate = nil
 		end
-		local point, _, relPoint, x, y = self:GetPoint()
+		local _, _, _, x, y = self:GetPoint()
 		if(onDragStop) then onDragStop(self, x, y) end
 	end)
 end
