@@ -216,15 +216,6 @@ oUF:AddElement('FramedPrivateAuras', Update, Enable, Disable)
 function F.Elements.PrivateAuras.Setup(self, config)
 	config = config or {}
 
-	-- Required fields live in Presets/AuraDefaults.lua. If they're absent
-	-- the saved preset was written before the defaults landed (or was
-	-- built by a bare Config:Set('...enabled', true)). Bail rather than
-	-- crash — EnsureDefaults/live-update will retry once the rest of the
-	-- sub-table is populated.
-	if(not config.maxDisplayed or not config.iconSize or not config.anchor) then
-		return
-	end
-
 	-- Create a pool of anchor frames, one per auraIndex slot
 	local pool = {}
 	for idx = 1, config.maxDisplayed do

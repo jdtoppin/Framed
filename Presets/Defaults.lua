@@ -514,6 +514,31 @@ function F.PresetDefaults.GetAll()
 end
 
 -- ============================================================
+-- Aura config backfill
+-- ============================================================
+
+-- Keys that represent user-owned collections inside an aura sub-table.
+-- We must NOT recurse into these during backfill — a user who removed
+-- an indicator would otherwise have it restored from defaults.
+local AURA_USER_COLLECTIONS = {
+	indicators = true,
+	spells     = true,
+}
+
+--- Fill missing keys in `target` from `defaults`, recursing into
+--- nested tables except the user-owned collection keys above.
+--- Never overwrites existing values.
+local function backfillAuraConfig(target, defaults)
+	for k, v in next, defaults do
+		if(target[k] == nil) then
+			target[k] = F.DeepCopy(v)
+		elseif(type(v) == 'table' and type(target[k]) == 'table' and not AURA_USER_COLLECTIONS[k]) then
+			backfillAuraConfig(target[k], v)
+		end
+	end
+end
+
+-- ============================================================
 -- EnsureDefaults — populate FramedDB.presets on first run
 -- ============================================================
 
@@ -607,6 +632,29 @@ function F.PresetDefaults.EnsureDefaults()
 							auraSet.debuffs.filterMode = 'all'
 						end
 						auraSet.debuffs.onlyDispellableByMe = nil
+					end
+				end
+
+				-- Backfill missing aura sub-tables and missing scalar keys
+				-- inside existing sub-tables from canonical defaults. Skips
+				-- user-owned collections (indicators, spells) so a user
+				-- who removed an indicator doesn't have it restored.
+				local defaultAuras = preset.auras
+				if(defaultAuras) then
+					for unitType, defaultSet in next, defaultAuras do
+						local savedSet = savedAuras[unitType]
+						if(not savedSet) then
+							savedAuras[unitType] = F.DeepCopy(defaultSet)
+						else
+							for auraType, defaultCfg in next, defaultSet do
+								local savedCfg = savedSet[auraType]
+								if(savedCfg == nil) then
+									savedSet[auraType] = F.DeepCopy(defaultCfg)
+								elseif(type(savedCfg) == 'table' and type(defaultCfg) == 'table') then
+									backfillAuraConfig(savedCfg, defaultCfg)
+								end
+							end
+						end
 					end
 				end
 			end

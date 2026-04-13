@@ -238,23 +238,15 @@ function F.Elements.TargetedSpells.Setup(self, config)
 	-- Border color for the BorderIcon border
 	local borderColor = config.borderColor
 
-	-- Glow subtable — optional. Per CLAUDE.md convention, missing sub-tables
-	-- are guarded rather than defaulted to {}. When absent, the glow display
-	-- branch below is also skipped so nothing tries to read glowType/glowColor.
-	local glowCfg = config.glow
-	local glowType, glowColor, glowConfig
-	if(glowCfg) then
-		glowType  = glowCfg.type
-		glowColor = glowCfg.color
-		if(glowCfg.lines or glowCfg.frequency or glowCfg.length or glowCfg.thickness) then
-			glowConfig = {
-				lines     = glowCfg.lines,
-				frequency = glowCfg.frequency,
-				length    = glowCfg.length,
-				thickness = glowCfg.thickness,
-			}
-		end
-	end
+	local glowCfg    = config.glow
+	local glowType   = glowCfg.type
+	local glowColor  = glowCfg.color
+	local glowConfig = {
+		lines     = glowCfg.lines,
+		frequency = glowCfg.frequency,
+		length    = glowCfg.length,
+		thickness = glowCfg.thickness,
+	}
 
 	-- Create BorderIcon pool
 	local pool = {}
@@ -278,9 +270,8 @@ function F.Elements.TargetedSpells.Setup(self, config)
 		end
 	end
 
-	-- Create glow — requires the optional glow sub-table to be present.
 	local glow, glowFrame
-	if((displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) and glowCfg) then
+	if(displayMode == DisplayMode.BORDER_GLOW or displayMode == DisplayMode.BOTH) then
 		-- Glow needs a dedicated wrapper frame for SetAlphaFromBoolean on secret path.
 		-- Glow.Create applies glow effects to the parent frame directly (_parent),
 		-- so we create a wrapper frame that the glow attaches to, and we control
