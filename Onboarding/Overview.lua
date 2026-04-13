@@ -1,7 +1,7 @@
 local addonName, Framed = ...
 local F = Framed
 
-local Widgets = F.Widgets
+local Widgets = F.Widgets -- luacheck: ignore 211
 local C = F.Constants
 
 F.Onboarding = F.Onboarding or {}
@@ -11,11 +11,12 @@ local Onboarding = F.Onboarding
 -- Constants
 -- ============================================================
 
+-- luacheck: push ignore 211
 local MODAL_W        = 540
 local MODAL_H        = 380
 local HEADER_H       = 40
 local FOOTER_H       = 44
-local CONTENT_PAD    = 16
+local CONTENT_PAD    = C.Spacing.loose
 local ILLUSTRATION_W = 180
 local ILLUSTRATION_H = 220
 local PIP_W          = 140
@@ -26,15 +27,18 @@ local PROGRESS_GAP   = 6
 local BTN_W          = 110
 local BTN_H          = 26
 local CLOSE_BTN_SIZE = 20
+-- luacheck: pop
 
 -- ============================================================
 -- State
 -- ============================================================
 
+-- luacheck: push ignore 211
 local modalFrame  = nil
 local pipFrame    = nil
 local currentStep = 1
 local isMinimized = false
+-- luacheck: pop
 
 -- ============================================================
 -- Public API (stubs — implemented in later tasks)
