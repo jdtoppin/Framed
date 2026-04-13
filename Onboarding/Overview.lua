@@ -29,12 +29,14 @@ local PROGRESS_GAP   = 6
 local BTN_W          = 110
 local BTN_H          = 26
 local CLOSE_BTN_SIZE = 20
+local DIM_ALPHA      = 0.75
 
 -- ============================================================
 -- State
 -- ============================================================
 
 local modalFrame  = nil
+local dimFrame    = nil
 local pipFrame    = nil
 local currentStep = 1
 
@@ -64,17 +66,13 @@ local PAGES = {
 		id = 'layouts',
 		title = 'Layouts & Auto-Switch',
 		body = 'Framed ships layouts for Solo, Party, Raid, Mythic Raid, World Raid, Battleground, and Arena — and swaps them automatically when content changes. You can still edit any layout manually from the Layouts sidebar.',
-		buildIllustration = function(host, _w, _h)
-			return Illus.BuildAtlas(host, 'groupfinder-eye-frame', 96)
-		end,
+		buildIllustration = Illus.BuildLayouts,
 	},
 	{
 		id = 'editmode',
 		title = 'Edit Mode',
 		body = 'Drag any frame to reposition it. The inline panel jumps you to that frame\'s settings, and edits stay live until you click Save or Discard.',
-		buildIllustration = function(host, _w, _h)
-			return Illus.BuildAtlas(host, 'editmode-new-icon', 96)
-		end,
+		buildIllustration = Illus.BuildEditMode,
 	},
 	{ id = 'cards',      title = 'Settings Cards',           body = 'Each unit has a grid of focused cards — Position, Health, Power, Auras, and more. Pin the ones you use most so they stick to the top of the grid.',                                                                      buildIllustration = Illus.BuildCards      },
 	{ id = 'indicators', title = 'Buffs, Debuffs & Dispels', body = 'Build custom indicators for specific spells — borders, overlays, or icons. Dispellable debuffs get their own highlight system so healers can spot them instantly.',                                                     buildIllustration = Illus.BuildIndicators },
@@ -293,6 +291,28 @@ local function buildModalFrame()
 end
 
 -- ============================================================
+-- Dim backdrop — full-screen black at DIM_ALPHA, absorbs clicks
+-- behind the modal so game UI can't be misclicked. Sits at
+-- FULLSCREEN strata (one below the modal's FULLSCREEN_DIALOG).
+-- ============================================================
+
+local function buildDimFrame()
+	if(dimFrame) then return end
+
+	local dim = CreateFrame('Frame', nil, UIParent)
+	dim:SetFrameStrata('FULLSCREEN')
+	dim:SetAllPoints(UIParent)
+	dim:EnableMouse(true)
+	dim:Hide()
+
+	local tex = dim:CreateTexture(nil, 'BACKGROUND')
+	tex:SetAllPoints(dim)
+	tex:SetColorTexture(0, 0, 0, DIM_ALPHA)
+
+	dimFrame = dim
+end
+
+-- ============================================================
 -- Minimize pip
 -- ============================================================
 
@@ -359,9 +379,13 @@ function Onboarding.ShowOverview()
 	if(not modalFrame) then
 		buildModalFrame()
 	end
+	if(not dimFrame) then
+		buildDimFrame()
+	end
 
 	currentStep = 1
 	if(pipFrame) then pipFrame:Hide() end
+	Widgets.FadeIn(dimFrame)
 	Widgets.FadeIn(modalFrame)
 
 	showPage(1)
@@ -373,6 +397,7 @@ function Onboarding.MinimizeOverview()
 		buildPipFrame()
 	end
 	modalFrame:Hide()
+	if(dimFrame) then dimFrame:Hide() end
 	updatePipLabel()
 	pipFrame:Show()
 end
@@ -380,6 +405,7 @@ end
 function Onboarding.RestoreOverview()
 	if(not pipFrame or not pipFrame:IsShown()) then return end
 	pipFrame:Hide()
+	if(dimFrame) then dimFrame:Show() end
 	modalFrame:Show()
 	showPage(currentStep)
 end
@@ -387,6 +413,9 @@ end
 function Onboarding.CloseOverview()
 	if(modalFrame) then
 		Widgets.FadeOut(modalFrame)
+	end
+	if(dimFrame) then
+		Widgets.FadeOut(dimFrame)
 	end
 	if(pipFrame) then
 		pipFrame:Hide()
