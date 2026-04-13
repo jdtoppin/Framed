@@ -20,7 +20,6 @@ F.Settings.RegisterPanel({
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
-		content:SetWidth(parentW)
 		local width = parentW - C.Spacing.normal * 2
 
 		local function getConfig(key)
@@ -34,16 +33,34 @@ F.Settings.RegisterPanel({
 		end
 
 		local grid = Widgets.CreateCardGrid(content, width)
-		local args = { getConfig, setConfig, fireChange }
 
-		grid:AddCard('accent',      'Accent Color',        F.AppearanceCards.AccentColor,        args)
+		-- Animated re-layout after a card changes its own height.
+		local function relayout()
+			local oldContentH = content:GetHeight()
+			local oldScroll   = scroll._scrollFrame:GetVerticalScroll()
+
+			grid:AnimatedReflow()
+			content:SetHeight(grid:GetTotalHeight())
+			scroll:UpdateScrollRange()
+
+			local growth = content:GetHeight() - oldContentH
+			if(growth > 0) then
+				local viewH     = scroll._scrollFrame:GetHeight()
+				local maxScroll = math.max(0, content:GetHeight() - viewH)
+				local newScroll = math.min(oldScroll + growth, maxScroll)
+				scroll._scrollFrame:SetVerticalScroll(newScroll)
+				scroll:_UpdateThumb()
+			end
+		end
+
+		local args = { getConfig, setConfig, fireChange, relayout }
+
+		grid:AddCard('theme',       'Theme',               F.AppearanceCards.Theme,               args)
 		grid:AddCard('scale',       'UI Scale',            F.AppearanceCards.UIScale,             args)
-		grid:AddCard('font',        'Global Font',         F.AppearanceCards.GlobalFont,          args)
-		grid:AddCard('barTexture',  'Bar Texture',         F.AppearanceCards.BarTexture,          args)
 		grid:AddCard('targetHL',    'Target Highlight',    F.AppearanceCards.TargetHighlight,     args)
 		grid:AddCard('mouseoverHL', 'Mouseover Highlight', F.AppearanceCards.MouseoverHighlight,  args)
 		grid:AddCard('tooltips',    'Tooltips',            F.AppearanceCards.Tooltips,            args)
-		grid:AddCard('wizard',      'Setup Wizard',        F.AppearanceCards.SetupWizard,         args)
+		grid:AddCard('wizard',      'Setup Wizard & Tour', F.AppearanceCards.SetupWizard,         args)
 
 		-- Load pinned state
 		local pinnedCards = F.Config:Get('general.pinnedAppearanceCards')
@@ -74,7 +91,6 @@ F.Settings.RegisterPanel({
 		F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
 			local gridW = newW - C.Spacing.normal * 2
 			grid:SetWidth(gridW)
-			content:SetWidth(newW)
 			content:SetHeight(grid:GetTotalHeight())
 		end, 'AppearancePanel.resize')
 

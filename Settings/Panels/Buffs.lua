@@ -204,7 +204,6 @@ F.Settings.RegisterPanel({
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
-		content:SetWidth(parentW)
 		local width   = parentW - C.Spacing.normal * 2
 		local yOffset = -C.Spacing.normal
 
@@ -221,21 +220,10 @@ F.Settings.RegisterPanel({
 		local pinnedRowY  = yOffset
 
 		-- ── Preview card (above create card, same column) ────────
-		-- Add accent top border to pinned cards
-		local function addAccentBar(card)
-			local bar = card:CreateTexture(nil, 'OVERLAY')
-			bar:SetHeight(1)
-			bar:SetPoint('TOPLEFT', card, 'TOPLEFT', 0, 0)
-			bar:SetPoint('TOPRIGHT', card, 'TOPRIGHT', 0, 0)
-			local ac = C.Colors.accent
-			bar:SetColorTexture(ac[1], ac[2], ac[3], 0.4)
-			return bar
-		end
-
 		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, createCardW)
 		previewCard:ClearAllPoints()
 		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
-		local previewAccentBar = addAccentBar(previewCard)
+		local previewAccentBar = Widgets.CreateAccentBar(previewCard)
 		local previewCardH = previewCard:GetHeight()
 		local createStartY = pinnedRowY - previewCardH - CARD_GAP
 
@@ -245,7 +233,7 @@ F.Settings.RegisterPanel({
 		local selectedBorderGlowMode = 'Border'
 
 		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, createStartY)
-		addAccentBar(createCard)
+		Widgets.CreateAccentBar(createCard)
 
 		-- Type dropdown
 		local typeDD = Widgets.CreateDropdown(createInner, createCardW - Widgets.CARD_PADDING * 2)
@@ -359,7 +347,7 @@ F.Settings.RegisterPanel({
 		listCard:ClearAllPoints()
 		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', createCardW + CARD_GAP, pinnedRowY)
 		listCard._startY = pinnedRowY
-		addAccentBar(listCard)
+		Widgets.CreateAccentBar(listCard)
 
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
 		local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, listScrollH)
@@ -658,7 +646,6 @@ F.Settings.RegisterPanel({
 			listScroll:SetWidth(newListInnerW)
 
 			grid:SetWidth(newWidth)
-			content:SetWidth(newW)
 			content:SetHeight(grid:GetTotalHeight())
 			scroll:UpdateScrollRange()
 		end

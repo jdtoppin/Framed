@@ -110,7 +110,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	scroll:SetAllPoints(parent)
 
 	local content = scroll:GetContentFrame()
-	content:SetWidth(parentW)
 	local width = parentW - C.Spacing.normal * 2
 
 	-- Tag scroll frame with the preset it was built for (used by callers for invalidation)
@@ -234,7 +233,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
 		local gridW = newW - C.Spacing.normal * 2
 		grid:SetWidth(gridW)
-		content:SetWidth(newW)
 		content:SetHeight(grid:GetTotalHeight())
 	end, 'FrameSettingsBuilder.resize.' .. unitType)
 

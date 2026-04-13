@@ -1,5 +1,6 @@
 local _, Framed = ...
 local F = Framed
+local C = F.Constants
 local Widgets = F.Widgets
 local B = F.FrameSettingsBuilder
 
@@ -20,7 +21,7 @@ local SCREEN_ANCHORS = {
 }
 
 
-function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireChange)
+function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireChange, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
@@ -30,7 +31,6 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 		fireChange()
 	end)
 	ttEnabled:SetChecked(getConfig('tooltipEnabled') ~= false)
-	cardY = B.PlaceWidget(ttEnabled, inner, cardY, B.CHECK_H)
 
 	-- Hide in Combat
 	local ttCombat = Widgets.CreateCheckButton(inner, 'Hide in Combat', function(checked)
@@ -38,7 +38,6 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 		fireChange()
 	end)
 	ttCombat:SetChecked(getConfig('tooltipHideInCombat') == true)
-	cardY = B.PlaceWidget(ttCombat, inner, cardY, B.CHECK_H)
 
 	-- Handle legacy ANCHOR_* values from old config
 	local currentMode = getConfig('tooltipMode')
@@ -57,7 +56,7 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 		end
 	end
 
-	-- Mode dropdown (frame / screen / cursor)
+	-- Mode dropdown (default / frame / screen / cursor)
 	local ttMode = Widgets.CreateDropdown(inner, widgetW)
 	ttMode:SetItems({
 		{ text = 'Default',          value = 'default' },
@@ -66,20 +65,17 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 		{ text = 'Follow Cursor',    value = 'cursor' },
 	})
 	ttMode:SetValue(currentMode)
-	cardY = B.PlaceWidget(ttMode, inner, cardY, B.DROPDOWN_H)
 
 	-- Anchor dropdown (shown for frame and screen modes)
 	local ttAnchor = Widgets.CreateDropdown(inner, widgetW)
-	cardY = B.PlaceWidget(ttAnchor, inner, cardY, B.DROPDOWN_H)
 
-	-- Offset sliders
+	-- Offset sliders (shown with ttAnchor)
 	local ttOffX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
 	ttOffX:SetValue(getConfig('tooltipOffsetX'))
 	ttOffX:SetAfterValueChanged(function(value)
 		setConfig('tooltipOffsetX', value)
 		fireChange()
 	end)
-	cardY = B.PlaceWidget(ttOffX, inner, cardY, B.SLIDER_H)
 
 	local ttOffY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
 	ttOffY:SetValue(getConfig('tooltipOffsetY'))
@@ -87,37 +83,48 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 		setConfig('tooltipOffsetY', value)
 		fireChange()
 	end)
-	cardY = B.PlaceWidget(ttOffY, inner, cardY, B.SLIDER_H)
 
-	-- Update visibility and items based on mode
-	local function updateForMode(mode)
-		if(mode == 'default' or mode == 'cursor') then
+	local initialized = false
+
+	local function reflow()
+		local y = 0
+		y = B.PlaceWidget(ttEnabled, inner, y, B.CHECK_H)
+		y = B.PlaceWidget(ttCombat,  inner, y, B.CHECK_H)
+		y = B.PlaceWidget(ttMode,    inner, y, B.DROPDOWN_H)
+
+		local showAnchor = currentMode == 'frame' or currentMode == 'screen'
+		if(showAnchor) then
+			if(currentMode == 'screen') then
+				ttAnchor:SetItems(SCREEN_ANCHORS)
+				local anchor = getConfig('tooltipAnchor')
+				if(anchor ~= 'BOTTOMRIGHT' and anchor ~= 'BOTTOMLEFT' and anchor ~= 'TOPRIGHT' and anchor ~= 'TOPLEFT') then
+					anchor = 'BOTTOMRIGHT'
+					setConfig('tooltipAnchor', anchor)
+				end
+				ttAnchor:SetValue(anchor)
+			else
+				ttAnchor:SetItems(FRAME_ANCHORS)
+				local anchor = getConfig('tooltipAnchor')
+				if(anchor ~= 'RIGHT' and anchor ~= 'LEFT' and anchor ~= 'TOP' and anchor ~= 'BOTTOM') then
+					anchor = 'RIGHT'
+					setConfig('tooltipAnchor', anchor)
+				end
+				ttAnchor:SetValue(anchor)
+			end
+			ttAnchor:Show()
+			ttOffX:Show()
+			ttOffY:Show()
+			y = B.PlaceWidget(ttAnchor, inner, y, B.DROPDOWN_H)
+			y = B.PlaceWidget(ttOffX,   inner, y, B.SLIDER_H)
+			y = B.PlaceWidget(ttOffY,   inner, y, B.SLIDER_H)
+		else
 			ttAnchor:Hide()
 			ttOffX:Hide()
 			ttOffY:Hide()
-		elseif(mode == 'screen') then
-			ttAnchor:SetItems(SCREEN_ANCHORS)
-			local anchor = getConfig('tooltipAnchor')
-			if(anchor ~= 'BOTTOMRIGHT' and anchor ~= 'BOTTOMLEFT' and anchor ~= 'TOPRIGHT' and anchor ~= 'TOPLEFT') then
-				anchor = 'BOTTOMRIGHT'
-				setConfig('tooltipAnchor', anchor)
-			end
-			ttAnchor:SetValue(anchor)
-			ttAnchor:Show()
-			ttOffX:Show()
-			ttOffY:Show()
-		else
-			ttAnchor:SetItems(FRAME_ANCHORS)
-			local anchor = getConfig('tooltipAnchor')
-			if(anchor ~= 'RIGHT' and anchor ~= 'LEFT' and anchor ~= 'TOP' and anchor ~= 'BOTTOM') then
-				anchor = 'RIGHT'
-				setConfig('tooltipAnchor', anchor)
-			end
-			ttAnchor:SetValue(anchor)
-			ttAnchor:Show()
-			ttOffX:Show()
-			ttOffY:Show()
 		end
+
+		Widgets.EndCard(card, parent, y)
+		if(initialized and onResize) then onResize() end
 	end
 
 	ttAnchor:SetOnSelect(function(value)
@@ -126,13 +133,14 @@ function F.AppearanceCards.Tooltips(parent, width, getConfig, setConfig, fireCha
 	end)
 
 	ttMode:SetOnSelect(function(value)
+		currentMode = value
 		setConfig('tooltipMode', value)
-		updateForMode(value)
+		reflow()
 		fireChange()
 	end)
 
-	updateForMode(currentMode)
+	reflow()
+	initialized = true
 
-	Widgets.EndCard(card, parent, cardY)
 	return card
 end

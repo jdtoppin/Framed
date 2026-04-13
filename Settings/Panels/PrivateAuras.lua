@@ -132,7 +132,6 @@ F.Settings.RegisterPanel({
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
-		content:SetWidth(parentW)
 		local width   = parentW - C.Spacing.normal * 2
 		local yOffset = -C.Spacing.normal
 
@@ -173,7 +172,6 @@ F.Settings.RegisterPanel({
 		local function onResize(newW)
 			local newWidth = newW - C.Spacing.normal * 2
 			grid:SetWidth(newWidth)
-			content:SetWidth(newW)
 			content:SetHeight(grid:GetTotalHeight())
 		end
 

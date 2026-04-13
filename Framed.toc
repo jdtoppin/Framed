@@ -175,10 +175,10 @@ Settings/Cards/PowerText.lua
 Settings/Cards/StatusText.lua
 Settings/Cards/StatusIcons.lua
 Settings/Cards/PartyPets.lua
-Settings/Cards/Appearance/AccentColor.lua
+Settings/Cards/About.lua
+Settings/Cards/Profiles.lua
+Settings/Cards/Appearance/Theme.lua
 Settings/Cards/Appearance/UIScale.lua
-Settings/Cards/Appearance/GlobalFont.lua
-Settings/Cards/Appearance/BarTexture.lua
 Settings/Cards/Appearance/TargetHighlight.lua
 Settings/Cards/Appearance/MouseoverHighlight.lua
 Settings/Cards/Appearance/Tooltips.lua
@@ -211,7 +211,6 @@ Settings/Panels/TargetedSpells.lua
 Settings/Panels/Dispels.lua
 Settings/Panels/LossOfControl.lua
 Settings/Panels/CrowdControl.lua
-Settings/Panels/Tour.lua
 Settings/Panels/About.lua
 
 # Import / Export

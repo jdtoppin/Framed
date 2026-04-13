@@ -428,7 +428,6 @@ F.Settings.RegisterPanel({
 		scroll:SetAllPoints(parent)
 
 		local content = scroll:GetContentFrame()
-		content:SetWidth(parentW)
 		local width = parentW - C.Spacing.normal * 2
 
 		local grid = Widgets.CreateCardGrid(content, width)
@@ -458,7 +457,6 @@ F.Settings.RegisterPanel({
 		F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
 			local gridW = newW - C.Spacing.normal * 2
 			grid:SetWidth(gridW)
-			content:SetWidth(newW)
 			content:SetHeight(grid:GetTotalHeight())
 		end, 'FramePresets.resize')
 

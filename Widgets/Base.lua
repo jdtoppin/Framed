@@ -227,6 +227,8 @@ scaleFrame:SetScript('OnEvent', function(self, event)
 					Widgets.UpdateAllFonts()
 				elseif(path == 'general.barTexture') then
 					Widgets.UpdateAllBarTextures()
+				elseif(path == 'general.accentColor') then
+					Widgets.UpdateAllAccentBars()
 				end
 			end, 'Widgets.GlobalAppearance')
 		end
@@ -305,6 +307,7 @@ end
 -- Weak-value tracking tables for live font/texture updates
 local trackedFontStrings = setmetatable({}, { __mode = 'v' })
 local trackedStatusBars  = setmetatable({}, { __mode = 'v' })
+local trackedAccentBars  = setmetatable({}, { __mode = 'v' })
 
 --- Create a font string with standard Framed styling.
 --- @param parent Frame
@@ -360,6 +363,40 @@ function Widgets.UpdateAllBarTextures()
 			bar:GetStatusBarTexture():SetVertTile(false)
 		else
 			table.remove(trackedStatusBars, i)
+		end
+	end
+end
+
+--- Create a 1px faded accent bar anchored along one edge of a frame.
+--- Tracked for live updates when the accent color changes.
+--- @param parent Frame  The frame to attach the bar to
+--- @param edge?  string 'top' (default) or 'bottom'
+--- @return Texture bar
+function Widgets.CreateAccentBar(parent, edge)
+	local bar = parent:CreateTexture(nil, 'OVERLAY')
+	bar:SetHeight(1)
+	if(edge == 'bottom') then
+		bar:SetPoint('BOTTOMLEFT',  parent, 'BOTTOMLEFT',  0, 0)
+		bar:SetPoint('BOTTOMRIGHT', parent, 'BOTTOMRIGHT', 0, 0)
+	else
+		bar:SetPoint('TOPLEFT',  parent, 'TOPLEFT',  0, 0)
+		bar:SetPoint('TOPRIGHT', parent, 'TOPRIGHT', 0, 0)
+	end
+	local ac = C.Colors.accent
+	bar:SetColorTexture(ac[1], ac[2], ac[3], 0.4)
+	trackedAccentBars[#trackedAccentBars + 1] = bar
+	return bar
+end
+
+--- Update all tracked accent bars with the current accent color.
+function Widgets.UpdateAllAccentBars()
+	local ac = C.Colors.accent
+	for i = #trackedAccentBars, 1, -1 do
+		local bar = trackedAccentBars[i]
+		if(bar and bar.SetColorTexture) then
+			bar:SetColorTexture(ac[1], ac[2], ac[3], 0.4)
+		else
+			table.remove(trackedAccentBars, i)
 		end
 	end
 end

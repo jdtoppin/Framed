@@ -69,6 +69,13 @@ WoW unit frames and raid frames addon. GPL v3.
 - `/framed config` — Debug config state
 - `/framed events` — Debug registered events
 
+## Release Workflow
+
+1. Update `CHANGELOG.md` with the new version block
+2. Run `./tools/sync-changelog.lua` to regenerate the Changelog card's table in `Settings/Cards/About.lua` (only touches the block between `-- BEGIN/END GENERATED CHANGELOG` markers)
+3. Bump `## Version:` in `Framed.toc`
+4. Commit and push — `auto-tag.yml` creates the git tag, which triggers `release.yml` (packager + Discord notification)
+
 ## References
 
 - Design spec: `docs/superpowers/specs/2026-03-24-framed-design.md`

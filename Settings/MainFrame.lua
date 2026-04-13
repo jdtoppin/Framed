@@ -296,6 +296,9 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(titleCard, 'TOPRIGHT', contentArea, 'TOPRIGHT', -C.Spacing.normal * 2, 0)
 	titleCard:SetHeight(SUB_HEADER_H)
 
+	-- Faded accent bar underlining the panel title, separating header from content
+	Widgets.CreateAccentBar(titleCard, 'bottom')
+
 	Settings._headerPanelText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
 	Settings._headerPanelText:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', titleCard, 'LEFT', C.Spacing.normal, 0)
