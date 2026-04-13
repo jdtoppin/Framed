@@ -18,6 +18,7 @@ local accountDefaults = {
 		font = nil,
 		roleIconStyle = 2,
 		wizardCompleted = false,
+		overviewCompleted = false,
 		tooltipEnabled = true,
 		tooltipHideInCombat = false,
 		tooltipMode = 'frame',
@@ -50,10 +51,6 @@ local charDefaults = {
 		['arena']        = 'Arena',
 	},
 	specOverrides = {},
-	tourState = {
-		completed = false,
-		lastStep = 0,
-	},
 	lastPanel = nil,
 	lastEditingPreset = nil,
 	lastEditingUnitType = nil,
