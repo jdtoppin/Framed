@@ -100,7 +100,7 @@ end
 --- Apply fake unit data to an existing preview frame.
 --- @param frame Frame  The preview frame returned by CreatePreviewFrame
 --- @param unit  table  A fake unit table from FAKE_UNITS / GetFakeUnits
-local function ApplyUnitToFrame(frame, unit)
+function Preview.ApplyUnitToFrame(frame, unit)
 	-- Name text
 	frame._nameText:SetText(unit.name or '')
 
@@ -207,12 +207,12 @@ function Preview.CreatePreviewFrame(parent, unitType, width, height)
 	frame._unitType = unitType
 
 	-- ── Apply first fake unit as default visual state ─────────
-	ApplyUnitToFrame(frame, FAKE_UNITS[1])
+	Preview.ApplyUnitToFrame(frame, FAKE_UNITS[1])
 
 	--- Refresh this preview frame with a specific fake unit table.
 	--- @param unit table A fake unit info table
 	function frame:SetFakeUnit(unit)
-		ApplyUnitToFrame(self, unit)
+		Preview.ApplyUnitToFrame(self, unit)
 	end
 
 	return frame
