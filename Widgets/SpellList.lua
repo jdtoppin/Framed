@@ -286,7 +286,7 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 					spellList._spellColors[capturedID] = { r, g, b }
 					if(spellList._onChanged) then
 						local copy = {}
-						for i, v in next, spellList._spells do copy[i] = v end
+						for j, v in next, spellList._spells do copy[j] = v end
 						spellList._onChanged(copy)
 					end
 				end)

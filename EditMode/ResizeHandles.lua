@@ -127,9 +127,9 @@ local function CreateHandle(parent, point, targetFrame, frameKey)
 			end
 
 			if(resizesLeft or resizesTop) then
-				local anchorPoint, anchorTo, anchorRelPoint = targetFrame:GetPoint(1)
+				local curAnchorPoint, anchorTo, anchorRelPoint = targetFrame:GetPoint(1)
 				targetFrame:ClearAllPoints()
-				Widgets.SetPoint(targetFrame, anchorPoint, anchorTo, anchorRelPoint, offsetX, offsetY)
+				Widgets.SetPoint(targetFrame, curAnchorPoint, anchorTo, anchorRelPoint, offsetX, offsetY)
 			end
 
 			-- Update edit cache

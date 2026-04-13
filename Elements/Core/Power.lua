@@ -59,14 +59,14 @@ function F.Elements.Power.Setup(self, width, height, config)
 	--- Update which border edge is removed based on power position.
 	--- Call this when the position changes at runtime.
 	--- @param position string 'top' or 'bottom'
-	function power:SetSharedEdge(position)
-		self:ClearAllPoints()
+	function power.SetSharedEdge(bar, position)
+		bar:ClearAllPoints()
 		if(position == 'top') then
-			self:SetPoint('TOPLEFT',     self._wrapper, 'TOPLEFT',      1, -1)
-			self:SetPoint('BOTTOMRIGHT', self._wrapper, 'BOTTOMRIGHT', -1,  0)
+			bar:SetPoint('TOPLEFT',     bar._wrapper, 'TOPLEFT',      1, -1)
+			bar:SetPoint('BOTTOMRIGHT', bar._wrapper, 'BOTTOMRIGHT', -1,  0)
 		else
-			self:SetPoint('TOPLEFT',     self._wrapper, 'TOPLEFT',      1,  0)
-			self:SetPoint('BOTTOMRIGHT', self._wrapper, 'BOTTOMRIGHT', -1,  1)
+			bar:SetPoint('TOPLEFT',     bar._wrapper, 'TOPLEFT',      1,  0)
+			bar:SetPoint('BOTTOMRIGHT', bar._wrapper, 'BOTTOMRIGHT', -1,  1)
 		end
 	end
 
@@ -80,14 +80,14 @@ function F.Elements.Power.Setup(self, width, height, config)
 
 	power._customColors = config.customColors or nil
 
-	power.UpdateColor = function(self, event, unit)
-		local p = self.Power
+	power.UpdateColor = function(frame, event, unit)
+		local p = frame.Power
 		local powerType, powerToken = UnitPowerType(unit)
 		local cc = p._customColors and p._customColors[powerToken]
 		if(cc) then
 			p:SetStatusBarColor(cc[1], cc[2], cc[3])
 		else
-			local color = self.colors.power[powerToken] or self.colors.power[powerType]
+			local color = frame.colors.power[powerToken] or frame.colors.power[powerType]
 			if(color) then
 				p:SetStatusBarColor(color:GetRGB())
 			end

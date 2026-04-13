@@ -111,8 +111,8 @@ function F.Elements.Castbar.Setup(self, width, height, config)
 		-- Show background when cast starts (oncast mode)
 		if(cb._backgroundMode == 'oncast') then
 			if(cb._bg) then cb._bg:Show() end
-			local bgC = C.Colors.background
-			cb._wrapper:SetBackdropColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+			local castBgC = C.Colors.background
+			cb._wrapper:SetBackdropColor(castBgC[1], castBgC[2], castBgC[3], castBgC[4] or 1)
 		end
 	end
 
