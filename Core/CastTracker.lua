@@ -49,14 +49,21 @@ CheckUnitCast = function(sourceUnit, isRecheck)
 	if(not UnitIsEnemy('player', sourceUnit)) then return end
 
 	local sourceKey = sourceUnit
-	local previousTarget
 
-	if(casts[sourceKey]) then
-		previousTarget = casts[sourceKey].targetUnit
-		if(casts[sourceKey].endTime <= GetTime()) then
+	-- Capture pre-update signature so we can skip BroadcastUpdate when
+	-- nothing consumers render has changed (target, timing, or spell).
+	local prev = casts[sourceKey]
+	local previousTarget, previousStart, previousEnd, previousSpell
+	if(prev) then
+		previousTarget = prev.targetUnit
+		previousStart  = prev.startTime
+		previousEnd    = prev.endTime
+		previousSpell  = prev.spellId
+		if(prev.endTime <= GetTime()) then
 			casts[sourceKey] = nil
+			prev = nil
 			BroadcastUpdate()
-			previousTarget = nil
+			previousTarget, previousStart, previousEnd, previousSpell = nil, nil, nil, nil
 		end
 	end
 
@@ -123,13 +130,22 @@ CheckUnitCast = function(sourceUnit, isRecheck)
 	-- Resolve target
 	local targetUnit, isSecret = GetTargetUnitID_Safe(sourceUnit .. 'target')
 
+	local entry = casts[sourceKey]
 	if(isSecret) then
 		useSecretPath = true
-		casts[sourceKey].targetUnit = nil
+		entry.targetUnit = nil
+		-- Secret path: can't diff meaningfully, always broadcast
 		BroadcastUpdate()
 	else
-		casts[sourceKey].targetUnit = targetUnit
-		BroadcastUpdate()
+		entry.targetUnit = targetUnit
+		local changed = (not prev)
+			or previousTarget ~= targetUnit
+			or previousStart  ~= entry.startTime
+			or previousEnd    ~= entry.endTime
+			or previousSpell  ~= entry.spellId
+		if(changed) then
+			BroadcastUpdate()
+		end
 	end
 
 	-- Schedule recheck (target can change mid-cast)
