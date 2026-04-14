@@ -249,6 +249,13 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	end
 	row._nameFS = nameFS
 
+	if(FramedSnapshotsDB and FramedSnapshotsDB.lastLoaded == displayName) then
+		local tag = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.accent)
+		tag:SetPoint('LEFT', nameFS, 'RIGHT', 6, 0)
+		tag:SetText('· Last loaded')
+		row._lastLoadedTag = tag
+	end
+
 	local parts = buildMetadataParts(wrapper)
 
 	local versionFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)

@@ -273,6 +273,10 @@ function B.Delete(name)
 
 	FramedSnapshotsDB.snapshots[name] = nil
 
+	if(FramedSnapshotsDB.lastLoaded == name) then
+		FramedSnapshotsDB.lastLoaded = nil
+	end
+
 	if(F.EventBus) then
 		F.EventBus:Fire('BACKUP_DELETED', name)
 	end
@@ -328,6 +332,10 @@ function B.Rename(oldName, newName)
 
 	FramedSnapshotsDB.snapshots[newName] = wrapper
 	FramedSnapshotsDB.snapshots[oldName] = nil
+
+	if(FramedSnapshotsDB.lastLoaded == oldName) then
+		FramedSnapshotsDB.lastLoaded = newName
+	end
 
 	if(F.EventBus) then
 		F.EventBus:Fire('BACKUP_DELETED', oldName)
@@ -385,6 +393,8 @@ function B.Load(name)
 		return false, 'ImportExport module not ready'
 	end
 	F.ImportExport.ApplyImport(parsed)
+
+	FramedSnapshotsDB.lastLoaded = name
 
 	if(F.EventBus) then
 		F.EventBus:Fire('BACKUP_LOADED', name)
