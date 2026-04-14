@@ -9,7 +9,6 @@ F.ProfilesCards = F.ProfilesCards or {}
 -- ── Layout constants ───────────────────────────────────────
 local DROPDOWN_H = 22
 local BUTTON_H   = 22
-local SWITCH_H   = 22
 local EDITBOX_H  = 80
 local LABEL_H    = C.Font.sizeSmall + 4
 
@@ -178,27 +177,6 @@ function F.ProfilesCards.Import(parent, width)
 	importBox:SetPlaceholder('Paste import string here...')
 	y = B.PlaceWidget(importBox, inner, y, EDITBOX_H)
 
-	-- Mode
-	local modeLabel = createLabel(inner, 'MODE')
-	y = placeLabelAt(modeLabel, inner, y)
-
-	local modeSwitch = Widgets.CreateSwitch(inner, innerW, SWITCH_H, {
-		{
-			text  = 'Replace',
-			value = 'replace',
-			tooltipTitle = 'Replace',
-			tooltipBody  = "Overwrite your current settings with the imported ones. Anything you changed locally that isn't in the import will be lost. Importing a single layout overwrites any existing layout with the same name.",
-		},
-		{
-			text  = 'Merge',
-			value = 'merge',
-			tooltipTitle = 'Merge',
-			tooltipBody  = "Apply the imported settings on top of your current ones. Values in the import win, but anything not included is kept. Importing a single layout saves it as a new copy named '(imported)' so your existing layout is untouched.",
-		},
-	})
-	modeSwitch:SetValue('replace')
-	y = B.PlaceWidget(modeSwitch, inner, y, SWITCH_H)
-
 	-- Import button
 	local importBtn = Widgets.CreateButton(inner, 'Import', 'accent', 100, BUTTON_H)
 	y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
@@ -237,18 +215,15 @@ function F.ProfilesCards.Import(parent, width)
 			return
 		end
 
-		local mode = modeSwitch:GetValue() or 'replace'
-		local scopeText = payload.scope or 'unknown'
-		local modeText  = (mode == 'replace') and 'replace' or 'merge'
 		local confirmMsg = string.format(
-			'Apply import?\n\nScope: %s\nMode: %s\n\nThis cannot be undone.',
-			scopeText, modeText)
+			'Apply import?\n\nScope: %s\n\nThis cannot be undone.',
+			payload.scope or 'unknown')
 
 		Widgets.ShowConfirmDialog(
 			'Confirm Import',
 			confirmMsg,
 			function()
-				ie.ApplyImport(payload, mode)
+				ie.ApplyImport(payload)
 				importBox:SetText('')
 				setTextColor(statusFS, C.Colors.textActive)
 				statusFS:SetText('Import successful.')

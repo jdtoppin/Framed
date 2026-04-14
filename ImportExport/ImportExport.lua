@@ -18,20 +18,6 @@ local LibDeflate   = LibStub and LibStub('LibDeflate', true)
 
 local VERSION_PREFIX = '!FRM1!'
 
-local function makeImportedName(baseName)
-	local name = baseName
-	local suffix = 2
-	while(FramedDB and FramedDB.presets and FramedDB.presets[name]) do
-		if(suffix == 2) then
-			name = baseName .. ' (imported)'
-		else
-			name = baseName .. ' (imported ' .. suffix .. ')'
-		end
-		suffix = suffix + 1
-	end
-	return name
-end
-
 local function refreshAfterImport(scope)
 	if(F.Config and F.Config.EnsureDefaults) then
 		F.Config:EnsureDefaults()
@@ -160,25 +146,28 @@ end
 -- Scope helpers — build data tables for export
 -- ============================================================
 
---- Export general settings + all layouts.
+--- Export a single layout table directly (no FramedDB lookup).
+--- Used by the Backups row Export action after decoding a snapshot payload.
+--- @param layoutName string
+--- @param layoutTable table
 --- @return string|nil encoded, string|nil err
-function ImportExport.ExportFullProfile()
-	if(not FramedDB) then
-		return nil, 'SavedVariables not ready'
+function ImportExport.ExportLayoutData(layoutName, layoutTable)
+	if(not layoutName or layoutName == '') then
+		return nil, 'Layout name is required'
+	end
+	if(type(layoutTable) ~= 'table') then
+		return nil, 'Layout data is required'
 	end
 
 	local data = {
-		general    = F.DeepCopy(FramedDB.general)    or {},
-		minimap    = F.DeepCopy(FramedDB.minimap)    or {},
-		presets    = F.DeepCopy(FramedDB.presets)    or {},
-		profiles   = F.DeepCopy(FramedDB.profiles)   or {},
-		char       = F.DeepCopy(FramedCharDB)        or {},
+		name   = layoutName,
+		layout = F.DeepCopy(layoutTable) or layoutTable,
 	}
 
-	return ImportExport.Export(data, 'full')
+	return ImportExport.Export(data, 'layout')
 end
 
---- Export a single layout by name.
+--- Export a single layout from live FramedDB by name.
 --- @param layoutName string
 --- @return string|nil encoded, string|nil err
 function ImportExport.ExportLayout(layoutName)
@@ -194,94 +183,73 @@ function ImportExport.ExportLayout(layoutName)
 		return nil, 'Layout not found: ' .. layoutName
 	end
 
-	local data = {
-		name   = layoutName,
-		layout = F.DeepCopy(layout) or layout,
-	}
+	return ImportExport.ExportLayoutData(layoutName, layout)
+end
 
-	return ImportExport.Export(data, 'layout')
+--- Build the in-memory full-profile payload table (before serialization).
+--- The Backups module calls this to get a snapshot payload without
+--- going through the full Export pipeline twice.
+--- Note: the `profiles` field from accountDefaults is intentionally NOT
+--- included — it was dead storage from an earlier design and is removed
+--- in this release.
+--- @return table
+function ImportExport.CaptureFullProfileData()
+	if(not FramedDB) then return {} end
+
+	return {
+		general = F.DeepCopy(FramedDB.general) or {},
+		minimap = F.DeepCopy(FramedDB.minimap) or {},
+		presets = F.DeepCopy(FramedDB.presets) or {},
+		char    = F.DeepCopy(FramedCharDB)     or {},
+	}
+end
+
+--- Export general settings + all layouts.
+--- @return string|nil encoded, string|nil err
+function ImportExport.ExportFullProfile()
+	if(not FramedDB) then
+		return nil, 'SavedVariables not ready'
+	end
+
+	return ImportExport.Export(ImportExport.CaptureFullProfileData(), 'full')
 end
 
 -- ============================================================
 -- ApplyImport
--- Applies a validated payload to the live config.
--- mode: 'replace' | 'merge'
+-- Applies a validated payload to the live config. Replace-only.
 -- ============================================================
 
---- Deep-merge src into dst, overwriting scalars and merging tables.
---- @param dst table
---- @param src table
-local function deepMerge(dst, src)
-	for k, v in next, src do
-		if(type(v) == 'table' and type(dst[k]) == 'table') then
-			deepMerge(dst[k], v)
-		else
-			dst[k] = F.DeepCopy(v) or v
-		end
-	end
-end
-
---- Apply an import payload to the live config.
+--- Apply an import payload to the live config. Replace-only.
+--- The legacy merge mode is removed — see the Backups spec.
 --- @param payload table A validated payload returned by Import()
---- @param mode string 'replace' | 'merge'
-function ImportExport.ApplyImport(payload, mode)
+function ImportExport.ApplyImport(payload)
 	if(not payload or not payload.scope or not payload.data) then return end
 	if(not FramedDB) then return end
 
-	mode = mode or 'replace'
 	local scope = payload.scope
 	local data  = payload.data
 
-	-- ── Full profile ──────────────────────────────────────────
 	if(scope == 'full') then
-		if(mode == 'replace') then
-			if(data.general)     then FramedDB.general     = F.DeepCopy(data.general) end
-			if(data.minimap)     then FramedDB.minimap     = F.DeepCopy(data.minimap) end
-			if(data.presets)     then FramedDB.presets     = F.DeepCopy(data.presets) end
-			if(data.profiles)    then FramedDB.profiles    = F.DeepCopy(data.profiles) end
-			if(data.char)        then FramedCharDB         = F.DeepCopy(data.char) end
-		else  -- merge
-			if(data.general and type(data.general) == 'table') then
-				deepMerge(FramedDB.general, data.general)
-			end
-			if(data.minimap and type(data.minimap) == 'table') then
-				deepMerge(FramedDB.minimap, data.minimap)
-			end
-			if(data.presets and type(data.presets) == 'table') then
-				deepMerge(FramedDB.presets, data.presets)
-			end
-			if(data.profiles and type(data.profiles) == 'table') then
-				deepMerge(FramedDB.profiles, data.profiles)
-			end
-			if(data.char and type(data.char) == 'table') then
-				deepMerge(FramedCharDB, data.char)
-			end
-		end
+		if(data.general)  then FramedDB.general  = F.DeepCopy(data.general) end
+		if(data.minimap)  then FramedDB.minimap  = F.DeepCopy(data.minimap) end
+		if(data.presets)  then FramedDB.presets  = F.DeepCopy(data.presets) end
+		if(data.char)     then FramedCharDB      = F.DeepCopy(data.char)    end
 
-	-- ── Single layout ─────────────────────────────────────────
 	elseif(scope == 'layout') then
 		local name   = data.name
 		local layout = data.layout
-
 		if(not name or not layout) then return end
 
-		if(mode == 'replace') then
-			FramedDB.presets[name] = F.DeepCopy(layout)
-		else  -- merge
-			name = makeImportedName(name)
-			FramedDB.presets[name] = F.DeepCopy(layout)
-		end
+		FramedDB.presets[name] = F.DeepCopy(layout)
 
 		if(F.EventBus) then
 			F.EventBus:Fire('LAYOUT_CREATED', name)
 		end
-
 	end
 
 	refreshAfterImport(scope)
 
-	-- Fire event so UI panels can refresh
 	if(F.EventBus) then
-		F.EventBus:Fire('IMPORT_APPLIED', scope, mode)
+		F.EventBus:Fire('IMPORT_APPLIED', scope, 'replace')
 	end
 end
