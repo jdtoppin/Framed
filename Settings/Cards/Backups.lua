@@ -610,6 +610,7 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 
 		local totalH = math.max(EMPTY_STATE_H, (-y) + 8)
 		listContent:SetHeight(totalH)
+		return totalH
 	end
 
 	local building = true
@@ -632,8 +633,13 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 			emptyFS:Show()
 		end
 
-		rebuildRows()
-		y = B.PlaceWidget(listFrame, inner, y, LIST_MAX_H)
+		local contentH = rebuildRows()
+		local listH = math.min(contentH, LIST_MAX_H)
+		listFrame:SetHeight(listH)
+		if(listFrame.UpdateScrollRange) then
+			listFrame:UpdateScrollRange()
+		end
+		y = B.PlaceWidget(listFrame, inner, y, listH)
 
 		updateFooter()
 		y = B.PlaceWidget(footerFS, inner, y, LABEL_H)

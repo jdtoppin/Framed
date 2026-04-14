@@ -71,7 +71,7 @@ F.Settings.RegisterPanel({
 			grid:RebuildCards()
 		end, 'BackupsPanel.resizeComplete')
 
-		local BADGE_THRESHOLD = 100 * 1024
+		local BADGE_THRESHOLD = 250 * 1024
 
 		local function updateBadge()
 			if(not FramedSnapshotsDB or not FramedSnapshotsDB.snapshots) then
