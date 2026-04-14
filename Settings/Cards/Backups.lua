@@ -1142,8 +1142,10 @@ function F.BackupsCards.ExportImport(parent, width, onResize)
 	local wrapper = CreateFrame('Frame', nil, parent)
 
 	local expCard, impCard
+	local building = true
 
 	local function wrapperResize()
+		if(building) then return end
 		if(not expCard or not impCard) then return end
 		local h = math.max(expCard:GetHeight(), impCard:GetHeight())
 		wrapper:SetSize(width, h)
@@ -1168,5 +1170,6 @@ function F.BackupsCards.ExportImport(parent, width, onResize)
 	Widgets.SetPoint(impCard, 'TOPLEFT', expCard, 'TOPRIGHT', CARD_GAP, 0)
 
 	wrapper:SetSize(width, math.max(expCard:GetHeight(), impCard:GetHeight()))
+	building = false
 	return wrapper
 end
