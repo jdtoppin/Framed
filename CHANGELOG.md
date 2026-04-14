@@ -1,6 +1,6 @@
 # Framed Changelog
 
-## v0.8.7-alpha
+## v0.8.8-alpha
 
 - The new **Backups** system is now feature-complete — save, rename, load, and delete named snapshots, with inline export/import, version and size metadata, stale-version warnings, last-loaded tracking, and roundtrip verification that reports exactly which keys differ from your current config
 - Fix Backups snapshot rows overflowing at narrow widths — titles now wrap above the buttons, the metadata line (version · date · layouts · size) wraps below the version when it's too long, and the row grows to fit; very narrow widths stack the buttons under the text
