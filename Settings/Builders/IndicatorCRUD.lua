@@ -315,7 +315,7 @@ function F.Settings.Builders.IndicatorCRUD(parent, width, yOffset, opts)
 	spellIconsBtn:SetPoint('TOPLEFT', displayTypeRow, 'TOPLEFT', 0, 0)
 	spellIconsBtn.value = C.IconDisplay.SPELL_ICON
 
-	local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Square Colors', 'widget', 110, BUTTON_H)
+	local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Squares', 'widget', 100, BUTTON_H)
 	squareColorsBtn:SetPoint('LEFT', spellIconsBtn, 'RIGHT', C.Spacing.tight, 0)
 	squareColorsBtn.value = C.IconDisplay.COLORED_SQUARE
 

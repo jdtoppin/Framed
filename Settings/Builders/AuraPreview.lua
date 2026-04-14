@@ -156,7 +156,7 @@ function AuraPreview.BuildPreviewCard(parent, width)
 	cy = cy - previewH - C.Spacing.normal
 
 	-- Show All toggle
-	local showAllCB = Widgets.CreateCheckButton(inner, 'Show All Auras', function(checked)
+	local showAllCB = Widgets.CreateCheckButton(inner, 'Show All Enabled Auras', function(checked)
 		preview._showAll = checked
 		-- Re-render with current dimming state
 		Settings.UpdateAuraPreviewDimming(Settings._activePreviewGroup, nil)

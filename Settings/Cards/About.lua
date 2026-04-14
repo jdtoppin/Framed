@@ -38,9 +38,13 @@ function F.AboutCards.About(parent, width)
 	local card, inner, y = Widgets.StartCard(parent, width, 0)
 	local innerW = width - Widgets.CARD_PADDING * 2
 
-	y = placeWrapped(inner, innerW, y,
-		'v' .. getVersion() .. '  •  ' .. getAuthor(),
-		C.Colors.textNormal)
+	local a = C.Colors.accent
+	local accentHex = F.ColorUtils.RGBToHex(a[1], a[2], a[3])
+	local header = '|cff' .. accentHex .. 'v' .. getVersion() .. '|r'
+		.. '  •  Made by '
+		.. '|cff' .. accentHex .. getAuthor() .. '|r'
+
+	y = placeWrapped(inner, innerW, y, header, C.Colors.textNormal)
 	y = y - C.Spacing.tight
 
 	y = placeWrapped(inner, innerW, y,

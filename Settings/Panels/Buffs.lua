@@ -256,16 +256,19 @@ F.Settings.RegisterPanel({
 			return t == C.IndicatorType.ICON or t == C.IndicatorType.ICONS
 		end
 
+		local initialInnerW = createCardW - Widgets.CARD_PADDING * 2
+		local initialHalfW  = math.floor((initialInnerW - C.Spacing.tight) / 2)
+
 		local displayTypeRow = CreateFrame('Frame', nil, createInner)
-		displayTypeRow:SetSize(createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
+		displayTypeRow:SetSize(initialInnerW, BUTTON_H)
 		displayTypeRow:ClearAllPoints()
 		Widgets.SetPoint(displayTypeRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
 
-		local spellIconsBtn = Widgets.CreateButton(displayTypeRow, 'Spell Icons', 'accent', 100, BUTTON_H)
+		local spellIconsBtn = Widgets.CreateButton(displayTypeRow, 'Spell Icons', 'accent', initialHalfW, BUTTON_H)
 		spellIconsBtn:SetPoint('TOPLEFT', displayTypeRow, 'TOPLEFT', 0, 0)
 		spellIconsBtn.value = C.IconDisplay.SPELL_ICON
 
-		local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Square Colors', 'widget', 110, BUTTON_H)
+		local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Squares', 'widget', initialInnerW - initialHalfW - C.Spacing.tight, BUTTON_H)
 		squareColorsBtn:SetPoint('LEFT', spellIconsBtn, 'RIGHT', C.Spacing.tight, 0)
 		squareColorsBtn.value = C.IconDisplay.COLORED_SQUARE
 
@@ -276,15 +279,15 @@ F.Settings.RegisterPanel({
 
 		-- Border/Glow toggle (Border type only)
 		local borderGlowRow = CreateFrame('Frame', nil, createInner)
-		borderGlowRow:SetSize(createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
+		borderGlowRow:SetSize(initialInnerW, BUTTON_H)
 		borderGlowRow:ClearAllPoints()
 		Widgets.SetPoint(borderGlowRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
 
-		local borderModeBtn = Widgets.CreateButton(borderGlowRow, 'Border', 'accent', 100, BUTTON_H)
+		local borderModeBtn = Widgets.CreateButton(borderGlowRow, 'Border', 'accent', initialHalfW, BUTTON_H)
 		borderModeBtn:SetPoint('TOPLEFT', borderGlowRow, 'TOPLEFT', 0, 0)
 		borderModeBtn.value = 'Border'
 
-		local glowModeBtn = Widgets.CreateButton(borderGlowRow, 'Glow', 'widget', 100, BUTTON_H)
+		local glowModeBtn = Widgets.CreateButton(borderGlowRow, 'Glow', 'widget', initialInnerW - initialHalfW - C.Spacing.tight, BUTTON_H)
 		glowModeBtn:SetPoint('LEFT', borderModeBtn, 'RIGHT', C.Spacing.tight, 0)
 		glowModeBtn.value = 'Glow'
 

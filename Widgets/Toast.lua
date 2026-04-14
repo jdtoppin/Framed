@@ -34,12 +34,60 @@ local function dismiss(toast, immediate)
 		return
 	end
 
+	-- Cancel any in-flight entry slide so it doesn't race the dismiss
+	-- animation. Both are keyed in the same `_anim` table and the OnUpdate
+	-- loop drives them independently, so without this a fast Undo click
+	-- during the slide-in would have two animations fighting over y/alpha.
+	if(toast._anim) then toast._anim.toastSlide = nil end
+
+	-- Mirror the entry animation: slide back down 20px while fading alpha
+	-- from current value to 0. Position and alpha are driven by a single
+	-- animation so the two channels stay in sync, matching the slide-in
+	-- pattern in ShowToast.
+	local targetY = toast._targetY
+	local startY  = toast._startY
+	local a       = toast._anchor or {}
+
+	if(not targetY or not startY) then
+		-- Fallback: no stored geometry (shouldn't happen for toasts created
+		-- via ShowToast). Fall back to a plain fade so the toast still
+		-- dismisses gracefully.
+		Widgets.StartAnimation(
+			toast, 'toastFade',
+			toast:GetAlpha(), 0,
+			FADE_DURATION,
+			function(self, value)
+				self:SetAlpha(value)
+			end,
+			function(self)
+				self:Hide()
+				if(activeToast == self) then activeToast = nil end
+			end
+		)
+		return
+	end
+
+	local startAlpha = toast:GetAlpha()
+
 	Widgets.StartAnimation(
 		toast, 'toastFade',
-		toast:GetAlpha(), 0,
-		FADE_DURATION,
+		targetY, startY,
+		SLIDE_DURATION,
 		function(self, value)
-			self:SetAlpha(value)
+			self:ClearAllPoints()
+			Widgets.SetPoint(
+				self,
+				a.point    or 'BOTTOM',
+				a.frame    or UIParent,
+				a.relPoint or 'BOTTOM',
+				a.x        or 0,
+				value
+			)
+			-- Map y-progress to alpha so visual sync matches the entry
+			-- animation. At targetY (start of dismiss) alpha = startAlpha;
+			-- at startY (end of dismiss) alpha = 0.
+			local t = (value - startY) / (targetY - startY)
+			self:SetAlpha(startAlpha * t)
 		end,
 		function(self)
 			self:Hide()
@@ -93,7 +141,7 @@ function Widgets.ShowToast(opts)
 		Widgets.SetPoint(btn, 'RIGHT', toast, 'RIGHT', -8, 0)
 		btn:SetOnClick(function()
 			if(opts.action.onClick) then opts.action.onClick() end
-			dismiss(toast, true)
+			dismiss(toast, false)
 		end)
 		toast._action = btn
 		label:SetPoint('RIGHT', btn, 'LEFT', -8, 0)
@@ -105,6 +153,11 @@ function Widgets.ShowToast(opts)
 
 	local targetY = a.y or 80
 	local startY  = targetY - 20
+
+	-- Stash geometry so `dismiss` can mirror this animation when fading out.
+	toast._targetY = targetY
+	toast._startY  = startY
+	toast._anchor  = a
 
 	toast:Show()
 	toast:SetAlpha(0)

@@ -91,17 +91,13 @@ function Settings.SetEditingPreset(presetName)
 	Settings._editingUnitType = nil
 	F.EventBus:Fire('EDITING_PRESET_CHANGED', presetName)
 	-- Update the sub-header preset indicator live
-	if(Settings._headerPresetText and Settings._headerPresetText:IsShown()) then
-		Settings._headerPresetText:SetText('Editing: ' .. presetName)
-	end
+	if(Settings._updateHeaderPresetText) then Settings._updateHeaderPresetText() end
 end
 
 -- ============================================================
 -- Aura Panel: Unit Type Dropdown + Copy-To Button
 -- Shared builder used by all aura panels.
 -- ============================================================
-
-local DROPDOWN_H = 22
 
 --- Build the unit type items list based on the active preset.
 --- @return table[] Array of { text, value }
@@ -129,73 +125,147 @@ local function getDefaultUnitType()
 	return (info and info.groupKey) or 'player'
 end
 
---- Append a "Configure for:" dropdown and "Copy to..." button to an
---- aura panel's scroll content frame.
---- @param content Frame   The scroll content frame
---- @param width   number  Available content width
---- @param yOffset number  Current vertical cursor
---- @param panelId string  Panel id used for rebuild on change
---- @param configKey? string  Aura config key (e.g., 'buffs', 'debuffs'). nil = hide copy button.
---- @return number yOffset Updated vertical cursor
+-- ── Aura panel config-key registry ───────────────────────────
+-- Aura panels register their config key via BuildAuraUnitTypeRow so
+-- the title-card Copy-to button knows which config to operate on.
+-- `nil` = this panel has no copy affordance (e.g. CrowdControl).
+Settings._auraConfigKeys = {}
+
+--- Compatibility entry point for aura panels. The dropdown + Copy-to
+--- UI moved into the title card, so this function no longer draws
+--- anything — it simply registers the panel's configKey so the header
+--- controls can look it up on activation. Returns `yOffset` unchanged
+--- so existing callers keep working without edits.
+--- @param content Frame
+--- @param width number
+--- @param yOffset number
+--- @param panelId string  Panel id (matches a registered panel)
+--- @param configKey? string  Aura config key (nil = hide Copy-to)
+--- @return number yOffset Unchanged
 function Settings.BuildAuraUnitTypeRow(content, width, yOffset, panelId, configKey)
-	-- ── "Configure for:" label ───────────────────────────────
-	local label = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
-	label:SetText('Configure for:')
-	label:ClearAllPoints()
-	Widgets.SetPoint(label, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset - 4)
-
-	-- ── Unit type dropdown ───────────────────────────────────
-	local unitTypeDD = Widgets.CreateDropdown(content, 180)
-	unitTypeDD:SetItems(Settings._getUnitTypeItems())
-	unitTypeDD:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
-	unitTypeDD:ClearAllPoints()
-	Widgets.SetPoint(unitTypeDD, 'TOPLEFT', content, 'TOPLEFT', 90, yOffset)
-	unitTypeDD:SetOnSelect(function(value)
-		Settings.SetEditingUnitType(value)
-		-- Invalidate and rebuild the current panel
-		Settings._panelFrames[panelId] = nil
-		Settings.SetActivePanel(panelId)
-	end)
-
-	-- ── "Copy to..." button ──────────────────────────────────
-	if(configKey) then
-		local copyBtn = Widgets.CreateButton(content, 'Copy to...', 'widget', 90, DROPDOWN_H)
-		copyBtn:ClearAllPoints()
-		Widgets.SetPoint(copyBtn, 'TOPLEFT', content, 'TOPLEFT', 280, yOffset)
-
-		-- Disable when only one unit type exists (no targets to copy to)
-		local unitItems = Settings._getUnitTypeItems()
-		if(#unitItems <= 1) then
-			copyBtn:Disable()
-		end
-
-		copyBtn:SetScript('OnClick', function()
-			local panelLabel
-			for _, p in next, Settings._panels do
-				if(p.id == panelId) then
-					panelLabel = p.label
-					break
-				end
-			end
-			Settings.ShowCopyToDialog(configKey, panelLabel or panelId, panelId)
-		end)
-	end
-
-	yOffset = yOffset - DROPDOWN_H - C.Spacing.normal
-
-	-- ── Scoped preset banner ─────────────────────────────────
-	local banner = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.accent)
-	local unitLabel = Settings.GetEditingUnitType() or getDefaultUnitType()
-	for _, item in next, Settings._getUnitTypeItems() do
-		if(item.value == unitLabel) then unitLabel = item.text; break end
-	end
-	banner:SetText('Editing: ' .. Settings.GetEditingPreset() .. ' / ' .. unitLabel)
-	banner:ClearAllPoints()
-	Widgets.SetPoint(banner, 'TOPLEFT', content, 'TOPLEFT', 0, yOffset)
-	yOffset = yOffset - 16 - C.Spacing.tight
-
+	Settings._auraConfigKeys[panelId] = configKey
 	return yOffset
 end
+
+--- Resolve a unit-type key (e.g. 'player') to the display label used in
+--- the Configure for dropdown (e.g. 'Target of Target'). Falls back to
+--- the key itself if no match is found.
+local function unitTypeLabel(unitKey)
+	for _, item in next, Settings._getUnitTypeItems() do
+		if(item.value == unitKey) then return item.text end
+	end
+	return unitKey
+end
+
+--- Look up the active panel's registration info.
+local function getActivePanelInfo()
+	local id = Settings._activePanelId
+	if(not id) then return nil end
+	for _, p in next, registeredPanels do
+		if(p.id == id) then return p end
+	end
+	return nil
+end
+
+--- Convert a raw unit label to a "Frame"-decorated variant:
+---   'Player'           → 'Player Frame'
+---   'Target of Target' → 'Target of Target Frame'
+---   'Party Frames'     → 'Party Frames' (unchanged — group labels
+---                         already end in "Frames")
+local function frameUnitLabel(unitKey)
+	local label = unitTypeLabel(unitKey)
+	if(not label:match('Frames?$')) then
+		label = label .. ' Frame'
+	end
+	return label
+end
+
+--- Build the item list for the header inline dropdown. Reuses the
+--- Configure-for items but decorates each label with " Frame" so the
+--- menu rows read "Player Frame", "Target Frame", etc.
+local function buildHeaderUnitTypeItems()
+	local raw = Settings._getUnitTypeItems()
+	local items = {}
+	for _, item in next, raw do
+		items[#items + 1] = { text = frameUnitLabel(item.value), value = item.value }
+	end
+	return items
+end
+
+--- Populate / show / hide the title-card unit-type dropdown, Copy-to
+--- button, and drill-in indicator suffix based on the active panel.
+--- Called by SetActivePanel after the panel's unit type has been
+--- normalized.
+local function activateAuraHeaderControls(info)
+	local dd    = Settings._headerUnitTypeDD
+	local copy  = Settings._headerCopyToBtn
+	local indic = Settings._headerIndicatorText
+	if(not dd or not copy or not indic) then return end
+
+	if(not info or info.subSection ~= 'auras') then
+		if(dd.Close) then dd:Close() end
+		dd:Hide()
+		copy:Hide()
+		indic:Hide()
+		indic:SetText('')
+		return
+	end
+
+	-- Populate the inline dropdown with "Player Frame" / "Target Frame" /
+	-- etc. items and point its selection at the current unit type. The
+	-- '/ ' prefix renders in the trigger only, not in the menu rows.
+	dd:SetItems(buildHeaderUnitTypeItems())
+	dd:SetLabelPrefix('/ ')
+	dd:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
+	dd:SetOnSelect(function(value)
+		local currentId = Settings._activePanelId
+		if(not currentId) then return end
+		Settings.SetEditingUnitType(value)
+		-- Invalidate and rebuild the current panel — matches the
+		-- behavior of the old in-panel "Configure for" dropdown.
+		Settings._panelFrames[currentId] = nil
+		Settings.SetActivePanel(currentId)
+	end)
+	dd:Show()
+
+	-- Copy-to: visible only when the panel registered a configKey.
+	local configKey = Settings._auraConfigKeys[info.id]
+	if(configKey) then
+		copy:SetOnClick(function()
+			Settings.ShowCopyToDialog(configKey, info.label or info.id, info.id)
+		end)
+		-- Disable when there's only one unit type to choose from.
+		if(#Settings._getUnitTypeItems() <= 1) then
+			copy:Disable()
+		else
+			copy:Enable()
+		end
+		copy:Show()
+	else
+		copy:Hide()
+	end
+
+	-- Reset drill-in state — SetActivePanel always lands on the base page.
+	indic:Hide()
+	indic:SetText('')
+end
+
+Settings._activateAuraHeaderControls = activateAuraHeaderControls
+
+--- Recompute the sub-header accent text ("Editing: Preset") and
+--- show/hide it based on the active panel's section.
+local function updateHeaderPresetText()
+	if(not Settings._headerPresetText) then return end
+	local info = getActivePanelInfo()
+	if(not info or info.section ~= 'PRESET_SCOPED') then
+		Settings._headerPresetText:Hide()
+		return
+	end
+	Settings._headerPresetText:SetText('Editing: ' .. Settings.GetEditingPreset())
+	Settings._headerPresetText:Show()
+end
+
+Settings._updateHeaderPresetText = updateHeaderPresetText
 
 -- ============================================================
 -- Shared State
@@ -346,21 +416,6 @@ function Settings.SetActivePanel(panelId)
 		end
 	end
 
-	-- Update sub-header text
-	if(Settings._headerPanelText) then
-		Settings._headerPanelText:SetText(info.label or '')
-	end
-
-	-- Update preset indicator (right side of title card)
-	if(Settings._headerPresetText) then
-		if(info.section == 'PRESET_SCOPED') then
-			Settings._headerPresetText:SetText('Editing: ' .. Settings.GetEditingPreset())
-			Settings._headerPresetText:Show()
-		else
-			Settings._headerPresetText:Hide()
-		end
-	end
-
 	-- ── Clear preview pointer when switching away from aura panels ─
 	-- Don't destroy — each preview is parented to its panel's scroll content
 	-- and hides naturally. Destroying orphans the frame while _ownedPreview
@@ -371,7 +426,8 @@ function Settings.SetActivePanel(panelId)
 
 	-- ── Reset unit type when switching to aura panels ────────
 	-- Prevents "pet" (or other frame-only types) from leaking into
-	-- the Configure for dropdown on aura panels.
+	-- the Configure for dropdown on aura panels. Must run before the
+	-- header text decorates itself with the unit label.
 	if(info.subSection == 'auras') then
 		local currentUT = Settings._editingUnitType
 		if(currentUT == 'pet') then
@@ -379,21 +435,56 @@ function Settings.SetActivePanel(panelId)
 		end
 	end
 
+	-- Update sub-header text — the breadcrumb is always just the panel
+	-- label now; aura panels get their "/ <Unit> Frame" suffix via the
+	-- title-card inline dropdown, not via text concatenation.
+	if(Settings._headerPanelText) then
+		Settings._headerPanelText:SetText(info.label or '')
+	end
+
+	-- Update preset indicator (right side of title card)
+	updateHeaderPresetText()
+
+	-- Show/hide and populate the inline unit dropdown + Copy-to button
+	activateAuraHeaderControls(info)
+
 	-- ── Show/hide aura sidebar buttons based on active panel ─
 	-- Defensives/Externals are hidden only while the Pet page is active.
 	F.EventBus:Fire('ACTIVE_PANEL_CHANGED', panelId)
 
 end
 
---- Update the title card breadcrumb text, optionally appending an indicator name.
+--- Update the title card breadcrumb for an aura panel. The base label
+--- (e.g. 'Buffs') stays in `_headerPanelText`, the unit-type dropdown
+--- stays visible, and the drill-in suffix is rendered in a separate
+--- FontString to the right of the dropdown so it reads as:
+---     Buffs  / Player Frame ▾   >  Major Cooldowns
+--- Copy-to is hidden while drilled in, since it's a base-page action.
 --- @param pageLabel string   The panel label (e.g. 'Buffs')
 --- @param indicatorName string|nil  Optional indicator sub-page name
 function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 	if(not Settings._headerPanelText) then return end
+	Settings._headerPanelText:SetText(pageLabel)
+
+	local indic = Settings._headerIndicatorText
+	local copy  = Settings._headerCopyToBtn
 	if(indicatorName) then
-		Settings._headerPanelText:SetText(pageLabel .. '  |cff6688cc>|r  ' .. indicatorName)
+		if(indic) then
+			indic:SetText('|cff6688cc>|r  ' .. indicatorName)
+			indic:Show()
+		end
+		if(copy) then copy:Hide() end
 	else
-		Settings._headerPanelText:SetText(pageLabel)
+		if(indic) then
+			indic:SetText('')
+			indic:Hide()
+		end
+		-- Restore Copy-to only if this panel has a configKey registered.
+		if(copy) then
+			local activeId = Settings._activePanelId
+			local configKey = activeId and Settings._auraConfigKeys[activeId]
+			if(configKey) then copy:Show() end
+		end
 	end
 end
 
@@ -411,6 +502,15 @@ function Settings.RebuildAuraPreview()
 	if(not F.Settings.AuraPreview) then return end
 	F.Settings.AuraPreview.Rebuild()
 end
+
+-- Keep the title-card inline dropdown in sync whenever the editing
+-- unit type changes — e.g. when the user switches to a unit frame
+-- panel (Target, Focus) and then back to an aura panel.
+F.EventBus:Register('EDITING_UNIT_TYPE_CHANGED', function(newType)
+	local dd = Settings._headerUnitTypeDD
+	if(not dd or not dd:IsShown()) then return end
+	dd:SetValue(newType or Settings.GetEditingUnitType() or 'player')
+end, 'Settings.HeaderUnitTypeSync')
 
 -- Refresh active panel when the editing preset changes.
 -- Invalidate all preset-scoped panels so stale frames are rebuilt

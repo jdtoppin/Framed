@@ -324,6 +324,11 @@ CloseDropdownList = function()
 		end
 	end
 	if(dropdownBlocker) then dropdownBlocker:Hide() end
+	-- Notify the owner so chrome-free triggers can tear down their
+	-- "open" state (e.g. inline dropdown fading its underline back out).
+	if(currentOwner and currentOwner._onClose) then
+		currentOwner:_onClose()
+	end
 	currentOwner = nil
 end
 
@@ -726,6 +731,238 @@ function Widgets.CreateDropdown(parent, width)
 	Widgets.AttachTooltipScripts(dropdown)
 
 	return dropdown
+end
+
+-- ============================================================
+-- CreateInlineDropdown — chrome-free trigger for use inside
+-- title bars and breadcrumbs. Renders as a tinted label + chevron
+-- with an animated underline on hover / while the menu is open.
+-- Satisfies the OpenDropdownList owner contract (_items, _value,
+-- _SelectItem) so it reuses the shared list popup.
+-- ============================================================
+
+local INLINE_CHEVRON_SIZE   = 10
+local INLINE_LABEL_PAD      = 4   -- space between label and chevron
+local INLINE_EDGE_PAD       = 2   -- inner padding on both sides of the trigger
+local INLINE_UNDERLINE_H    = 1
+local INLINE_UNDERLINE_Y    = -9  -- top of underline, offset from trigger's vertical middle (clears descenders)
+local INLINE_HOVER_DUR      = 0.12
+local INLINE_UNDERLINE_REST = 0    -- hidden at rest
+local INLINE_UNDERLINE_HOT  = 1    -- hover / open alpha
+
+--- Create a borderless inline dropdown trigger.
+--- @param parent Frame
+--- @return Frame trigger
+function Widgets.CreateInlineDropdown(parent)
+	local HEIGHT = 18
+
+	local trigger = CreateFrame('Button', nil, parent)
+	Widgets.SetSize(trigger, 80, HEIGHT)
+	trigger:EnableMouse(true)
+
+	trigger._items       = {}
+	trigger._value       = nil
+	trigger._onSelect    = nil
+	-- Default color follows the user's accent. Copied into a local table so
+	-- later SetLabelColor overrides can't mutate C.Colors.accent.
+	local accent = C.Colors.accent
+	trigger._color       = { accent[1], accent[2], accent[3], accent[4] or 1 }
+	trigger._labelPrefix = ''
+
+	-- Prefix — breadcrumb separator (e.g. '/ '). Not underlined.
+	local prefix = Widgets.CreateFontString(trigger, C.Font.sizeNormal, trigger._color)
+	prefix:SetJustifyH('LEFT')
+	prefix:SetPoint('LEFT', trigger, 'LEFT', INLINE_EDGE_PAD, 0)
+	prefix:SetText('')
+	trigger._prefix = prefix
+
+	-- Label — the selected value. Underline hugs this FontString only.
+	-- Positioned via autoSize() using explicit pixel math (not a LEFT→RIGHT
+	-- anchor on prefix) so trailing whitespace in the prefix can't shift it.
+	local label = Widgets.CreateFontString(trigger, C.Font.sizeNormal, trigger._color)
+	label:SetJustifyH('LEFT')
+	label:SetPoint('LEFT', trigger, 'LEFT', INLINE_EDGE_PAD, 0)
+	label:SetText('')
+	trigger._label = label
+
+	-- Chevron — right of label, colored to match. Repositioned by autoSize().
+	local chevron = trigger:CreateTexture(nil, 'OVERLAY')
+	chevron:SetSize(INLINE_CHEVRON_SIZE, INLINE_CHEVRON_SIZE)
+	chevron:SetPoint('LEFT', trigger, 'LEFT', INLINE_EDGE_PAD, -1)
+	chevron:SetTexture(ARROW_ICON)
+	chevron:SetTexCoord(0.15, 0.85, 0.85, 0.15)  -- flip vertically for down arrow
+	chevron:SetVertexColor(trigger._color[1], trigger._color[2], trigger._color[3], trigger._color[4] or 1)
+	trigger._chevron = chevron
+
+	-- Underline — spans the label's visible glyphs only (not prefix, not
+	-- chevron). Width and X offset are set explicitly in autoSize() from
+	-- GetStringWidth() so trailing whitespace / shadow / justification can't
+	-- leak underline past the glyph bounds.
+	local underline = trigger:CreateTexture(nil, 'ARTWORK')
+	underline:SetHeight(INLINE_UNDERLINE_H)
+	underline:SetPoint('TOPLEFT', trigger, 'LEFT', INLINE_EDGE_PAD, INLINE_UNDERLINE_Y)
+	underline:SetWidth(1)
+	underline:SetColorTexture(trigger._color[1], trigger._color[2], trigger._color[3], trigger._color[4] or 1)
+	underline:SetAlpha(INLINE_UNDERLINE_REST)
+	trigger._underline = underline
+
+	-- --------------------------------------------------------
+	-- Underline fade helpers
+	-- --------------------------------------------------------
+	local function fadeUnderlineTo(targetAlpha)
+		local startAlpha = underline:GetAlpha()
+		if(math.abs(startAlpha - targetAlpha) < 0.01) then
+			underline:SetAlpha(targetAlpha)
+			return
+		end
+		Widgets.StartAnimation(
+			trigger, 'inlineDDUnderline',
+			startAlpha, targetAlpha,
+			INLINE_HOVER_DUR,
+			function(_, value) underline:SetAlpha(value) end
+		)
+	end
+	trigger._fadeUnderlineTo = fadeUnderlineTo
+
+	--- Recompute layout to hug prefix + label + chevron.
+	--- Positions label, chevron, and underline from explicit pixel math so
+	--- the underline starts exactly at the first glyph of the label and ends
+	--- at its last glyph.
+	local function autoSize()
+		local prefixW = math.ceil(prefix:GetStringWidth())
+		local labelW  = math.ceil(label:GetStringWidth())
+
+		local labelX = INLINE_EDGE_PAD + prefixW
+		label:ClearAllPoints()
+		label:SetPoint('LEFT', trigger, 'LEFT', labelX, 0)
+
+		local chevronX = labelX + labelW + INLINE_LABEL_PAD
+		chevron:ClearAllPoints()
+		chevron:SetPoint('LEFT', trigger, 'LEFT', chevronX, -1)
+
+		underline:ClearAllPoints()
+		underline:SetPoint('TOPLEFT', trigger, 'LEFT', labelX, INLINE_UNDERLINE_Y)
+		underline:SetWidth(math.max(1, labelW + INLINE_LABEL_PAD + INLINE_CHEVRON_SIZE))
+
+		local w = chevronX + INLINE_CHEVRON_SIZE + INLINE_EDGE_PAD
+		trigger:SetWidth(w)
+	end
+	trigger._autoSize = autoSize
+
+	-- Hover state — animates between resting and hot alphas
+	trigger:SetScript('OnEnter', function(self)
+		if(not self:IsEnabled()) then return end
+		fadeUnderlineTo(INLINE_UNDERLINE_HOT)
+	end)
+	trigger:SetScript('OnLeave', function(self)
+		-- Keep the underline hot while the list is open
+		if(currentOwner == self and dropdownList and dropdownList:IsShown()) then return end
+		fadeUnderlineTo(INLINE_UNDERLINE_REST)
+	end)
+
+	-- Click: toggle the shared list popup
+	trigger:SetScript('OnClick', function(self)
+		if(not self:IsEnabled()) then return end
+		if(currentOwner == self and dropdownList and dropdownList:IsShown()) then
+			CloseDropdownList()
+		else
+			OpenDropdownList(self)
+		end
+	end)
+
+	-- --------------------------------------------------------
+	-- OpenDropdownList contract
+	-- --------------------------------------------------------
+	function trigger:_SelectItem(item)
+		self._value = item.value
+		self._label:SetText(item.text or '')
+		self._label:SetTextColor(self._color[1], self._color[2], self._color[3], self._color[4] or 1)
+		autoSize()
+		if(self._onSelect) then
+			self._onSelect(item.value, self)
+		end
+	end
+
+	-- --------------------------------------------------------
+	-- Public API (matches CreateDropdown where it makes sense)
+	-- --------------------------------------------------------
+	function trigger:SetItems(items)
+		self._items = items or {}
+		local found
+		for _, item in next, self._items do
+			if(item.value == self._value) then
+				found = item
+				break
+			end
+		end
+		if(found) then
+			self._label:SetText(found.text or '')
+		else
+			self._value = nil
+			self._label:SetText('')
+		end
+		autoSize()
+	end
+
+	function trigger:SetOnSelect(func)
+		self._onSelect = func
+	end
+
+	function trigger:GetValue()
+		return self._value
+	end
+
+	function trigger:SetValue(value)
+		for _, item in next, self._items do
+			if(item.value == value) then
+				self._value = value
+				self._label:SetText(item.text or '')
+				self._label:SetTextColor(self._color[1], self._color[2], self._color[3], self._color[4] or 1)
+				autoSize()
+				return
+			end
+		end
+		self._value = nil
+		self._label:SetText('')
+		autoSize()
+	end
+
+	--- Set a breadcrumb separator prefix that renders to the left of the
+	--- selected label (e.g. '/ '). Not underlined and not part of menu rows.
+	--- @param prefixText string
+	function trigger:SetLabelPrefix(prefixText)
+		self._labelPrefix = prefixText or ''
+		self._prefix:SetText(self._labelPrefix)
+		autoSize()
+	end
+
+	--- Override the label/chevron/underline color. Lets the caller tint
+	--- the trigger to match surrounding breadcrumb styling.
+	function trigger:SetLabelColor(r, g, b, a)
+		self._color = { r, g, b, a or 1 }
+		self._prefix:SetTextColor(r, g, b, a or 1)
+		self._label:SetTextColor(r, g, b, a or 1)
+		self._chevron:SetVertexColor(r, g, b, a or 1)
+		self._underline:SetColorTexture(r, g, b, a or 1)
+	end
+
+	--- Close the list if this trigger owns it.
+	function trigger:Close()
+		if(currentOwner == self and dropdownList and dropdownList:IsShown()) then
+			CloseDropdownList()
+		end
+	end
+
+	--- Called by CloseDropdownList when this trigger owned the list.
+	--- Drops the underline back to resting unless the mouse is still hovering.
+	function trigger:_onClose()
+		if(self:IsMouseOver()) then return end
+		fadeUnderlineTo(INLINE_UNDERLINE_REST)
+	end
+
+	Widgets.ApplyBaseMixin(trigger)
+
+	return trigger
 end
 
 -- ============================================================

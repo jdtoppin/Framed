@@ -138,6 +138,143 @@ oUF:Factory(function(self)
 	end
 end)
 
+-- ============================================================
+-- Debug: synthetic-diff import string generator
+-- Builds a payload from the current FramedDB with a curated set of
+-- mutations so the verification card shows multiple drops + extras and
+-- ApplyImport exercises the EnsureDefaults / DeepMerge backfill path.
+-- ============================================================
+
+-- Leaf keys removed from general → appear as drops in the verifier and get
+-- backfilled from accountDefaults on apply.
+local SYNTHETIC_STRIP_GENERAL = {
+	'editModeGridSnap',
+	'tooltipMode',
+	'mouseoverHighlightWidth',
+}
+
+-- Leaf keys removed from every preset's player.health config → broad drops
+-- across all presets, exercising DeepMerge inside unit configs.
+local SYNTHETIC_STRIP_PLAYER_HEALTH = {
+	'smooth',
+	'healPredictionMode',
+	'damageAbsorbColor',
+}
+
+local testImportPopup
+
+local function buildSyntheticPayload()
+	local data = F.ImportExport.CaptureFullProfileData()
+
+	if(data.general) then
+		for _, key in next, SYNTHETIC_STRIP_GENERAL do
+			data.general[key] = nil
+		end
+		-- Inject an unknown leaf so the verifier's "extras" branch lights up.
+		data.general.__syntheticExtra = 'debug-only test value'
+	end
+
+	if(data.presets) then
+		for _, preset in next, data.presets do
+			local player = preset.unitConfigs and preset.unitConfigs.player
+			if(player) then
+				if(player.health) then
+					for _, key in next, SYNTHETIC_STRIP_PLAYER_HEALTH do
+						player.health[key] = nil
+					end
+				end
+				-- Remove the entire optional sub-table to test that ApplyImport
+				-- restores it (or leaves the feature disabled, depending on the
+				-- nil-means-disabled convention).
+				player.castbar = nil
+			end
+		end
+	end
+
+	return {
+		version       = 1,
+		scope         = 'full',
+		timestamp     = time(),
+		sourceVersion = (F.version or 'unknown') .. '-synthetic',
+		data          = data,
+	}
+end
+
+local function generateSyntheticImportString()
+	local LibSerialize = LibStub('LibSerialize', true)
+	local LibDeflate   = LibStub('LibDeflate',   true)
+	if(not LibSerialize) then return nil, 'LibSerialize not loaded' end
+	if(not LibDeflate)   then return nil, 'LibDeflate not loaded'   end
+
+	local payload    = buildSyntheticPayload()
+	local serialized = LibSerialize:Serialize(payload)
+	local compressed = LibDeflate:CompressDeflate(serialized)
+	local encoded    = LibDeflate:EncodeForPrint(compressed)
+	return '!FRM1!' .. encoded
+end
+
+local function showTestImportPopup(encoded)
+	local Widgets = F.Widgets
+	local C       = F.Constants
+
+	if(not testImportPopup) then
+		local frame = CreateFrame('Frame', nil, UIParent, 'BackdropTemplate')
+		Widgets.SetSize(frame, 520, 240)
+		frame:SetPoint('CENTER', UIParent, 'CENTER', 0, 0)
+		frame:SetFrameStrata('DIALOG')
+		frame:SetMovable(true)
+		frame:EnableMouse(true)
+		frame:RegisterForDrag('LeftButton')
+		frame:SetScript('OnDragStart', frame.StartMoving)
+		frame:SetScript('OnDragStop',  frame.StopMovingOrSizing)
+
+		frame:SetBackdrop({
+			bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+			edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+			edgeSize = 1,
+		})
+		local bg = C.Colors.panel
+		frame:SetBackdropColor(bg[1], bg[2], bg[3], bg[4] or 1)
+		frame:SetBackdropBorderColor(0, 0, 0, 1)
+
+		local accentBar = frame:CreateTexture(nil, 'OVERLAY')
+		accentBar:SetHeight(1)
+		accentBar:SetPoint('TOPLEFT',  frame, 'TOPLEFT',  0, 0)
+		accentBar:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
+		local ac = C.Colors.accent
+		accentBar:SetColorTexture(ac[1], ac[2], ac[3], ac[4] or 1)
+
+		local title = Widgets.CreateFontString(frame, C.Font.sizeTitle, C.Colors.textActive)
+		title:SetPoint('TOPLEFT', frame, 'TOPLEFT', 16, -14)
+		title:SetText('Test Import String (synthetic diff)')
+
+		local help = Widgets.CreateFontString(frame, C.Font.sizeSmall, C.Colors.textSecondary)
+		help:SetPoint('TOPLEFT',  frame, 'TOPLEFT',  16, -38)
+		help:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', -16, -38)
+		help:SetJustifyH('LEFT')
+		help:SetWordWrap(true)
+		help:SetText('Press Cmd-A to select all, Cmd-C to copy, then paste into the Backups Import card.')
+
+		local box = Widgets.CreateEditBox(frame, nil, 488, 130, 'multiline')
+		box:SetPoint('TOPLEFT', frame, 'TOPLEFT', 16, -60)
+		frame._box = box
+
+		local closeBtn = Widgets.CreateButton(frame, 'Close', 'widget', 90, 24)
+		closeBtn:SetPoint('BOTTOM', frame, 'BOTTOM', 0, 12)
+		closeBtn:SetOnClick(function() frame:Hide() end)
+
+		frame:Hide()
+		testImportPopup = frame
+	end
+
+	testImportPopup._box:SetText(encoded)
+	if(testImportPopup._box._editbox) then
+		testImportPopup._box._editbox:SetFocus()
+		testImportPopup._box._editbox:HighlightText()
+	end
+	testImportPopup:Show()
+end
+
 -- Slash commands
 SLASH_FRAMED1 = '/framed'
 SLASH_FRAMED2 = '/fr'
@@ -242,6 +379,13 @@ SlashCmdList['FRAMED'] = function(msg)
 				print('  ' .. name .. ': NOT ON FRAME')
 			end
 		end
+	elseif(cmd == 'testimport') then
+		local encoded, err = generateSyntheticImportString()
+		if(not encoded) then
+			print('|cff00ccff Framed|r testimport failed: ' .. (err or 'unknown error'))
+			return
+		end
+		showTestImportPopup(encoded)
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
 		print('  /framed — Open settings')
@@ -252,6 +396,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed reset all — Reset all settings to defaults (saves a Backups snapshot)')
 		print('  /framed restore — Restore the most recent reset backup from the Backups panel')
 		print('  /framed debugicons — Debug indicator element state')
+		print('  /framed testimport — Generate a synthetic-diff import string for testing backfill')
 	else
 		-- Default: open settings
 		if(F.Settings and F.Settings.Toggle) then

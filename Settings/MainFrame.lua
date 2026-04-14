@@ -240,7 +240,31 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', titleCard, 'LEFT', C.Spacing.normal, 0)
 	Settings._headerPanelText:SetText('')
 
-	Settings._headerPresetText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, { 0.2, 0.8, 0.2, 1 })
+	-- ── Inline unit-type dropdown for aura panels ───────────────
+	-- Renders as "/ Player Frame ▾" immediately after the breadcrumb.
+	-- Hidden by default; Framework toggles visibility per panel.
+	Settings._headerUnitTypeDD = Widgets.CreateInlineDropdown(titleCard)
+	Settings._headerUnitTypeDD:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerUnitTypeDD, 'LEFT', Settings._headerPanelText, 'RIGHT', 4, 0)
+	Settings._headerUnitTypeDD:Hide()
+
+	-- ── Copy-to button next to the inline dropdown ──────────────
+	-- Visible only on the base aura page; hidden when drilled into
+	-- a specific indicator.
+	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy to...', 'widget', 80, 20)
+	Settings._headerCopyToBtn:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToBtn, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 8, 0)
+	Settings._headerCopyToBtn:Hide()
+
+	-- ── Drill-in breadcrumb suffix (e.g. "  >  Major Cooldowns") ──
+	-- Shown only while editing a specific indicator inside an aura panel.
+	Settings._headerIndicatorText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
+	Settings._headerIndicatorText:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerIndicatorText, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 8, 0)
+	Settings._headerIndicatorText:SetText('')
+	Settings._headerIndicatorText:Hide()
+
+	Settings._headerPresetText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.accent)
 	Settings._headerPresetText:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerPresetText, 'RIGHT', titleCard, 'RIGHT', -C.Spacing.normal, 0)
 	Settings._headerPresetText:SetText('')

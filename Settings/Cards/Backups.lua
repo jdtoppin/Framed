@@ -187,9 +187,28 @@ end
 -- Row rendering helpers
 -- ============================================================
 
+-- All Backups toasts originate from inside the settings window, so they
+-- should anchor to the bottom of that window rather than UIParent. The
+-- wrapper preserves any explicit anchor the caller passes and falls back
+-- to UIParent (Toast.lua's default) if the settings frame doesn't exist
+-- yet for some reason.
+local function showSettingsToast(opts)
+	opts = opts or {}
+	if(not opts.anchor and F.Settings and F.Settings._mainFrame) then
+		opts.anchor = {
+			point    = 'BOTTOM',
+			frame    = F.Settings._mainFrame,
+			relPoint = 'BOTTOM',
+			x        = 0,
+			y        = 24,
+		}
+	end
+	return Widgets.ShowToast(opts)
+end
+
 local function guardCombat()
 	if(InCombatLockdown()) then
-		Widgets.ShowToast({
+		showSettingsToast({
 			text     = "Can't load snapshots in combat.",
 			duration = 4,
 		})
@@ -295,10 +314,15 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	local btnRename = Widgets.CreateButton(row, 'Rename', 'widget',    BTN_W, BTN_H)
 	local btnDelete = Widgets.CreateButton(row, 'Delete', 'red',       BTN_W, BTN_H)
 
-	local BTN_TOP_OFFSET = -((SNAPSHOT_ROW_H - BTN_H) / 2)
+	-- Anchor buttons to the top of the row so they stay in their
+	-- original position when the row grows — either because the name
+	-- wrapped or because the export area expanded below. The vertical
+	-- offset pins the button into the original 52px row's vertical
+	-- middle.
+	local BTN_TOP_OFFSET = math.floor((SNAPSHOT_ROW_H - BTN_H) / 2)
 
 	btnDelete:ClearAllPoints()
-	Widgets.SetPoint(btnDelete, 'TOPRIGHT', row, 'TOPRIGHT', -10, BTN_TOP_OFFSET)
+	Widgets.SetPoint(btnDelete, 'TOPRIGHT', row, 'TOPRIGHT', -10, -BTN_TOP_OFFSET)
 
 	btnRename:ClearAllPoints()
 	Widgets.SetPoint(btnRename, 'RIGHT', btnDelete, 'LEFT', -PAD, 0)
@@ -311,6 +335,10 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 
 	if(isAutomatic) then
 		btnRename:Hide()
+		-- Chain btnExport directly to btnDelete so there's no gap where
+		-- the hidden rename button would have been.
+		btnExport:ClearAllPoints()
+		Widgets.SetPoint(btnExport, 'RIGHT', btnDelete, 'LEFT', -PAD, 0)
 	end
 
 	row._btnLoad   = btnLoad
@@ -324,6 +352,140 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 			if(row:IsMouseOver()) then return end
 			Widgets.SetBackdropHighlight(row, false)
 		end)
+	end
+
+	-- Responsive layout: at narrow widths, the button cluster is wider
+	-- than the row itself, so buttons drop to their own row below the
+	-- text instead of overlapping it. Auto rows hide Rename, so their
+	-- cluster is narrower (3 buttons).
+	local TEXT_PAD_L    = 10
+	local TEXT_GAP      = 8
+	local TEXT_PAD_R    = 10
+	local visibleBtns   = isAutomatic and 3 or 4
+	local CLUSTER_W     = BTN_W * visibleBtns + PAD * (visibleBtns - 1)
+	local MIN_INLINE_TW = 100
+	local inlineTextW   = width - TEXT_PAD_L - CLUSTER_W - TEXT_GAP - TEXT_PAD_R
+	local stacked       = inlineTextW < MIN_INLINE_TW
+
+	-- Measure natural (unwrapped) dimensions before any anchor changes
+	-- so we can compute wrapped line counts manually — WoW's
+	-- GetStringHeight is lazy after SetWordWrap+SetWidth and often
+	-- returns the single-line height until the next frame draw.
+	local nameNatW     = math.ceil(nameFS:GetStringWidth())
+	local nameLineH    = math.ceil(nameFS:GetStringHeight())
+	local versionLineH = math.ceil(versionFS:GetStringHeight())
+	local metaNatW     = math.ceil(metaFS:GetStringWidth())
+	local metaLineH    = math.ceil(metaFS:GetStringHeight())
+
+	if(stacked) then
+		-- Give the name the full row width and drop buttons below.
+		nameFS:ClearAllPoints()
+		nameFS:SetPoint('TOPLEFT',  row, 'TOPLEFT',  TEXT_PAD_L, -8)
+		nameFS:SetPoint('TOPRIGHT', row, 'TOPRIGHT', -TEXT_PAD_R, -8)
+		nameFS:SetWordWrap(true)
+		nameFS:SetJustifyH('LEFT')
+		if(row._lastLoadedTag) then
+			row._lastLoadedTag:Hide()
+		end
+
+		-- Park the button cluster at the bottom-right; the chain off
+		-- btnDelete keeps the others aligned via RIGHT→LEFT hops.
+		btnDelete:ClearAllPoints()
+		Widgets.SetPoint(btnDelete, 'BOTTOMRIGHT', row, 'BOTTOMRIGHT', -10, 8)
+	else
+		-- Inline: hard-cap the name's right edge via two-point anchoring
+		-- so long names wrap instead of colliding with the buttons.
+		local rightInset = CLUSTER_W + TEXT_GAP + TEXT_PAD_R
+		nameFS:ClearAllPoints()
+		nameFS:SetPoint('TOPLEFT',  row, 'TOPLEFT',  TEXT_PAD_L, -8)
+		nameFS:SetPoint('TOPRIGHT', row, 'TOPRIGHT', -rightInset, -8)
+		nameFS:SetWordWrap(true)
+		nameFS:SetJustifyH('LEFT')
+		if(row._lastLoadedTag) then
+			-- nameFS frame right edge is now fixed, so the tag anchored
+			-- to nameFS.RIGHT would float past the glyphs. Re-anchor the
+			-- tag to the end of the actual glyphs via GetStringWidth.
+			local natW = math.ceil(nameFS:GetStringWidth())
+			local tagW = math.ceil(row._lastLoadedTag:GetStringWidth()) + 6
+			if(natW == 0 or natW + tagW > inlineTextW) then
+				row._lastLoadedTag:Hide()
+			else
+				row._lastLoadedTag:ClearAllPoints()
+				row._lastLoadedTag:SetPoint('LEFT', nameFS, 'LEFT', natW + 6, 0)
+			end
+		end
+	end
+
+	-- Bound the meta line so it doesn't slide under the buttons. If the
+	-- full inline flow (version [+ indicator] + meta) doesn't fit, drop
+	-- metaFS onto its own wrapped line below versionFS.
+	local metaStacked
+	do
+		local metaRightBound
+		if(stacked) then
+			metaRightBound = width - TEXT_PAD_R
+		else
+			metaRightBound = width - CLUSTER_W - TEXT_GAP - TEXT_PAD_R
+		end
+		local versionW      = math.ceil(versionFS:GetStringWidth())
+		local indicatorW    = indicator and (math.ceil(indicator:GetStringWidth()) + 4) or 0
+		local metaLeftX     = TEXT_PAD_L + versionW + indicatorW
+		local metaMaxInline = metaRightBound - metaLeftX
+
+		if(metaNatW <= metaMaxInline) then
+			-- Fits inline — cap width as a safety bound. Left-justify
+			-- so the text stays flush with versionFS.RIGHT instead of
+			-- centering inside the capped frame.
+			metaFS:SetJustifyH('LEFT')
+			metaFS:SetWordWrap(false)
+			metaFS:SetWidth(math.max(10, metaMaxInline))
+			metaStacked = false
+		else
+			-- Doesn't fit: re-anchor below versionFS and wrap to the
+			-- full available width.
+			metaFS:ClearAllPoints()
+			metaFS:SetPoint('TOPLEFT', versionFS, 'BOTTOMLEFT', 0, -2)
+			metaFS:SetJustifyH('LEFT')
+			metaFS:SetWordWrap(true)
+			local fullMetaW = math.max(40, metaRightBound - TEXT_PAD_L)
+			metaFS:SetWidth(fullMetaW)
+			metaStacked = true
+		end
+	end
+
+	-- Grow the row to fit the wrapped content. Compute line counts
+	-- manually from natural widths / frame widths so we don't depend on
+	-- WoW's lazy GetStringHeight after wrap.
+	local TOP_PAD       = 8
+	local NAME_META_GAP = 2
+	local META_LINE_GAP = 2
+	local BOT_PAD       = 8
+
+	local nameFrameW
+	if(stacked) then
+		nameFrameW = width - TEXT_PAD_L - TEXT_PAD_R
+	else
+		nameFrameW = width - TEXT_PAD_L - (CLUSTER_W + TEXT_GAP + TEXT_PAD_R)
+	end
+	nameFrameW = math.max(40, nameFrameW)
+	local nameLines = math.max(1, math.ceil(nameNatW / nameFrameW))
+	local nameH     = nameLines * nameLineH
+
+	local contentH = nameH + NAME_META_GAP + versionLineH
+	if(metaStacked) then
+		local metaFrameW = math.max(40,
+			(stacked and (width - TEXT_PAD_L - TEXT_PAD_R))
+			or (width - TEXT_PAD_L - CLUSTER_W - TEXT_GAP - TEXT_PAD_R))
+		local metaLines = math.max(1, math.ceil(metaNatW / metaFrameW))
+		contentH = contentH + META_LINE_GAP + metaLines * metaLineH
+	end
+	if(stacked) then
+		contentH = contentH + C.Spacing.tight + BTN_H
+	end
+	local rowH = math.max(SNAPSHOT_ROW_H, TOP_PAD + contentH + BOT_PAD)
+	if(rowH ~= SNAPSHOT_ROW_H) then
+		row._height = rowH
+		row:SetHeight(rowH)
 	end
 
 	btnLoad:SetOnClick(function()
@@ -341,7 +503,7 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 			function()
 				local ok, err = F.Backups.Load(displayName)
 				if(ok) then
-					Widgets.ShowToast({
+					showSettingsToast({
 						text     = 'Snapshot loaded.',
 						duration = 12,
 						action   = {
@@ -352,7 +514,7 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 						},
 					})
 				else
-					Widgets.ShowToast({
+					showSettingsToast({
 						text     = 'Load failed: ' .. (err or 'unknown error'),
 						duration = 6,
 					})
@@ -365,23 +527,39 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	end)
 
 	btnDelete:SetOnClick(function()
-		local removed = F.Backups.Delete(displayName)
-		if(not removed) then return end
+		Widgets.ShowConfirmDialog(
+			'Delete Snapshot',
+			'Delete "' .. displayName .. '"?\n\n' ..
+			'Saved: ' .. formatTimestamp(wrapper.timestamp) .. '\n\n' ..
+			"You'll have a few seconds to undo from the toast notification.",
+			function()
+				local removed = F.Backups.Delete(displayName)
+				if(not removed) then return end
 
-		Widgets.ShowToast({
-			text     = 'Deleted ' .. displayName .. '.',
-			duration = 10,
-			action   = {
-				text    = 'Undo',
-				onClick = function()
-					F.Backups.RestoreDeleted(displayName, removed)
-				end,
-			},
-		})
+				showSettingsToast({
+					text     = 'Deleted ' .. displayName .. '.',
+					duration = 10,
+					action   = {
+						text    = 'Undo',
+						onClick = function()
+							F.Backups.RestoreDeleted(displayName, removed)
+						end,
+					},
+				})
+			end,
+			nil)
 	end)
 
 	btnRename:SetOnClick(function()
 		if(isAutomatic) then return end
+
+		-- Toggle off if already renaming.
+		if(row._renameEdit) then
+			row._renameEdit:Hide()
+			row._renameEdit = nil
+			nameFS:Show()
+			return
+		end
 
 		nameFS:Hide()
 
@@ -389,21 +567,38 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		edit:SetText(displayName)
 		edit:ClearAllPoints()
 		Widgets.SetPoint(edit, 'TOPLEFT', row, 'TOPLEFT', 8, -6)
+		row._renameEdit = edit
+
+		local function dismiss()
+			if(row._renameEdit ~= edit) then return end
+			-- If the user is mid-click on btnRename, let that click's
+			-- handler run the toggle-off instead — otherwise the focus
+			-- loss dismisses first and the click opens a fresh edit.
+			if(btnRename:IsMouseOver()) then return end
+			row._renameEdit = nil
+			edit:Hide()
+			nameFS:Show()
+		end
+
+		-- Click elsewhere → focus lost → dismiss.
+		edit:SetOnFocusLost(dismiss)
 
 		if(edit._editbox) then
 			edit._editbox:SetFocus()
 			edit._editbox:HighlightText()
-			edit._editbox:SetScript('OnEscapePressed', function()
-				edit:Hide()
-				nameFS:Show()
+			-- Escape clears focus which triggers OnFocusLost → dismiss.
+			edit._editbox:SetScript('OnEscapePressed', function(self)
+				self:ClearFocus()
 			end)
-			edit._editbox:SetScript('OnEnterPressed', function()
+			-- Enter: try rename. On success clear focus (→ dismiss). On
+			-- failure keep the edit open so the user can retry.
+			edit._editbox:SetScript('OnEnterPressed', function(self)
 				local newName = F.Backups.TrimName(edit:GetText() or '')
 				local ok, err = F.Backups.Rename(displayName, newName)
 				if(ok) then
-					edit:Hide()
+					self:ClearFocus()
 				else
-					Widgets.ShowToast({
+					showSettingsToast({
 						text     = 'Rename failed: ' .. (err or 'unknown error'),
 						duration = 5,
 					})
@@ -416,7 +611,7 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		local parsed, decodeErr = F.Backups.DecodeWrapper(wrapper)
 		if(not parsed) then
 			row:MarkCorrupted()
-			Widgets.ShowToast({
+			showSettingsToast({
 				text     = 'This snapshot is corrupted and can\'t be exported.',
 				duration = 5,
 			})
@@ -426,18 +621,22 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		if(row._exportArea) then
 			row._exportArea:Hide()
 			row._exportArea = nil
-			row:SetHeight(SNAPSHOT_ROW_H)
+			row:SetHeight(row._baseHeight or SNAPSHOT_ROW_H)
 			if(relayout) then relayout() end
 			return
 		end
 
+		-- Anchor the export area below whatever the current row content
+		-- occupies (wrapped name + meta), not a hardcoded 52px row.
+		local baseH = row:GetHeight()
+		row._baseHeight = baseH
 		local areaW = row:GetWidth() - 16
 		local areaH = EDITBOX_H + DROPDOWN_H + 14
 		local area = CreateFrame('Frame', nil, row)
 		Widgets.SetSize(area, areaW, areaH)
 		area:ClearAllPoints()
-		Widgets.SetPoint(area, 'TOPLEFT', row, 'TOPLEFT', 8, -(SNAPSHOT_ROW_H - 4))
-		row:SetHeight(SNAPSHOT_ROW_H + areaH + 4)
+		Widgets.SetPoint(area, 'TOPLEFT', row, 'TOPLEFT', 8, -(baseH - 4))
+		row:SetHeight(baseH + areaH + 4)
 
 		local scopeDropdown = Widgets.CreateDropdown(area, 220)
 		scopeDropdown:ClearAllPoints()
@@ -538,13 +737,13 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	disclaimerFS:SetWidth(innerW)
 	disclaimerFS:SetWordWrap(true)
 	disclaimerFS:SetJustifyH('LEFT')
+	disclaimerFS:SetSpacing(3)
 	disclaimerFS:SetText(
-		'Snapshots are safe to use day-to-day, but here are some specific cases to watch for. ' ..
-		'Loading a snapshot replaces your current Framed settings. ' ..
-		"Framed always keeps an automatic \"Before last load\" backup so you can revert the most recent load if something goes wrong. " ..
-		'Snapshots from older addon versions may not restore cleanly and can leave Framed in a broken state. ' ..
-		"If you load an old snapshot and break the addon, we may not be able to help you recover — " ..
-		'report it as feedback but expect to fix it yourself.')
+		'Snapshots are safe to use, but here are some specific things to be aware of:\n' ..
+		'• Loading a snapshot replaces your current Framed settings.\n' ..
+		'• Framed always keeps an automatic "Before last load" backup so you can revert the most recent load if something goes wrong.\n' ..
+		'• Snapshots from older addon versions may not restore cleanly and can leave Framed in a broken state.\n' ..
+		'• If you load an old snapshot and break the addon, we may not be able to help you recover — report it as feedback but expect to fix it yourself.')
 
 	-- Inline input state
 	local saveInputContainer
@@ -882,7 +1081,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 	local verifyRows = {}
 
 	local VERIFY_ICON_SIZE = 14
-	local VERIFY_ROW_GAP   = 4
+	local VERIFY_ROW_GAP   = 8
 	local CHEVRON_SIZE     = 10
 	local BODY_TOP_GAP     = 4
 	local BODY_INNER_GAP   = 6
@@ -975,6 +1174,16 @@ function F.BackupsCards.Import(parent, width, onResize)
 				row._expanded = false
 			end
 
+			-- Force explicit FontString widths before measuring height. Without
+			-- this, the first layout pass after :SetText returns single-line
+			-- heights because the wrap width hasn't propagated through the
+			-- anchor chain yet (verifyContainer → row → body → fontstring).
+			-- The bug surfaced as the Import button overlapping the expanded
+			-- body until the verification was hidden and re-rendered.
+			local containerW = verifyContainer:GetWidth()
+			local labelW = math.max(0, containerW - VERIFY_ICON_SIZE - 6 - (CHEVRON_SIZE + 8))
+			row._labelFS:SetWidth(labelW)
+
 			local labelH = math.max(VERIFY_ICON_SIZE, math.ceil(row._labelFS:GetStringHeight() + 2))
 			local rowH = labelH
 
@@ -983,6 +1192,9 @@ function F.BackupsCards.Import(parent, width, onResize)
 				row._body:SetPoint('TOPLEFT',  row, 'TOPLEFT',  0, -(labelH + BODY_TOP_GAP))
 				row._body:SetPoint('TOPRIGHT', row, 'TOPRIGHT', -2, -(labelH + BODY_TOP_GAP))
 				row._body:Show()
+				local bodyW = math.max(0, containerW - 2)
+				row._pathsFS:SetWidth(bodyW)
+				row._footerFS:SetWidth(bodyW)
 				row._pathsFS:SetText(table.concat(entry.paths or {}, '\n'))
 				row._footerFS:SetText(entry.footer or '')
 				local pathsH  = math.ceil(row._pathsFS:GetStringHeight()  + 2)
@@ -1100,7 +1312,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 				text       = #extras .. ' settings in this import are not in your current config (click to view)',
 				expandable = true,
 				paths      = extras,
-				footer     = "These keys exist in the import but not in your live config. They'll be applied as-is, but if they're from a removed/renamed feature, Framed may ignore them at load time.",
+				footer     = "These settings exist in the import but not in your current config. They'll be applied as-is, but if they're from a removed or renamed feature, Framed may ignore them after loading.",
 			}
 		end
 		if(#drops > 0) then
@@ -1109,7 +1321,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 				text       = #drops .. ' settings in your current config are not in this import (click to view)',
 				expandable = true,
 				paths      = drops,
-				footer     = "These keys are in your live config but not in this import. After loading, Framed will backfill any of them that are part of the current defaults schema; anything else will be lost.",
+				footer     = "These settings are in your current config but not in this import. After loading, Framed will fill in any that have a default value; anything else will be lost.",
 			}
 		end
 
@@ -1154,7 +1366,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 
 	importBtn:SetOnClick(function()
 		if(InCombatLockdown()) then
-			Widgets.ShowToast({ text = "Can't load snapshots in combat.", duration = 4 })
+			showSettingsToast({ text = "Can't load snapshots in combat.", duration = 4 })
 			return
 		end
 		if(not currentParsed or not currentRaw) then return end
@@ -1191,7 +1403,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 				setTextColor(statusFS, C.Colors.textActive)
 				statusFS:SetText('Import applied and saved as "' .. snapshotName .. '".')
 				reflow()
-				Widgets.ShowToast({
+				showSettingsToast({
 					text     = 'Import applied.',
 					duration = 10,
 					action   = {

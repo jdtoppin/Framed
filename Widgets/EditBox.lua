@@ -209,15 +209,21 @@ local function CreateSingleLine(parent, label, width, height, isNumber)
 	end
 
 	-- --------------------------------------------------------
-	-- Backdrop container for the input area
+	-- Backdrop container for the input area.
+	-- Width is driven by two horizontal anchors (not SetSize) so callers
+	-- that resize the container via SetWidth cascade automatically to the
+	-- visible input chrome.
 	-- --------------------------------------------------------
 	local inputFrame = CreateFrame('Frame', nil, container, 'BackdropTemplate')
-	Widgets.SetSize(inputFrame, width, height)
+	inputFrame:SetHeight(height)
+	inputFrame._height = height
 
 	if(label) then
-		inputFrame:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -labelH)
+		inputFrame:SetPoint('TOPLEFT',  container, 'TOPLEFT',  0, -labelH)
+		inputFrame:SetPoint('TOPRIGHT', container, 'TOPRIGHT', 0, -labelH)
 	else
-		inputFrame:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, 0)
+		inputFrame:SetPoint('TOPLEFT',  container, 'TOPLEFT',  0, 0)
+		inputFrame:SetPoint('TOPRIGHT', container, 'TOPRIGHT', 0, 0)
 	end
 
 	Widgets.ApplyBackdrop(inputFrame, C.Colors.widget, BLACK)
