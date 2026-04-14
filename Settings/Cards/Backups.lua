@@ -12,7 +12,7 @@ local BUTTON_H   = 22
 local EDITBOX_H  = 80
 local LABEL_H    = C.Font.sizeSmall + 4
 
-local SNAPSHOT_ROW_H   = 52 -- luacheck: ignore 211 -- used by row-rendering in a later task
+local SNAPSHOT_ROW_H   = 52
 local EMPTY_STATE_H    = 60
 local LIST_MAX_H       = 320
 
@@ -55,6 +55,82 @@ local function placeLabelAt(fs, inner, y)
 	fs:ClearAllPoints()
 	Widgets.SetPoint(fs, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
 	return y - LABEL_H
+end
+
+-- ============================================================
+-- Row rendering helpers
+-- ============================================================
+
+local function formatTimestamp(ts)
+	if(not ts) then return '—' end
+	return date('%Y-%m-%d %H:%M', ts)
+end
+
+local function buildMetadataLine(wrapper)
+	local version = wrapper.version or 'unknown'
+	local ts      = formatTimestamp(wrapper.timestamp)
+	local count   = wrapper.layoutCount or 0
+	local size    = wrapper.sizeBytes   or 0
+	local sizeStr = (size < 1024) and (size .. ' B') or string.format('%.1f KB', size / 1024)
+	return version .. ' · ' .. ts .. ' · ' .. count .. ' layouts · ' .. sizeStr
+end
+
+local function createSnapshotRow(parent, width, wrapper, displayName, isAutomatic)
+	local row = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
+	Widgets.SetSize(row, width, SNAPSHOT_ROW_H)
+	Widgets.ApplyBackdrop(row, C.Colors.cardBg or C.Colors.widget, C.Colors.border)
+
+	row._wrapper     = wrapper
+	row._name        = displayName
+	row._isAutomatic = isAutomatic
+
+	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
+	nameFS:SetPoint('TOPLEFT', row, 'TOPLEFT', 10, -8)
+	nameFS:SetText(displayName)
+	if(isAutomatic) then
+		nameFS:SetTextColor(
+			C.Colors.textSecondary[1],
+			C.Colors.textSecondary[2],
+			C.Colors.textSecondary[3],
+			C.Colors.textSecondary[4] or 1)
+	end
+	row._nameFS = nameFS
+
+	local metaFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	metaFS:SetPoint('BOTTOMLEFT', row, 'BOTTOMLEFT', 10, 8)
+	metaFS:SetText(buildMetadataLine(wrapper))
+	row._metaFS = metaFS
+
+	local BTN_W, BTN_H = 70, 22
+	local PAD          = 4
+
+	local btnLoad   = Widgets.CreateButton(row, 'Load',   'accent',    BTN_W, BTN_H)
+	local btnExport = Widgets.CreateButton(row, 'Export', 'secondary', BTN_W, BTN_H)
+	local btnRename = Widgets.CreateButton(row, 'Rename', 'secondary', BTN_W, BTN_H)
+	local btnDelete = Widgets.CreateButton(row, 'Delete', 'danger',    BTN_W, BTN_H)
+
+	btnDelete:ClearAllPoints()
+	Widgets.SetPoint(btnDelete, 'RIGHT', row, 'RIGHT', -10, 0)
+
+	btnRename:ClearAllPoints()
+	Widgets.SetPoint(btnRename, 'RIGHT', btnDelete, 'LEFT', -PAD, 0)
+
+	btnExport:ClearAllPoints()
+	Widgets.SetPoint(btnExport, 'RIGHT', btnRename, 'LEFT', -PAD, 0)
+
+	btnLoad:ClearAllPoints()
+	Widgets.SetPoint(btnLoad, 'RIGHT', btnExport, 'LEFT', -PAD, 0)
+
+	if(isAutomatic) then
+		btnRename:Hide()
+	end
+
+	row._btnLoad   = btnLoad
+	row._btnExport = btnExport
+	row._btnRename = btnRename
+	row._btnDelete = btnDelete
+
+	return row
 end
 
 -- ============================================================
@@ -125,6 +201,67 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		return false
 	end
 
+	-- Rendered row cache — reused across reflows so button wiring persists
+	local renderedRows = {}
+
+	local function clearRows()
+		for _, row in next, renderedRows do
+			row:Hide()
+			row:SetParent(nil)
+		end
+		renderedRows = {}
+	end
+
+	local function rebuildRows()
+		clearRows()
+
+		local snapshots = (FramedSnapshotsDB and FramedSnapshotsDB.snapshots) or {}
+
+		local userList = {}
+		local autoMap  = {}
+		for name, wrapper in next, snapshots do
+			if(wrapper.automatic) then
+				autoMap[name] = wrapper
+			else
+				userList[#userList + 1] = { name = name, wrapper = wrapper }
+			end
+		end
+
+		table.sort(userList, function(a, b)
+			local ta = a.wrapper.timestamp or 0
+			local tb = b.wrapper.timestamp or 0
+			return ta > tb
+		end)
+
+		local y = -4
+		local rowW = listContent:GetWidth() - 16
+
+		for _, entry in next, userList do
+			local row = createSnapshotRow(listContent, rowW, entry.wrapper, entry.name, false)
+			row:ClearAllPoints()
+			Widgets.SetPoint(row, 'TOPLEFT', listContent, 'TOPLEFT', 8, y)
+			row:Show()
+			renderedRows[#renderedRows + 1] = row
+			y = y - SNAPSHOT_ROW_H - 4
+		end
+
+		for _, autoKey in next, F.Backups.AUTO_ORDER do
+			local wrapper = autoMap[autoKey]
+			if(wrapper) then
+				local label = F.Backups.AUTO_LABELS[autoKey] or autoKey
+				local row = createSnapshotRow(listContent, rowW, wrapper, label, true)
+				row:ClearAllPoints()
+				Widgets.SetPoint(row, 'TOPLEFT', listContent, 'TOPLEFT', 8, y)
+				row:Show()
+				renderedRows[#renderedRows + 1] = row
+				y = y - SNAPSHOT_ROW_H - 4
+			end
+		end
+
+		local totalH = math.max(EMPTY_STATE_H, (-y) + 8)
+		listContent:SetHeight(totalH)
+	end
+
 	local function reflow()
 		local y = 0
 		y = B.PlaceWidget(saveBtn,   inner, y, BUTTON_H)
@@ -136,6 +273,7 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 			emptyFS:Show()
 		end
 
+		rebuildRows()
 		y = B.PlaceWidget(listFrame, inner, y, LIST_MAX_H)
 
 		updateFooter()
@@ -148,6 +286,7 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 
 	-- Cache on card for other tasks to re-trigger
 	card._reflow      = reflow
+	card._rebuildRows = rebuildRows
 	card._listFrame   = listFrame
 	card._listContent = listContent
 	card._saveBtn     = saveBtn
