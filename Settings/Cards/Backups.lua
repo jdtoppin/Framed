@@ -19,6 +19,77 @@ local LIST_MAX_H       = 320
 local SCOPE_FULL   = 'full'
 local SCOPE_LAYOUT = 'layout'
 
+-- ============================================================
+-- Verification: flattened key-set derivation from current defaults
+-- ============================================================
+
+local flattenedDefaults
+
+local function flattenInto(set, prefix, tbl)
+	for k, v in next, tbl do
+		local path = prefix == '' and tostring(k) or (prefix .. '.' .. tostring(k))
+		if(type(v) == 'table') then
+			flattenInto(set, path, v)
+		else
+			set[path] = true
+		end
+	end
+end
+
+local function buildFlattenedDefaults()
+	local set = {}
+
+	if(FramedDB and FramedDB.general) then flattenInto(set, 'general', FramedDB.general) end
+	if(FramedDB and FramedDB.minimap) then flattenInto(set, 'minimap', FramedDB.minimap) end
+	if(FramedCharDB)                  then flattenInto(set, 'char',    FramedCharDB)     end
+
+	if(F.PresetDefaults and F.PresetDefaults.GetAll) then
+		local all = F.PresetDefaults.GetAll()
+		local anyPreset = all and next(all) and all[next(all)]
+		if(anyPreset) then
+			flattenInto(set, 'presets.<name>', anyPreset)
+		end
+	end
+
+	return set
+end
+
+local function getFlattenedDefaults()
+	if(not flattenedDefaults) then
+		flattenedDefaults = buildFlattenedDefaults()
+	end
+	return flattenedDefaults
+end
+
+local function classifyImportKeys(parsed)
+	local defaults = getFlattenedDefaults()
+	local importSet = {}
+	if(parsed.scope == 'full' and type(parsed.data) == 'table') then
+		if(parsed.data.general) then flattenInto(importSet, 'general', parsed.data.general) end
+		if(parsed.data.minimap) then flattenInto(importSet, 'minimap', parsed.data.minimap) end
+		if(parsed.data.char)    then flattenInto(importSet, 'char',    parsed.data.char)    end
+		if(parsed.data.presets) then
+			local _, firstLayout = next(parsed.data.presets)
+			if(firstLayout) then
+				flattenInto(importSet, 'presets.<name>', firstLayout)
+			end
+		end
+	elseif(parsed.scope == 'layout' and parsed.data and parsed.data.layout) then
+		flattenInto(importSet, 'presets.<name>', parsed.data.layout)
+	end
+
+	local ignored, missing = {}, {}
+	for path in next, importSet do
+		if(not defaults[path]) then ignored[#ignored + 1] = path end
+	end
+	for path in next, defaults do
+		if(not importSet[path]) then missing[#missing + 1] = path end
+	end
+	table.sort(ignored)
+	table.sort(missing)
+	return ignored, missing
+end
+
 -- ── Helpers ────────────────────────────────────────────────
 
 local function getLayoutItems()
@@ -826,67 +897,141 @@ function F.BackupsCards.Import(parent, width)
 	local card, inner, y = Widgets.StartCard(parent, width, 0)
 	local innerW = width - Widgets.CARD_PADDING * 2
 
-	-- Paste box
 	local importBox = Widgets.CreateEditBox(inner, nil, innerW, EDITBOX_H, 'multiline')
-	importBox:SetPlaceholder('Paste import string here...')
+	importBox:SetPlaceholder('Paste import string here…')
 	y = B.PlaceWidget(importBox, inner, y, EDITBOX_H)
 
-	-- Import button
-	local importBtn = Widgets.CreateButton(inner, 'Import', 'accent', 100, BUTTON_H)
-	y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
+	local verifyHeader = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	verifyHeader:SetText('── Verification ──')
+	local verifyRowsFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	verifyRowsFS:SetWidth(innerW)
+	verifyRowsFS:SetWordWrap(true)
+	verifyRowsFS:SetJustifyH('LEFT')
 
-	-- Status text
+	local importBtn = Widgets.CreateButton(inner, 'Import', 'accent', 100, BUTTON_H)
+
 	local statusFS = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textSecondary)
-	statusFS:ClearAllPoints()
-	Widgets.SetPoint(statusFS, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
 	statusFS:SetWidth(innerW)
 	statusFS:SetWordWrap(true)
 	statusFS:SetText('')
-	y = y - C.Font.sizeNormal - C.Spacing.normal
+
+	local currentParsed
+
+	local function renderVerification(parsed, parseErr)
+		if(parseErr) then
+			verifyHeader:Show()
+			verifyRowsFS:Show()
+			verifyRowsFS:SetTextColor(1, 0.3, 0.3, 1)
+			verifyRowsFS:SetText('✗ Format invalid: ' .. parseErr)
+			importBtn:SetEnabled(false)
+			return
+		end
+
+		verifyHeader:Show()
+		verifyRowsFS:Show()
+		verifyRowsFS:SetTextColor(
+			C.Colors.textSecondary[1],
+			C.Colors.textSecondary[2],
+			C.Colors.textSecondary[3],
+			C.Colors.textSecondary[4] or 1)
+
+		local lines = {}
+		lines[#lines + 1] = '✓ Format valid'
+
+		local version = (parsed.sourceVersion) or (parsed.data and parsed.data.version) or 'unknown'
+		local isStale = F.Version and (F.Version.IsStaleOlder(version, F.version) or F.Version.IsStaleNewer(version, F.version))
+		lines[#lines + 1] = '✓ Version: ' .. version .. (isStale and ' [!] (stale)' or '')
+
+		local scope = parsed.scope or 'unknown'
+		lines[#lines + 1] = '✓ Scope: ' .. (scope == 'full' and 'Everything' or 'Single Layout')
+
+		if(parsed.scope == 'full' and parsed.data and parsed.data.presets) then
+			local total, overwrite, add = 0, 0, 0
+			for layoutName in next, parsed.data.presets do
+				total = total + 1
+				if(FramedDB.presets and FramedDB.presets[layoutName]) then
+					overwrite = overwrite + 1
+				else
+					add = add + 1
+				end
+			end
+			lines[#lines + 1] = '✓ Contains ' .. total .. ' layouts, ' .. overwrite .. ' will be overwritten, ' .. add .. ' added'
+		end
+
+		local ignored, missing = classifyImportKeys(parsed)
+		if(#ignored > 0) then
+			lines[#lines + 1] = '⚠ ' .. #ignored .. ' settings will be ignored (from an older version)'
+		end
+		if(#missing > 0) then
+			lines[#lines + 1] = 'ℹ ' .. #missing .. ' new settings will use defaults'
+		end
+
+		verifyRowsFS:SetText(table.concat(lines, '\n'))
+		importBtn:SetEnabled(true)
+	end
+
+	local debounceTimer
+	local function scheduleVerify()
+		if(debounceTimer) then debounceTimer:Cancel() end
+		debounceTimer = C_Timer.NewTimer(0.25, function()
+			local raw = importBox:GetText() or ''
+			raw = raw:match('^%s*(.-)%s*$') or ''
+			if(raw == '') then
+				verifyHeader:Hide()
+				verifyRowsFS:Hide()
+				importBtn:SetEnabled(false)
+				currentParsed = nil
+				return
+			end
+			local parsed, err = F.ImportExport.Import(raw)
+			currentParsed = parsed
+			renderVerification(parsed, err)
+		end)
+	end
+
+	if(importBox._editbox) then
+		importBox._editbox:SetScript('OnTextChanged', scheduleVerify)
+	end
+	verifyHeader:Hide()
+	verifyRowsFS:Hide()
+	importBtn:SetEnabled(false)
 
 	importBtn:SetOnClick(function()
-		local inputStr = importBox:GetText()
-		if(inputStr) then
-			inputStr = inputStr:match('^%s*(.-)%s*$')
-		end
-		if(not inputStr or inputStr == '') then
-			setTextColor(statusFS, C.Colors.textSecondary)
-			statusFS:SetText('Paste an import string above.')
+		if(InCombatLockdown()) then
+			Widgets.ShowToast({ text = "Can't load snapshots in combat.", duration = 4 })
 			return
 		end
-
-		local ie = F.ImportExport
-		if(not ie) then
-			setTextColor(statusFS, { 1, 0.3, 0.3, 1 })
-			statusFS:SetText('Error: ImportExport module not loaded.')
-			return
-		end
-
-		local payload, err = ie.Import(inputStr)
-		if(not payload) then
-			setTextColor(statusFS, { 1, 0.3, 0.3, 1 })
-			statusFS:SetText('Error: ' .. (err or 'unknown error'))
-			return
-		end
-
-		local confirmMsg = string.format(
-			'Apply import?\n\nScope: %s\n\nThis cannot be undone.',
-			payload.scope or 'unknown')
+		if(not currentParsed) then return end
 
 		Widgets.ShowConfirmDialog(
 			'Confirm Import',
-			confirmMsg,
+			'Replace your current Framed settings with this import?\nFramed will save an automatic "Before last import" backup first.',
 			function()
-				ie.ApplyImport(payload)
+				F.ImportExport.ApplyImport(currentParsed)
 				importBox:SetText('')
 				setTextColor(statusFS, C.Colors.textActive)
 				statusFS:SetText('Import successful.')
+				Widgets.ShowToast({
+					text     = 'Import applied.',
+					duration = 10,
+					action   = {
+						text    = 'Undo',
+						onClick = function()
+							F.Backups.Load(F.Backups.AUTO_PREIMPORT)
+						end,
+					},
+				})
 			end,
 			function()
 				setTextColor(statusFS, C.Colors.textSecondary)
 				statusFS:SetText('Import cancelled.')
 			end)
 	end)
+
+	y = B.PlaceWidget(verifyHeader, inner, y, LABEL_H)
+	y = B.PlaceWidget(verifyRowsFS, inner, y, LABEL_H * 8)
+	y = B.PlaceWidget(importBtn,    inner, y, BUTTON_H)
+	y = B.PlaceWidget(statusFS,     inner, y, LABEL_H * 2)
 
 	Widgets.EndCard(card, parent, y)
 	return card
