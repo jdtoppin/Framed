@@ -17,7 +17,6 @@ rawset(_G, 'FramedAddon', Framed)
 local eventFrame = CreateFrame('Frame')
 eventFrame:RegisterEvent('ADDON_LOADED')
 eventFrame:RegisterEvent('PLAYER_LOGIN')
-eventFrame:RegisterEvent('PLAYER_LOGOUT')
 eventFrame:RegisterEvent('ACTIVE_TALENT_GROUP_CHANGED')
 
 eventFrame:SetScript('OnEvent', function(self, event, arg1)
@@ -25,6 +24,7 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		F.Config:Initialize()
 		F.PresetDefaults.EnsureDefaults()
 		F.Backups.EnsureDefaults()
+		F.Backups.CaptureAutomatic(F.Backups.AUTO_LOGIN)
 		self:UnregisterEvent('ADDON_LOADED')
 	elseif(event == 'PLAYER_LOGIN') then
 		-- Post-spawn initialization (runs after oUF:Factory spawns frames)
@@ -102,9 +102,6 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		end
 
 		self:UnregisterEvent('PLAYER_LOGIN')
-	elseif(event == 'PLAYER_LOGOUT') then
-		-- Snapshot config to backup SavedVariable for recovery
-		FramedBackupDB = F.DeepCopy(FramedDB)
 	elseif(event == 'ACTIVE_TALENT_GROUP_CHANGED') then
 		F.ClickCasting.RefreshAll()
 	end

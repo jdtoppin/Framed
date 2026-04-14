@@ -227,6 +227,13 @@ function ImportExport.ApplyImport(payload)
 	if(not payload or not payload.scope or not payload.data) then return end
 	if(not FramedDB) then return end
 
+	-- Capture pre-import automatic snapshot (rotating, 1-deep).
+	-- This runs for both the Import card path AND the Backups.Load path
+	-- (Backups.Load captures its own __auto_preload separately first).
+	if(F.Backups and F.Backups.CaptureAutomatic) then
+		F.Backups.CaptureAutomatic(F.Backups.AUTO_PREIMPORT)
+	end
+
 	local scope = payload.scope
 	local data  = payload.data
 

@@ -391,3 +391,47 @@ function B.Load(name)
 	end
 	return true
 end
+
+-- ============================================================
+-- Automatic snapshot capture (rotating, 1-deep per slot)
+-- ============================================================
+
+--- Capture the current live config as a rotating automatic snapshot.
+--- Automatic slots overwrite their previous entry (no growth).
+--- @param autoKey string one of B.AUTO_LOGIN / B.AUTO_PREIMPORT / B.AUTO_PRELOAD
+--- @return boolean ok
+function B.CaptureAutomatic(autoKey)
+	B.EnsureDefaults()
+	if(not B.AUTO_LABELS[autoKey]) then return false end
+
+	if(not F.ImportExport or not F.ImportExport.CaptureFullProfileData) then
+		return false
+	end
+
+	local payloadTable = F.ImportExport.CaptureFullProfileData()
+	local layoutCount  = 0
+	if(type(payloadTable.presets) == 'table') then
+		for _ in next, payloadTable.presets do
+			layoutCount = layoutCount + 1
+		end
+	end
+
+	local encoded = F.ImportExport.Export(payloadTable, 'full')
+	if(not encoded) then return false end
+
+	local autoKind =
+		(autoKey == B.AUTO_LOGIN)     and 'login' or
+		(autoKey == B.AUTO_PREIMPORT) and 'preimport' or
+		(autoKey == B.AUTO_PRELOAD)   and 'preload' or nil
+
+	FramedSnapshotsDB.snapshots[autoKey] = buildWrapper({
+		version     = F.version,
+		timestamp   = time(),
+		automatic   = true,
+		autoKind    = autoKind,
+		layoutCount = layoutCount,
+		sizeBytes   = #encoded,
+		payload     = encoded,
+	})
+	return true
+end
