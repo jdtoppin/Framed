@@ -558,12 +558,11 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	local function updateFooter()
 		local total, count = 0, 0
 		for _, wrapper in next, (FramedSnapshotsDB and FramedSnapshotsDB.snapshots or {}) do
-			if(not wrapper.automatic) then
-				count = count + 1
-			end
+			count = count + 1
 			total = total + (wrapper.sizeBytes or 0)
 		end
-		footerFS:SetText('Using ' .. formatSize(total) .. ' · ' .. count .. ' snapshots')
+		local label = (count == 1) and ' snapshot' or ' snapshots'
+		footerFS:SetText('Using ' .. formatSize(total) .. ' · ' .. count .. label)
 	end
 
 	local function hasUserSnapshots()
