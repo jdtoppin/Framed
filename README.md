@@ -2,8 +2,10 @@
 
 [![Release](https://img.shields.io/github/v/release/jdtoppin/Framed?label=Release&color=blue)](https://github.com/jdtoppin/Framed/releases/latest)
 [![Last commit](https://img.shields.io/github/last-commit/jdtoppin/Framed)](https://github.com/jdtoppin/Framed/commits/main)
+[![WoW](https://img.shields.io/curseforge/game-versions/1513359?label=WoW)](https://www.curseforge.com/wow/addons/framed)
 [![CurseForge](https://img.shields.io/curseforge/dt/1513359?label=CurseForge&logo=curseforge&color=F16436)](https://www.curseforge.com/wow/addons/framed)
 [![Discord](https://img.shields.io/discord/1486115063080423494?label=Discord&logo=discord&color=5865F2)](https://discord.gg/cz4zhyVUK7)
+[![License](https://img.shields.io/github/license/jdtoppin/Framed?color=green)](LICENSE)
 
 Modern, customizable unit frames and raid frames for World of Warcraft (Retail).
 
