@@ -612,6 +612,8 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		listContent:SetHeight(totalH)
 	end
 
+	local building = true
+
 	local function reflow()
 		local y = 0
 		y = B.PlaceWidget(saveBtn,   inner, y, BUTTON_H)
@@ -638,7 +640,7 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		y = B.PlaceWidget(disclaimerFS, inner, y, LABEL_H * 6)
 
 		Widgets.EndCard(card, parent, y)
-		if(onResize) then onResize() end
+		if(onResize and not building) then onResize() end
 	end
 
 	-- Cache on card for other tasks to re-trigger
@@ -775,6 +777,7 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	end
 
 	reflow()
+	building = false
 	return card
 end
 
