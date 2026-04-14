@@ -476,10 +476,6 @@ F.EventBus:Register('PRESET_CHANGED', function(presetName)
 			for _, aura in next, AURA_ELEMENTS do
 				local auraCfg = F.StyleBuilder.GetAuraConfig(auraUnitType, aura.key)
 				local enabled = auraCfg and auraCfg.enabled
-				-- missingBuffs uses next() check instead of .enabled
-				if(aura.key == 'missingBuffs') then
-					enabled = auraCfg and next(auraCfg)
-				end
 
 				if(enabled) then
 					local el = frame[aura.element]
