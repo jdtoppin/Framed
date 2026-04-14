@@ -179,7 +179,7 @@ Settings/Cards/StatusText.lua
 Settings/Cards/StatusIcons.lua
 Settings/Cards/PartyPets.lua
 Settings/Cards/About.lua
-Settings/Cards/Profiles.lua
+Settings/Cards/Backups.lua
 Settings/Cards/Appearance/Theme.lua
 Settings/Cards/Appearance/UIScale.lua
 Settings/Cards/Appearance/TargetHighlight.lua
@@ -195,7 +195,7 @@ Settings/Builders/IndicatorCardBuilders.lua
 Settings/Builders/AuraPreview.lua
 Settings/Panels/Appearance.lua
 Settings/Panels/FramePresets.lua
-Settings/Panels/Profiles.lua
+Settings/Panels/Backups.lua
 Settings/Panels/ClickCasting.lua
 Settings/Panels/Player.lua
 Settings/Panels/Target.lua

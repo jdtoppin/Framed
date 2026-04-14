@@ -4,7 +4,7 @@ local C = F.Constants
 local Widgets = F.Widgets
 local B = F.FrameSettingsBuilder
 
-F.ProfilesCards = F.ProfilesCards or {}
+F.BackupsCards = F.BackupsCards or {}
 
 -- ── Layout constants ───────────────────────────────────────
 local DROPDOWN_H = 22
@@ -57,7 +57,7 @@ end
 -- Export card
 -- ============================================================
 
-function F.ProfilesCards.Export(parent, width, onResize)
+function F.BackupsCards.Export(parent, width, onResize)
 	local card, inner = Widgets.StartCard(parent, width, 0)
 	local innerW = width - Widgets.CARD_PADDING * 2
 
@@ -168,7 +168,7 @@ end
 -- Import card
 -- ============================================================
 
-function F.ProfilesCards.Import(parent, width)
+function F.BackupsCards.Import(parent, width)
 	local card, inner, y = Widgets.StartCard(parent, width, 0)
 	local innerW = width - Widgets.CARD_PADDING * 2
 

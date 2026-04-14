@@ -5,8 +5,8 @@ local Widgets = F.Widgets
 local C = F.Constants
 
 F.Settings.RegisterPanel({
-	id      = 'profiles',
-	label   = 'Profiles',
+	id      = 'backups',
+	label   = 'Backups',
 	section = 'GLOBAL',
 	order   = 30,
 	create  = function(parent)
@@ -41,8 +41,8 @@ F.Settings.RegisterPanel({
 
 		local args = { relayout }
 
-		grid:AddCard('export', 'Export', F.ProfilesCards.Export, args)
-		grid:AddCard('import', 'Import', F.ProfilesCards.Import)
+		grid:AddCard('export', 'Export', F.BackupsCards.Export, args)
+		grid:AddCard('import', 'Import', F.BackupsCards.Import)
 		grid:SetFullWidth('export')
 		grid:SetFullWidth('import')
 
@@ -64,11 +64,11 @@ F.Settings.RegisterPanel({
 			local gridW = newW - C.Spacing.normal * 2
 			grid:SetWidth(gridW)
 			content:SetHeight(grid:GetTotalHeight())
-		end, 'ProfilesPanel.resize')
+		end, 'BackupsPanel.resize')
 
 		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 			grid:RebuildCards()
-		end, 'ProfilesPanel.resizeComplete')
+		end, 'BackupsPanel.resizeComplete')
 
 		return scroll
 	end,
