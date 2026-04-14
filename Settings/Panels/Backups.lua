@@ -71,6 +71,26 @@ F.Settings.RegisterPanel({
 			grid:RebuildCards()
 		end, 'BackupsPanel.resizeComplete')
 
+		local BADGE_THRESHOLD = 100 * 1024
+
+		local function updateBadge()
+			if(not FramedSnapshotsDB or not FramedSnapshotsDB.snapshots) then
+				F.Settings.SetPanelBadge('backups', false)
+				return
+			end
+			local total = 0
+			for _, wrapper in next, FramedSnapshotsDB.snapshots do
+				total = total + (wrapper.sizeBytes or 0)
+			end
+			F.Settings.SetPanelBadge('backups', total >= BADGE_THRESHOLD)
+		end
+
+		updateBadge()
+
+		F.EventBus:Register('BACKUP_CREATED', updateBadge, 'BackupsPanel.badge.created')
+		F.EventBus:Register('BACKUP_DELETED', updateBadge, 'BackupsPanel.badge.deleted')
+		F.EventBus:Register('BACKUP_LOADED',  updateBadge, 'BackupsPanel.badge.loaded')
+
 		return scroll
 	end,
 })

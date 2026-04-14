@@ -159,6 +159,14 @@ local function createNavButton(parent, panelInfo, yOffset)
 	label:SetTextColor(DIM_TEXT_R, DIM_TEXT_G, DIM_TEXT_B)
 	btn._label = label
 
+	-- Right-side warning badge (shown via F.Settings.SetPanelBadge API)
+	local badge = btn:CreateTexture(nil, 'OVERLAY')
+	badge:SetSize(6, 6)
+	badge:SetPoint('RIGHT', btn, 'RIGHT', -8, 0)
+	badge:SetColorTexture(1, 0.55, 0.1, 1)
+	badge:Hide()
+	btn._badge = badge
+
 	-- Push effect
 	btn:SetScript('OnMouseDown', function(self)
 		if(self._icon) then
@@ -683,5 +691,19 @@ function Settings.BuildSidebar()
 	local registeredPanels = Settings._panels
 	if(#registeredPanels > 0) then
 		Settings.SetActivePanel(registeredPanels[1].id)
+	end
+end
+
+-- ============================================================
+-- Panel badge API
+-- ============================================================
+
+function F.Settings.SetPanelBadge(panelId, show)
+	local btn = Settings._sidebarButtons and Settings._sidebarButtons[panelId]
+	if(not btn or not btn._badge) then return end
+	if(show) then
+		btn._badge:Show()
+	else
+		btn._badge:Hide()
 	end
 end
