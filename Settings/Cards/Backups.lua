@@ -516,9 +516,8 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	local card, inner = Widgets.StartCard(parent, width, 0)
 	local innerW = width - Widgets.CARD_PADDING * 2
 
-	-- Top action row (buttons sit side-by-side)
-	local saveBtn   = Widgets.CreateButton(inner, 'Save Current As…',   'accent',  160, BUTTON_H)
-	local importBtn = Widgets.CreateButton(inner, 'Import as Snapshot…', 'widget', 180, BUTTON_H)
+	-- Top action row
+	local saveBtn = Widgets.CreateButton(inner, 'Save Current As…', 'accent', 160, BUTTON_H)
 
 	-- Plain list area (no inner scroll — full height grows with content,
 	-- the panel scroll handles overflow)
@@ -555,7 +554,6 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 
 	-- Inline input state
 	local saveInputContainer
-	local importInputContainer
 
 	-- Reflow layout
 	local function formatSize(bytes)
@@ -656,18 +654,10 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	reflow = function(skipRebuild)
 		local y = 0
 
-		-- Place save + import buttons side-by-side on a single row
-		saveBtn:ClearAllPoints()
-		Widgets.SetPoint(saveBtn, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
-		importBtn:ClearAllPoints()
-		Widgets.SetPoint(importBtn, 'LEFT', saveBtn, 'RIGHT', C.Spacing.tight, 0)
-		y = y - BUTTON_H - C.Spacing.normal
+		y = B.PlaceWidget(saveBtn, inner, y, BUTTON_H)
 
 		if(saveInputContainer) then
 			y = B.PlaceWidget(saveInputContainer, inner, y, saveInputContainer:GetHeight())
-		end
-		if(importInputContainer) then
-			y = B.PlaceWidget(importInputContainer, inner, y, importInputContainer:GetHeight())
 		end
 
 		if(hasUserSnapshots()) then
@@ -699,16 +689,11 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	card._listFrame   = listFrame
 	card._listContent = listContent
 	card._saveBtn     = saveBtn
-	card._importBtn   = importBtn
 
 	local function closeInputs()
 		if(saveInputContainer) then
 			saveInputContainer:Hide()
 			saveInputContainer = nil
-		end
-		if(importInputContainer) then
-			importInputContainer:Hide()
-			importInputContainer = nil
 		end
 		reflow()
 	end
@@ -748,75 +733,6 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 			input._editbox:SetFocus()
 			input._editbox:HighlightText()
 		end
-	end)
-
-	importBtn:SetOnClick(function()
-		closeInputs()
-
-		local defaultName = 'Imported ' .. date('%Y-%m-%d %H:%M')
-
-		local container = CreateFrame('Frame', nil, inner)
-		Widgets.SetSize(container, innerW, EDITBOX_H + 22 + LABEL_H + BUTTON_H + 24)
-
-		local pasteBox = Widgets.CreateEditBox(container, nil, innerW, EDITBOX_H, 'multiline')
-		pasteBox:SetPlaceholder('Paste import string here…')
-		pasteBox:ClearAllPoints()
-		Widgets.SetPoint(pasteBox, 'TOPLEFT', container, 'TOPLEFT', 0, 0)
-
-		local nameInput = Widgets.CreateEditBox(container, nil, innerW, 22)
-		nameInput:SetPlaceholder('Snapshot name')
-		nameInput:SetText(defaultName)
-		nameInput:ClearAllPoints()
-		Widgets.SetPoint(nameInput, 'TOPLEFT', pasteBox, 'BOTTOMLEFT', 0, -6)
-
-		local errorFS = Widgets.CreateFontString(container, C.Font.sizeSmall, C.Colors.textSecondary)
-		errorFS:ClearAllPoints()
-		Widgets.SetPoint(errorFS, 'TOPLEFT', nameInput, 'BOTTOMLEFT', 0, -4)
-		errorFS:SetWidth(innerW)
-		errorFS:SetWordWrap(true)
-		errorFS:SetText('')
-
-		local confirmBtn = Widgets.CreateButton(container, 'Save as Snapshot', 'accent',    140, BUTTON_H)
-		local cancelBtn  = Widgets.CreateButton(container, 'Cancel',           'secondary',  80, BUTTON_H)
-
-		confirmBtn:ClearAllPoints()
-		Widgets.SetPoint(confirmBtn, 'TOPLEFT', errorFS, 'BOTTOMLEFT', 0, -4)
-		cancelBtn:ClearAllPoints()
-		Widgets.SetPoint(cancelBtn, 'LEFT', confirmBtn, 'RIGHT', 6, 0)
-
-		local function setError(msg)
-			if(msg and msg ~= '') then
-				errorFS:SetTextColor(1, 0.3, 0.3, 1)
-				errorFS:SetText(msg)
-			else
-				errorFS:SetText('')
-			end
-		end
-
-		confirmBtn:SetOnClick(function()
-			local raw = pasteBox:GetText() or ''
-			raw = raw:match('^%s*(.-)%s*$')
-			if(raw == '') then
-				setError('Paste an import string to continue.')
-				return
-			end
-			local name = F.Backups.TrimName(nameInput:GetText() or '')
-			local nameOk, nameErr = F.Backups.ValidateName(name)
-			if(not nameOk) then
-				setError(nameErr)
-				return
-			end
-			local ok, err = F.Backups.SaveFromPayload(name, raw)
-			if(ok) then
-				closeInputs()
-			else
-				setError(err or 'Import failed.')
-			end
-		end)
-		cancelBtn:SetOnClick(closeInputs)
-
-		importInputContainer = container
-		reflow()
 	end)
 
 	if(F.EventBus) then
@@ -960,6 +876,10 @@ function F.BackupsCards.Import(parent, width, onResize)
 	local importBox = Widgets.CreateEditBox(inner, nil, innerW, EDITBOX_H, 'multiline')
 	importBox:SetPlaceholder('Paste import string here…')
 
+	local nameLabel = createLabel(inner, 'SNAPSHOT NAME')
+	local nameInput = Widgets.CreateEditBox(inner, nil, innerW, 22)
+	nameInput:SetPlaceholder('Imported …')
+
 	local verifyHeader = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
 	verifyHeader:SetText('── Verification ──')
 	local verifyRowsFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
@@ -975,13 +895,18 @@ function F.BackupsCards.Import(parent, width, onResize)
 	statusFS:SetText('')
 
 	local currentParsed
+	local currentRaw
 	local initialized = false
 
 	local function reflow()
 		local y = 0
 		y = B.PlaceWidget(importBox, inner, y, EDITBOX_H)
 
+		y = placeLabelAt(nameLabel, inner, y)
+		y = B.PlaceWidget(nameInput, inner, y, 22)
+
 		if(verifyHeader:IsShown()) then
+			y = y - C.Spacing.tight
 			y = B.PlaceWidget(verifyHeader, inner, y, LABEL_H)
 			local rowsH = math.max(LABEL_H, math.ceil(verifyRowsFS:GetStringHeight() + 2))
 			y = B.PlaceWidget(verifyRowsFS, inner, y, rowsH)
@@ -1064,11 +989,18 @@ function F.BackupsCards.Import(parent, width, onResize)
 				verifyRowsFS:Hide()
 				importBtn:SetEnabled(false)
 				currentParsed = nil
+				currentRaw = nil
 				reflow()
 				return
 			end
 			local parsed, err = F.ImportExport.Import(raw)
 			currentParsed = parsed
+			currentRaw = raw
+
+			if(parsed and (nameInput:GetText() or '') == '') then
+				nameInput:SetText('Imported ' .. date('%Y-%m-%d %H:%M'))
+			end
+
 			renderVerification(parsed, err)
 		end)
 	end
@@ -1085,16 +1017,39 @@ function F.BackupsCards.Import(parent, width, onResize)
 			Widgets.ShowToast({ text = "Can't load snapshots in combat.", duration = 4 })
 			return
 		end
-		if(not currentParsed) then return end
+		if(not currentParsed or not currentRaw) then return end
+
+		local snapshotName = F.Backups.TrimName(nameInput:GetText() or '')
+		local nameOk, nameErr = F.Backups.ValidateName(snapshotName)
+		if(not nameOk) then
+			setTextColor(statusFS, C.Colors.textSecondary)
+			statusFS:SetTextColor(1, 0.3, 0.3, 1)
+			statusFS:SetText(nameErr or 'Invalid snapshot name.')
+			reflow()
+			return
+		end
 
 		Widgets.ShowConfirmDialog(
 			'Confirm Import',
-			'Replace your current Framed settings with this import?\nFramed will save an automatic "Before last import" backup first.',
+			'Replace your current Framed settings with this import?\n' ..
+			'It will also be saved to your snapshot list as "' .. snapshotName .. '".\n' ..
+			'Framed will save an automatic "Before last import" backup first so you can undo.',
 			function()
+				local saveOk, saveErr = F.Backups.SaveFromPayload(snapshotName, currentRaw)
+				if(not saveOk) then
+					setTextColor(statusFS, C.Colors.textSecondary)
+					statusFS:SetTextColor(1, 0.3, 0.3, 1)
+					statusFS:SetText('Could not save snapshot: ' .. (saveErr or 'unknown error'))
+					reflow()
+					return
+				end
+
 				F.ImportExport.ApplyImport(currentParsed)
+
 				importBox:SetText('')
+				nameInput:SetText('')
 				setTextColor(statusFS, C.Colors.textActive)
-				statusFS:SetText('Import successful.')
+				statusFS:SetText('Import applied and saved as "' .. snapshotName .. '".')
 				reflow()
 				Widgets.ShowToast({
 					text     = 'Import applied.',
