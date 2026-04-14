@@ -70,10 +70,11 @@ function ImportExport.Export(data, scope)
 	end
 
 	local payload = {
-		version   = 1,
-		scope     = scope,
-		timestamp = time(),
-		data      = data,
+		version       = 1,
+		scope         = scope,
+		timestamp     = time(),
+		sourceVersion = F.version,
+		data          = data,
 	}
 
 	local serialized = LibSerialize:Serialize(payload)
