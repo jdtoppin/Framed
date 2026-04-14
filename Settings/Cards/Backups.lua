@@ -881,7 +881,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 	nameInput:SetPlaceholder('Imported …')
 
 	local verifyHeader = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
-	verifyHeader:SetText('── Verification ──')
+	verifyHeader:SetText('VERIFICATION')
 	local verifyRowsFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
 	verifyRowsFS:SetWidth(innerW)
 	verifyRowsFS:SetWordWrap(true)
@@ -928,7 +928,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 			verifyHeader:Show()
 			verifyRowsFS:Show()
 			verifyRowsFS:SetTextColor(1, 0.3, 0.3, 1)
-			verifyRowsFS:SetText('✗ Format invalid: ' .. parseErr)
+			verifyRowsFS:SetText('[X] Format invalid: ' .. parseErr)
 			importBtn:SetEnabled(false)
 			reflow()
 			return
@@ -943,14 +943,14 @@ function F.BackupsCards.Import(parent, width, onResize)
 			C.Colors.textSecondary[4] or 1)
 
 		local lines = {}
-		lines[#lines + 1] = '✓ Format valid'
+		lines[#lines + 1] = '[+] Format valid'
 
 		local version = (parsed.sourceVersion) or (parsed.data and parsed.data.version) or 'unknown'
 		local isStale = F.Version and (F.Version.IsStaleOlder(version, F.version) or F.Version.IsStaleNewer(version, F.version))
-		lines[#lines + 1] = '✓ Version: ' .. version .. (isStale and ' [!] (stale)' or '')
+		lines[#lines + 1] = '[+] Version: ' .. version .. (isStale and ' (stale)' or '')
 
 		local scope = parsed.scope or 'unknown'
-		lines[#lines + 1] = '✓ Scope: ' .. (scope == 'full' and 'Everything' or 'Single Layout')
+		lines[#lines + 1] = '[+] Scope: ' .. (scope == 'full' and 'Everything' or 'Single Layout')
 
 		if(parsed.scope == 'full' and parsed.data and parsed.data.presets) then
 			local total, overwrite, add = 0, 0, 0
@@ -962,15 +962,15 @@ function F.BackupsCards.Import(parent, width, onResize)
 					add = add + 1
 				end
 			end
-			lines[#lines + 1] = '✓ Contains ' .. total .. ' layouts, ' .. overwrite .. ' will be overwritten, ' .. add .. ' added'
+			lines[#lines + 1] = '[+] Contains ' .. total .. ' layouts, ' .. overwrite .. ' will be overwritten, ' .. add .. ' added'
 		end
 
 		local ignored, missing = classifyImportKeys(parsed)
 		if(#ignored > 0) then
-			lines[#lines + 1] = '⚠ ' .. #ignored .. ' settings will be ignored (from an older version)'
+			lines[#lines + 1] = '[!] ' .. #ignored .. ' settings will be ignored (from an older version)'
 		end
 		if(#missing > 0) then
-			lines[#lines + 1] = 'ℹ ' .. #missing .. ' new settings will use defaults'
+			lines[#lines + 1] = '[i] ' .. #missing .. ' new settings will use defaults'
 		end
 
 		verifyRowsFS:SetText(table.concat(lines, '\n'))
