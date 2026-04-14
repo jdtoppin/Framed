@@ -882,10 +882,56 @@ function F.BackupsCards.Import(parent, width, onResize)
 
 	local verifyHeader = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
 	verifyHeader:SetText('VERIFICATION')
-	local verifyRowsFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
-	verifyRowsFS:SetWidth(innerW)
-	verifyRowsFS:SetWordWrap(true)
-	verifyRowsFS:SetJustifyH('LEFT')
+
+	local verifyContainer = CreateFrame('Frame', nil, inner)
+	verifyContainer:SetWidth(innerW)
+	verifyContainer:SetHeight(1)
+	local verifyRows = {}
+
+	local VERIFY_ICON_SIZE = 14
+	local VERIFY_ROW_GAP   = 4
+
+	local function getVerifyRow(idx)
+		local row = verifyRows[idx]
+		if(row) then return row end
+		row = CreateFrame('Frame', nil, verifyContainer)
+		row:SetHeight(VERIFY_ICON_SIZE)
+		local icon = row:CreateTexture(nil, 'ARTWORK')
+		icon:SetSize(VERIFY_ICON_SIZE, VERIFY_ICON_SIZE)
+		icon:SetPoint('TOPLEFT', row, 'TOPLEFT', 0, -1)
+		row._icon = icon
+		local fs = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+		fs:ClearAllPoints()
+		fs:SetPoint('TOPLEFT',  icon, 'TOPRIGHT', 6, 1)
+		fs:SetPoint('TOPRIGHT', row,  'TOPRIGHT', 0, 0)
+		fs:SetJustifyH('LEFT')
+		fs:SetWordWrap(true)
+		row._fs = fs
+		verifyRows[idx] = row
+		return row
+	end
+
+	local function setVerifyEntries(entries)
+		local y = 0
+		for i, entry in ipairs(entries) do
+			local row = getVerifyRow(i)
+			row:Show()
+			row._icon:SetTexture(F.Media.GetIcon(entry.icon))
+			row._fs:SetText(entry.text)
+			local color = entry.color or C.Colors.textSecondary
+			row._fs:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+			row:ClearAllPoints()
+			row:SetPoint('TOPLEFT',  verifyContainer, 'TOPLEFT',  0, -y)
+			row:SetPoint('TOPRIGHT', verifyContainer, 'TOPRIGHT', 0, -y)
+			local rowH = math.max(VERIFY_ICON_SIZE, math.ceil(row._fs:GetStringHeight() + 2))
+			row:SetHeight(rowH)
+			y = y + rowH + VERIFY_ROW_GAP
+		end
+		for i = #entries + 1, #verifyRows do
+			verifyRows[i]:Hide()
+		end
+		verifyContainer:SetHeight(math.max(1, y - VERIFY_ROW_GAP))
+	end
 
 	local importBtn = Widgets.CreateButton(inner, 'Import', 'accent', 100, BUTTON_H)
 
@@ -908,8 +954,8 @@ function F.BackupsCards.Import(parent, width, onResize)
 		if(verifyHeader:IsShown()) then
 			y = y - C.Spacing.tight
 			y = B.PlaceWidget(verifyHeader, inner, y, LABEL_H)
-			local rowsH = math.max(LABEL_H, math.ceil(verifyRowsFS:GetStringHeight() + 2))
-			y = B.PlaceWidget(verifyRowsFS, inner, y, rowsH)
+			local rowsH = math.max(VERIFY_ICON_SIZE, verifyContainer:GetHeight())
+			y = B.PlaceWidget(verifyContainer, inner, y, rowsH)
 		end
 
 		y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
@@ -926,31 +972,33 @@ function F.BackupsCards.Import(parent, width, onResize)
 	local function renderVerification(parsed, parseErr)
 		if(parseErr) then
 			verifyHeader:Show()
-			verifyRowsFS:Show()
-			verifyRowsFS:SetTextColor(1, 0.3, 0.3, 1)
-			verifyRowsFS:SetText('[X] Format invalid: ' .. parseErr)
+			verifyContainer:Show()
+			setVerifyEntries({
+				{ icon = 'Fluent_Color_No', text = 'Format invalid: ' .. parseErr, color = { 1, 0.3, 0.3, 1 } },
+			})
 			importBtn:SetEnabled(false)
 			reflow()
 			return
 		end
 
 		verifyHeader:Show()
-		verifyRowsFS:Show()
-		verifyRowsFS:SetTextColor(
-			C.Colors.textSecondary[1],
-			C.Colors.textSecondary[2],
-			C.Colors.textSecondary[3],
-			C.Colors.textSecondary[4] or 1)
+		verifyContainer:Show()
 
-		local lines = {}
-		lines[#lines + 1] = '[+] Format valid'
+		local entries = {}
+		entries[#entries + 1] = { icon = 'Fluent_Color_Yes', text = 'Format valid' }
 
 		local version = (parsed.sourceVersion) or (parsed.data and parsed.data.version) or 'unknown'
 		local isStale = F.Version and (F.Version.IsStaleOlder(version, F.version) or F.Version.IsStaleNewer(version, F.version))
-		lines[#lines + 1] = '[+] Version: ' .. version .. (isStale and ' (stale)' or '')
+		entries[#entries + 1] = {
+			icon = isStale and 'Fluent_Alert' or 'Fluent_Color_Yes',
+			text = 'Version: ' .. version .. (isStale and ' (stale)' or ''),
+		}
 
 		local scope = parsed.scope or 'unknown'
-		lines[#lines + 1] = '[+] Scope: ' .. (scope == 'full' and 'Everything' or 'Single Layout')
+		entries[#entries + 1] = {
+			icon = 'Fluent_Color_Yes',
+			text = 'Scope: ' .. (scope == 'full' and 'Everything' or 'Single Layout'),
+		}
 
 		if(parsed.scope == 'full' and parsed.data and parsed.data.presets) then
 			local total, overwrite, add = 0, 0, 0
@@ -962,18 +1010,27 @@ function F.BackupsCards.Import(parent, width, onResize)
 					add = add + 1
 				end
 			end
-			lines[#lines + 1] = '[+] Contains ' .. total .. ' layouts, ' .. overwrite .. ' will be overwritten, ' .. add .. ' added'
+			entries[#entries + 1] = {
+				icon = 'Fluent_Color_Yes',
+				text = 'Contains ' .. total .. ' layouts, ' .. overwrite .. ' will be overwritten, ' .. add .. ' added',
+			}
 		end
 
 		local ignored, missing = classifyImportKeys(parsed)
 		if(#ignored > 0) then
-			lines[#lines + 1] = '[!] ' .. #ignored .. ' settings will be ignored (from an older version)'
+			entries[#entries + 1] = {
+				icon = 'Fluent_Alert',
+				text = #ignored .. ' settings will be ignored (from an older version)',
+			}
 		end
 		if(#missing > 0) then
-			lines[#lines + 1] = '[i] ' .. #missing .. ' new settings will use defaults'
+			entries[#entries + 1] = {
+				icon = 'Fluent_Notice',
+				text = #missing .. ' new settings will use defaults',
+			}
 		end
 
-		verifyRowsFS:SetText(table.concat(lines, '\n'))
+		setVerifyEntries(entries)
 		importBtn:SetEnabled(true)
 		reflow()
 	end
@@ -986,7 +1043,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 			raw = raw:match('^%s*(.-)%s*$') or ''
 			if(raw == '') then
 				verifyHeader:Hide()
-				verifyRowsFS:Hide()
+				verifyContainer:Hide()
 				importBtn:SetEnabled(false)
 				currentParsed = nil
 				currentRaw = nil
@@ -1009,7 +1066,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 		importBox._editbox:SetScript('OnTextChanged', scheduleVerify)
 	end
 	verifyHeader:Hide()
-	verifyRowsFS:Hide()
+	verifyContainer:Hide()
 	importBtn:SetEnabled(false)
 
 	importBtn:SetOnClick(function()
