@@ -12,6 +12,10 @@ local BUTTON_H   = 22
 local EDITBOX_H  = 80
 local LABEL_H    = C.Font.sizeSmall + 4
 
+local SNAPSHOT_ROW_H   = 52 -- luacheck: ignore 211 -- used by row-rendering in a later task
+local EMPTY_STATE_H    = 60
+local LIST_MAX_H       = 320
+
 local SCOPE_FULL   = 'full'
 local SCOPE_LAYOUT = 'layout'
 
@@ -51,6 +55,113 @@ local function placeLabelAt(fs, inner, y)
 	fs:ClearAllPoints()
 	Widgets.SetPoint(fs, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
 	return y - LABEL_H
+end
+
+-- ============================================================
+-- Snapshots card
+-- ============================================================
+
+function F.BackupsCards.Snapshots(parent, width, onResize)
+	local card, inner = Widgets.StartCard(parent, width, 0)
+	local innerW = width - Widgets.CARD_PADDING * 2
+
+	-- Top action row
+	local saveBtn   = Widgets.CreateButton(inner, 'Save Current As…',   'accent',     160, BUTTON_H)
+	local importBtn = Widgets.CreateButton(inner, 'Import as Snapshot…', 'secondary', 180, BUTTON_H)
+
+	-- Scrollable list area
+	local listFrame = Widgets.CreateScrollFrame(inner, nil, innerW, LIST_MAX_H)
+	local listContent = listFrame:GetContentFrame()
+	listContent:SetHeight(EMPTY_STATE_H)
+
+	-- Empty state text (shown when there are no user snapshots)
+	local emptyFS = Widgets.CreateFontString(listContent, C.Font.sizeNormal, C.Colors.textSecondary)
+	emptyFS:SetWidth(innerW - 16)
+	emptyFS:SetWordWrap(true)
+	emptyFS:SetJustifyH('LEFT')
+	emptyFS:SetText(
+		"You haven't saved any snapshots yet. Click Save Current As… to back up your current Framed settings, " ..
+		'or Import as Snapshot… to load someone else\'s config into your list without applying it.')
+	emptyFS:ClearAllPoints()
+	Widgets.SetPoint(emptyFS, 'TOPLEFT', listContent, 'TOPLEFT', 8, -8)
+
+	-- Footer: using X KB · N snapshots
+	local footerFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+
+	-- Disclaimer block
+	local disclaimerFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	disclaimerFS:SetWidth(innerW)
+	disclaimerFS:SetWordWrap(true)
+	disclaimerFS:SetJustifyH('LEFT')
+	disclaimerFS:SetText(
+		'Snapshots are safe to use day-to-day, but here are some specific cases to watch for. ' ..
+		'Loading a snapshot replaces your current Framed settings. ' ..
+		"Framed always keeps an automatic \"Before last load\" backup so you can revert the most recent load if something goes wrong. " ..
+		'Snapshots from older addon versions may not restore cleanly and can leave Framed in a broken state. ' ..
+		"If you load an old snapshot and break the addon, we may not be able to help you recover — " ..
+		'report it as feedback but expect to fix it yourself.')
+
+	-- Reflow layout
+	local function formatSize(bytes)
+		if(not bytes or bytes < 1024) then return (bytes or 0) .. ' B' end
+		return string.format('%.1f KB', bytes / 1024)
+	end
+
+	local function updateFooter()
+		local total, count = 0, 0
+		for _, wrapper in next, (FramedSnapshotsDB and FramedSnapshotsDB.snapshots or {}) do
+			if(not wrapper.automatic) then
+				count = count + 1
+			end
+			total = total + (wrapper.sizeBytes or 0)
+		end
+		footerFS:SetText('Using ' .. formatSize(total) .. ' · ' .. count .. ' snapshots')
+	end
+
+	local function hasUserSnapshots()
+		for _, wrapper in next, (FramedSnapshotsDB and FramedSnapshotsDB.snapshots or {}) do
+			if(not wrapper.automatic) then return true end
+		end
+		return false
+	end
+
+	local function reflow()
+		local y = 0
+		y = B.PlaceWidget(saveBtn,   inner, y, BUTTON_H)
+		y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
+
+		if(hasUserSnapshots()) then
+			emptyFS:Hide()
+		else
+			emptyFS:Show()
+		end
+
+		y = B.PlaceWidget(listFrame, inner, y, LIST_MAX_H)
+
+		updateFooter()
+		y = B.PlaceWidget(footerFS, inner, y, LABEL_H)
+		y = B.PlaceWidget(disclaimerFS, inner, y, LABEL_H * 6)
+
+		Widgets.EndCard(card, parent, y)
+		if(onResize) then onResize() end
+	end
+
+	-- Cache on card for other tasks to re-trigger
+	card._reflow      = reflow
+	card._listFrame   = listFrame
+	card._listContent = listContent
+	card._saveBtn     = saveBtn
+	card._importBtn   = importBtn
+
+	if(F.EventBus) then
+		local function onChange() reflow() end
+		F.EventBus:Register('BACKUP_CREATED', onChange, 'BackupsCard.created')
+		F.EventBus:Register('BACKUP_DELETED', onChange, 'BackupsCard.deleted')
+		F.EventBus:Register('BACKUP_LOADED',  onChange, 'BackupsCard.loaded')
+	end
+
+	reflow()
+	return card
 end
 
 -- ============================================================

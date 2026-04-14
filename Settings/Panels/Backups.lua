@@ -41,10 +41,11 @@ F.Settings.RegisterPanel({
 
 		local args = { relayout }
 
-		grid:AddCard('export', 'Export', F.BackupsCards.Export, args)
-		grid:AddCard('import', 'Import', F.BackupsCards.Import)
-		grid:SetFullWidth('export')
-		grid:SetFullWidth('import')
+		grid:AddCard('snapshots', 'Snapshots', F.BackupsCards.Snapshots, args)
+		grid:AddCard('export',    'Export',    F.BackupsCards.Export,    args)
+		grid:AddCard('import',    'Import',    F.BackupsCards.Import)
+		grid:SetFullWidth('snapshots')
+		-- export + import are left non-full-width so they can sit side-by-side at wide widths
 
 		grid:SetTopOffset(C.Spacing.normal)
 		grid:Layout(0, parentH)
