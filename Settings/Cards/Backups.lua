@@ -14,7 +14,6 @@ local LABEL_H    = C.Font.sizeSmall + 4
 
 local SNAPSHOT_ROW_H   = 52
 local EMPTY_STATE_H    = 60
-local LIST_MAX_H       = 320
 
 local SCOPE_FULL   = 'full'
 local SCOPE_LAYOUT = 'layout'
@@ -252,7 +251,7 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	local parts = buildMetadataParts(wrapper)
 
 	local versionFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-	versionFS:SetPoint('BOTTOMLEFT', row, 'BOTTOMLEFT', 10, 8)
+	versionFS:SetPoint('TOPLEFT', nameFS, 'BOTTOMLEFT', 0, -2)
 	versionFS:SetText(parts.version)
 	row._versionFS = versionFS
 
@@ -294,8 +293,10 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	local btnRename = Widgets.CreateButton(row, 'Rename', 'widget',    BTN_W, BTN_H)
 	local btnDelete = Widgets.CreateButton(row, 'Delete', 'red',       BTN_W, BTN_H)
 
+	local BTN_TOP_OFFSET = -((SNAPSHOT_ROW_H - BTN_H) / 2)
+
 	btnDelete:ClearAllPoints()
-	Widgets.SetPoint(btnDelete, 'RIGHT', row, 'RIGHT', -10, 0)
+	Widgets.SetPoint(btnDelete, 'TOPRIGHT', row, 'TOPRIGHT', -10, BTN_TOP_OFFSET)
 
 	btnRename:ClearAllPoints()
 	Widgets.SetPoint(btnRename, 'RIGHT', btnDelete, 'LEFT', -PAD, 0)
@@ -423,14 +424,18 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		if(row._exportArea) then
 			row._exportArea:Hide()
 			row._exportArea = nil
+			row:SetHeight(SNAPSHOT_ROW_H)
 			if(relayout) then relayout() end
 			return
 		end
 
+		local areaW = row:GetWidth() - 16
+		local areaH = EDITBOX_H + DROPDOWN_H + 14
 		local area = CreateFrame('Frame', nil, row)
-		Widgets.SetSize(area, row:GetWidth() - 16, EDITBOX_H + DROPDOWN_H + 16)
+		Widgets.SetSize(area, areaW, areaH)
 		area:ClearAllPoints()
-		Widgets.SetPoint(area, 'TOPLEFT', row, 'BOTTOMLEFT', 8, -4)
+		Widgets.SetPoint(area, 'TOPLEFT', row, 'TOPLEFT', 8, -(SNAPSHOT_ROW_H - 4))
+		row:SetHeight(SNAPSHOT_ROW_H + areaH + 4)
 
 		local scopeDropdown = Widgets.CreateDropdown(area, 220)
 		scopeDropdown:ClearAllPoints()
@@ -503,14 +508,15 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	local card, inner = Widgets.StartCard(parent, width, 0)
 	local innerW = width - Widgets.CARD_PADDING * 2
 
-	-- Top action row
-	local saveBtn   = Widgets.CreateButton(inner, 'Save Current As…',   'accent',     160, BUTTON_H)
-	local importBtn = Widgets.CreateButton(inner, 'Import as Snapshot…', 'secondary', 180, BUTTON_H)
+	-- Top action row (buttons sit side-by-side)
+	local saveBtn   = Widgets.CreateButton(inner, 'Save Current As…',   'accent',  160, BUTTON_H)
+	local importBtn = Widgets.CreateButton(inner, 'Import as Snapshot…', 'widget', 180, BUTTON_H)
 
-	-- Scrollable list area
-	local listFrame = Widgets.CreateScrollFrame(inner, nil, innerW, LIST_MAX_H)
-	local listContent = listFrame:GetContentFrame()
-	listContent:SetHeight(EMPTY_STATE_H)
+	-- Plain list area (no inner scroll — full height grows with content,
+	-- the panel scroll handles overflow)
+	local listFrame = CreateFrame('Frame', nil, inner)
+	Widgets.SetSize(listFrame, innerW, EMPTY_STATE_H)
+	local listContent = listFrame
 
 	-- Empty state text (shown when there are no user snapshots)
 	local emptyFS = Widgets.CreateFontString(listContent, C.Font.sizeNormal, C.Colors.textSecondary)
@@ -590,12 +596,9 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		for _, row in next, renderedRows do
 			row:ClearAllPoints()
 			Widgets.SetPoint(row, 'TOPLEFT', listContent, 'TOPLEFT', 8, y)
-			y = y - SNAPSHOT_ROW_H - 2
-			if(row._exportArea) then
-				y = y - row._exportArea:GetHeight() - 6
-			end
+			y = y - row:GetHeight() - 4
 		end
-		local totalH = math.max(EMPTY_STATE_H, (-y) + 8)
+		local totalH = math.max(EMPTY_STATE_H, (-y) + 4)
 		listContent:SetHeight(totalH)
 		return totalH
 	end
@@ -644,8 +647,13 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 
 	reflow = function(skipRebuild)
 		local y = 0
-		y = B.PlaceWidget(saveBtn,   inner, y, BUTTON_H)
-		y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
+
+		-- Place save + import buttons side-by-side on a single row
+		saveBtn:ClearAllPoints()
+		Widgets.SetPoint(saveBtn, 'TOPLEFT', inner, 'TOPLEFT', 0, y)
+		importBtn:ClearAllPoints()
+		Widgets.SetPoint(importBtn, 'LEFT', saveBtn, 'RIGHT', C.Spacing.tight, 0)
+		y = y - BUTTON_H - C.Spacing.normal
 
 		if(saveInputContainer) then
 			y = B.PlaceWidget(saveInputContainer, inner, y, saveInputContainer:GetHeight())
@@ -663,17 +671,15 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		if(not skipRebuild) then
 			rebuildRows()
 		end
-		local contentH = positionRows()
-		local listH = math.min(contentH, LIST_MAX_H)
+		local listH = positionRows()
 		listFrame:SetHeight(listH)
-		if(listFrame.UpdateScrollRange) then
-			listFrame:UpdateScrollRange()
-		end
 		y = B.PlaceWidget(listFrame, inner, y, listH)
 
 		updateFooter()
 		y = B.PlaceWidget(footerFS, inner, y, LABEL_H)
-		y = B.PlaceWidget(disclaimerFS, inner, y, LABEL_H * 6)
+
+		local discH = math.max(LABEL_H, math.ceil(disclaimerFS:GetStringHeight() + 2))
+		y = B.PlaceWidget(disclaimerFS, inner, y, discH)
 
 		Widgets.EndCard(card, parent, y)
 		if(onResize and not building) then onResize() end
@@ -931,6 +937,7 @@ function F.BackupsCards.Export(parent, width, onResize)
 
 	reflow()
 	initialized = true
+	card._reflow = reflow
 	return card
 end
 
@@ -1101,6 +1108,7 @@ function F.BackupsCards.Import(parent, width, onResize)
 
 	reflow()
 	initialized = true
+	card._reflow = reflow
 	return card
 end
 
@@ -1108,6 +1116,24 @@ end
 -- Export + Import wrapper — two fixed-width sub-cards side-by-side
 -- Matches the Auto-Switch / Spec Overrides pattern in FramePresets.
 -- ============================================================
+
+local function injectCardTitle(card, titleText)
+	if(card._titleAdded) then return end
+	local titleFS = Widgets.CreateFontString(card, C.Font.sizeNormal, C.Colors.textNormal)
+	titleFS:SetText(titleText)
+	titleFS:ClearAllPoints()
+	Widgets.SetPoint(titleFS, 'TOPLEFT', card, 'TOPLEFT', 12, -8)
+
+	local titleH = titleFS:GetStringHeight() + C.Spacing.base + 4
+	if(card.content) then
+		card.content:ClearAllPoints()
+		card.content:SetPoint('TOPLEFT',  card, 'TOPLEFT',  12, -(8 + titleH))
+		card.content:SetPoint('TOPRIGHT', card, 'TOPRIGHT', -12, -(8 + titleH))
+	end
+	card._cardGridTitleH = titleH
+	card:SetHeight(card:GetHeight() + titleH)
+	card._titleAdded = true
+end
 
 function F.BackupsCards.ExportImport(parent, width, onResize)
 	local CARD_GAP = C.Spacing.normal
@@ -1125,7 +1151,14 @@ function F.BackupsCards.ExportImport(parent, width, onResize)
 	end
 
 	expCard = F.BackupsCards.Export(parent, halfW, wrapperResize)
+	injectCardTitle(expCard, 'Export')
+
 	impCard = F.BackupsCards.Import(parent, halfW, wrapperResize)
+	injectCardTitle(impCard, 'Import')
+
+	-- Re-run each card's reflow so EndCard recalculates with the title height
+	if(expCard._reflow) then expCard._reflow() end
+	if(impCard._reflow) then impCard._reflow() end
 
 	expCard:SetParent(wrapper)
 	impCard:SetParent(wrapper)

@@ -22,21 +22,16 @@ F.Settings.RegisterPanel({
 		grid._pinEnabled = false
 
 		local function relayout()
-			local oldContentH = content:GetHeight()
-			local oldScroll   = scroll._scrollFrame:GetVerticalScroll()
+			local oldScroll = scroll._scrollFrame:GetVerticalScroll()
 
 			grid:AnimatedReflow()
 			content:SetHeight(grid:GetTotalHeight())
 			scroll:UpdateScrollRange()
 
-			local growth = content:GetHeight() - oldContentH
-			if(growth > 0) then
-				local viewH     = scroll._scrollFrame:GetHeight()
-				local maxScroll = math.max(0, content:GetHeight() - viewH)
-				local newScroll = math.min(oldScroll + growth, maxScroll)
-				scroll._scrollFrame:SetVerticalScroll(newScroll)
-				scroll:_UpdateThumb()
-			end
+			local viewH     = scroll._scrollFrame:GetHeight()
+			local maxScroll = math.max(0, content:GetHeight() - viewH)
+			scroll._scrollFrame:SetVerticalScroll(math.min(oldScroll, maxScroll))
+			scroll:_UpdateThumb()
 		end
 
 		local args = { relayout }
