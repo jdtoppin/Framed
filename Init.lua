@@ -24,6 +24,7 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		F.Config:Initialize()
 		F.PresetDefaults.EnsureDefaults()
 		F.Backups.EnsureDefaults()
+		F.Backups.MigrateLegacyBackup()
 		F.Backups.CaptureAutomatic(F.Backups.AUTO_LOGIN)
 		self:UnregisterEvent('ADDON_LOADED')
 	elseif(event == 'PLAYER_LOGIN') then
@@ -161,13 +162,12 @@ SlashCmdList['FRAMED'] = function(msg)
 	elseif(cmd == 'reset' and arg1 == 'all') then
 		local d = F.Widgets.ShowConfirmDialog(
 			'Reset All Settings',
-			'This will delete ALL Framed settings, presets, and customizations.\nA backup will be saved — you can restore later with /framed restore.',
+			'This will delete ALL Framed settings, presets, and customizations.\nA backup will be saved to the Backups panel — you can restore later.',
 			function()
-				FramedBackupDB = {
-					db        = FramedDB and F.DeepCopy(FramedDB) or nil,
-					char      = FramedCharDB and F.DeepCopy(FramedCharDB) or nil,
-					timestamp = time(),
-				}
+				-- Save a named snapshot before wiping, so the user has a clear
+				-- recovery handle.
+				local label = 'Before reset (' .. date('%Y-%m-%d %H:%M') .. ')'
+				F.Backups.Save(label)
 				FramedDB = nil
 				FramedCharDB = nil
 				ReloadUI()
@@ -181,27 +181,33 @@ SlashCmdList['FRAMED'] = function(msg)
 		d:_LayoutButtons('confirm')
 		d:_UpdateHeight()
 	elseif(cmd == 'restore') then
-		if(not FramedBackupDB or not FramedBackupDB.db) then
-			-- Fall back to legacy backup format (pre-timestamped plain table)
-			if(FramedBackupDB and not FramedBackupDB.db) then
-				F.Widgets.ShowConfirmDialog('Restore Settings', 'Restore settings from last session backup? This will reload the UI.', function()
-					FramedDB = F.DeepCopy(FramedBackupDB)
-					ReloadUI()
-				end)
-			else
-				print('|cff00ccff Framed|r No backup found. Nothing to restore.')
+		-- Find the most recent 'Before reset (...)' snapshot
+		local target, targetTs
+		for name, wrapper in next, (FramedSnapshotsDB and FramedSnapshotsDB.snapshots or {}) do
+			if(name:find('^Before reset')) then
+				if(not targetTs or (wrapper.timestamp and wrapper.timestamp > targetTs)) then
+					target   = name
+					targetTs = wrapper.timestamp
+				end
 			end
+		end
+
+		if(not target) then
+			print('|cff00ccff Framed|r No reset backup found. Open the Backups panel to browse all snapshots.')
 			return
 		end
-		local ts = FramedBackupDB.timestamp
-		local dateStr = ts and date('%Y-%m-%d %H:%M', ts) or 'unknown date'
+
+		local dateStr = targetTs and date('%Y-%m-%d %H:%M', targetTs) or 'unknown date'
 		F.Widgets.ShowConfirmDialog(
 			'Restore Settings',
-			'Restore settings from backup taken on ' .. dateStr .. '?\nThis will overwrite your current configuration.',
+			'Restore "' .. target .. '" from ' .. dateStr .. '?\nThis will overwrite your current configuration.',
 			function()
-				FramedDB = F.DeepCopy(FramedBackupDB.db)
-				FramedCharDB = FramedBackupDB.char and F.DeepCopy(FramedBackupDB.char) or nil
-				ReloadUI()
+				local ok, err = F.Backups.Load(target)
+				if(ok) then
+					ReloadUI()
+				else
+					print('|cff00ccff Framed|r Restore failed: ' .. (err or 'unknown error'))
+				end
 			end,
 			nil
 		)

@@ -435,3 +435,77 @@ function B.CaptureAutomatic(autoKey)
 	})
 	return true
 end
+
+-- ============================================================
+-- One-time migration from the legacy FramedBackupDB to a named snapshot
+-- ============================================================
+
+--- Migrate FramedBackupDB (if present) into a "Legacy backup" snapshot.
+--- Runs once on ADDON_LOADED. Idempotent — a second call is a no-op.
+--- @return boolean migrated
+function B.MigrateLegacyBackup()
+	B.EnsureDefaults()
+
+	if(not FramedBackupDB) then return false end
+
+	-- Legacy backup format is either a plain DeepCopy of FramedDB (pre-reset)
+	-- or a wrapper { db, char, timestamp } (post-reset). Treat both.
+	local legacyDB, legacyChar, legacyTs
+	if(FramedBackupDB.db) then
+		legacyDB   = FramedBackupDB.db
+		legacyChar = FramedBackupDB.char
+		legacyTs   = FramedBackupDB.timestamp
+	else
+		legacyDB = FramedBackupDB
+	end
+
+	if(type(legacyDB) ~= 'table') then
+		-- Nothing meaningful to migrate
+		FramedBackupDB = nil
+		return false
+	end
+
+	local payloadTable = {
+		general = F.DeepCopy(legacyDB.general) or {},
+		minimap = F.DeepCopy(legacyDB.minimap) or {},
+		presets = F.DeepCopy(legacyDB.presets) or {},
+		char    = legacyChar and F.DeepCopy(legacyChar) or {},
+	}
+
+	local layoutCount = 0
+	if(type(payloadTable.presets) == 'table') then
+		for _ in next, payloadTable.presets do layoutCount = layoutCount + 1 end
+	end
+
+	if(not F.ImportExport or not F.ImportExport.Export) then
+		return false
+	end
+	local encoded = F.ImportExport.Export(payloadTable, 'full')
+	if(not encoded) then return false end
+
+	-- Pick a non-colliding name
+	local baseName = 'Legacy backup'
+	local name     = baseName
+	local suffix   = 2
+	while(FramedSnapshotsDB.snapshots[name]) do
+		name = baseName .. ' ' .. suffix
+		suffix = suffix + 1
+	end
+
+	FramedSnapshotsDB.snapshots[name] = buildWrapper({
+		version     = 'unknown',
+		timestamp   = legacyTs or time(),
+		automatic   = false,
+		layoutCount = layoutCount,
+		sizeBytes   = #encoded,
+		payload     = encoded,
+	})
+
+	-- Release the legacy slot
+	FramedBackupDB = nil
+
+	if(F.EventBus) then
+		F.EventBus:Fire('BACKUP_CREATED', name, false)
+	end
+	return true
+end
