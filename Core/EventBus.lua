@@ -82,6 +82,28 @@ function EventBus:Fire(eventName, ...)
 	end
 end
 
+-- ============================================================
+-- WoW event bridge
+-- ============================================================
+--
+-- Forwards a fixed set of WoW game events onto the EventBus so
+-- listeners can register via EventBus:Register(<event>, ...) without
+-- maintaining their own frame. Only bridged events fire through here —
+-- all others remain pure pub/sub.
+
+local BRIDGED_WOW_EVENTS = {
+	'GROUP_ROSTER_UPDATE',
+	'PLAYER_ROLES_ASSIGNED',
+}
+
+local bridgeFrame = CreateFrame('Frame')
+for _, event in next, BRIDGED_WOW_EVENTS do
+	bridgeFrame:RegisterEvent(event)
+end
+bridgeFrame:SetScript('OnEvent', function(_, event, ...)
+	EventBus:Fire(event, ...)
+end)
+
 --- Debug: print all registered events and listener counts.
 function EventBus:PrintDebug()
 	print('|cff00ccffFramed EventBus|r — Registered events:')

@@ -153,6 +153,21 @@ function Layout.ApplySortConfig(unitType)
 	local nameList
 	if(config.sortMode == 'role') then
 		nameList = Layout.ComputeRoleNameList(unitType)
+		-- Spawn-time race guard: during initial SpawnHeader (and zone-ins
+		-- like follower dungeons) the roster hasn't populated yet, so
+		-- ComputeRoleNameList only finds the player. Writing that as the
+		-- nameList would lock the header to a single child until reload.
+		-- Skip nameList in this pass and let the bridged GROUP_ROSTER_UPDATE
+		-- handler re-apply once the roster settles — the header will fall
+		-- back to INDEX sort transiently (all members visible, just not in
+		-- role order).
+		if(nameList and IsInGroup()) then
+			local count = 0
+			for _ in nameList:gmatch('[^,]+') do count = count + 1 end
+			if(count < GetNumGroupMembers()) then
+				nameList = nil
+			end
+		end
 	end
 
 	-- SecureGroupHeaderTemplate re-runs its sort pass on every write to a
