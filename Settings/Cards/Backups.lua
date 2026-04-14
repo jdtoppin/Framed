@@ -323,6 +323,72 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		end
 	end)
 
+	btnExport:SetOnClick(function()
+		local parsed, decodeErr = F.Backups.DecodeWrapper(wrapper)
+		if(not parsed) then
+			row:MarkCorrupted()
+			Widgets.ShowToast({
+				text     = 'This snapshot is corrupted and can\'t be exported.',
+				duration = 5,
+			})
+			return
+		end
+
+		if(row._exportArea) then
+			row._exportArea:Hide()
+			row._exportArea = nil
+			return
+		end
+
+		local area = CreateFrame('Frame', nil, row)
+		Widgets.SetSize(area, row:GetWidth() - 16, EDITBOX_H + DROPDOWN_H + 16)
+		area:ClearAllPoints()
+		Widgets.SetPoint(area, 'TOPLEFT', row, 'BOTTOMLEFT', 8, -4)
+		area:SetFrameStrata('DIALOG')
+
+		local scopeDropdown = Widgets.CreateDropdown(area, 220)
+		scopeDropdown:ClearAllPoints()
+		Widgets.SetPoint(scopeDropdown, 'TOPLEFT', area, 'TOPLEFT', 0, 0)
+
+		local items = { { text = 'Whole snapshot', value = '__whole__' } }
+		if(parsed.scope == 'full' and type(parsed.data) == 'table' and type(parsed.data.presets) == 'table') then
+			for layoutName in next, parsed.data.presets do
+				items[#items + 1] = { text = layoutName, value = layoutName }
+			end
+		end
+		scopeDropdown:SetItems(items)
+		scopeDropdown:SetValue('__whole__')
+
+		local copyBox = Widgets.CreateEditBox(area, nil, area:GetWidth(), EDITBOX_H, 'multiline')
+		copyBox:ClearAllPoints()
+		Widgets.SetPoint(copyBox, 'TOPLEFT', scopeDropdown, 'BOTTOMLEFT', 0, -6)
+
+		local function renderExport(scopeValue)
+			if(scopeValue == '__whole__') then
+				local encoded = F.ImportExport.Export(parsed.data, 'full')
+				copyBox:SetText(encoded or '')
+			else
+				local layoutTable = parsed.data.presets and parsed.data.presets[scopeValue]
+				if(not layoutTable) then
+					copyBox:SetText('(layout missing from snapshot)')
+					return
+				end
+				local encoded, err = F.ImportExport.ExportLayoutData(scopeValue, layoutTable)
+				copyBox:SetText(encoded or ('Export failed: ' .. (err or 'unknown')))
+			end
+			if(copyBox._editbox) then
+				copyBox._editbox:SetFocus()
+				copyBox._editbox:HighlightText()
+			end
+		end
+
+		scopeDropdown:SetOnSelect(renderExport)
+		renderExport('__whole__')
+
+		row._exportArea = area
+		_ = decodeErr
+	end)
+
 	row.MarkCorrupted = function(self)
 		if(self._corruptedIcon) then return end
 		local icon = Widgets.CreateFontString(self, C.Font.sizeSmall, C.Colors.textSecondary)
