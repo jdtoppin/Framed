@@ -58,6 +58,67 @@ local function placeLabelAt(fs, inner, y)
 end
 
 -- ============================================================
+-- Inline input flows (Save Current As / Import as Snapshot)
+-- ============================================================
+
+local function createInlineNameInput(parent, width, placeholderText, defaultName)
+	local container = CreateFrame('Frame', nil, parent)
+	Widgets.SetSize(container, width, EDITBOX_H + LABEL_H + BUTTON_H + 12)
+
+	local input = Widgets.CreateEditBox(container, nil, width, 22)
+	input:SetPlaceholder(placeholderText or '')
+	input:SetText(defaultName or '')
+	input:ClearAllPoints()
+	Widgets.SetPoint(input, 'TOPLEFT', container, 'TOPLEFT', 0, 0)
+
+	local errorFS = Widgets.CreateFontString(container, C.Font.sizeSmall, C.Colors.textSecondary)
+	errorFS:ClearAllPoints()
+	Widgets.SetPoint(errorFS, 'TOPLEFT', input, 'BOTTOMLEFT', 0, -4)
+	errorFS:SetWidth(width)
+	errorFS:SetWordWrap(true)
+	errorFS:SetJustifyH('LEFT')
+	errorFS:SetText('')
+
+	local confirmBtn = Widgets.CreateButton(container, 'Save',   'accent',    80, BUTTON_H)
+	local cancelBtn  = Widgets.CreateButton(container, 'Cancel', 'secondary', 80, BUTTON_H)
+
+	confirmBtn:ClearAllPoints()
+	Widgets.SetPoint(confirmBtn, 'TOPLEFT', errorFS, 'BOTTOMLEFT', 0, -4)
+
+	cancelBtn:ClearAllPoints()
+	Widgets.SetPoint(cancelBtn, 'LEFT', confirmBtn, 'RIGHT', 6, 0)
+
+	local function setError(msg)
+		if(msg and msg ~= '') then
+			errorFS:SetTextColor(1, 0.3, 0.3, 1)
+			errorFS:SetText(msg)
+			confirmBtn:SetEnabled(false)
+		else
+			errorFS:SetText('')
+			confirmBtn:SetEnabled(true)
+		end
+	end
+
+	local validateTimer
+	local function scheduleValidate(validator)
+		if(validateTimer) then validateTimer:Cancel() end
+		validateTimer = C_Timer.NewTimer(0.15, function()
+			local name = F.Backups.TrimName(input:GetText() or '')
+			local ok, err = validator(name)
+			setError(ok and nil or err)
+		end)
+	end
+
+	container._input            = input
+	container._confirmBtn       = confirmBtn
+	container._cancelBtn        = cancelBtn
+	container._setError         = setError
+	container._scheduleValidate = scheduleValidate
+
+	return container, input, confirmBtn, cancelBtn
+end
+
+-- ============================================================
 -- Row rendering helpers
 -- ============================================================
 
@@ -228,6 +289,10 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		"If you load an old snapshot and break the addon, we may not be able to help you recover — " ..
 		'report it as feedback but expect to fix it yourself.')
 
+	-- Inline input state
+	local saveInputContainer
+	local importInputContainer
+
 	-- Reflow layout
 	local function formatSize(bytes)
 		if(not bytes or bytes < 1024) then return (bytes or 0) .. ' B' end
@@ -318,6 +383,13 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		y = B.PlaceWidget(saveBtn,   inner, y, BUTTON_H)
 		y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
 
+		if(saveInputContainer) then
+			y = B.PlaceWidget(saveInputContainer, inner, y, saveInputContainer:GetHeight())
+		end
+		if(importInputContainer) then
+			y = B.PlaceWidget(importInputContainer, inner, y, importInputContainer:GetHeight())
+		end
+
 		if(hasUserSnapshots()) then
 			emptyFS:Hide()
 		else
@@ -342,6 +414,124 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	card._listContent = listContent
 	card._saveBtn     = saveBtn
 	card._importBtn   = importBtn
+
+	local function closeInputs()
+		if(saveInputContainer) then
+			saveInputContainer:Hide()
+			saveInputContainer = nil
+		end
+		if(importInputContainer) then
+			importInputContainer:Hide()
+			importInputContainer = nil
+		end
+		reflow()
+	end
+
+	saveBtn:SetOnClick(function()
+		closeInputs()
+
+		local defaultName = 'Snapshot ' .. date('%Y-%m-%d %H:%M')
+		local container, input, confirmBtn, cancelBtn = createInlineNameInput(
+			inner, innerW,
+			'Enter a name for this snapshot',
+			defaultName)
+
+		container:SetParent(inner)
+
+		if(input._editbox) then
+			input._editbox:SetScript('OnTextChanged', function()
+				container._scheduleValidate(F.Backups.ValidateName)
+			end)
+		end
+
+		confirmBtn:SetOnClick(function()
+			local name = F.Backups.TrimName(input:GetText() or '')
+			local ok, err = F.Backups.Save(name)
+			if(ok) then
+				closeInputs()
+			else
+				container._setError(err)
+			end
+		end)
+		cancelBtn:SetOnClick(closeInputs)
+
+		saveInputContainer = container
+		reflow()
+
+		if(input._editbox) then
+			input._editbox:SetFocus()
+			input._editbox:HighlightText()
+		end
+	end)
+
+	importBtn:SetOnClick(function()
+		closeInputs()
+
+		local defaultName = 'Imported ' .. date('%Y-%m-%d %H:%M')
+
+		local container = CreateFrame('Frame', nil, inner)
+		Widgets.SetSize(container, innerW, EDITBOX_H + 22 + LABEL_H + BUTTON_H + 24)
+
+		local pasteBox = Widgets.CreateEditBox(container, nil, innerW, EDITBOX_H, 'multiline')
+		pasteBox:SetPlaceholder('Paste import string here…')
+		pasteBox:ClearAllPoints()
+		Widgets.SetPoint(pasteBox, 'TOPLEFT', container, 'TOPLEFT', 0, 0)
+
+		local nameInput = Widgets.CreateEditBox(container, nil, innerW, 22)
+		nameInput:SetPlaceholder('Snapshot name')
+		nameInput:SetText(defaultName)
+		nameInput:ClearAllPoints()
+		Widgets.SetPoint(nameInput, 'TOPLEFT', pasteBox, 'BOTTOMLEFT', 0, -6)
+
+		local errorFS = Widgets.CreateFontString(container, C.Font.sizeSmall, C.Colors.textSecondary)
+		errorFS:ClearAllPoints()
+		Widgets.SetPoint(errorFS, 'TOPLEFT', nameInput, 'BOTTOMLEFT', 0, -4)
+		errorFS:SetWidth(innerW)
+		errorFS:SetWordWrap(true)
+		errorFS:SetText('')
+
+		local confirmBtn = Widgets.CreateButton(container, 'Save as Snapshot', 'accent',    140, BUTTON_H)
+		local cancelBtn  = Widgets.CreateButton(container, 'Cancel',           'secondary',  80, BUTTON_H)
+
+		confirmBtn:ClearAllPoints()
+		Widgets.SetPoint(confirmBtn, 'TOPLEFT', errorFS, 'BOTTOMLEFT', 0, -4)
+		cancelBtn:ClearAllPoints()
+		Widgets.SetPoint(cancelBtn, 'LEFT', confirmBtn, 'RIGHT', 6, 0)
+
+		local function setError(msg)
+			if(msg and msg ~= '') then
+				errorFS:SetTextColor(1, 0.3, 0.3, 1)
+				errorFS:SetText(msg)
+			else
+				errorFS:SetText('')
+			end
+		end
+
+		confirmBtn:SetOnClick(function()
+			local raw = pasteBox:GetText() or ''
+			raw = raw:match('^%s*(.-)%s*$')
+			if(raw == '') then
+				setError('Paste an import string to continue.')
+				return
+			end
+			local name = F.Backups.TrimName(nameInput:GetText() or '')
+			local nameOk, nameErr = F.Backups.ValidateName(name)
+			if(not nameOk) then
+				setError(nameErr)
+				return
+			end
+			local ok, err = F.Backups.SaveFromPayload(name, raw)
+			if(ok) then
+				closeInputs()
+			else
+				setError(err or 'Import failed.')
+			end
+		end)
+		cancelBtn:SetOnClick(closeInputs)
+
+		importInputContainer = container
+		reflow()
+	end)
 
 	if(F.EventBus) then
 		local function onChange() reflow() end
