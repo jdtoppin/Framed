@@ -93,6 +93,38 @@ This is a primitive version of exactly what the Backups system provides, and kee
 - The `/framed restore` slash command becomes an alias that loads the most recent reset-backup snapshot if one exists, or surfaces a message telling the user to open the Backups panel.
 - On first load after the update, if `FramedBackupDB` exists and has data, it's migrated into a one-time `"Legacy backup"` user-named snapshot in the new system, then `FramedBackupDB` is nil'd out to release the slot. The TOC line removes `FramedBackupDB` and adds `FramedSnapshotsDB`.
 
+### New UI primitive: `Widgets/Toast.lua`
+
+The Backups system introduces several transient, auto-dismissing notifications that don't fit the existing `Widgets/Dialog.lua` modal-confirmation primitive:
+
+- **Undo-after-Load toast** — `"Snapshot loaded. [Undo]"`, 12-second timeout, action button triggers `__auto_preload` restore
+- **Undo-after-Delete toast** — `"Deleted <name>. [Undo]"`, 10-second timeout, action button restores the in-memory copy held for the toast duration
+- **Combat-lockdown toast** — `"Can't load snapshots in combat."`, ~4-second timeout, no action button
+- **Import-successful toast** — replaces the current Import card's inline status text for consistency with the Load flow
+
+None of the existing widgets cover this cleanly — `Dialog.lua` is modal and blocks input, the Import card's existing status `FontString` is persistent and has no dismiss/action concept. Rather than open-coding four one-off frames, the spec adds one new primitive:
+
+```lua
+-- Widgets/Toast.lua
+-- Widgets.ShowToast({
+--   text         = 'Snapshot loaded.',
+--   action       = { text = 'Undo', onClick = function() ... end },  -- optional
+--   duration     = 12,                                                 -- seconds; default 4
+--   anchor       = { frame = cardFrame, point = 'BOTTOM', relPoint = 'BOTTOM', x = 0, y = 12 },  -- default: Settings panel bottom
+--   style        = 'info' | 'warning',                                 -- default 'info'
+-- })
+```
+
+Behavior:
+
+- Slides in from the anchored edge over ~150ms using `Widgets.StartAnimation` (matching existing Framed animation conventions — no raw `SetScript('OnUpdate')` per the `feedback_no_setscript_on_animated.md` rule).
+- Holds for `duration` seconds, then fades out over ~250ms and releases itself.
+- If an `action` is provided, a small button renders on the right side of the toast. Clicking it invokes `onClick` and immediately dismisses the toast (skipping the hold timer).
+- If a second toast is triggered while one is already showing, the existing toast fast-fades and the new one takes its place. No stacking — a queue of toasts in a backup system is its own usability problem.
+- Uses the same backdrop/border styling as `Widgets/Dialog.lua` so the visual language is consistent.
+
+**Scope:** ~60–80 lines in a new `Widgets/Toast.lua` file. No external library dependency. Goes in the same PR as the Backups implementation since nothing else in the codebase currently needs it.
+
 ### Sidebar entry
 
 The existing **Profiles** sidebar entry is renamed to **Backups**. The panel file and the card module files are renamed to match (`Settings/Panels/Backups.lua`, `Settings/Cards/Backups.lua`, `F.BackupsCards` namespace).
