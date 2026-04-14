@@ -19,10 +19,11 @@ local SCOPE_FULL   = 'full'
 local SCOPE_LAYOUT = 'layout'
 
 -- ============================================================
--- Verification: flattened key-set derivation from current defaults
+-- Verification: compare an import's flattened key set against the
+-- player's CURRENT live config. A roundtrip (export → re-import on
+-- the same client) must return 0/0. Mismatches are real differences
+-- between the import and what the player has loaded right now.
 -- ============================================================
-
-local flattenedDefaults
 
 local function flattenInto(set, prefix, tbl)
 	for k, v in next, tbl do
@@ -35,58 +36,51 @@ local function flattenInto(set, prefix, tbl)
 	end
 end
 
-local function buildFlattenedDefaults()
-	local set = {}
+-- Walk every preset under a single normalized prefix so layout-name
+-- differences don't masquerade as schema mismatches.
+local function flattenAllPresets(set, presets)
+	if(type(presets) ~= 'table') then return end
+	for _, layout in next, presets do
+		if(type(layout) == 'table') then
+			flattenInto(set, 'presets.<name>', layout)
+		end
+	end
+end
 
+-- Build the player's current key set fresh on every call — the
+-- previous cache drifted whenever the player edited settings between
+-- import attempts.
+local function buildLiveKeySet()
+	local set = {}
 	if(FramedDB and FramedDB.general) then flattenInto(set, 'general', FramedDB.general) end
 	if(FramedDB and FramedDB.minimap) then flattenInto(set, 'minimap', FramedDB.minimap) end
 	if(FramedCharDB)                  then flattenInto(set, 'char',    FramedCharDB)     end
-
-	if(F.PresetDefaults and F.PresetDefaults.GetAll) then
-		local all = F.PresetDefaults.GetAll()
-		local anyPreset = all and next(all) and all[next(all)]
-		if(anyPreset) then
-			flattenInto(set, 'presets.<name>', anyPreset)
-		end
-	end
-
+	if(FramedDB and FramedDB.presets) then flattenAllPresets(set, FramedDB.presets) end
 	return set
 end
 
-local function getFlattenedDefaults()
-	if(not flattenedDefaults) then
-		flattenedDefaults = buildFlattenedDefaults()
-	end
-	return flattenedDefaults
-end
-
 local function classifyImportKeys(parsed)
-	local defaults = getFlattenedDefaults()
+	local current = buildLiveKeySet()
 	local importSet = {}
 	if(parsed.scope == 'full' and type(parsed.data) == 'table') then
 		if(parsed.data.general) then flattenInto(importSet, 'general', parsed.data.general) end
 		if(parsed.data.minimap) then flattenInto(importSet, 'minimap', parsed.data.minimap) end
 		if(parsed.data.char)    then flattenInto(importSet, 'char',    parsed.data.char)    end
-		if(parsed.data.presets) then
-			local _, firstLayout = next(parsed.data.presets)
-			if(firstLayout) then
-				flattenInto(importSet, 'presets.<name>', firstLayout)
-			end
-		end
+		flattenAllPresets(importSet, parsed.data.presets)
 	elseif(parsed.scope == 'layout' and parsed.data and parsed.data.layout) then
 		flattenInto(importSet, 'presets.<name>', parsed.data.layout)
 	end
 
-	local ignored, missing = {}, {}
+	local extras, drops = {}, {}
 	for path in next, importSet do
-		if(not defaults[path]) then ignored[#ignored + 1] = path end
+		if(not current[path]) then extras[#extras + 1] = path end
 	end
-	for path in next, defaults do
-		if(not importSet[path]) then missing[#missing + 1] = path end
+	for path in next, current do
+		if(not importSet[path]) then drops[#drops + 1] = path end
 	end
-	table.sort(ignored)
-	table.sort(missing)
-	return ignored, missing
+	table.sort(extras)
+	table.sort(drops)
+	return extras, drops
 end
 
 -- ── Helpers ────────────────────────────────────────────────
@@ -890,40 +884,119 @@ function F.BackupsCards.Import(parent, width, onResize)
 
 	local VERIFY_ICON_SIZE = 14
 	local VERIFY_ROW_GAP   = 4
+	local CHEVRON_SIZE     = 10
+	local BODY_TOP_GAP     = 4
+	local BODY_INNER_GAP   = 6
+	local BODY_BOTTOM_GAP  = 4
+
+	local relayoutVerify  -- forward decl
 
 	local function getVerifyRow(idx)
 		local row = verifyRows[idx]
 		if(row) then return row end
 		row = CreateFrame('Frame', nil, verifyContainer)
 		row:SetHeight(VERIFY_ICON_SIZE)
+
 		local icon = row:CreateTexture(nil, 'ARTWORK')
 		icon:SetSize(VERIFY_ICON_SIZE, VERIFY_ICON_SIZE)
-		icon:SetPoint('TOPLEFT', row, 'TOPLEFT', 0, -1)
+		icon:SetPoint('TOPLEFT', row, 'TOPLEFT', 0, 0)
 		row._icon = icon
-		local fs = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-		fs:ClearAllPoints()
-		fs:SetPoint('TOPLEFT',  icon, 'TOPRIGHT', 6, 1)
-		fs:SetPoint('TOPRIGHT', row,  'TOPRIGHT', 0, 0)
-		fs:SetJustifyH('LEFT')
-		fs:SetWordWrap(true)
-		row._fs = fs
+
+		local chevron = row:CreateTexture(nil, 'ARTWORK')
+		chevron:SetSize(CHEVRON_SIZE, CHEVRON_SIZE)
+		chevron:SetPoint('TOPRIGHT', row, 'TOPRIGHT', -2, -((VERIFY_ICON_SIZE - CHEVRON_SIZE) / 2))
+		chevron:Hide()
+		row._chevron = chevron
+
+		-- Anchor label by LEFT to icon RIGHT for vertical centering on
+		-- the icon. Single-line rows look correct; multi-line rows let
+		-- the label grow downward and the row height is computed below.
+		local labelFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+		labelFS:ClearAllPoints()
+		labelFS:SetPoint('LEFT',  icon, 'RIGHT', 6, 0)
+		labelFS:SetPoint('RIGHT', row,  'RIGHT', -(CHEVRON_SIZE + 8), 0)
+		labelFS:SetJustifyH('LEFT')
+		labelFS:SetWordWrap(true)
+		row._labelFS = labelFS
+
+		-- Detail body (paths + footer) — hidden until expanded.
+		-- Anchors are set per-row in setVerifyEntries because the y
+		-- offset depends on the measured label height.
+		local body = CreateFrame('Frame', nil, row)
+		body:Hide()
+		row._body = body
+
+		local pathsFS = Widgets.CreateFontString(body, C.Font.sizeSmall, C.Colors.textSecondary)
+		pathsFS:ClearAllPoints()
+		pathsFS:SetPoint('TOPLEFT',  body, 'TOPLEFT',  0, 0)
+		pathsFS:SetPoint('TOPRIGHT', body, 'TOPRIGHT', 0, 0)
+		pathsFS:SetJustifyH('LEFT')
+		pathsFS:SetWordWrap(true)
+		row._pathsFS = pathsFS
+
+		local footerFS = Widgets.CreateFontString(body, C.Font.sizeSmall, C.Colors.textSecondary)
+		footerFS:ClearAllPoints()
+		footerFS:SetPoint('TOPLEFT',  pathsFS, 'BOTTOMLEFT',  0, -BODY_INNER_GAP)
+		footerFS:SetPoint('TOPRIGHT', body,    'TOPRIGHT',    0, 0)
+		footerFS:SetJustifyH('LEFT')
+		footerFS:SetWordWrap(true)
+		row._footerFS = footerFS
+
+		row:EnableMouse(true)
+		row:SetScript('OnMouseUp', function(self, button)
+			if(button ~= 'LeftButton') then return end
+			if(not self._expandable) then return end
+			self._expanded = not self._expanded
+			if(relayoutVerify) then relayoutVerify() end
+		end)
+
 		verifyRows[idx] = row
 		return row
 	end
 
+	local currentVerifyEntries = {}
+
 	local function setVerifyEntries(entries)
+		currentVerifyEntries = entries
 		local y = 0
 		for i, entry in ipairs(entries) do
 			local row = getVerifyRow(i)
 			row:Show()
+			row._expandable = entry.expandable and true or false
 			row._icon:SetTexture(F.Media.GetIcon(entry.icon))
-			row._fs:SetText(entry.text)
+			row._labelFS:SetText(entry.text)
 			local color = entry.color or C.Colors.textSecondary
-			row._fs:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+			row._labelFS:SetTextColor(color[1], color[2], color[3], color[4] or 1)
+
+			if(row._expandable) then
+				row._chevron:Show()
+				row._chevron:SetTexture(F.Media.GetIcon(row._expanded and 'ArrowDown1' or 'ArrowRight1'))
+			else
+				row._chevron:Hide()
+				row._expanded = false
+			end
+
+			local labelH = math.max(VERIFY_ICON_SIZE, math.ceil(row._labelFS:GetStringHeight() + 2))
+			local rowH = labelH
+
+			if(row._expandable and row._expanded) then
+				row._body:ClearAllPoints()
+				row._body:SetPoint('TOPLEFT',  row, 'TOPLEFT',  0, -(labelH + BODY_TOP_GAP))
+				row._body:SetPoint('TOPRIGHT', row, 'TOPRIGHT', -2, -(labelH + BODY_TOP_GAP))
+				row._body:Show()
+				row._pathsFS:SetText(table.concat(entry.paths or {}, '\n'))
+				row._footerFS:SetText(entry.footer or '')
+				local pathsH  = math.ceil(row._pathsFS:GetStringHeight()  + 2)
+				local footerH = math.ceil(row._footerFS:GetStringHeight() + 2)
+				row._body:SetHeight(pathsH + BODY_INNER_GAP + footerH)
+				rowH = labelH + BODY_TOP_GAP + pathsH + BODY_INNER_GAP + footerH + BODY_BOTTOM_GAP
+			else
+				row._body:Hide()
+			end
+
 			row:ClearAllPoints()
 			row:SetPoint('TOPLEFT',  verifyContainer, 'TOPLEFT',  0, -y)
 			row:SetPoint('TOPRIGHT', verifyContainer, 'TOPRIGHT', 0, -y)
-			local rowH = math.max(VERIFY_ICON_SIZE, math.ceil(row._fs:GetStringHeight() + 2))
 			row:SetHeight(rowH)
 			y = y + rowH + VERIFY_ROW_GAP
 		end
@@ -967,6 +1040,11 @@ function F.BackupsCards.Import(parent, width, onResize)
 
 		Widgets.EndCard(card, parent, y)
 		if(initialized and onResize) then onResize() end
+	end
+
+	relayoutVerify = function()
+		setVerifyEntries(currentVerifyEntries)
+		reflow()
 	end
 
 	local function renderVerification(parsed, parseErr)
@@ -1016,17 +1094,23 @@ function F.BackupsCards.Import(parent, width, onResize)
 			}
 		end
 
-		local ignored, missing = classifyImportKeys(parsed)
-		if(#ignored > 0) then
+		local extras, drops = classifyImportKeys(parsed)
+		if(#extras > 0) then
 			entries[#entries + 1] = {
-				icon = 'Fluent_Alert',
-				text = #ignored .. ' settings will be ignored (from an older version)',
+				icon       = 'Fluent_Alert',
+				text       = #extras .. ' settings in this import are not in your current config (click to view)',
+				expandable = true,
+				paths      = extras,
+				footer     = "These keys exist in the import but not in your live config. They'll be applied as-is, but if they're from a removed/renamed feature, Framed may ignore them at load time.",
 			}
 		end
-		if(#missing > 0) then
+		if(#drops > 0) then
 			entries[#entries + 1] = {
-				icon = 'Fluent_Notice',
-				text = #missing .. ' new settings will use defaults',
+				icon       = 'Fluent_Notice',
+				text       = #drops .. ' settings in your current config are not in this import (click to view)',
+				expandable = true,
+				paths      = drops,
+				footer     = "These keys are in your live config but not in this import. After loading, Framed will backfill any of them that are part of the current defaults schema; anything else will be lost.",
 			}
 		end
 
