@@ -132,8 +132,9 @@ end
 -- ============================================================
 
 local function createInlineNameInput(parent, width, placeholderText, defaultName)
+	local INPUT_H = 22
 	local container = CreateFrame('Frame', nil, parent)
-	Widgets.SetSize(container, width, EDITBOX_H + LABEL_H + BUTTON_H + 12)
+	Widgets.SetSize(container, width, INPUT_H + LABEL_H + BUTTON_H + 12)
 
 	local input = Widgets.CreateEditBox(container, nil, width, 22)
 	input:SetPlaceholder(placeholderText or '')
