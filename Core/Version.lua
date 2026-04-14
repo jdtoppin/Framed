@@ -42,6 +42,7 @@ end
 -- ============================================================
 function V.Compare(a, b)
 	if(type(a) ~= 'table' or type(b) ~= 'table') then return nil end
+	if(type(a.major) ~= 'number' or type(b.major) ~= 'number') then return nil end
 
 	if(a.major ~= b.major) then
 		return a.major < b.major and -1 or 1
