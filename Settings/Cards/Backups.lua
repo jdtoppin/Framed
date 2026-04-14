@@ -122,6 +122,17 @@ end
 -- Row rendering helpers
 -- ============================================================
 
+local function guardCombat()
+	if(InCombatLockdown()) then
+		Widgets.ShowToast({
+			text     = "Can't load snapshots in combat.",
+			duration = 4,
+		})
+		return false
+	end
+	return true
+end
+
 local function formatTimestamp(ts)
 	if(not ts) then return '—' end
 	return date('%Y-%m-%d %H:%M', ts)
@@ -225,6 +236,92 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	row._btnExport = btnExport
 	row._btnRename = btnRename
 	row._btnDelete = btnDelete
+
+	btnLoad:SetOnClick(function()
+		if(not guardCombat()) then return end
+
+		local msg = 'Load snapshot "' .. displayName .. '"?\n\n' ..
+			'Version: ' .. (wrapper.version or 'unknown') .. '\n' ..
+			'Saved: ' .. formatTimestamp(wrapper.timestamp) .. '\n\n' ..
+			'This will replace your current Framed settings. ' ..
+			'Framed will automatically keep a "Before last load" backup so you can revert.'
+
+		Widgets.ShowConfirmDialog(
+			'Confirm Load',
+			msg,
+			function()
+				local ok, err = F.Backups.Load(displayName)
+				if(ok) then
+					Widgets.ShowToast({
+						text     = 'Snapshot loaded.',
+						duration = 12,
+						action   = {
+							text    = 'Undo',
+							onClick = function()
+								F.Backups.Load(F.Backups.AUTO_PRELOAD)
+							end,
+						},
+					})
+				else
+					Widgets.ShowToast({
+						text     = 'Load failed: ' .. (err or 'unknown error'),
+						duration = 6,
+					})
+					if(err and err:find('corrupted')) then
+						row:MarkCorrupted()
+					end
+				end
+			end,
+			nil)
+	end)
+
+	btnDelete:SetOnClick(function()
+		local removed = F.Backups.Delete(displayName)
+		if(not removed) then return end
+
+		Widgets.ShowToast({
+			text     = 'Deleted ' .. displayName .. '.',
+			duration = 10,
+			action   = {
+				text    = 'Undo',
+				onClick = function()
+					F.Backups.RestoreDeleted(displayName, removed)
+				end,
+			},
+		})
+	end)
+
+	btnRename:SetOnClick(function()
+		if(isAutomatic) then return end
+
+		nameFS:Hide()
+
+		local edit = Widgets.CreateEditBox(row, nil, 180, 22)
+		edit:SetText(displayName)
+		edit:ClearAllPoints()
+		Widgets.SetPoint(edit, 'TOPLEFT', row, 'TOPLEFT', 8, -6)
+
+		if(edit._editbox) then
+			edit._editbox:SetFocus()
+			edit._editbox:HighlightText()
+			edit._editbox:SetScript('OnEscapePressed', function()
+				edit:Hide()
+				nameFS:Show()
+			end)
+			edit._editbox:SetScript('OnEnterPressed', function()
+				local newName = F.Backups.TrimName(edit:GetText() or '')
+				local ok, err = F.Backups.Rename(displayName, newName)
+				if(ok) then
+					edit:Hide()
+				else
+					Widgets.ShowToast({
+						text     = 'Rename failed: ' .. (err or 'unknown error'),
+						duration = 5,
+					})
+				end
+			end)
+		end
+	end)
 
 	row.MarkCorrupted = function(self)
 		if(self._corruptedIcon) then return end
