@@ -20,6 +20,7 @@ Constants.Colors = {
 	accent      = { 0, 0.8, 1, 1 },                -- #00ccff
 	accentDim   = { 0, 0.8, 1, 0.3 },              -- accent @ 30%
 	accentHover = { 0, 0.8, 1, 0.6 },              -- accent @ 60%
+	warning     = { 0.9, 0.6, 0.1, 1 },            -- amber warning
 
 	-- Text
 	textActive   = { 1, 1, 1, 1 },

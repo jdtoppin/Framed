@@ -51,6 +51,7 @@ end
 --- Show a transient toast notification.
 --- @param opts table
 ---   .text     string         Message text
+---   .style?   string         'info' | 'warning' (default 'info')
 ---   .duration? number        Hold duration in seconds (default 4)
 ---   .anchor?  table          { point, frame, relPoint, x, y }
 ---   .action?  table          { text, onClick } — optional action button
@@ -62,12 +63,14 @@ function Widgets.ShowToast(opts)
 		dismiss(activeToast, true)
 	end
 
+	local borderColor = (opts.style == 'warning') and C.Colors.warning or C.Colors.border
+
 	local a = opts.anchor or {}
 	local parent = a.frame or UIParent
 
 	local toast = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
 	Widgets.SetSize(toast, TOAST_WIDTH, TOAST_HEIGHT)
-	Widgets.ApplyBackdrop(toast, C.Colors.widget, C.Colors.border)
+	Widgets.ApplyBackdrop(toast, C.Colors.widget, borderColor)
 	toast:SetFrameStrata('DIALOG')
 
 	toast:ClearAllPoints()
