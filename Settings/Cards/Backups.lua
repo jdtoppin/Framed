@@ -221,10 +221,17 @@ local function buildMetadataParts(wrapper)
 	}
 end
 
-local function createSnapshotRow(parent, width, wrapper, displayName, isAutomatic)
+local function createSnapshotRow(parent, width, wrapper, displayName, isAutomatic, relayout)
 	local row = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
 	Widgets.SetSize(row, width, SNAPSHOT_ROW_H)
-	Widgets.ApplyBackdrop(row, C.Colors.cardBg or C.Colors.widget, C.Colors.border)
+	Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.border)
+
+	row:EnableMouse(true)
+	row:SetScript('OnEnter', function(self) Widgets.SetBackdropHighlight(self, true) end)
+	row:SetScript('OnLeave', function(self)
+		if(self:IsMouseOver()) then return end
+		Widgets.SetBackdropHighlight(self, false)
+	end)
 
 	row._wrapper     = wrapper
 	row._name        = displayName
@@ -283,9 +290,9 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	local PAD          = 4
 
 	local btnLoad   = Widgets.CreateButton(row, 'Load',   'accent',    BTN_W, BTN_H)
-	local btnExport = Widgets.CreateButton(row, 'Export', 'secondary', BTN_W, BTN_H)
-	local btnRename = Widgets.CreateButton(row, 'Rename', 'secondary', BTN_W, BTN_H)
-	local btnDelete = Widgets.CreateButton(row, 'Delete', 'danger',    BTN_W, BTN_H)
+	local btnExport = Widgets.CreateButton(row, 'Export', 'widget',    BTN_W, BTN_H)
+	local btnRename = Widgets.CreateButton(row, 'Rename', 'widget',    BTN_W, BTN_H)
+	local btnDelete = Widgets.CreateButton(row, 'Delete', 'red',       BTN_W, BTN_H)
 
 	btnDelete:ClearAllPoints()
 	Widgets.SetPoint(btnDelete, 'RIGHT', row, 'RIGHT', -10, 0)
@@ -307,6 +314,14 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	row._btnExport = btnExport
 	row._btnRename = btnRename
 	row._btnDelete = btnDelete
+
+	for _, child in next, { btnLoad, btnExport, btnRename, btnDelete } do
+		child:HookScript('OnEnter', function() Widgets.SetBackdropHighlight(row, true) end)
+		child:HookScript('OnLeave', function()
+			if(row:IsMouseOver()) then return end
+			Widgets.SetBackdropHighlight(row, false)
+		end)
+	end
 
 	btnLoad:SetOnClick(function()
 		if(not guardCombat()) then return end
@@ -408,6 +423,7 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		if(row._exportArea) then
 			row._exportArea:Hide()
 			row._exportArea = nil
+			if(relayout) then relayout() end
 			return
 		end
 
@@ -415,7 +431,6 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		Widgets.SetSize(area, row:GetWidth() - 16, EDITBOX_H + DROPDOWN_H + 16)
 		area:ClearAllPoints()
 		Widgets.SetPoint(area, 'TOPLEFT', row, 'BOTTOMLEFT', 8, -4)
-		area:SetFrameStrata('DIALOG')
 
 		local scopeDropdown = Widgets.CreateDropdown(area, 220)
 		scopeDropdown:ClearAllPoints()
@@ -457,6 +472,7 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 		renderExport('__whole__')
 
 		row._exportArea = area
+		if(relayout) then relayout() end
 		_ = decodeErr
 	end)
 
@@ -554,12 +570,34 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 	-- Rendered row cache — reused across reflows so button wiring persists
 	local renderedRows = {}
 
+	-- Forward declaration so the row-level relayout callback can see it
+	local reflow
+
+	local function relayoutFromRow()
+		if(reflow) then reflow(true) end
+	end
+
 	local function clearRows()
 		for _, row in next, renderedRows do
 			row:Hide()
 			row:SetParent(nil)
 		end
 		renderedRows = {}
+	end
+
+	local function positionRows()
+		local y = -4
+		for _, row in next, renderedRows do
+			row:ClearAllPoints()
+			Widgets.SetPoint(row, 'TOPLEFT', listContent, 'TOPLEFT', 8, y)
+			y = y - SNAPSHOT_ROW_H - 2
+			if(row._exportArea) then
+				y = y - row._exportArea:GetHeight() - 6
+			end
+		end
+		local totalH = math.max(EMPTY_STATE_H, (-y) + 8)
+		listContent:SetHeight(totalH)
+		return totalH
 	end
 
 	local function rebuildRows()
@@ -583,39 +621,28 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 			return ta > tb
 		end)
 
-		local y = -4
 		local rowW = listContent:GetWidth() - 16
 
 		for _, entry in next, userList do
-			local row = createSnapshotRow(listContent, rowW, entry.wrapper, entry.name, false)
-			row:ClearAllPoints()
-			Widgets.SetPoint(row, 'TOPLEFT', listContent, 'TOPLEFT', 8, y)
+			local row = createSnapshotRow(listContent, rowW, entry.wrapper, entry.name, false, relayoutFromRow)
 			row:Show()
 			renderedRows[#renderedRows + 1] = row
-			y = y - SNAPSHOT_ROW_H - 4
 		end
 
 		for _, autoKey in next, F.Backups.AUTO_ORDER do
 			local wrapper = autoMap[autoKey]
 			if(wrapper) then
 				local label = F.Backups.AUTO_LABELS[autoKey] or autoKey
-				local row = createSnapshotRow(listContent, rowW, wrapper, label, true)
-				row:ClearAllPoints()
-				Widgets.SetPoint(row, 'TOPLEFT', listContent, 'TOPLEFT', 8, y)
+				local row = createSnapshotRow(listContent, rowW, wrapper, label, true, relayoutFromRow)
 				row:Show()
 				renderedRows[#renderedRows + 1] = row
-				y = y - SNAPSHOT_ROW_H - 4
 			end
 		end
-
-		local totalH = math.max(EMPTY_STATE_H, (-y) + 8)
-		listContent:SetHeight(totalH)
-		return totalH
 	end
 
 	local building = true
 
-	local function reflow()
+	reflow = function(skipRebuild)
 		local y = 0
 		y = B.PlaceWidget(saveBtn,   inner, y, BUTTON_H)
 		y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
@@ -633,7 +660,10 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 			emptyFS:Show()
 		end
 
-		local contentH = rebuildRows()
+		if(not skipRebuild) then
+			rebuildRows()
+		end
+		local contentH = positionRows()
 		local listH = math.min(contentH, LIST_MAX_H)
 		listFrame:SetHeight(listH)
 		if(listFrame.UpdateScrollRange) then
