@@ -114,13 +114,15 @@ function ImportExport.Import(inputString)
 		return nil, 'LibDeflate is not available'
 	end
 
+	local corruptedMsg = "Couldn't read this import string. It may be corrupted or incomplete — make sure you copied the entire string."
+
 	if(not inputString or inputString == '') then
-		return nil, 'Import string is empty'
+		return nil, 'Paste an import string to continue.'
 	end
 
 	-- Check prefix
 	if(inputString:sub(1, #VERSION_PREFIX) ~= VERSION_PREFIX) then
-		return nil, 'Invalid import string (unrecognised format)'
+		return nil, "This doesn't look like a Framed import string. Make sure you copied it from the Export card."
 	end
 
 	-- Strip prefix
@@ -128,29 +130,27 @@ function ImportExport.Import(inputString)
 
 	local compressed = LibDeflate:DecodeForPrint(encoded)
 	if(not compressed) then
-		return nil, 'Failed to decode import string'
+		return nil, corruptedMsg
 	end
 
 	local serialized = LibDeflate:DecompressDeflate(compressed)
 	if(not serialized) then
-		return nil, 'Failed to decompress import string'
+		return nil, corruptedMsg
 	end
 
-	-- pcall IS justified here: untrusted data from user input
-	local ok, payload = pcall(LibSerialize.Deserialize, LibSerialize, serialized)
-	if(not ok or not payload) then
-		return nil, 'Failed to deserialize import string'
+	-- LibSerialize:Deserialize is already pcall-wrapped internally and returns
+	-- (success, value). Do NOT add an outer pcall — doing so shifts the return
+	-- positions and silently drops the deserialized table.
+	local success, payload = LibSerialize:Deserialize(serialized)
+	if(not success or type(payload) ~= 'table') then
+		return nil, corruptedMsg
 	end
 
-	-- Validate version
-	if(type(payload) ~= 'table') then
-		return nil, 'Invalid payload structure'
-	end
 	if(payload.version ~= 1) then
-		return nil, 'Unsupported import version: ' .. tostring(payload.version)
+		return nil, 'This import string was made by a newer version of Framed. Update the addon and try again.'
 	end
 	if(not payload.scope) then
-		return nil, 'Missing scope in import payload'
+		return nil, corruptedMsg
 	end
 
 	return payload
