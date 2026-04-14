@@ -167,7 +167,7 @@ end
 --- @param parent Frame
 --- @param width number Logical total width
 --- @param height number Logical height
---- @param options table Array of { text = string, value = any, icon = number|string? }
+--- @param options table Array of { text = string, value = any, icon = number|string?, tooltipTitle = string?, tooltipBody = string? }
 --- @return Frame switch
 function Widgets.CreateSwitch(parent, width, height, options)
 	options = options or {}
@@ -252,6 +252,12 @@ function Widgets.CreateSwitch(parent, width, height, options)
 			if(not switch._enabled) then return end
 			SelectIndex(switch, self._index, true)
 		end)
+
+		-- Per-segment tooltip — hover visuals and tooltip scripts stack cleanly
+		-- because AttachTooltipScripts uses HookScript.
+		if(opt.tooltipTitle or opt.tooltipBody) then
+			Widgets.SetTooltip(seg, opt.tooltipTitle or opt.text, opt.tooltipBody)
+		end
 
 		switch._segments[i] = seg
 	end

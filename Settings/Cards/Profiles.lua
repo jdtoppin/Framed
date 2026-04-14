@@ -183,8 +183,18 @@ function F.ProfilesCards.Import(parent, width)
 	y = placeLabelAt(modeLabel, inner, y)
 
 	local modeSwitch = Widgets.CreateSwitch(inner, innerW, SWITCH_H, {
-		{ text = 'Replace', value = 'replace' },
-		{ text = 'Merge',   value = 'merge' },
+		{
+			text  = 'Replace',
+			value = 'replace',
+			tooltipTitle = 'Replace',
+			tooltipBody  = "Overwrite your current settings with the imported ones. Anything you changed locally that isn't in the import will be lost. Importing a single layout overwrites any existing layout with the same name.",
+		},
+		{
+			text  = 'Merge',
+			value = 'merge',
+			tooltipTitle = 'Merge',
+			tooltipBody  = "Apply the imported settings on top of your current ones. Values in the import win, but anything not included is kept. Importing a single layout saves it as a new copy named '(imported)' so your existing layout is untouched.",
+		},
 	})
 	modeSwitch:SetValue('replace')
 	y = B.PlaceWidget(modeSwitch, inner, y, SWITCH_H)
