@@ -1,5 +1,17 @@
 # Framed Changelog
 
+## v0.8.7-alpha
+
+- The new **Backups** system is now feature-complete — save, rename, load, and delete named snapshots, with inline export/import, version and size metadata, stale-version warnings, last-loaded tracking, and roundtrip verification that reports exactly which keys differ from your current config
+- Fix Backups snapshot rows overflowing at narrow widths — titles now wrap above the buttons, the metadata line (version · date · layouts · size) wraps below the version when it's too long, and the row grows to fit; very narrow widths stack the buttons under the text
+- Fix buttons disappearing from a Backups row when its Export area was opened — buttons are now pinned to the top of the row and the export area expands downward from the row's current height
+- Fix auto-backup rows having an empty slot where Rename would be — Export now sits directly next to Delete
+- Fix Rename edit box not dismissing when clicking the Rename button again or clicking outside the field; pressing Escape or Enter also closes it cleanly
+- Style the version and author name in the About card with the accent color
+- Polish inline dropdowns (underline, chevron, accent default) and cascade EditBox width through anchors so nested inputs size correctly
+- Fix a race in the Toast dismiss animation that could leave a stale frame visible when a new toast slid in on top of it
+- Show the active preset name in accent color in the Settings header
+
 ## v0.8.6-alpha
 
 - Fix import/export failing with "Invalid payload structure" on every valid import — a double-pcall was silently dropping the deserialized payload; also rewrite the error messages in plain language
