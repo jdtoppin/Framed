@@ -110,6 +110,21 @@ end
 -- BEGIN GENERATED CHANGELOG
 local CHANGELOG = {
 	{
+		version = 'v0.8.6-alpha',
+		entries = {
+			'Fix import/export failing with "Invalid payload structure" on every valid import — a double-pcall was silently dropping the deserialized payload; also rewrite the error messages in plain language',
+			'Add tooltips on the Import mode switch explaining what Replace and Merge actually do',
+			'Fix **Missing Buffs** indicator running even when disabled in settings',
+			'Fix party/raid role sorting occasionally snapping frames to the wrong position on first group spawn — roster events are now bridged through EventBus and the nameList is rebuilt once group membership is fully populated',
+			'Backfill aura sub-table defaults into existing saved presets — Arena/Boss/Solo/Minimal frames no longer end up missing dispellable, defensive, external, and missing-buff configuration after upgrading',
+			'Guard **Private Auras** and **Targeted Spells** against partial config tables so missing optional sub-tables no longer error during Setup',
+			'Reduce cast-tracker broadcast chatter by skipping redundant updates',
+			'Polish **Framed Overview** illustrations and dim the background while the Overview is open',
+			'Retarget the Setup Wizard card\'s Tour button to the new Overview (old `Onboarding/Tour.lua` removed in v0.8.5-alpha)',
+			'Internal cleanup: drop unused imports, rename shadowing locals, fix luacheck warnings across Elements, Settings, Widgets, and builders',
+		},
+	},
+	{
 		version = 'v0.8.5-alpha',
 		entries = {
 			'Add **Framed Overview** — a 6-page illustrated walkthrough covering layouts, edit mode, settings cards, aura indicators, and defensives/externals; auto-shows on first login after the setup wizard and can be relaunched from Appearance → Setup Wizard → Take Overview',
@@ -125,12 +140,6 @@ local CHANGELOG = {
 			'Edit mode preview and click catcher now reflect sort mode layout',
 			'Fix edit mode preset switch snapping frames to top-left when target preset had no config for that frame',
 			'Post release notes to Discord from the release workflow',
-		},
-	},
-	{
-		version = 'v0.8.4-alpha',
-		entries = {
-			'Fix stale target/focus frame auras after retarget — aura cache now invalidates on token reassignment events (PLAYER_TARGET_CHANGED, PLAYER_FOCUS_CHANGED, UNIT_TARGET, group/arena/boss/nameplate updates) instead of only UNIT_AURA',
 		},
 	},
 }
