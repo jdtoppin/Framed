@@ -167,7 +167,11 @@ SlashCmdList['FRAMED'] = function(msg)
 				-- Save a named snapshot before wiping, so the user has a clear
 				-- recovery handle.
 				local label = 'Before reset (' .. date('%Y-%m-%d %H:%M') .. ')'
-				F.Backups.Save(label)
+				local ok, err = F.Backups.Save(label)
+				if(not ok) then
+					print('|cff00ccff Framed|r Could not save pre-reset backup: ' .. (err or 'unknown error'))
+					return
+				end
 				FramedDB = nil
 				FramedCharDB = nil
 				ReloadUI()
