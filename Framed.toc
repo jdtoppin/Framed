@@ -41,6 +41,7 @@ Core/AuraState.lua
 Widgets/Base.lua
 Widgets/Frame.lua
 Widgets/Button.lua
+Widgets/Toast.lua
 Widgets/Tooltip.lua
 Widgets/Slider.lua
 Widgets/Switch.lua
