@@ -3,7 +3,7 @@
 ## Notes: Modern, customizable unit frames and raid frames
 ## Author: Moodibs
 ## Version: 0.8.6-alpha
-## SavedVariables: FramedDB, FramedBackupDB
+## SavedVariables: FramedDB, FramedBackupDB, FramedSnapshotsDB
 ## SavedVariablesPerCharacter: FramedCharDB
 ## License: GPL v3
 ## X-oUF: Framed
@@ -36,6 +36,7 @@ Core/Config.lua
 Core/CastTracker.lua
 Core/AuraCache.lua
 Core/AuraState.lua
+Core/Backups.lua
 
 # Widgets
 Widgets/Base.lua

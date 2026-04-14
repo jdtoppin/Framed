@@ -24,6 +24,7 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 	if(event == 'ADDON_LOADED' and arg1 == addonName) then
 		F.Config:Initialize()
 		F.PresetDefaults.EnsureDefaults()
+		F.Backups.EnsureDefaults()
 		self:UnregisterEvent('ADDON_LOADED')
 	elseif(event == 'PLAYER_LOGIN') then
 		-- Post-spawn initialization (runs after oUF:Factory spawns frames)
