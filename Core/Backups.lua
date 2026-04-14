@@ -66,3 +66,79 @@ end
 function B.Get(name)
 	return FramedSnapshotsDB.snapshots[name]
 end
+
+-- ============================================================
+-- Name validation
+-- Returns (true) for valid names and (false, errorMessage) otherwise.
+-- Trimming is the caller's responsibility — call TrimName first.
+-- ============================================================
+
+--- Trim leading/trailing whitespace and return the cleaned name.
+function B.TrimName(name)
+	if(type(name) ~= 'string') then return '' end
+	return (name:gsub('^%s+', ''):gsub('%s+$', ''))
+end
+
+--- Validate a (trimmed) snapshot name.
+--- @param name string
+--- @return boolean valid, string|nil errMsg
+function B.ValidateName(name)
+	if(type(name) ~= 'string' or name == '') then
+		return false, "Name can't be empty."
+	end
+	if(#name > B.NAME_MAX_LEN) then
+		return false, 'Name is too long (max ' .. B.NAME_MAX_LEN .. ' characters).'
+	end
+	if(name:find('^__auto_')) then
+		return false, 'Names starting with `__auto_` are reserved for automatic snapshots.'
+	end
+
+	-- Collision with automatic display labels
+	for _, label in next, B.AUTO_LABELS do
+		if(name:lower() == label:lower()) then
+			return false, 'That name is reserved.'
+		end
+	end
+
+	-- Case-insensitive uniqueness against existing user snapshots
+	B.EnsureDefaults()
+	local lower = name:lower()
+	for existingName, wrapper in next, FramedSnapshotsDB.snapshots do
+		if(not wrapper.automatic and existingName:lower() == lower) then
+			return false, 'A snapshot with that name already exists.'
+		end
+	end
+
+	return true, nil
+end
+
+--- Same as ValidateName but excludes a specific name from the uniqueness
+--- check — used by Rename so renaming to the same name (no-op) is valid
+--- and so a user can fix casing without tripping the unique check.
+function B.ValidateNameForRename(name, excludeName)
+	if(type(name) ~= 'string' or name == '') then
+		return false, "Name can't be empty."
+	end
+	if(#name > B.NAME_MAX_LEN) then
+		return false, 'Name is too long (max ' .. B.NAME_MAX_LEN .. ' characters).'
+	end
+	if(name:find('^__auto_')) then
+		return false, 'Names starting with `__auto_` are reserved for automatic snapshots.'
+	end
+	for _, label in next, B.AUTO_LABELS do
+		if(name:lower() == label:lower()) then
+			return false, 'That name is reserved.'
+		end
+	end
+
+	B.EnsureDefaults()
+	local lower       = name:lower()
+	local excludeLow  = excludeName and excludeName:lower() or nil
+	for existingName, wrapper in next, FramedSnapshotsDB.snapshots do
+		if(not wrapper.automatic and existingName:lower() == lower and existingName:lower() ~= excludeLow) then
+			return false, 'A snapshot with that name already exists.'
+		end
+	end
+
+	return true, nil
+end
