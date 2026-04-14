@@ -326,6 +326,14 @@ local function CreateMultiLine(parent, label, width, height)
 
 	scrollFrame:SetScrollChild(eb)
 
+	-- Click anywhere in the visible area to focus the editbox and
+	-- park the cursor at the end of the current text.
+	inputFrame:EnableMouse(true)
+	inputFrame:SetScript('OnMouseDown', function()
+		eb:SetFocus()
+		eb:SetCursorPosition(#(eb:GetText() or ''))
+	end)
+
 	-- Auto-scroll to follow the cursor as text grows
 	eb:SetScript('OnCursorChanged', function(self, x, y, w, h)
 		local scrollOffset = scrollFrame:GetVerticalScroll()

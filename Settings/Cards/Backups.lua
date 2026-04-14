@@ -938,13 +938,12 @@ end
 -- Import card
 -- ============================================================
 
-function F.BackupsCards.Import(parent, width)
-	local card, inner, y = Widgets.StartCard(parent, width, 0)
+function F.BackupsCards.Import(parent, width, onResize)
+	local card, inner = Widgets.StartCard(parent, width, 0)
 	local innerW = width - Widgets.CARD_PADDING * 2
 
 	local importBox = Widgets.CreateEditBox(inner, nil, innerW, EDITBOX_H, 'multiline')
 	importBox:SetPlaceholder('Paste import string here…')
-	y = B.PlaceWidget(importBox, inner, y, EDITBOX_H)
 
 	local verifyHeader = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
 	verifyHeader:SetText('── Verification ──')
@@ -961,6 +960,28 @@ function F.BackupsCards.Import(parent, width)
 	statusFS:SetText('')
 
 	local currentParsed
+	local initialized = false
+
+	local function reflow()
+		local y = 0
+		y = B.PlaceWidget(importBox, inner, y, EDITBOX_H)
+
+		if(verifyHeader:IsShown()) then
+			y = B.PlaceWidget(verifyHeader, inner, y, LABEL_H)
+			local rowsH = math.max(LABEL_H, math.ceil(verifyRowsFS:GetStringHeight() + 2))
+			y = B.PlaceWidget(verifyRowsFS, inner, y, rowsH)
+		end
+
+		y = B.PlaceWidget(importBtn, inner, y, BUTTON_H)
+
+		if((statusFS:GetText() or '') ~= '') then
+			local statusH = math.max(LABEL_H, math.ceil(statusFS:GetStringHeight() + 2))
+			y = B.PlaceWidget(statusFS, inner, y, statusH)
+		end
+
+		Widgets.EndCard(card, parent, y)
+		if(initialized and onResize) then onResize() end
+	end
 
 	local function renderVerification(parsed, parseErr)
 		if(parseErr) then
@@ -969,6 +990,7 @@ function F.BackupsCards.Import(parent, width)
 			verifyRowsFS:SetTextColor(1, 0.3, 0.3, 1)
 			verifyRowsFS:SetText('✗ Format invalid: ' .. parseErr)
 			importBtn:SetEnabled(false)
+			reflow()
 			return
 		end
 
@@ -1013,6 +1035,7 @@ function F.BackupsCards.Import(parent, width)
 
 		verifyRowsFS:SetText(table.concat(lines, '\n'))
 		importBtn:SetEnabled(true)
+		reflow()
 	end
 
 	local debounceTimer
@@ -1026,6 +1049,7 @@ function F.BackupsCards.Import(parent, width)
 				verifyRowsFS:Hide()
 				importBtn:SetEnabled(false)
 				currentParsed = nil
+				reflow()
 				return
 			end
 			local parsed, err = F.ImportExport.Import(raw)
@@ -1056,6 +1080,7 @@ function F.BackupsCards.Import(parent, width)
 				importBox:SetText('')
 				setTextColor(statusFS, C.Colors.textActive)
 				statusFS:SetText('Import successful.')
+				reflow()
 				Widgets.ShowToast({
 					text     = 'Import applied.',
 					duration = 10,
@@ -1070,14 +1095,45 @@ function F.BackupsCards.Import(parent, width)
 			function()
 				setTextColor(statusFS, C.Colors.textSecondary)
 				statusFS:SetText('Import cancelled.')
+				reflow()
 			end)
 	end)
 
-	y = B.PlaceWidget(verifyHeader, inner, y, LABEL_H)
-	y = B.PlaceWidget(verifyRowsFS, inner, y, LABEL_H * 8)
-	y = B.PlaceWidget(importBtn,    inner, y, BUTTON_H)
-	y = B.PlaceWidget(statusFS,     inner, y, LABEL_H * 2)
-
-	Widgets.EndCard(card, parent, y)
+	reflow()
+	initialized = true
 	return card
+end
+
+-- ============================================================
+-- Export + Import wrapper — two fixed-width sub-cards side-by-side
+-- Matches the Auto-Switch / Spec Overrides pattern in FramePresets.
+-- ============================================================
+
+function F.BackupsCards.ExportImport(parent, width, onResize)
+	local CARD_GAP = C.Spacing.normal
+	local halfW = math.floor((width - CARD_GAP) / 2)
+
+	local wrapper = CreateFrame('Frame', nil, parent)
+
+	local expCard, impCard
+
+	local function wrapperResize()
+		if(not expCard or not impCard) then return end
+		local h = math.max(expCard:GetHeight(), impCard:GetHeight())
+		wrapper:SetSize(width, h)
+		if(onResize) then onResize() end
+	end
+
+	expCard = F.BackupsCards.Export(parent, halfW, wrapperResize)
+	impCard = F.BackupsCards.Import(parent, halfW, wrapperResize)
+
+	expCard:SetParent(wrapper)
+	impCard:SetParent(wrapper)
+	expCard:ClearAllPoints()
+	Widgets.SetPoint(expCard, 'TOPLEFT', wrapper, 'TOPLEFT', 0, 0)
+	impCard:ClearAllPoints()
+	Widgets.SetPoint(impCard, 'TOPLEFT', expCard, 'TOPRIGHT', CARD_GAP, 0)
+
+	wrapper:SetSize(width, math.max(expCard:GetHeight(), impCard:GetHeight()))
+	return wrapper
 end
