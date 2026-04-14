@@ -249,8 +249,8 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed config — Print config debug info')
 		print('  /framed events — Print registered events')
 		print('  /framed edit — Toggle Edit Mode')
-		print('  /framed reset all — Reset all settings to defaults (with backup)')
-		print('  /framed restore — Restore settings from last session backup')
+		print('  /framed reset all — Reset all settings to defaults (saves a Backups snapshot)')
+		print('  /framed restore — Restore the most recent reset backup from the Backups panel')
 		print('  /framed debugicons — Debug indicator element state')
 	else
 		-- Default: open settings
