@@ -29,7 +29,7 @@ B.AUTO_ORDER = {
 B.NAME_MAX_LEN = 64
 
 -- ============================================================
--- Initialization — called from Core/Config.lua or Init.lua at load
+-- Initialization — called from Init.lua at ADDON_LOADED
 -- ============================================================
 
 function B.EnsureDefaults()
@@ -52,12 +52,11 @@ end
 -- Stubs for the API — filled in by later tasks
 -- ============================================================
 
---- @return table array of wrapper tables (not decoded)
+--- @return table array of { name, wrapper } pairs
 function B.List()
-	B.EnsureDefaults()
 	local out = {}
-	for _, wrapper in next, FramedSnapshotsDB.snapshots do
-		out[#out + 1] = wrapper
+	for name, wrapper in next, FramedSnapshotsDB.snapshots do
+		out[#out + 1] = { name = name, wrapper = wrapper }
 	end
 	return out
 end
@@ -65,6 +64,5 @@ end
 --- @param name string
 --- @return table|nil wrapper
 function B.Get(name)
-	B.EnsureDefaults()
 	return FramedSnapshotsDB.snapshots[name]
 end
