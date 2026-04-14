@@ -66,13 +66,16 @@ local function formatTimestamp(ts)
 	return date('%Y-%m-%d %H:%M', ts)
 end
 
-local function buildMetadataLine(wrapper)
+local function buildMetadataParts(wrapper)
 	local version = wrapper.version or 'unknown'
 	local ts      = formatTimestamp(wrapper.timestamp)
 	local count   = wrapper.layoutCount or 0
 	local size    = wrapper.sizeBytes   or 0
 	local sizeStr = (size < 1024) and (size .. ' B') or string.format('%.1f KB', size / 1024)
-	return version .. ' · ' .. ts .. ' · ' .. count .. ' layouts · ' .. sizeStr
+	return {
+		version = version,
+		rest    = ' · ' .. ts .. ' · ' .. count .. ' layouts · ' .. sizeStr,
+	}
 end
 
 local function createSnapshotRow(parent, width, wrapper, displayName, isAutomatic)
@@ -96,9 +99,41 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	end
 	row._nameFS = nameFS
 
+	local parts = buildMetadataParts(wrapper)
+
+	local versionFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	versionFS:SetPoint('BOTTOMLEFT', row, 'BOTTOMLEFT', 10, 8)
+	versionFS:SetText(parts.version)
+	row._versionFS = versionFS
+
+	local currentVersion = F.version or 'unknown'
+	local isStaleOlder = F.Version and F.Version.IsStaleOlder(wrapper.version or 'unknown', currentVersion)
+	local isStaleNewer = F.Version and F.Version.IsStaleNewer(wrapper.version or 'unknown', currentVersion)
+
+	local indicator
+	if(isStaleOlder or isStaleNewer) then
+		versionFS:SetTextColor(1, 0.3, 0.3, 1)
+		indicator = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+		indicator:SetPoint('LEFT', versionFS, 'RIGHT', 4, 0)
+		indicator:SetText(' [!] ')
+		indicator:SetTextColor(1, 0.3, 0.3, 1)
+
+		local tooltipMsg
+		if(isStaleOlder) then
+			tooltipMsg = 'This snapshot was created with an older version of Framed. It may not restore cleanly.'
+		else
+			tooltipMsg = 'This snapshot was created with a newer version of Framed. Loading it may corrupt your config.'
+		end
+		Widgets.SetTooltip(indicator, 'Version warning', tooltipMsg)
+	end
+
 	local metaFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-	metaFS:SetPoint('BOTTOMLEFT', row, 'BOTTOMLEFT', 10, 8)
-	metaFS:SetText(buildMetadataLine(wrapper))
+	if(indicator) then
+		metaFS:SetPoint('LEFT', indicator, 'RIGHT', 0, 0)
+	else
+		metaFS:SetPoint('LEFT', versionFS, 'RIGHT', 0, 0)
+	end
+	metaFS:SetText(parts.rest)
 	row._metaFS = metaFS
 
 	local BTN_W, BTN_H = 70, 22
@@ -129,6 +164,22 @@ local function createSnapshotRow(parent, width, wrapper, displayName, isAutomati
 	row._btnExport = btnExport
 	row._btnRename = btnRename
 	row._btnDelete = btnDelete
+
+	row.MarkCorrupted = function(self)
+		if(self._corruptedIcon) then return end
+		local icon = Widgets.CreateFontString(self, C.Font.sizeSmall, C.Colors.textSecondary)
+		icon:SetPoint('TOPRIGHT', self, 'TOPRIGHT', -10, -8)
+		icon:SetText('[!]')
+		icon:SetTextColor(1, 0.2, 0.2, 1)
+		Widgets.SetTooltip(
+			icon,
+			'Corrupted snapshot',
+			"This snapshot is corrupted. You can delete it but it can't be loaded or exported.")
+		self._corruptedIcon = icon
+
+		if(self._btnLoad and self._btnLoad.SetEnabled) then self._btnLoad:SetEnabled(false) end
+		if(self._btnExport and self._btnExport.SetEnabled) then self._btnExport:SetEnabled(false) end
+	end
 
 	return row
 end
