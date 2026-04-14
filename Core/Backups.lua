@@ -335,3 +335,59 @@ function B.Rename(oldName, newName)
 	end
 	return true
 end
+
+-- ============================================================
+-- Decode — turn a snapshot's payload string back into a usable table
+-- ============================================================
+
+--- Decode a snapshot's payload into its parsed form.
+--- @param wrapper table a snapshot wrapper
+--- @return table|nil parsedPayload, string|nil err
+function B.DecodeWrapper(wrapper)
+	if(type(wrapper) ~= 'table' or type(wrapper.payload) ~= 'string') then
+		return nil, 'Snapshot has no payload.'
+	end
+
+	if(not F.ImportExport or not F.ImportExport.Import) then
+		return nil, 'ImportExport module not ready'
+	end
+
+	local parsed, err = F.ImportExport.Import(wrapper.payload)
+	if(not parsed) then
+		return nil, err or 'Payload is corrupted.'
+	end
+	return parsed
+end
+
+-- ============================================================
+-- Load — apply a snapshot to live config (captures pre-load auto first)
+-- ============================================================
+
+--- Load a snapshot by name. Captures a pre-load automatic snapshot, then
+--- applies the payload through ImportExport.ApplyImport (same path the
+--- Import card uses), then fires BACKUP_LOADED.
+--- @param name string
+--- @return boolean ok, string|nil err
+function B.Load(name)
+	B.EnsureDefaults()
+
+	local wrapper = FramedSnapshotsDB.snapshots[name]
+	if(not wrapper) then return false, 'Snapshot not found.' end
+
+	local parsed, err = B.DecodeWrapper(wrapper)
+	if(not parsed) then return false, err end
+
+	-- Capture pre-load auto snapshot (rotating, 1-deep)
+	B.CaptureAutomatic(B.AUTO_PRELOAD)
+
+	-- Apply via the shared ImportExport path (replace semantics)
+	if(not F.ImportExport or not F.ImportExport.ApplyImport) then
+		return false, 'ImportExport module not ready'
+	end
+	F.ImportExport.ApplyImport(parsed)
+
+	if(F.EventBus) then
+		F.EventBus:Fire('BACKUP_LOADED', name)
+	end
+	return true
+end
