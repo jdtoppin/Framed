@@ -37,7 +37,6 @@ local accountDefaults = {
 	},
 	minimap = { hide = false },
 	presets = {},       -- populated by Presets/Defaults.lua
-	profiles = {},
 }
 
 local charDefaults = {

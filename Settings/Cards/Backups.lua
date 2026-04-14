@@ -789,7 +789,7 @@ function F.BackupsCards.Export(parent, width, onResize)
 	local scopeLabel = createLabel(inner, 'SCOPE')
 	local scopeDropdown = Widgets.CreateDropdown(inner, innerW)
 	scopeDropdown:SetItems({
-		{ text = 'Full Profile',  value = SCOPE_FULL },
+		{ text = 'Everything',   value = SCOPE_FULL },
 		{ text = 'Single Layout', value = SCOPE_LAYOUT },
 	})
 
@@ -802,6 +802,11 @@ function F.BackupsCards.Export(parent, width, onResize)
 	end
 
 	local exportBtn = Widgets.CreateButton(inner, 'Export', 'accent', 100, BUTTON_H)
+	local hintFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	hintFS:SetWidth(innerW)
+	hintFS:SetWordWrap(true)
+	hintFS:SetJustifyH('LEFT')
+	hintFS:SetText('To save a copy for yourself, use Save Current As… in the Snapshots card above. Export is for sharing with other users.')
 
 	local exportBox = Widgets.CreateEditBox(inner, nil, innerW, EDITBOX_H, 'multiline')
 	exportBox:SetPlaceholder('Export string will appear here.')
@@ -837,6 +842,7 @@ function F.BackupsCards.Export(parent, width, onResize)
 		end
 
 		y = B.PlaceWidget(exportBtn, inner, y, BUTTON_H)
+		y = B.PlaceWidget(hintFS, inner, y, LABEL_H * 2)
 		y = B.PlaceWidget(exportBox, inner, y, EDITBOX_H)
 
 		Widgets.EndCard(card, parent, y)
