@@ -27,27 +27,71 @@ Replace the current Profiles panel with a Backups system that lets users save, r
 
 ### Data model
 
+Snapshots live in their own top-level SavedVariable separate from `FramedDB`. Each snapshot's payload is stored **pre-serialized** as a printable string (the same `LibSerialize`+`LibDeflate`+`EncodeForPrint` pipeline that `ImportExport.Export` uses), not as a live Lua table.
+
 ```lua
-FramedDB.snapshots = {
-  [name] = {
-    version   = 'v0.9.0',     -- addon version at capture time
-    timestamp = 1743523200,    -- UNIX seconds
-    automatic = false,          -- true for login/pre-import/pre-load backups
-    autoKind  = nil,            -- 'login' | 'pre-import' | 'pre-load' for automatic snapshots
-    data = {
-      general  = { ... },
-      minimap  = { ... },
-      presets  = { ... },
-      char     = { ... },
+FramedSnapshotsDB = {
+  schemaVersion = 1,           -- bump when the wrapper envelope changes
+  snapshots = {
+    [name] = {
+      version      = 'v0.9.0',      -- addon version at capture time
+      timestamp    = 1743523200,     -- UNIX seconds
+      automatic    = false,           -- true for login/pre-import/pre-load backups
+      autoKind     = nil,             -- 'login' | 'preimport' | 'preload'
+      layoutCount  = 6,               -- cached for display (avoids decoding on list render)
+      sizeBytes    = 2453,            -- cached serialized size (avoids re-measuring on list render)
+      payload      = '!FRM1!...',     -- serialized string, same format as Export
     },
+    ...
   },
-  ...
 }
 ```
 
-All snapshots live in a single flat table keyed by unique name. Automatic snapshots use reserved names (e.g. `'__auto_login'`, `'__auto_preimport'`, `'__auto_preload'`) that the UI renders specially. The `automatic` flag makes them easy to filter and prevents user-named snapshots from colliding with reserved keys.
+**Why pre-serialized strings instead of live tables:** stored as live tables, every snapshot roughly doubles the in-memory footprint of the full FramedDB *and* doubles the logout-time disk serialization cost (Blizzard writes all SavedVariables by walking them and serializing to disk — more keys, more work). Storing the payload as an already-serialized string collapses both costs: the Lua table representation is a single string, and on logout Blizzard writes a known-length string value instead of recursively serializing a nested table. Saving a snapshot costs ~20ms up front (LibSerialize+LibDeflate run once); loading costs the same ~20ms on demand. Display metadata (layoutCount, sizeBytes) is cached in the wrapper so the snapshot list doesn't need to decode payloads to render.
 
-**Why flat (not `FramedDB.snapshots.user[name]` and `FramedDB.snapshots.auto[...]`):** one lookup, one iteration path, no duplicated helpers for "is this an auto or user snapshot" branches. The `automatic` flag handles the distinction where it matters (UI rendering, size counting, unique-name validation).
+**Why a separate SavedVariable instead of `FramedDB.snapshots`:** snapshots are meaningfully independent from live config. Putting them at the top level means (a) resetting `FramedDB` via `/framed reset all` doesn't nuke the user's backups, (b) the FramedDB disk footprint stays bounded by live config only, and (c) snapshots survive independently of any schema migration work on `FramedDB` itself. Requires adding `FramedSnapshotsDB` to the TOC `## SavedVariables` line.
+
+**Why flat snapshot map keyed by name:** one lookup, one iteration path, no duplicated helpers for "is this an auto or user snapshot" branches. Automatic snapshots use reserved name keys (`__auto_login`, `__auto_preimport`, `__auto_preload`) and the `automatic` flag makes them easy to filter where it matters (UI rendering, size counting, unique-name validation).
+
+### Captured config surface
+
+A snapshot captures the full user-config surface area. The payload (before serialization) is this table:
+
+```lua
+{
+  general = F.DeepCopy(FramedDB.general),
+  minimap = F.DeepCopy(FramedDB.minimap),
+  presets = F.DeepCopy(FramedDB.presets),
+  char    = F.DeepCopy(FramedCharDB),
+}
+```
+
+That covers every top-level key currently defined in `Core/Config.lua` `accountDefaults` (general, minimap, presets — plus the dead `profiles` ghost which is removed in this release) and `charDefaults` (autoSwitch, specOverrides, and the transient `lastPanel` / `lastEditingPreset` / `lastEditingUnitType` UI state).
+
+**Known caveats with loading the captured set as-is:**
+
+- **Transient UI state** (`lastPanel`, `lastEditingPreset`, `lastEditingUnitType`) is captured and restored wholesale. Loading a snapshot pops the user back to whatever panel was open when the snapshot was saved. Minor annoyance, not worth special-casing.
+- **Onboarding flags** (`general.wizardCompleted`, `general.overviewCompleted`) are captured and restored wholesale. Loading an old snapshot with `wizardCompleted = false` re-triggers the onboarding wizard on next load. Acceptable: the user can dismiss it, and special-casing these keys would be magic behavior that's worse than the annoyance.
+- **Click-casting data** lives in `general` (verified during implementation — if any click-casting state is discovered to live elsewhere, the captured set is extended at implementation time without needing a spec revision).
+
+**What's not captured:**
+- `FramedSnapshotsDB` itself — a snapshot does not contain other snapshots. This prevents recursive ballooning and keeps "restore this snapshot" semantically clean.
+- `FramedBackupDB` (legacy — see Migration section below).
+- Addon-side runtime state that isn't persisted to SavedVariables (frame references, animation timers, etc.).
+
+### Relationship to the existing `FramedBackupDB`
+
+Framed already declares a `FramedBackupDB` SavedVariable in `Framed.toc`. It's used for two things:
+
+1. **Automatic logout snapshot** — `Init.lua` writes `FramedBackupDB = F.DeepCopy(FramedDB)` on `PLAYER_LOGOUT` every session.
+2. **Reset safety net** — `/framed reset all` wraps the current config in a `{ db, char, timestamp }` envelope and stores it in `FramedBackupDB` before wiping. `/framed restore` reads from it.
+
+This is a primitive version of exactly what the Backups system provides, and keeping both would be confusing. The new Backups system **replaces `FramedBackupDB` entirely**:
+
+- The logout snapshot path is removed from `Init.lua` — the new `__auto_login` snapshot (captured on load, not on logout) covers the same "what was my config last session" use case, with the benefit that it's visible in the UI and user-interactable.
+- The `/framed reset all` path is rewritten to capture a normal user-named snapshot (`"Before reset (YYYY-MM-DD HH:MM)"`) via the Backups API before wiping `FramedDB`. The user sees it in the Backups panel and can Load it like any other snapshot.
+- The `/framed restore` slash command becomes an alias that loads the most recent reset-backup snapshot if one exists, or surfaces a message telling the user to open the Backups panel.
+- On first load after the update, if `FramedBackupDB` exists and has data, it's migrated into a one-time `"Legacy backup"` user-named snapshot in the new system, then `FramedBackupDB` is nil'd out to release the slot. The TOC line removes `FramedBackupDB` and adds `FramedSnapshotsDB`.
 
 ### Sidebar entry
 
@@ -85,6 +129,14 @@ The Snapshots card is the headline and spans full width. Export and Import are s
 - `[Save Current As...]` — accent button. Clicking reveals an inline text input below the button, not a popup. User types a name, presses Enter or clicks a confirm button to save. Empty name or duplicate name shows inline validation text, doesn't save.
 - `[Import as Snapshot...]` — secondary button. Clicking reveals an inline paste box + name input. Saves the pasted import string as a snapshot without applying it to the live config. The user can then Load it later or compare against current state before committing.
 
+**Empty state:**
+
+When `FramedSnapshotsDB.snapshots` has no user-named snapshots (automatic snapshots, if present, are hidden under the empty-state message until a user snapshot exists), the list area shows:
+
+> You haven't saved any snapshots yet. Click **Save Current As...** to back up your current Framed settings, or **Import as Snapshot...** to load someone else's config into your list without applying it.
+
+Once any user-named snapshot exists, the empty-state message is replaced by the normal list rendering and automatic snapshots become visible at the bottom.
+
 **Snapshot list:**
 
 Each row renders as:
@@ -114,7 +166,7 @@ Automatic snapshots cannot be Renamed (the name is reserved), but they can be Lo
 
 ### Row actions
 
-- **Load** — Confirmation dialog showing snapshot metadata and verification preview (same verification UI as Import card, see below). On confirm, the live config is first captured as the `__auto_preload` automatic snapshot (rotating, 1-deep), then replaced with the snapshot contents. Fires `IMPORT_APPLIED` event so existing refresh code runs.
+- **Load** — Confirmation dialog showing snapshot metadata and verification preview (same verification UI as Import card, see below). On confirm, the live config is first captured as the `__auto_preload` automatic snapshot (rotating, 1-deep), then replaced with the snapshot contents. Fires `IMPORT_APPLIED` event so existing refresh code runs. After Load, a temporary toast appears: `"Snapshot loaded. [Undo]"` — Undo loads the `__auto_preload` snapshot back. The toast fades after 12 seconds; after that, reverting still works manually by loading the `__auto_preload` entry from the snapshot list.
 - **Export** — Routes the snapshot's `data` table through the same `ImportExport.Export` pipeline used by the Export card (serialize → deflate → print-encode) and shows the resulting string in an inline copyable box below the row, or in a small popup if the card width is tight. Lets users share any saved snapshot with someone else without first having to Load it. The existing Export card still handles the "share my current live config" path; this row action handles the "share a config I have saved" path using the same pipeline.
 - **Rename** — Inline rename: the name text becomes an editable field, user types new name, Enter confirms or Escape cancels. Duplicate names show inline validation. Automatic snapshots don't have this button.
 - **Delete** — Inline confirmation toast: "Deleted X. [Undo]" with a 10-second window. Undo restores the snapshot from an in-memory copy held for the toast duration. After 10 seconds the copy is dropped and deletion is permanent.
@@ -132,7 +184,7 @@ When a snapshot's version is **newer** than the installed addon version:
 - The version number is rendered red with a different `[!]` icon style.
 - Load is still allowed but the confirmation dialog leads with: "This snapshot was created with Framed v0.9.0, which is newer than your installed version (v0.5.2). Loading it may corrupt your config. Update the addon first." The Load button is styled as destructive (red) and the dialog's default action is Cancel.
 
-Version comparison parses `vMAJOR.MINOR.PATCH` into a numeric triple and compares lexicographically on the triple (not string comparison on the raw version string, which would break on the v0.9 → v0.10 boundary). Pre-release suffixes are stripped before parsing. A helper lives alongside `F.Version` so the comparison logic has one home.
+Version comparison parses `vMAJOR.MINOR.PATCH` into a numeric triple and compares lexicographically on the triple (not string comparison on the raw version string, which would break on the v0.9 → v0.10 boundary). Pre-release suffixes are stripped before parsing. A helper lives alongside `F.version` (see Version source of truth section) so the comparison logic has one home.
 
 ### Size threshold sidebar indicator
 
@@ -153,6 +205,38 @@ All three render in the muted automatic row style at the bottom of the snapshot 
 **Why rotating and not stacked:** the automatic slots are safety nets, not history. Growing them unbounded just means the list fills up with `Auto 1`, `Auto 2`, `Auto 3` entries the user doesn't remember generating. One of each kind is enough to cover "I want to undo what just happened."
 
 **Why three slots instead of one unified "auto" slot:** the three events are semantically different. "Login state" and "state before I imported a string" and "state before I loaded a snapshot" are distinct kinds of rollback the user may want to choose between. Keeping them separate costs one extra reserved key each.
+
+## Name validation rules
+
+Snapshot names are validated identically for Save Current As, Import as Snapshot, and Rename. The rules:
+
+- **Trim** leading and trailing whitespace before any other check.
+- **Reject empty** (after trim) with inline message: *"Name can't be empty."*
+- **Reject > 64 characters** with inline message: *"Name is too long (max 64 characters)."* Measured in Lua string length (bytes), which is conservative for multi-byte UTF-8 but keeps the check trivial.
+- **Reject the reserved `__auto_` prefix** with inline message: *"Names starting with `__auto_` are reserved for automatic snapshots."* This prevents users from shadowing the automatic slots.
+- **Reject collision with the automatic display labels** (`"Automatic — Session start"`, `"Automatic — Before last import"`, `"Automatic — Before last load"`) with inline message: *"That name is reserved."*
+- **Case-insensitive uniqueness.** `"Main"` and `"MAIN"` collide. Inline message: *"A snapshot with that name already exists."* Stored display name preserves the user's original casing; the uniqueness check compares lowercased forms.
+- **Unicode allowed.** No character-class restriction beyond the trim. Users can name snapshots with emoji or non-Latin characters.
+
+Validation runs on every keystroke in the inline input (debounced 150ms) so the user sees the error before pressing Enter. The confirm button is disabled while the current input is invalid.
+
+## Combat lockdown
+
+Framed's config apply path writes secure frame attributes, which Blizzard blocks during combat. The Backups system handles this at the UI layer:
+
+- **Save Current As…** is allowed in combat. Saving a snapshot only reads live config and writes to `FramedSnapshotsDB` — no secure attribute writes involved.
+- **Import as Snapshot…** is allowed in combat for the same reason. The import is parsed and stored, not applied.
+- **Load** is blocked in combat. Clicking Load while `InCombatLockdown()` is true shows a toast: *"Can't load snapshots in combat."* The confirmation dialog does not open. The user has to wait until combat ends and click Load again.
+- **Import card's Import button** is likewise blocked in combat with the same toast.
+- **Delete / Rename / Export row actions** are allowed in combat — none of them touch live config.
+
+No queue-and-retry after combat: silently applying a config change the moment combat ends is exactly the kind of surprise the Backups system is meant to prevent. If the user wants the snapshot loaded, they click Load again when they're out of combat.
+
+## Version source of truth
+
+Version stamping uses `F.version` (the lowercase `version` field on the `Framed` namespace), which is populated at addon load from `C_AddOns.GetAddOnMetadata('Framed', 'Version')` and printed by the `/framed version` slash command (`Init.lua`). This is the single canonical source — no separate version field in `FramedSnapshotsDB`, no hardcoded string in the Backups module.
+
+When a snapshot is saved, its `version` field is set to `F.version`. When comparing for stale-version handling, the parsed numeric triple of the snapshot's stored version is compared against the parsed numeric triple of `F.version`. The comparison helper lives alongside `F.version` so it has one home and one test surface.
 
 ## Import card
 
@@ -247,7 +331,8 @@ Shown in the Load confirmation dialog when the snapshot's version is newer:
 ## Open questions
 
 - **Sidebar warning icon** — which Abstract Framework icon specifically? Decided during implementation once we see the set and can match style to existing sidebar icons.
-- **Snapshot size calculation** — rough estimate via `strlen(serialized_form)` after `LibSerialize`+`LibDeflate`, or approximate via table key counts without serializing? Serialized size is accurate but costs ~30ms per snapshot on refresh. For a list of a dozen snapshots that's ~400ms on panel open, which is perceptible. Approximation via key count × average bytes-per-key is instant but only ballpark-correct. Decide during implementation — start with serialized size and cache it on the snapshot itself so it only recomputes on save, not on every panel open; fall back to approximation if cache invalidation gets complicated.
+- **Snapshot size calculation** — rough estimate via `strlen(serialized_form)` after `LibSerialize`+`LibDeflate`, or approximate via table key counts without serializing? Serialized size is accurate but costs ~30ms per snapshot on refresh. For a list of a dozen snapshots that's ~400ms on panel open, which is perceptible. Approximation via key count × average bytes-per-key is instant but only ballpark-correct. The pre-serialized storage format already answers most of this — `#payload` is free, cached on save in `sizeBytes`. Remaining question is whether the displayed number should be the serialized size (what we store) or a rough decoded size (what the user might intuit as "how big is my config"). Default: show serialized size, label it plainly.
+- **Expand/collapse primitive** — the verification rows (`[▸]` expandable) and potentially the snapshot row itself need a collapsible-panel affordance. Check `Widgets/` for an existing primitive during implementation; if none exists, the simplest path is a button that toggles a child frame's visibility and reflows the parent card. Not worth designing a generic widget for this single use case unless a second call-site appears.
 
 ## Future work (not in scope for this spec)
 
@@ -255,3 +340,5 @@ Shown in the Load confirmation dialog when the snapshot's version is newer:
 - **Snapshot diff viewer.** Show a side-by-side of two snapshots to compare config values. Useful for "what did I change between these two backups?"
 - **Cloud backup integration.** Out of scope — users who want off-machine backups can still use the Export string.
 - **Import history.** A log of the last N imports with what changed. Useful for support but adds persistent storage that's only read in edge cases.
+- **Snapshot notes field.** A free-form text field per snapshot (e.g., "setup I used for Liberation of Undermine prog"). Nice to have but adds a second input to the Save flow and another column to the list — defer until users ask for it.
+- **Export single layout from a snapshot.** The row Export action exports the whole snapshot. If a user wants to pull just one layout out of a saved snapshot and share it, they currently have to Load the snapshot, use the Export card's Single Layout scope, then Load their previous config back. Adding a "pick a layout" variant to the row Export action solves this cleanly but adds UI complexity; defer until we see demand.
