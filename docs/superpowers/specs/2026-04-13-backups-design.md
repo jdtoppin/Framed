@@ -158,8 +158,8 @@ The Snapshots card is the headline and spans full width. Export and Import are s
 ### Visible elements
 
 **Top action row:**
-- `[Save Current As...]` — accent button. Clicking reveals an inline text input below the button, not a popup. User types a name, presses Enter or clicks a confirm button to save. Empty name or duplicate name shows inline validation text, doesn't save.
-- `[Import as Snapshot...]` — secondary button. Clicking reveals an inline paste box + name input. Saves the pasted import string as a snapshot without applying it to the live config. The user can then Load it later or compare against current state before committing.
+- `[Save Current As...]` — accent button. Clicking reveals an inline text input below the button, not a popup. The input is **pre-filled** with `Snapshot YYYY-MM-DD HH:MM` generated from the local client clock at the moment the button is clicked. The pre-filled text is fully selected on focus so the user can immediately type over it if they want a custom name, or press Enter to accept the default. Empty name or duplicate name shows inline validation text, doesn't save.
+- `[Import as Snapshot...]` — secondary button. Clicking reveals an inline paste box + name input. The name input is **pre-filled** with `Imported YYYY-MM-DD HH:MM` (same local-clock format), selectable-and-overwritable on focus. Saves the pasted import string as a snapshot without applying it to the live config. The user can then Load it later or compare against current state before committing. **Version stamping for import-as-snapshot comes from the import payload's own `version` field, not the current addon version** — otherwise a v0.5.0 import saved inside a v0.9.0 client would be marked as current and the stale check would silently break. If the payload has no version field (malformed or legacy), the stored version is `'unknown'` and the row renders with a neutral `[?]` indicator rather than stale-red.
 
 **Empty state:**
 
@@ -170,6 +170,10 @@ When `FramedSnapshotsDB.snapshots` has no user-named snapshots (automatic snapsh
 Once any user-named snapshot exists, the empty-state message is replaced by the normal list rendering and automatic snapshots become visible at the bottom.
 
 **Snapshot list:**
+
+The list is split into two groups: **user-named snapshots** at the top, **automatic snapshots** at the bottom. Within the user-named group, rows are sorted **most-recent-first** by `timestamp` — backups are temporally oriented, and the most common question ("what did I just save?") is answered by looking at the top of the list. Automatic snapshots are sorted in a fixed canonical order (`__auto_login`, `__auto_preimport`, `__auto_preload`) regardless of timestamp so the user learns where each one lives.
+
+The list lives inside a card-local `Widgets/ScrollFrame.lua` so that long snapshot lists scroll within the Snapshots card itself, not the entire Backups panel. The Export and Import cards below stay pinned in place and are always reachable without scrolling past a tall snapshot list.
 
 Each row renders as:
 
@@ -205,18 +209,39 @@ Automatic snapshots cannot be Renamed (the name is reserved), but they can be Lo
 
 ### Stale version handling
 
-When a snapshot's `version` is older than the currently installed addon version:
+Stale warnings are gated on **MINOR-or-greater version differences**, not any version delta. A PATCH-level bump (v0.9.1 → v0.9.2) is the addon's normal release cadence and almost never changes config schema; flagging every PATCH bump as stale trains users to ignore the warning. A MINOR bump (v0.9 → v0.10) is where schema changes are expected to land, which is where the stale warning earns its keep.
+
+When a snapshot's `version` is older than the currently installed addon version by **MINOR or greater**:
 
 - The version number in the metadata line is rendered **red**.
 - A `[!]` icon appears next to the version number, with a tooltip explaining the snapshot is from an older version and may not restore cleanly.
 - On Load, the confirmation dialog prominently displays the version mismatch warning before the Load button.
 
-When a snapshot's version is **newer** than the installed addon version:
+When a snapshot's version is **newer** than the installed addon version by MINOR or greater:
 
 - The version number is rendered red with a different `[!]` icon style.
 - Load is still allowed but the confirmation dialog leads with: "This snapshot was created with Framed v0.9.0, which is newer than your installed version (v0.5.2). Loading it may corrupt your config. Update the addon first." The Load button is styled as destructive (red) and the dialog's default action is Cancel.
 
-Version comparison parses `vMAJOR.MINOR.PATCH` into a numeric triple and compares lexicographically on the triple (not string comparison on the raw version string, which would break on the v0.9 → v0.10 boundary). Pre-release suffixes are stripped before parsing. A helper lives alongside `F.version` (see Version source of truth section) so the comparison logic has one home.
+When the version difference is only **PATCH-level**, no stale indicator is shown at all — the version number renders in the neutral secondary-text color. The version string is still shown in the metadata line so users who care can still see it.
+
+**Version comparison** parses `vMAJOR.MINOR.PATCH` into a numeric triple. Pre-release suffixes are stripped before parsing. The stale check compares only the MAJOR and MINOR components; PATCH is displayed but not used for the staleness decision. A helper lives alongside `F.version` (see Version source of truth section) so the comparison logic has one home.
+
+**Implication for release cadence:** because the stale warning is gated on MINOR, any schema-breaking change (adding/removing config keys that don't round-trip through `EnsureDefaults`, renaming existing keys, changing value types) needs to land on a MINOR bump, not a PATCH bump. PATCH bumps are reserved for bug fixes and additive changes that `EnsureDefaults` can backfill cleanly. This is a convention to codify in the release workflow, not a runtime check.
+
+### Corrupted payload handling
+
+Snapshots are stored as printable strings in SavedVariables, and SavedVariables files can be truncated or corrupted between sessions (crash during write, disk full, manual edit). The Backups system has to handle a snapshot whose `payload` field fails the decode/decompress/deserialize pipeline without taking down the entire Backups panel.
+
+The cached wrapper metadata (`version`, `timestamp`, `layoutCount`, `sizeBytes`, `automatic`, `autoKind`) is stored alongside `payload` in the wrapper table, so the list can render every row without decoding any payload. Payload decoding happens lazily — only when the user opens Load confirmation, clicks row Export, or triggers verification on the paste box. This means a corrupted payload doesn't prevent the row from rendering; it only blocks the operations that actually need the payload.
+
+When decoding a payload fails:
+
+- **On Load** — the confirmation dialog opens with an error banner in place of the verification preview: *"This snapshot's data is corrupted and can't be loaded. You can still delete it."* The Load button is disabled. Cancel closes the dialog normally.
+- **On row Export** — the inline export area opens with a red error message in place of the copyable text box: *"This snapshot's data is corrupted and can't be exported."* The scope dropdown is hidden.
+- **In the snapshot list row itself** — a small `[!]` icon renders on the row (distinct style from the stale-version indicator, e.g. an error color) with a tooltip: *"This snapshot is corrupted. You can delete it but it can't be loaded or exported."* The icon is rendered only after a failed decode is observed — it doesn't proactively decode every payload on panel open (that would defeat the lazy-decode performance win). The icon state is cached on the row for the panel session so repeated attempts don't re-trigger the expensive decode.
+- **On Rename and Delete** — both are allowed regardless of payload state. Rename only touches the wrapper metadata; Delete doesn't need the payload at all. This lets users clean up corrupted entries without ceremony.
+
+Corruption is deliberately not auto-healed or auto-deleted. Silently removing snapshots a user saved is worse than leaving a broken row visible with a clear error.
 
 ### Size threshold sidebar indicator
 
