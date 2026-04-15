@@ -243,6 +243,7 @@ F.Settings.RegisterPanel({
 
 		local content = scroll:GetContentFrame()
 		local width   = parentW - C.Spacing.normal * 2
+		local innerWidth = width - Widgets.CARD_PADDING * 2
 		local yOffset = -C.Spacing.normal
 
 		-- ── Clique detection ───────────────────────────────────
@@ -265,7 +266,6 @@ F.Settings.RegisterPanel({
 		-- ── Binding list ───────────────────────────────────────
 		local bindCard, bindInner, bindCardY
 		bindCard, bindInner, bindCardY = Widgets.StartCard(content, width, yOffset)
-		local innerWidth = width - Widgets.CARD_PADDING * 2
 
 		-- Column headers
 		local headerY = bindCardY
@@ -600,6 +600,17 @@ F.Settings.RegisterPanel({
 		-- ── Final content height ───────────────────────────────
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
 		scroll:UpdateScrollRange()
+
+		F.EventBus:Register('SETTINGS_RESIZED', function(newW)
+			width      = newW - C.Spacing.normal * 2
+			innerWidth = width - Widgets.CARD_PADDING * 2
+			bindCard:SetWidth(width)
+			rowContainer:SetWidth(innerWidth)
+			for _, row in next, bindingRows do
+				row:SetWidth(innerWidth)
+			end
+			updateLayout()
+		end, 'ClickCastingPanel.resize')
 
 		return scroll
 	end,
