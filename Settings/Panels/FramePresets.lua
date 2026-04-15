@@ -454,15 +454,27 @@ F.Settings.RegisterPanel({
 		end)
 
 		-- Re-layout on settings resize
-		F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
+		local resizeKey = 'FramePresets.resize'
+		local function onSettingsResize(newW, newH)
 			local gridW = newW - C.Spacing.normal * 2
 			grid:SetWidth(gridW)
 			content:SetHeight(grid:GetTotalHeight())
-		end, 'FramePresets.resize')
-
-		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+		end
+		local function onSettingsResizeComplete()
 			grid:RebuildCards()
-		end, 'FramePresets.resizeComplete')
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onSettingsResize, resizeKey)
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', onSettingsResizeComplete, resizeKey .. '.complete')
+
+		scroll:HookScript('OnHide', function()
+			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
+			F.EventBus:Unregister('SETTINGS_RESIZE_COMPLETE', resizeKey .. '.complete')
+		end)
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onSettingsResize, resizeKey)
+			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', onSettingsResizeComplete, resizeKey .. '.complete')
+		end)
 
 		return scroll
 	end,
