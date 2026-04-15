@@ -239,7 +239,7 @@ F.Settings.RegisterPanel({
 		listCard:ClearAllPoints()
 		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
 		listCard._startY = pinnedRowY
-		Widgets.CreateAccentBar(listCard)
+		local listAccentBar = Widgets.CreateAccentBar(listCard)
 
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
 
@@ -573,22 +573,38 @@ F.Settings.RegisterPanel({
 			grid:Layout(offset, viewH)
 			content:SetHeight(grid:GetTotalHeight())
 
-			-- Sticky preview: reparent to scroll viewport when scrolled past
+			-- Sticky row: reparent both preview and list cards to the scroll viewport
 			local shouldStick = offset > previewNaturalY
 			if(shouldStick and not previewSticky) then
 				previewSticky = true
 				previewAccentBar:Hide()
+				listAccentBar:Hide()
+
 				previewCard:SetParent(scroll)
 				previewCard:SetFrameLevel(previewOrigLevel + 50)
 				previewCard:ClearAllPoints()
 				Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, 0)
+
+				local pW = previewCard:GetWidth()
+				listCard:SetParent(scroll)
+				listCard:SetFrameLevel(previewOrigLevel + 50)
+				listCard:ClearAllPoints()
+				Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', pW + CARD_GAP, 0)
 			elseif(not shouldStick and previewSticky) then
 				previewSticky = false
 				previewAccentBar:Show()
+				listAccentBar:Show()
+
 				previewCard:SetParent(content)
 				previewCard:SetFrameLevel(previewOrigLevel)
 				previewCard:ClearAllPoints()
 				Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
+
+				local pW = previewCard:GetWidth()
+				listCard:SetParent(content)
+				listCard:SetFrameLevel(previewOrigLevel)
+				listCard:ClearAllPoints()
+				Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', pW + CARD_GAP, pinnedRowY)
 			end
 		end
 
@@ -607,7 +623,11 @@ F.Settings.RegisterPanel({
 			previewCard:SetWidth(newPreviewW)
 			listCard:SetWidth(newListW)
 			listCard:ClearAllPoints()
-			Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newPreviewW + CARD_GAP, pinnedRowY)
+			if(previewSticky) then
+				Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', newPreviewW + CARD_GAP, 0)
+			else
+				Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newPreviewW + CARD_GAP, pinnedRowY)
+			end
 
 			-- Preview frame max width
 			local preview = F.Settings._auraPreview
