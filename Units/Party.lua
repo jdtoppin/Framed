@@ -7,6 +7,10 @@ local C = F.Constants
 F.Units = F.Units or {}
 F.Units.Party = {}
 
+-- Combat-deferred pet re-anchor flag. Set when AnchorPetFrames is
+-- called during combat lockdown; processed on PLAYER_REGEN_ENABLED.
+local pendingAnchor = false
+
 -- ============================================================
 -- Style
 -- ============================================================
@@ -269,6 +273,12 @@ function F.Units.Party.SpawnPetFrames()
 	F.EventBus:Register('GROUP_ROSTER_UPDATE', function()
 		F.Units.Party.AnchorPetFrames()
 	end, 'Party.PetAnchor')
+
+	F.EventBus:Register('PLAYER_REGEN_ENABLED', function()
+		if(pendingAnchor) then
+			F.Units.Party.AnchorPetFrames()
+		end
+	end, 'Party.PetAnchorCombatQueue')
 end
 
 -- ============================================================
@@ -291,6 +301,14 @@ end
 -- ============================================================
 
 function F.Units.Party.AnchorPetFrames()
+	-- partypet frames are secure unit frames — ClearAllPoints/SetPoint is
+	-- protected in combat. Defer to PLAYER_REGEN_ENABLED if locked down.
+	if(InCombatLockdown()) then
+		pendingAnchor = true
+		return
+	end
+	pendingAnchor = false
+
 	local frames = F.Units.Party.petFrames
 	local header = F.Units.Party.header
 	if(not frames or not header) then return end
