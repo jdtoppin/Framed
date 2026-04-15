@@ -248,27 +248,6 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerUnitTypeDD, 'LEFT', Settings._headerPanelText, 'RIGHT', 4, 0)
 	Settings._headerUnitTypeDD:Hide()
 
-	-- ── Copy-to control (label + dropdown + Copy button) ───────
-	-- Visible only on aura panels that registered a configKey.
-	-- Framework.activateAuraHeaderControls populates the dropdown and
-	-- wires the button per panel. Hidden whenever _headerIndicatorText
-	-- is visible (drill-in state) since both anchor off _headerUnitTypeDD.
-	Settings._headerCopyToLabel = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textNormal)
-	Settings._headerCopyToLabel:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerCopyToLabel, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 12, 0)
-	Settings._headerCopyToLabel:SetText('Copy to')
-	Settings._headerCopyToLabel:Hide()
-
-	Settings._headerCopyToDD = Widgets.CreateInlineDropdown(titleCard)
-	Settings._headerCopyToDD:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerCopyToDD, 'LEFT', Settings._headerCopyToLabel, 'RIGHT', 4, 0)
-	Settings._headerCopyToDD:Hide()
-
-	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy', 'accent', 52, 20)
-	Settings._headerCopyToBtn:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerCopyToBtn, 'LEFT', Settings._headerCopyToDD, 'RIGHT', 6, 0)
-	Settings._headerCopyToBtn:Hide()
-
 	-- ── Drill-in breadcrumb suffix (e.g. "  >  Major Cooldowns") ──
 	-- Shown only while editing a specific indicator inside an aura panel.
 	Settings._headerIndicatorText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
@@ -282,6 +261,29 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerPresetText, 'RIGHT', titleCard, 'RIGHT', -C.Spacing.normal, 0)
 	Settings._headerPresetText:SetText('')
 	Settings._headerPresetText:Hide()
+
+	-- ── Copy-to control (label + dropdown + Copy button) ───────
+	-- Right-aligned stack that sits immediately left of _headerPresetText.
+	-- Visible only on aura panels that registered a configKey.
+	-- Framework.activateAuraHeaderControls populates the dropdown and
+	-- wires the button per panel. Still hidden during the drill-in
+	-- (_headerIndicatorText) state, since Copy-to is a whole-panel
+	-- action that doesn't apply while editing a single indicator.
+	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy', 'accent', 52, 20)
+	Settings._headerCopyToBtn:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToBtn, 'RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)
+	Settings._headerCopyToBtn:Hide()
+
+	Settings._headerCopyToDD = Widgets.CreateDropdown(titleCard, 120)
+	Settings._headerCopyToDD:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToDD, 'RIGHT', Settings._headerCopyToBtn, 'LEFT', -C.Spacing.tight, 0)
+	Settings._headerCopyToDD:Hide()
+
+	Settings._headerCopyToLabel = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textNormal)
+	Settings._headerCopyToLabel:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToLabel, 'RIGHT', Settings._headerCopyToDD, 'LEFT', -C.Spacing.tight, 0)
+	Settings._headerCopyToLabel:SetText('Copy to')
+	Settings._headerCopyToLabel:Hide()
 
 	-- Preview anchor (populated by AuraPreview when an aura panel is active)
 	Settings._headerPreviewAnchor = titleCard
