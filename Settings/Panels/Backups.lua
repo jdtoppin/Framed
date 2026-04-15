@@ -55,27 +55,15 @@ F.Settings.RegisterPanel({
 			C_Timer.After(0, onScroll)
 		end)
 
-		local resizeKey = 'BackupsPanel.resize'
-		local function onSettingsResize(newW, newH)
+		F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
 			local gridW = newW - C.Spacing.normal * 2
 			grid:SetWidth(gridW)
 			content:SetHeight(grid:GetTotalHeight())
-		end
-		local function onSettingsResizeComplete()
+		end, 'BackupsPanel.resize')
+
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 			grid:RebuildCards()
-		end
-
-		F.EventBus:Register('SETTINGS_RESIZED', onSettingsResize, resizeKey)
-		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', onSettingsResizeComplete, resizeKey .. '.complete')
-
-		scroll:HookScript('OnHide', function()
-			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)
-			F.EventBus:Unregister('SETTINGS_RESIZE_COMPLETE', resizeKey .. '.complete')
-		end)
-		scroll:HookScript('OnShow', function()
-			F.EventBus:Register('SETTINGS_RESIZED', onSettingsResize, resizeKey)
-			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', onSettingsResizeComplete, resizeKey .. '.complete')
-		end)
+		end, 'BackupsPanel.resizeComplete')
 
 		local BADGE_THRESHOLD = 250 * 1024
 
