@@ -197,18 +197,20 @@ end
 --- Called by SetActivePanel after the panel's unit type has been
 --- normalized.
 local function activateAuraHeaderControls(info)
-	local dd    = Settings._headerUnitTypeDD
-	local copy  = Settings._headerCopyToBtn
-	local indic = Settings._headerIndicatorText
+	local dd        = Settings._headerUnitTypeDD
+	local copy      = Settings._headerCopyToBtn
+	local indic     = Settings._headerIndicatorText
+	local copyLabel = Settings._headerCopyToLabel
+	local copyDD    = Settings._headerCopyToDD
 	if(not dd or not copy or not indic) then return end
 
 	if(not info or info.subSection ~= 'auras') then
 		if(dd.Close) then dd:Close() end
 		dd:Hide()
-		if(Settings._headerCopyToLabel) then Settings._headerCopyToLabel:Hide() end
-		if(Settings._headerCopyToDD) then
-			if(Settings._headerCopyToDD.Close) then Settings._headerCopyToDD:Close() end
-			Settings._headerCopyToDD:Hide()
+		if(copyLabel) then copyLabel:Hide() end
+		if(copyDD) then
+			if(copyDD.Close) then copyDD:Close() end
+			copyDD:Hide()
 		end
 		copy:Hide()
 		indic:Hide()
@@ -235,8 +237,6 @@ local function activateAuraHeaderControls(info)
 
 	-- Copy-to: visible only when the panel registered a configKey.
 	local configKey = Settings._auraConfigKeys[info.id]
-	local copyLabel = Settings._headerCopyToLabel
-	local copyDD    = Settings._headerCopyToDD
 	if(configKey) then
 		-- Build target list = all unit types EXCEPT the current source.
 		local sourceUnit = Settings.GetEditingUnitType()
@@ -261,18 +261,16 @@ local function activateAuraHeaderControls(info)
 			if(copyLabel) then copyLabel:Show() end
 
 			copy:SetOnClick(function()
-				local target = copyDD and copyDD:GetValue() or nil
+				local target = copyDD:GetValue()
 				if(not target) then return end
 				if(Settings.CopyTo(configKey, target)) then
 					-- Invalidate + refresh so the active panel rebuilds
 					-- against the new config.
 					Settings._panelFrames[info.id] = nil
-					if(Settings.RefreshActivePanel) then
-						Settings.RefreshActivePanel()
-					end
+					Settings.RefreshActivePanel()
 					-- Friendly chat confirmation (mirrors dialog output).
 					local targetLabel = target
-					for _, item in next, Settings._getUnitTypeItems() do
+					for _, item in next, targets do
 						if(item.value == target) then targetLabel = item.text; break end
 					end
 					print('Framed: Copied ' .. (info.label or info.id) .. ' settings to ' .. targetLabel)
