@@ -248,12 +248,24 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerUnitTypeDD, 'LEFT', Settings._headerPanelText, 'RIGHT', 4, 0)
 	Settings._headerUnitTypeDD:Hide()
 
-	-- ── Copy-to button next to the inline dropdown ──────────────
-	-- Visible only on the base aura page; hidden when drilled into
-	-- a specific indicator.
-	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy to...', 'widget', 80, 20)
+	-- ── Copy-to control (label + dropdown + Copy button) ───────
+	-- Visible only on aura panels that registered a configKey.
+	-- Framework.activateAuraHeaderControls populates the dropdown and
+	-- wires the button per panel.
+	Settings._headerCopyToLabel = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textNormal)
+	Settings._headerCopyToLabel:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToLabel, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 12, 0)
+	Settings._headerCopyToLabel:SetText('Copy to')
+	Settings._headerCopyToLabel:Hide()
+
+	Settings._headerCopyToDD = Widgets.CreateInlineDropdown(titleCard)
+	Settings._headerCopyToDD:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToDD, 'LEFT', Settings._headerCopyToLabel, 'RIGHT', 4, 0)
+	Settings._headerCopyToDD:Hide()
+
+	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy', 'accent', 52, 20)
 	Settings._headerCopyToBtn:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerCopyToBtn, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 8, 0)
+	Widgets.SetPoint(Settings._headerCopyToBtn, 'LEFT', Settings._headerCopyToDD, 'RIGHT', 6, 0)
 	Settings._headerCopyToBtn:Hide()
 
 	-- ── Drill-in breadcrumb suffix (e.g. "  >  Major Cooldowns") ──
