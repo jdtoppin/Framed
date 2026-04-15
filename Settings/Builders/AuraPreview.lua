@@ -166,6 +166,16 @@ function AuraPreview.BuildPreviewCard(parent, width)
 	Widgets.SetPoint(showAllCB, 'TOPLEFT', inner, 'TOPLEFT', 0, cy)
 	cy = cy - CHECK_H
 
+	-- Helper blurb explaining the toggle
+	local blurb = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	blurb:SetWidth(width - Widgets.CARD_PADDING * 2)
+	blurb:SetJustifyH('LEFT')
+	blurb:SetWordWrap(true)
+	blurb:SetText('Renders every enabled indicator simultaneously so you can see how they stack on this unit frame. Turn off to preview only the selected indicator.')
+	blurb:ClearAllPoints()
+	Widgets.SetPoint(blurb, 'TOPLEFT', inner, 'TOPLEFT', 0, cy - 2)
+	cy = cy - blurb:GetStringHeight() - C.Spacing.tight
+
 	-- Initial render
 	local panelId = Settings._activePanelId
 	AuraPreview.Render(preview, unitType, panelId, nil)
