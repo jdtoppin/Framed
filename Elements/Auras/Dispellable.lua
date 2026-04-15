@@ -252,7 +252,7 @@ local function Update(self, event, unit, updateInfo)
 		-- Show overlay via highlight curve (secret-safe).
 		-- Ignore the curve's alpha (1.0) — use our own overlayAlpha
 		-- to avoid a bright/washed overlay with ADD blend mode.
-		local overlayAlpha = element.__config and element.__config.highlightAlpha or 0.8
+		local overlayAlpha = element.__config.highlightAlpha
 		local hlColor = C_UnitAuras.GetAuraDispelTypeColor(unit, dispelAuraID, highlightCurve)
 		if(hlColor and element._highlightType) then
 			local cr, cg, cb = hlColor:GetRGB()
@@ -334,11 +334,7 @@ function F.Elements.Dispellable.Setup(self, config)
 	iconFrame:SetFrameLevel(frameLevel)
 	iconFrame:Hide()
 
-	if(anchor) then
-		iconFrame:SetPoint(anchor[1], self, anchor[3], anchor[4], anchor[5])
-	else
-		iconFrame:SetPoint('BOTTOMRIGHT', self, 'BOTTOMRIGHT', -2, 2)
-	end
+	iconFrame:SetPoint(anchor[1], self, anchor[3], anchor[4], anchor[5])
 
 	local icons = {}
 	for _, entry in next, DISPEL_TYPES do
@@ -406,7 +402,7 @@ function F.Elements.Dispellable.Setup(self, config)
 		_overlayFrame          = overlayFrame,
 		_healthWrapper         = healthWrapper,
 		_highlightType         = highlightType,
-		_onlyDispellableByMe   = config.onlyDispellableByMe or false,
+		_onlyDispellableByMe   = config.onlyDispellableByMe,
 		_overlayGradientFull   = gradientFull,
 		_overlayGradientHalf   = gradientHalf,
 		_overlaySolidCurrent   = solidCurrent,
