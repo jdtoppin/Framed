@@ -17,6 +17,21 @@ local TYPE_DISPLAY = {
 	Overlay = 'Color / Duration Overlay',
 }
 
+-- Indicator type dropdown items (used by the inline create form)
+local function getTypeItems()
+	return {
+		{ text = 'Icons',                    value = C.IndicatorType.ICONS },
+		{ text = 'Icon',                     value = C.IndicatorType.ICON },
+		{ text = 'Bars',                     value = C.IndicatorType.BARS },
+		{ text = 'Bar',                      value = C.IndicatorType.BAR },
+		{ text = 'Color / Duration Overlay', value = C.IndicatorType.OVERLAY },
+		{ text = 'Border / Glow',            value = C.IndicatorType.BORDER },
+		{ text = 'Rectangle',                value = C.IndicatorType.RECTANGLE },
+	}
+end
+
+local createDefaultData = F.Settings.Builders.CreateDefaultIndicatorData
+
 -- ============================================================
 -- Config helpers
 -- ============================================================
@@ -185,6 +200,10 @@ F.Settings.RegisterPanel({
 
 		-- ── Pinned row: Preview | Indicator List card ───────────────
 		local CARD_GAP     = C.Spacing.normal
+		local TITLE_ROW_H  = 24
+		local FORM_ROW_H   = BUTTON_H
+		local FORM_PAD_Y   = C.Spacing.tight
+		local FORM_HEIGHT  = FORM_ROW_H + FORM_PAD_Y + BUTTON_H + FORM_PAD_Y
 		local previewCardW = math.floor((width - CARD_GAP) * 0.40)
 		local listCardW    = width - previewCardW - CARD_GAP
 		local pinnedRowY   = yOffset
@@ -199,7 +218,6 @@ F.Settings.RegisterPanel({
 		-- ── Indicator List card ──────────────────────────────────
 		-- List card height matches the preview card height
 		local leftColumnH = previewCardH
-		local listScrollH = leftColumnH - Widgets.CARD_PADDING * 2
 
 		local listCard, listInner, listY = Widgets.StartCard(content, listCardW, pinnedRowY)
 		listCard:ClearAllPoints()
@@ -208,10 +226,77 @@ F.Settings.RegisterPanel({
 		Widgets.CreateAccentBar(listCard)
 
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
-		local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, listScrollH)
+
+		-- ── Title row: "Indicators" label + collapse/expand button ──
+		local titleLabel = Widgets.CreateFontString(listInner, C.Font.sizeNormal, C.Colors.textActive)
+		titleLabel:SetJustifyH('LEFT')
+		titleLabel:ClearAllPoints()
+		Widgets.SetPoint(titleLabel, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
+		titleLabel:SetText('Indicators')
+
+		local addToggleBtn = Widgets.CreateButton(listInner, '+', 'widget', 24, TITLE_ROW_H)
+		addToggleBtn:ClearAllPoints()
+		Widgets.SetPoint(addToggleBtn, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
+
+		listY = listY - TITLE_ROW_H - C.Spacing.tight
+
+		-- ── Collapsible create form (hidden by default) ──
+		local formFrame = CreateFrame('Frame', nil, listInner, 'BackdropTemplate')
+		Widgets.ApplyBackdrop(formFrame, C.Colors.panel, C.Colors.accent)
+		formFrame:SetHeight(FORM_HEIGHT)
+		formFrame:ClearAllPoints()
+		Widgets.SetPoint(formFrame, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
+		Widgets.SetPoint(formFrame, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
+		formFrame:Hide()
+
+		local formInnerW = listCardW - Widgets.CARD_PADDING * 2 - PAD_H * 2
+		local nameBoxW   = math.floor((formInnerW - C.Spacing.normal) * 0.55)
+		local typeDDW    = formInnerW - nameBoxW - C.Spacing.normal
+
+		local nameBox = Widgets.CreateEditBox(formFrame, nil, nameBoxW, FORM_ROW_H)
+		nameBox:SetPlaceholder('Indicator name')
+		nameBox:ClearAllPoints()
+		Widgets.SetPoint(nameBox, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -PAD_H)
+
+		local typeDD = Widgets.CreateDropdown(formFrame, typeDDW)
+		typeDD:SetItems(getTypeItems())
+		typeDD:SetValue(C.IndicatorType.ICONS)
+		typeDD:ClearAllPoints()
+		-- Center the dropdown (DROPDOWN_H = 22) vertically within the row height (FORM_ROW_H = 24)
+		Widgets.SetPoint(typeDD, 'TOPLEFT', nameBox, 'TOPRIGHT', C.Spacing.normal, -math.floor((FORM_ROW_H - DROPDOWN_H) / 2))
+
+		local createBtn = Widgets.CreateButton(formFrame, 'Create', 'accent', 64, BUTTON_H)
+		createBtn:ClearAllPoints()
+		Widgets.SetPoint(createBtn, 'BOTTOMRIGHT', formFrame, 'BOTTOMRIGHT', -PAD_H, PAD_H)
+
+		-- ── Indicator list scroll (height recomputes when form toggles) ──
+		local function computeListScrollH()
+			local usedAbove = TITLE_ROW_H + C.Spacing.tight
+			if(formFrame:IsShown()) then
+				usedAbove = usedAbove + FORM_HEIGHT + C.Spacing.tight
+			end
+			return previewCardH - Widgets.CARD_PADDING * 2 - usedAbove
+		end
+
+		-- Forward-declare so anchorListScroll can close over it
+		local listScroll
+		local listScrollBaseY = listY
+
+		local function anchorListScroll()
+			local y = listScrollBaseY
+			if(formFrame:IsShown()) then
+				y = y - FORM_HEIGHT - C.Spacing.tight
+			end
+			listScroll:ClearAllPoints()
+			Widgets.SetPoint(listScroll, 'TOPLEFT', listInner, 'TOPLEFT', 0, y)
+			listScroll:SetHeight(computeListScrollH())
+			listScroll:UpdateScrollRange()
+		end
+
+		listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, computeListScrollH())
 		listScroll:ClearAllPoints()
 		Widgets.SetPoint(listScroll, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
-		listY = listY - listScrollH
+		listY = listY - computeListScrollH()
 		local listContent = listScroll:GetContentFrame()
 
 		local emptyLabel = Widgets.CreateFontString(listScroll, C.Font.sizeNormal, C.Colors.textSecondary)
@@ -394,10 +479,61 @@ F.Settings.RegisterPanel({
 			end
 
 			listContent:SetHeight(idx * ROW_HEIGHT)
-			local listH = math.min(listScrollH, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+			local listH = math.min(computeListScrollH(), math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
 			listScroll:SetHeight(listH)
 			listScroll:UpdateScrollRange()
 		end
+
+		-- ── Inline create form toggle ────────────────────────────
+		local function resetForm()
+			nameBox:SetText('')
+			typeDD:SetValue(C.IndicatorType.ICONS)
+		end
+
+		local function setFormOpen(open)
+			if(open) then
+				formFrame:Show()
+				addToggleBtn:SetText('×')
+			else
+				formFrame:Hide()
+				addToggleBtn:SetText('+')
+				resetForm()
+			end
+			anchorListScroll()
+		end
+
+		addToggleBtn:SetOnClick(function()
+			setFormOpen(not formFrame:IsShown())
+		end)
+
+		-- ── Create handler ───────────────────────────────────────
+		local function doCreate()
+			local iName = nameBox:GetText()
+			if(not iName or iName == '') then return end
+			local indicators = getIndicators()
+			if(indicators[iName]) then return end
+
+			local data = createDefaultData(typeDD:GetValue(), C.IconDisplay.SPELL_ICON, 'Border')
+			setIndicator(iName, data)
+			layoutList()
+
+			-- Auto-open the new indicator for editing
+			editingName = iName
+			local freshData = getIndicators()[iName]
+			if(freshData) then
+				spawnSettingsCards(iName, freshData)
+			end
+			layoutList()
+
+			-- Collapse the form after successful create
+			setFormOpen(false)
+		end
+
+		createBtn:SetOnClick(doCreate)
+		nameBox:SetOnEnterPressed(doCreate)
+
+		-- ── Initial state ────────────────────────────────────────
+		setFormOpen(false)
 
 		-- ── Initial layout ───────────────────────────────────────
 		layoutList()
@@ -459,6 +595,14 @@ F.Settings.RegisterPanel({
 
 			-- List card inner scroll (content width auto-updates via OnSizeChanged)
 			listScroll:SetWidth(newListInnerW)
+
+			-- Inline create form widgets
+			local newFormInnerW = newListW - Widgets.CARD_PADDING * 2 - PAD_H * 2
+			local newNameBoxW   = math.floor((newFormInnerW - C.Spacing.normal) * 0.55)
+			local newTypeDDW    = newFormInnerW - newNameBoxW - C.Spacing.normal
+			nameBox:SetWidth(newNameBoxW)
+			typeDD:SetWidth(newTypeDDW)
+			-- formFrame auto-adjusts via its TOPRIGHT anchor on listInner
 
 			grid:SetWidth(newWidth)
 			content:SetHeight(grid:GetTotalHeight())
