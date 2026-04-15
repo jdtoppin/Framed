@@ -41,10 +41,10 @@ local function PetStyle(self, unit)
 	self:SetScript('OnEnter', function(frame)
 		if(F.Config:Get('general.tooltipEnabled') == false) then return end
 		if(F.Config:Get('general.tooltipHideInCombat') and InCombatLockdown()) then return end
-		local mode = F.Config:Get('general.tooltipMode') or 'frame'
-		local anchor = F.Config:Get('general.tooltipAnchor') or 'RIGHT'
-		local offX = F.Config:Get('general.tooltipOffsetX') or 0
-		local offY = F.Config:Get('general.tooltipOffsetY') or 0
+		local mode = F.Config:Get('general.tooltipMode')
+		local anchor = F.Config:Get('general.tooltipAnchor')
+		local offX = F.Config:Get('general.tooltipOffsetX')
+		local offY = F.Config:Get('general.tooltipOffsetY')
 		if(mode == 'default') then
 			GameTooltip_SetDefaultAnchor(GameTooltip, frame)
 		elseif(mode == 'cursor') then

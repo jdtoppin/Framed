@@ -16,7 +16,9 @@ local function baseUnitConfig()
 	return {
 		width  = 200,
 		height = 40,
-		showName = true,
+		showName     = true,
+		showPower    = true,
+		showCastBar  = true,
 		position = { x = 0, y = 0, anchor = 'CENTER' },
 		health = {
 			colorMode          = 'class',

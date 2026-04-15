@@ -34,6 +34,8 @@ local accountDefaults = {
 		pinnedPresetCards = {},
 		editModeGridSnap = true,
 		editModeAnimate = false,
+		settingsPos = nil,
+		settingsSize = nil,
 	},
 	minimap = { hide = false },
 	presets = {},       -- populated by Presets/Defaults.lua
