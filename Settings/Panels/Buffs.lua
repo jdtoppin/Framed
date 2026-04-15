@@ -17,6 +17,8 @@ local TYPE_DISPLAY = {
 	Overlay = 'Color / Duration Overlay',
 }
 
+local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
+
 -- Indicator type dropdown items (used by the inline create form)
 local function getTypeItems()
 	return {
@@ -87,20 +89,6 @@ local function createListRow(scrollContent)
 	nameFS:SetWidth(100)
 	row.__nameFS = nameFS
 
-	-- "Editing: name" overlay (RIGHT anchor set after enabledCB is created)
-	local editingWrap = CreateFrame('Frame', nil, row)
-	editingWrap:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
-	editingWrap:SetHeight(ROW_HEIGHT)
-	editingWrap:Hide()
-	row.__editingWrap = editingWrap
-
-	local editingFS = Widgets.CreateFontString(editingWrap, C.Font.sizeNormal, { 0.3, 0.9, 0.3, 1 })
-	editingFS:SetPoint('LEFT', editingWrap, 'LEFT', 0, 0)
-	editingFS:SetPoint('RIGHT', editingWrap, 'RIGHT', 0, 0)
-	editingFS:SetJustifyH('LEFT')
-	editingFS:SetWordWrap(false)
-	row.__editingFS = editingFS
-
 	local typeFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
 	typeFS:SetJustifyH('RIGHT')
 	typeFS:SetWordWrap(false)
@@ -126,7 +114,6 @@ local function createListRow(scrollContent)
 	Widgets.SetPoint(enabledCB, 'RIGHT', deleteBtn, 'LEFT', -C.Spacing.base, 0)
 	typeFS:SetPoint('LEFT', nameFS, 'RIGHT', C.Spacing.tight, 0)
 	typeFS:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
-	editingWrap:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
 
 	-- Row highlight + truncation tooltip
 	row:EnableMouse(true)
@@ -156,6 +143,35 @@ local function createListRow(scrollContent)
 			Widgets.SetBackdropHighlight(row, false)
 			if(Widgets.HideTooltip) then Widgets.HideTooltip() end
 		end)
+	end
+
+	-- Accent left bar (2px) for selected state
+	local selectedBar = row:CreateTexture(nil, 'OVERLAY')
+	selectedBar:SetTexture(F.Media.GetPlainTexture())
+	selectedBar:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
+	selectedBar:SetPoint('TOPLEFT', row, 'TOPLEFT', 0, 0)
+	selectedBar:SetPoint('BOTTOMLEFT', row, 'BOTTOMLEFT', 0, 0)
+	selectedBar:SetWidth(2)
+	selectedBar:Hide()
+	row.__selectedBar = selectedBar
+
+	-- Gradient background for selected state
+	local selectedBg = row:CreateTexture(nil, 'BACKGROUND')
+	selectedBg:SetTexture(GRADIENT_TEXTURE)
+	selectedBg:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 0.35)
+	selectedBg:SetPoint('TOPLEFT', row, 'TOPLEFT', 2, 0)
+	selectedBg:SetPoint('BOTTOMRIGHT', row, 'BOTTOMRIGHT', 0, 0)
+	selectedBg:Hide()
+	row.__selectedBg = selectedBg
+
+	function row:__setSelected(selected)
+		if(selected) then
+			self.__selectedBar:Show()
+			self.__selectedBg:Show()
+		else
+			self.__selectedBar:Hide()
+			self.__selectedBg:Hide()
+		end
 	end
 
 	return row
@@ -308,8 +324,18 @@ F.Settings.RegisterPanel({
 
 		-- ── CardGrid for settings cards ──────────────────────────
 		local gridTopY = yOffset
+
+		-- ── Editing label (above the first settings card) ──
+		local EDITING_LABEL_H = 14   -- matches C.Font.sizeSmall leading
+		local editingLabelFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
+		editingLabelFS:ClearAllPoints()
+		Widgets.SetPoint(editingLabelFS, 'TOPLEFT', content, 'TOPLEFT', 0, gridTopY)
+		editingLabelFS:SetJustifyH('LEFT')
+		editingLabelFS:SetWordWrap(false)
+		editingLabelFS:Hide()
+
 		local grid = Widgets.CreateCardGrid(content, width)
-		grid:SetTopOffset(math.abs(gridTopY))
+		grid:SetTopOffset(math.abs(gridTopY) + EDITING_LABEL_H + C.Spacing.tight)
 
 		-- ── State ────────────────────────────────────────────────
 		local editingName = nil
@@ -352,6 +378,12 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 			scroll:UpdateScrollRange()
 
+			-- Update the Editing label
+			local typeLabel = TYPE_DISPLAY[iData.type] or iData.type or '?'
+			local anchorLabel = (iData.anchor and iData.anchor[1]) or 'TOPLEFT'
+			editingLabelFS:SetText('Editing: ' .. iName .. ' (' .. typeLabel .. ', ' .. anchorLabel .. ')')
+			editingLabelFS:Show()
+
 			-- Update breadcrumb and preview dimming
 			F.Settings.UpdateAuraBreadcrumb('Buffs', iName)
 			F.Settings.UpdateAuraPreviewDimming('buffs', iName)
@@ -364,11 +396,12 @@ F.Settings.RegisterPanel({
 
 			editingName = nil
 
-			-- Reset editing labels
+			editingLabelFS:Hide()
+
+			-- Reset selected-row highlight
 			for _, r in next, listRowPool do
-				if(r.__editingWrap) then
-					r.__editingWrap:Hide()
-					r.__nameFS:Show()
+				if(r.__setSelected) then
+					r:__setSelected(false)
 				end
 			end
 
@@ -412,16 +445,9 @@ F.Settings.RegisterPanel({
 				row:SetPoint('TOPLEFT', listContent, 'TOPLEFT', 0, -(idx - 1) * ROW_HEIGHT)
 				row:SetPoint('TOPRIGHT', listContent, 'TOPRIGHT', 0, -(idx - 1) * ROW_HEIGHT)
 
-				-- Name + editing state
+				-- Name + selected state
 				row.__nameFS:SetText(iName)
-				row.__nameFS:Show()
-				row.__editingWrap:Hide()
-				if(editingName == iName) then
-					row.__nameFS:Hide()
-					row.__editingFS:SetText('Editing: ' .. iName)
-					row.__editingWrap:SetAlpha(1)
-					row.__editingWrap:Show()
-				end
+				row:__setSelected(editingName == iName)
 				row.__typeFS:SetText(TYPE_DISPLAY[iData.type] or iData.type or '?')
 				row.__enabledCB:SetChecked(iData.enabled ~= false)
 
@@ -444,20 +470,16 @@ F.Settings.RegisterPanel({
 
 					editingName = capName
 
-					-- Reset all row editing labels
+					-- Reset all row selections
 					for _, r in next, listRowPool do
-						if(r.__editingWrap) then
-							r.__editingWrap:Hide()
-							r.__nameFS:Show()
+						if(r.__setSelected) then
+							r:__setSelected(false)
 						end
 						if(r.__editBtn) then
 							r.__editBtn:SetText('Edit')
 						end
 					end
-					row.__nameFS:Hide()
-					row.__editingFS:SetText('Editing: ' .. capName)
-					row.__editingWrap:SetAlpha(1)
-					row.__editingWrap:Show()
+					row:__setSelected(true)
 					row.__editBtn:SetText('Close')
 
 					-- Fetch fresh data and spawn cards
