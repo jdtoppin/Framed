@@ -1,5 +1,12 @@
 # Framed Changelog
 
+## v0.8.9-alpha
+
+- Fix party/raid role sorting being silently ignored — the header was writing a nameList but kept `sortMethod='INDEX'`, which falls through Blizzard's sort branches and leaves frames in default order; now uses `sortMethod='NAMELIST'` so role order actually takes effect
+- Fix `attempt to compare a secret number value` error from the cast tracker's recheck-skip optimization — the spellId comparison now guards against secret values returned by `UnitCastingInfo`/`UnitChannelInfo` in combat
+- Fix `ADDON_ACTION_BLOCKED` on `FramedPartyPet1:ClearAllPoints()` when party composition changed mid-combat — pet re-anchor is now deferred until `PLAYER_REGEN_ENABLED` when the secure frames are locked down
+- Internal cleanup: drop hardcoded fallback values in the Dispellable element that duplicated canonical defaults from `Presets/Defaults.lua`
+
 ## v0.8.8-alpha
 
 - The new **Backups** system is now feature-complete — save, rename, load, and delete named snapshots, with inline export/import, version and size metadata, stale-version warnings, last-loaded tracking, and roundtrip verification that reports exactly which keys differ from your current config

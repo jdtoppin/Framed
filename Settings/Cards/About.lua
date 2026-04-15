@@ -114,6 +114,15 @@ end
 -- BEGIN GENERATED CHANGELOG
 local CHANGELOG = {
 	{
+		version = 'v0.8.9-alpha',
+		entries = {
+			'Fix party/raid role sorting being silently ignored — the header was writing a nameList but kept `sortMethod=\'INDEX\'`, which falls through Blizzard\'s sort branches and leaves frames in default order; now uses `sortMethod=\'NAMELIST\'` so role order actually takes effect',
+			'Fix `attempt to compare a secret number value` error from the cast tracker\'s recheck-skip optimization — the spellId comparison now guards against secret values returned by `UnitCastingInfo`/`UnitChannelInfo` in combat',
+			'Fix `ADDON_ACTION_BLOCKED` on `FramedPartyPet1:ClearAllPoints()` when party composition changed mid-combat — pet re-anchor is now deferred until `PLAYER_REGEN_ENABLED` when the secure frames are locked down',
+			'Internal cleanup: drop hardcoded fallback values in the Dispellable element that duplicated canonical defaults from `Presets/Defaults.lua`',
+		},
+	},
+	{
 		version = 'v0.8.8-alpha',
 		entries = {
 			'The new **Backups** system is now feature-complete — save, rename, load, and delete named snapshots, with inline export/import, version and size metadata, stale-version warnings, last-loaded tracking, and roundtrip verification that reports exactly which keys differ from your current config',
@@ -125,21 +134,6 @@ local CHANGELOG = {
 			'Polish inline dropdowns (underline, chevron, accent default) and cascade EditBox width through anchors so nested inputs size correctly',
 			'Fix a race in the Toast dismiss animation that could leave a stale frame visible when a new toast slid in on top of it',
 			'Show the active preset name in accent color in the Settings header',
-		},
-	},
-	{
-		version = 'v0.8.6-alpha',
-		entries = {
-			'Fix import/export failing with "Invalid payload structure" on every valid import — a double-pcall was silently dropping the deserialized payload; also rewrite the error messages in plain language',
-			'Add tooltips on the Import mode switch explaining what Replace and Merge actually do',
-			'Fix **Missing Buffs** indicator running even when disabled in settings',
-			'Fix party/raid role sorting occasionally snapping frames to the wrong position on first group spawn — roster events are now bridged through EventBus and the nameList is rebuilt once group membership is fully populated',
-			'Backfill aura sub-table defaults into existing saved presets — Arena/Boss/Solo/Minimal frames no longer end up missing dispellable, defensive, external, and missing-buff configuration after upgrading',
-			'Guard **Private Auras** and **Targeted Spells** against partial config tables so missing optional sub-tables no longer error during Setup',
-			'Reduce cast-tracker broadcast chatter by skipping redundant updates',
-			'Polish **Framed Overview** illustrations and dim the background while the Overview is open',
-			'Retarget the Setup Wizard card\'s Tour button to the new Overview (old `Onboarding/Tour.lua` removed in v0.8.5-alpha)',
-			'Internal cleanup: drop unused imports, rename shadowing locals, fix luacheck warnings across Elements, Settings, Widgets, and builders',
 		},
 	},
 }
