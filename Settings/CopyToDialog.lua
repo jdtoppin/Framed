@@ -29,6 +29,34 @@ local function deepClone(src)
 	return copy
 end
 
+-- ── Public helper: copy aura config to a single target ──────
+-- Overwrite semantics (same as the dialog's OK handler).
+--   configKey       e.g. 'buffs', 'debuffs', 'externals'
+--   targetUnitType  e.g. 'target', 'focus', 'party', 'raid'
+-- Returns true on success, false if nothing was copied.
+function Settings.CopyTo(configKey, targetUnitType)
+	if(not configKey or not targetUnitType) then return false end
+	if(not F.Config) then return false end
+
+	local sourceUnit = Settings.GetEditingUnitType()
+	if(not sourceUnit or sourceUnit == targetUnitType) then return false end
+
+	local presetName = Settings.GetEditingPreset()
+	if(not presetName) then return false end
+
+	local sourcePath = 'presets.' .. presetName .. '.auras.' .. sourceUnit .. '.' .. configKey
+	local targetPath = 'presets.' .. presetName .. '.auras.' .. targetUnitType .. '.' .. configKey
+
+	local sourceData = F.Config:Get(sourcePath)
+	F.Config:Set(targetPath, deepClone(sourceData))
+
+	if(F.PresetManager) then
+		F.PresetManager.MarkCustomized(presetName)
+	end
+
+	return true
+end
+
 -- ── Build / rebuild dialog contents ─────────────────────────
 
 local function buildDialog(configKey, panelLabel, panelId)
@@ -143,27 +171,29 @@ local function buildDialog(configKey, panelLabel, panelId)
 	-- Disable confirm initially
 	dialog._confirmBtn:Disable()
 
-	-- Build a value→label lookup for friendly print output
-	local labelLookup = {}
-	for _, item in next, items do
-		labelLookup[item.value] = item.text
-	end
-
 	-- Wire confirm action
 	dialog._confirmBtn:SetScript('OnClick', function()
-		local presetName = Settings.GetEditingPreset()
-		local sourcePath = 'presets.' .. presetName .. '.auras.' .. sourceUnit .. '.' .. configKey
-		local sourceData = F.Config:Get(sourcePath)
+		local confirmSourceLabel -- recomputed for the print output
+		local confirmItems = Settings._getUnitTypeItems()
+		local confirmSourceUnit = Settings.GetEditingUnitType()
+		for _, item in next, confirmItems do
+			if(item.value == confirmSourceUnit) then
+				confirmSourceLabel = item.text
+				break
+			end
+		end
+
+		-- Build a value→label lookup for friendly print output
+		local confirmLabelLookup = {}
+		for _, item in next, confirmItems do
+			confirmLabelLookup[item.value] = item.text
+		end
 
 		local copiedTo = {}
 		for targetUnit in next, multiGroup._selected do
-			local targetPath = 'presets.' .. presetName .. '.auras.' .. targetUnit .. '.' .. configKey
-			F.Config:Set(targetPath, deepClone(sourceData))
-			copiedTo[#copiedTo + 1] = labelLookup[targetUnit] or targetUnit
-		end
-
-		if(F.PresetManager) then
-			F.PresetManager.MarkCustomized(presetName)
+			if(Settings.CopyTo(configKey, targetUnit)) then
+				copiedTo[#copiedTo + 1] = confirmLabelLookup[targetUnit] or targetUnit
+			end
 		end
 
 		-- Invalidate cached panel so it rebuilds with new config
@@ -176,7 +206,7 @@ local function buildDialog(configKey, panelLabel, panelId)
 		end
 
 		if(#copiedTo > 0) then
-			print('Framed: Copied ' .. panelLabel .. ' settings from ' .. sourceLabel .. ' to ' .. table.concat(copiedTo, ', '))
+			print('Framed: Copied ' .. panelLabel .. ' settings from ' .. (confirmSourceLabel or confirmSourceUnit) .. ' to ' .. table.concat(copiedTo, ', '))
 		end
 	end)
 
