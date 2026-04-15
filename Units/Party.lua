@@ -224,9 +224,9 @@ function F.Units.Party.Spawn()
 
 	F.Units.Party.header = header
 
-	-- Apply the full sort config (nameList for role mode). Required so the
-	-- initial nameList is populated on login — GroupAttrs alone doesn't know
-	-- about the roster, so the SpawnHeader call above can't set it.
+	-- Apply the full sort config so sortMethod='NAMELIST' + nameList is
+	-- wired up when role mode is active. GroupAttrs alone doesn't know
+	-- about the roster, so the SpawnHeader call above can't set them.
 	F.LiveUpdate.FrameConfigLayout.ApplySortConfig('party')
 
 	-- ── Individual party pet frames ───────────────────────────

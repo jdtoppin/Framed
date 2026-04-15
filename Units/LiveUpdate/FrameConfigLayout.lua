@@ -24,13 +24,17 @@ local Layout = {}
 --- Units/Party.lua spawn paths, and by Layout.ApplySortConfig at
 --- runtime.
 ---
---- Role-mode sorting is implemented via `nameList` (computed in
---- Layout.ComputeRoleNameList), NOT via groupBy. SecureGroupHeader's
---- groupBy='ASSIGNEDROLE' always creates one column per role, which
---- is not what we want — we want a flat sort that flows by the
---- orientation/anchor point and breaks columns only at unitsPerColumn.
---- nameList overrides groupBy/sortMethod and renders units in the
---- exact order we provide.
+--- Role-mode sorting is implemented via a comma-separated `nameList`
+--- attribute combined with `sortMethod='NAMELIST'`. The template
+--- iterates the auto-enumerated roster (driven by showParty/showRaid)
+--- and re-sorts it by each name's position in the nameList — see
+--- SecureGroupHeaders.lua:477-493. nameList is a filter+sort *on top
+--- of* the show* enumeration, NOT a replacement: dropping show*
+--- leaves GetGroupHeaderType with nil kind and yields an empty
+--- header. sortMethod='NAMELIST' is the key — sortMethod='INDEX'
+--- falls through both sort branches and leaves units in default
+--- iteration order regardless of the nameList content.
+---
 --- @param config table  Unit config from F.StyleBuilder.GetConfig
 --- @param unitType string  'raid' or 'party'
 --- @return table  Map of SecureGroupHeader attribute → value
@@ -44,16 +48,16 @@ function Layout.GroupAttrs(config, unitType)
 			unitsPerColumn = 5,
 		}
 	elseif(unitType == 'raid') then
-		-- Raid role mode — flat flow, column breaks only at unitsPerColumn
+		-- Raid role mode — flat flow sorted by nameList
 		return {
-			sortMethod     = 'INDEX',
+			sortMethod     = 'NAMELIST',
 			maxColumns     = 8,
 			unitsPerColumn = 5,
 		}
 	elseif(unitType == 'party' and config.sortMode == 'role') then
-		-- Party role mode — single column sorted by role
+		-- Party role mode — single column sorted by nameList
 		return {
-			sortMethod     = 'INDEX',
+			sortMethod     = 'NAMELIST',
 			maxColumns     = 1,
 			unitsPerColumn = 5,
 		}
@@ -66,20 +70,60 @@ function Layout.GroupAttrs(config, unitType)
 	end
 end
 
---- Compute a comma-separated nameList for the given unit type,
---- ordered by the configured roleOrder. Used only when
---- config.sortMode == 'role'. Returns nil when the roster is empty
---- or unitType doesn't apply (e.g., raid mode while solo).
+--- Resolve a unit token to "Name-Realm" (or just "Name" for same-realm).
+--- Cross-realm suffixes must be preserved so SecureGroupHeader can
+--- disambiguate collisions.
+local function resolveUnitName(unit)
+	if(not UnitExists(unit)) then return nil end
+	local name, realm = UnitName(unit)
+	if(not name) then return nil end
+	return (realm and realm ~= '') and (name .. '-' .. realm) or name
+end
+
+--- Compute a comma-separated nameList for role-mode sorting,
+--- ordered by the configured roleOrder tokens. Used only when
+--- config.sortMode == 'role' — index mode leaves nameList unset so
+--- SecureGroupHeader falls back to default iteration order.
 ---
---- Names with cross-realm suffixes are preserved as "Name-Realm"
---- so SecureGroupHeader can disambiguate collisions.
+--- Returns nil when the roster is empty or nothing resolves. Partial
+--- rosters are allowed — sortMethod='NAMELIST' falls back to default
+--- order for any unit not named in the list, and the re-sort handlers
+--- refresh on GROUP_ROSTER_UPDATE.
 --- @param unitType string  'raid' or 'party'
---- @return string|nil  Comma-separated nameList or nil
-function Layout.ComputeRoleNameList(unitType)
+--- @return string|nil
+function Layout.ComputeNameList(unitType)
 	local config = F.StyleBuilder.GetConfig(unitType)
 	local roleOrder = config.roleOrder
 	if(not roleOrder or roleOrder == '') then return nil end
 
+	-- 1. Gather resolvable units in natural order
+	local entries = {}
+	if(unitType == 'raid') then
+		if(not IsInRaid()) then return nil end
+		for i = 1, GetNumGroupMembers() do
+			local unit = 'raid' .. i
+			local full = resolveUnitName(unit)
+			if(full) then
+				entries[#entries + 1] = { full = full, role = UnitGroupRolesAssigned(unit) }
+			end
+		end
+	else -- party
+		local playerName = resolveUnitName('player')
+		if(playerName) then
+			entries[#entries + 1] = { full = playerName, role = UnitGroupRolesAssigned('player') }
+		end
+		for i = 1, 4 do
+			local unit = 'party' .. i
+			local full = resolveUnitName(unit)
+			if(full) then
+				entries[#entries + 1] = { full = full, role = UnitGroupRolesAssigned(unit) }
+			end
+		end
+	end
+
+	if(#entries == 0) then return nil end
+
+	-- 2. Bucket by roleOrder tokens
 	local tokens = {}
 	for token in roleOrder:gmatch('[^,]+') do
 		tokens[#tokens + 1] = token
@@ -89,29 +133,12 @@ function Layout.ComputeRoleNameList(unitType)
 	for _, token in next, tokens do buckets[token] = {} end
 	local leftovers = {}
 
-	local function addUnit(unit)
-		if(not UnitExists(unit)) then return end
-		local name, realm = UnitName(unit)
-		if(not name) then return end
-		local full = (realm and realm ~= '') and (name .. '-' .. realm) or name
-		local role = UnitGroupRolesAssigned(unit)
-		if(role and buckets[role]) then
-			local b = buckets[role]
-			b[#b + 1] = full
+	for _, entry in next, entries do
+		local bucket = entry.role and buckets[entry.role]
+		if(bucket) then
+			bucket[#bucket + 1] = entry.full
 		else
-			leftovers[#leftovers + 1] = full
-		end
-	end
-
-	if(unitType == 'raid') then
-		if(not IsInRaid()) then return nil end
-		for i = 1, GetNumGroupMembers() do
-			addUnit('raid' .. i)
-		end
-	else -- party
-		addUnit('player')
-		for i = 1, 4 do
-			addUnit('party' .. i)
+			leftovers[#leftovers + 1] = entry.full
 		end
 	end
 
@@ -135,6 +162,11 @@ end
 --- correct layout. All writes go through Shared.applyOrQueue to
 --- respect combat lockdown.
 ---
+--- Role mode: sortMethod='NAMELIST' + a roleOrder-bucketed nameList.
+--- Index mode: sortMethod='INDEX' + nameList cleared, so the template
+--- falls back to default iteration order.
+--- Raid group mode: sortMethod='INDEX' + groupBy='GROUP'.
+---
 --- Party pets are separate oUF spawns anchored to party header
 --- children by unit attribute (see Units/Party.lua AnchorPetFrames).
 --- When the secure header re-sorts, its children have their `unit`
@@ -150,33 +182,13 @@ function Layout.ApplySortConfig(unitType)
 
 	local config = F.StyleBuilder.GetConfig(unitType)
 	local attrs  = Layout.GroupAttrs(config, unitType)
-	local nameList
-	if(config.sortMode == 'role') then
-		nameList = Layout.ComputeRoleNameList(unitType)
-		-- Spawn-time race guard: during initial SpawnHeader (and zone-ins
-		-- like follower dungeons) the roster hasn't populated yet, so
-		-- ComputeRoleNameList only finds the player. Writing that as the
-		-- nameList would lock the header to a single child until reload.
-		-- Skip nameList in this pass and let the bridged GROUP_ROSTER_UPDATE
-		-- handler re-apply once the roster settles — the header will fall
-		-- back to INDEX sort transiently (all members visible, just not in
-		-- role order).
-		if(nameList and IsInGroup()) then
-			local count = 0
-			for _ in nameList:gmatch('[^,]+') do count = count + 1 end
-			if(count < GetNumGroupMembers()) then
-				nameList = nil
-			end
-		end
-	end
 
 	-- SecureGroupHeaderTemplate re-runs its sort pass on every write to a
 	-- sort-related attribute, so every intermediate state must be
-	-- self-consistent. Empty string '' is truthy in Lua, so we clear with
-	-- real nil rather than ''.
+	-- self-consistent. Empty string '' is truthy in Lua, so clear with nil.
 	--
-	-- Clear everything sort-related FIRST, then set. This way no transition
-	-- leaves stale grouping state visible to an intermediate update pass.
+	-- Clear nameList / groupBy FIRST so no transition leaves stale grouping
+	-- state visible to an intermediate update pass.
 	applyOrQueue(header, 'nameList',      nil)
 	applyOrQueue(header, 'groupBy',       nil)
 	applyOrQueue(header, 'groupingOrder', nil)
@@ -185,9 +197,13 @@ function Layout.ApplySortConfig(unitType)
 	applyOrQueue(header, 'maxColumns',     attrs.maxColumns)
 	applyOrQueue(header, 'unitsPerColumn', attrs.unitsPerColumn)
 
-	if(nameList) then
-		-- Role mode — nameList overrides sortMethod/groupBy
-		applyOrQueue(header, 'nameList', nameList)
+	if(config.sortMode == 'role') then
+		-- Role mode — sortMethod='NAMELIST' re-sorts the auto-enumerated
+		-- roster by each name's position in nameList.
+		local nameList = Layout.ComputeNameList(unitType)
+		if(nameList) then
+			applyOrQueue(header, 'nameList', nameList)
+		end
 	elseif(attrs.groupBy) then
 		-- Raid group mode — groupBy with groupingOrder
 		applyOrQueue(header, 'groupingOrder', attrs.groupingOrder)
@@ -389,23 +405,24 @@ end, 'LiveUpdate.FrameConfigLayout')
 -- Roster / role change re-sort
 -- ============================================================
 --
--- Role mode uses a computed nameList, so any change to the roster
--- or to anyone's assigned role requires rebuilding that list and
--- pushing it to the header. Both PLAYER_ROLES_ASSIGNED and
--- GROUP_ROSTER_UPDATE trigger a full ApplySortConfig for any unit
--- type currently in role mode.
+-- Party always runs in custom mode, so any roster change requires a
+-- fresh nameList regardless of sortMode. Raid only needs a resort in
+-- role mode, since group mode is driven by groupBy and the auto-path
+-- enumerates the roster on its own.
 
-local function resortRoleModeFrames()
-	for _, unitType in next, { 'raid', 'party' } do
-		local config = F.StyleBuilder.GetConfig(unitType)
-		if(config.sortMode == 'role') then
-			Layout.ApplySortConfig(unitType)
-		end
+local function resortCustomModeFrames()
+	-- Party: always, since custom mode depends on the current roster
+	Layout.ApplySortConfig('party')
+
+	-- Raid: only in role mode
+	local raidConfig = F.StyleBuilder.GetConfig('raid')
+	if(raidConfig.sortMode == 'role') then
+		Layout.ApplySortConfig('raid')
 	end
 end
 
-F.EventBus:Register('PLAYER_ROLES_ASSIGNED', resortRoleModeFrames, 'LiveUpdate.RoleResort')
-F.EventBus:Register('GROUP_ROSTER_UPDATE',   resortRoleModeFrames, 'LiveUpdate.RosterResort')
+F.EventBus:Register('PLAYER_ROLES_ASSIGNED', resortCustomModeFrames, 'LiveUpdate.RoleResort')
+F.EventBus:Register('GROUP_ROSTER_UPDATE',   resortCustomModeFrames, 'LiveUpdate.RosterResort')
 
 -- ============================================================
 -- Export
