@@ -17,17 +17,6 @@ local TYPE_DISPLAY = {
 	Overlay = 'Color / Duration Overlay',
 }
 
--- Type descriptions for the Create card
-local TYPE_DESCRIPTIONS = {
-	Icon      = 'Single spell icon or colored square',
-	Icons     = 'Row/grid of spell icons or colored squares',
-	Bar       = 'Single depleting status bar',
-	Bars      = 'Row/grid of depleting status bars',
-	Rectangle = 'Colored rectangle positioned on frame',
-	Overlay   = 'Color fill, depleting overlay, or both',
-	Border    = 'Colored border or glow effect around the frame',
-}
-
 -- ============================================================
 -- Config helpers
 -- ============================================================
@@ -67,21 +56,6 @@ local function makeConfigHelpers(unitType)
 	end
 
 	return getIndicators, setIndicator, removeIndicator
-end
-
--- ============================================================
--- Indicator type dropdown items
--- ============================================================
-local function getTypeItems()
-	return {
-		{ text = 'Icons',     value = C.IndicatorType.ICONS },
-		{ text = 'Icon',      value = C.IndicatorType.ICON },
-		{ text = 'Bars',      value = C.IndicatorType.BARS },
-		{ text = 'Bar',       value = C.IndicatorType.BAR },
-		{ text = 'Color / Duration Overlay', value = C.IndicatorType.OVERLAY },
-		{ text = 'Border / Glow', value = C.IndicatorType.BORDER },
-		{ text = 'Rectangle', value = C.IndicatorType.RECTANGLE },
-	}
 end
 
 -- ============================================================
@@ -183,8 +157,6 @@ local function resolveBuilder(builderOrString)
 	return builderOrString
 end
 
-local createDefaultData = F.Settings.Builders.CreateDefaultIndicatorData
-
 -- ============================================================
 -- Panel Registration
 -- ============================================================
@@ -211,141 +183,27 @@ F.Settings.RegisterPanel({
 		-- ── Unit type dropdown + copy-to ─────────────────────────
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'buffs', 'buffs')
 
-		-- ── Pinned row: Preview + Create card + Indicator List card ─
-		local CARD_GAP    = C.Spacing.normal
-		local createCardW = math.floor((width - CARD_GAP) * 0.40)
-		local listCardW   = width - createCardW - CARD_GAP
-		local pinnedRowY  = yOffset
+		-- ── Pinned row: Preview | Indicator List card ───────────────
+		local CARD_GAP     = C.Spacing.normal
+		local previewCardW = math.floor((width - CARD_GAP) * 0.40)
+		local listCardW    = width - previewCardW - CARD_GAP
+		local pinnedRowY   = yOffset
 
-		-- ── Preview card (above create card, same column) ────────
-		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, createCardW)
+		-- ── Preview card ─────────────────────────────────────────
+		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, previewCardW)
 		previewCard:ClearAllPoints()
 		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
 		local previewAccentBar = Widgets.CreateAccentBar(previewCard)
 		local previewCardH = previewCard:GetHeight()
-		local createStartY = pinnedRowY - previewCardH - CARD_GAP
-
-		-- ── Create card ──────────────────────────────────────────
-		local selectedType = C.IndicatorType.ICONS
-		local selectedDisplayType = C.IconDisplay.SPELL_ICON
-		local selectedBorderGlowMode = 'Border'
-
-		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, createStartY)
-		Widgets.CreateAccentBar(createCard)
-
-		-- Type dropdown
-		local typeDD = Widgets.CreateDropdown(createInner, createCardW - Widgets.CARD_PADDING * 2)
-		typeDD:SetItems(getTypeItems())
-		typeDD:SetValue(C.IndicatorType.ICONS)
-		typeDD:ClearAllPoints()
-		Widgets.SetPoint(typeDD, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		createY = createY - DROPDOWN_H - C.Spacing.tight
-
-		-- Type description
-		local typeDescFS = Widgets.CreateFontString(createInner, C.Font.sizeSmall, C.Colors.textSecondary)
-		typeDescFS:ClearAllPoints()
-		Widgets.SetPoint(typeDescFS, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		typeDescFS:SetJustifyH('LEFT')
-		typeDescFS:SetWidth(createCardW - Widgets.CARD_PADDING * 2)
-		typeDescFS:SetWordWrap(true)
-		typeDescFS:SetText(TYPE_DESCRIPTIONS[selectedType] or '')
-		createY = createY - 14 - C.Spacing.tight
-
-		-- Display type toggle (Icon/Icons only)
-		local function isIconType(t)
-			return t == C.IndicatorType.ICON or t == C.IndicatorType.ICONS
-		end
-
-		local initialInnerW = createCardW - Widgets.CARD_PADDING * 2
-		local initialHalfW  = math.floor((initialInnerW - C.Spacing.tight) / 2)
-
-		local displayTypeRow = CreateFrame('Frame', nil, createInner)
-		displayTypeRow:SetSize(initialInnerW, BUTTON_H)
-		displayTypeRow:ClearAllPoints()
-		Widgets.SetPoint(displayTypeRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-
-		local spellIconsBtn = Widgets.CreateButton(displayTypeRow, 'Spell Icons', 'accent', initialHalfW, BUTTON_H)
-		spellIconsBtn:SetPoint('TOPLEFT', displayTypeRow, 'TOPLEFT', 0, 0)
-		spellIconsBtn.value = C.IconDisplay.SPELL_ICON
-
-		local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Squares', 'widget', initialInnerW - initialHalfW - C.Spacing.tight, BUTTON_H)
-		squareColorsBtn:SetPoint('LEFT', spellIconsBtn, 'RIGHT', C.Spacing.tight, 0)
-		squareColorsBtn.value = C.IconDisplay.COLORED_SQUARE
-
-		local displayTypeGroup = Widgets.CreateButtonGroup({ spellIconsBtn, squareColorsBtn }, function(value)
-			selectedDisplayType = value
-		end)
-		displayTypeGroup:SetValue(C.IconDisplay.SPELL_ICON)
-
-		-- Border/Glow toggle (Border type only)
-		local borderGlowRow = CreateFrame('Frame', nil, createInner)
-		borderGlowRow:SetSize(initialInnerW, BUTTON_H)
-		borderGlowRow:ClearAllPoints()
-		Widgets.SetPoint(borderGlowRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-
-		local borderModeBtn = Widgets.CreateButton(borderGlowRow, 'Border', 'accent', initialHalfW, BUTTON_H)
-		borderModeBtn:SetPoint('TOPLEFT', borderGlowRow, 'TOPLEFT', 0, 0)
-		borderModeBtn.value = 'Border'
-
-		local glowModeBtn = Widgets.CreateButton(borderGlowRow, 'Glow', 'widget', initialInnerW - initialHalfW - C.Spacing.tight, BUTTON_H)
-		glowModeBtn:SetPoint('LEFT', borderModeBtn, 'RIGHT', C.Spacing.tight, 0)
-		glowModeBtn.value = 'Glow'
-
-		local borderGlowGroup = Widgets.CreateButtonGroup({ borderModeBtn, glowModeBtn }, function(value)
-			selectedBorderGlowMode = value
-		end)
-		borderGlowGroup:SetValue('Border')
-
-		if(isIconType(selectedType)) then
-			displayTypeRow:Show()
-			borderGlowRow:Hide()
-			createY = createY - BUTTON_H - C.Spacing.tight
-		elseif(selectedType == C.IndicatorType.BORDER) then
-			displayTypeRow:Hide()
-			borderGlowRow:Show()
-			createY = createY - BUTTON_H - C.Spacing.tight
-		else
-			displayTypeRow:Hide()
-			borderGlowRow:Hide()
-		end
-
-		typeDD:SetOnSelect(function(value)
-			typeDescFS:SetText(TYPE_DESCRIPTIONS[value] or '')
-			if(isIconType(value)) then
-				displayTypeRow:Show()
-			else
-				displayTypeRow:Hide()
-			end
-			if(value == C.IndicatorType.BORDER) then
-				borderGlowRow:Show()
-			else
-				borderGlowRow:Hide()
-			end
-		end)
-
-		-- Name input
-		local nameBox = Widgets.CreateEditBox(createInner, nil, createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
-		nameBox:ClearAllPoints()
-		Widgets.SetPoint(nameBox, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		nameBox:SetPlaceholder('Indicator name')
-		createY = createY - BUTTON_H - C.Spacing.tight
-
-		-- Create button
-		local createBtn = Widgets.CreateButton(createInner, 'Create', 'accent', createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
-		createBtn:ClearAllPoints()
-		Widgets.SetPoint(createBtn, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		createY = createY - BUTTON_H
-
-		Widgets.EndCard(createCard, content, createY)
 
 		-- ── Indicator List card ──────────────────────────────────
-		-- Match list card height to the combined preview + create column
-		local leftColumnH = previewCardH + CARD_GAP + createCard:GetHeight()
+		-- List card height matches the preview card height
+		local leftColumnH = previewCardH
 		local listScrollH = leftColumnH - Widgets.CARD_PADDING * 2
 
 		local listCard, listInner, listY = Widgets.StartCard(content, listCardW, pinnedRowY)
 		listCard:ClearAllPoints()
-		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', createCardW + CARD_GAP, pinnedRowY)
+		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
 		listCard._startY = pinnedRowY
 		Widgets.CreateAccentBar(listCard)
 
@@ -541,31 +399,6 @@ F.Settings.RegisterPanel({
 			listScroll:UpdateScrollRange()
 		end
 
-		-- ── Create handler ───────────────────────────────────────
-		local function doCreate()
-			local iName = nameBox:GetText()
-			if(not iName or iName == '') then return end
-			local indicators = getIndicators()
-			if(indicators[iName]) then return end
-
-			local data = createDefaultData(typeDD:GetValue(), selectedDisplayType, selectedBorderGlowMode)
-			setIndicator(iName, data)
-			nameBox:SetText('')
-			layoutList()
-
-			-- Auto-open for editing
-			editingName = iName
-			local freshData = getIndicators()[iName]
-			if(freshData) then
-				spawnSettingsCards(iName, freshData)
-			end
-			-- Update list to reflect editing state
-			layoutList()
-		end
-
-		createBtn:SetOnClick(doCreate)
-		nameBox:SetOnEnterPressed(doCreate)
-
 		-- ── Initial layout ───────────────────────────────────────
 		layoutList()
 		content:SetHeight(math.abs(gridTopY) + C.Spacing.normal)
@@ -608,38 +441,20 @@ F.Settings.RegisterPanel({
 		-- ── Resize handling ──────────────────────────────────────
 		local resizeKey = 'Buffs.resize.' .. unitType
 		local function onResize(newW, newH)
-			local newWidth = newW - C.Spacing.normal * 2
-			local newCreateW = math.floor((newWidth - CARD_GAP) * 0.40)
-			local newListW   = newWidth - newCreateW - CARD_GAP
-			local newCreateInnerW = newCreateW - Widgets.CARD_PADDING * 2
-			local newListInnerW   = newListW - Widgets.CARD_PADDING * 2
+			local newWidth    = newW - C.Spacing.normal * 2
+			local newPreviewW = math.floor((newWidth - CARD_GAP) * 0.40)
+			local newListW    = newWidth - newPreviewW - CARD_GAP
+			local newListInnerW = newListW - Widgets.CARD_PADDING * 2
 
-			-- Wrapper card frames
-			previewCard:SetWidth(newCreateW)
-			createCard:SetWidth(newCreateW)
+			previewCard:SetWidth(newPreviewW)
 			listCard:SetWidth(newListW)
 			listCard:ClearAllPoints()
-			Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newCreateW + CARD_GAP, pinnedRowY)
-
-			-- Create card inner widgets
-			typeDD:SetWidth(newCreateInnerW)
-			typeDescFS:SetWidth(newCreateInnerW)
-			displayTypeRow:SetWidth(newCreateInnerW)
-			borderGlowRow:SetWidth(newCreateInnerW)
-			nameBox:SetWidth(newCreateInnerW)
-			createBtn:SetWidth(newCreateInnerW)
-
-			-- Display type toggle buttons (fill row proportionally)
-			local halfBtnW = math.floor((newCreateInnerW - C.Spacing.tight) / 2)
-			spellIconsBtn:SetWidth(halfBtnW)
-			squareColorsBtn:SetWidth(newCreateInnerW - halfBtnW - C.Spacing.tight)
-			borderModeBtn:SetWidth(halfBtnW)
-			glowModeBtn:SetWidth(newCreateInnerW - halfBtnW - C.Spacing.tight)
+			Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newPreviewW + CARD_GAP, pinnedRowY)
 
 			-- Preview frame max width
 			local preview = F.Settings._auraPreview
 			if(preview) then
-				preview._maxWidth = newCreateW - Widgets.CARD_PADDING * 2
+				preview._maxWidth = newPreviewW - Widgets.CARD_PADDING * 2
 			end
 
 			-- List card inner scroll (content width auto-updates via OnSizeChanged)
