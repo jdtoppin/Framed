@@ -19,6 +19,25 @@ local ROLE_TEXCOORDS = {
 	NONE    = { 0.75, 1, 0, 1 },
 }
 
+-- Per-style overrides for TGAs that don't follow the canonical
+-- Tank | Healer | DPS | None quadrant order.
+local STYLE_TEXCOORD_OVERRIDES = {
+	[3] = {
+		TANK    = { 0, 0.25, 0, 1 },
+		DAMAGER = { 0.25, 0.5, 0, 1 },
+		HEALER  = { 0.5, 0.75, 0, 1 },
+		NONE    = { 0.75, 1, 0, 1 },
+	},
+}
+
+local function getTexCoord(style, role)
+	local override = STYLE_TEXCOORD_OVERRIDES[style]
+	if(override and override[role]) then
+		return override[role]
+	end
+	return ROLE_TEXCOORDS[role]
+end
+
 local ICON_PATH = [[Interface\AddOns\Framed\Media\Icons\]]
 
 --- Build the texture path for a given style number.
@@ -51,7 +70,7 @@ local function Override(self, event)
 	if(role == 'TANK' or role == 'HEALER' or role == 'DAMAGER') then
 		local style = getConfiguredStyle()
 		element:SetTexture(getRoleTexturePath(style))
-		local tc = ROLE_TEXCOORDS[role]
+		local tc = getTexCoord(style, role)
 		element:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
 		element:Show()
 	else
@@ -107,6 +126,13 @@ F.Elements.RoleIcon.GetTexturePath = getRoleTexturePath
 
 --- Tex coords for each role (for preview).
 F.Elements.RoleIcon.TEXCOORDS = ROLE_TEXCOORDS
+
+--- Get the tex coord for a specific style+role combination,
+--- honoring any per-style overrides.
+--- @param style number
+--- @param role string  'TANK' | 'HEALER' | 'DAMAGER' | 'NONE'
+--- @return table
+F.Elements.RoleIcon.GetTexCoord = getTexCoord
 
 -- ============================================================
 -- Live update on style change
