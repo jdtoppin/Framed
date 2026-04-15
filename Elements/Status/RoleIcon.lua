@@ -107,3 +107,22 @@ F.Elements.RoleIcon.GetTexturePath = getRoleTexturePath
 
 --- Tex coords for each role (for preview).
 F.Elements.RoleIcon.TEXCOORDS = ROLE_TEXCOORDS
+
+-- ============================================================
+-- Live update on style change
+-- Override() re-reads the config on every update, so we just
+-- need to kick oUF into re-running it on every frame that owns
+-- a GroupRoleIndicator.
+-- ============================================================
+
+F.EventBus:Register('CONFIG_CHANGED', function(path)
+	if(path ~= 'general.roleIconStyle') then return end
+	local oUF = F.oUF
+	if(not oUF or not oUF.objects) then return end
+	for _, frame in next, oUF.objects do
+		local element = frame.GroupRoleIndicator
+		if(element and element.ForceUpdate) then
+			element:ForceUpdate()
+		end
+	end
+end, 'RoleIcon.StyleLiveUpdate')

@@ -229,14 +229,6 @@ function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfi
 		roleStyleDD:SetOnSelect(function(value)
 			F.Config:Set('general.roleIconStyle', value)
 			updateButtonIcons(value)
-			if(oUF and oUF.objects) then
-				for _, frame in next, oUF.objects do
-					local element = frame.GroupRoleIndicator
-					if(element and element.ForceUpdate) then
-						element:ForceUpdate()
-					end
-				end
-			end
 		end)
 
 		roleSection.extras = {
