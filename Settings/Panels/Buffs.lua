@@ -17,8 +17,6 @@ local TYPE_DISPLAY = {
 	Overlay = 'Color / Duration Overlay',
 }
 
-local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
-
 -- Indicator type dropdown items (used by the inline create form)
 local function getTypeItems()
 	return {
@@ -155,10 +153,10 @@ local function createListRow(scrollContent)
 	selectedBar:Hide()
 	row.__selectedBar = selectedBar
 
-	-- Gradient background for selected state
+	-- Solid lighter tint across the whole row for selected state
 	local selectedBg = row:CreateTexture(nil, 'BACKGROUND')
-	selectedBg:SetTexture(GRADIENT_TEXTURE)
-	selectedBg:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 0.35)
+	selectedBg:SetTexture(F.Media.GetPlainTexture())
+	selectedBg:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 0.15)
 	selectedBg:SetPoint('TOPLEFT', row, 'TOPLEFT', 2, 0)
 	selectedBg:SetPoint('BOTTOMRIGHT', row, 'BOTTOMRIGHT', 0, 0)
 	selectedBg:Hide()
@@ -559,6 +557,20 @@ F.Settings.RegisterPanel({
 
 		-- ── Initial layout ───────────────────────────────────────
 		layoutList()
+
+		-- Auto-select the first enabled indicator so the cards area isn't blank
+		if(indicatorCount > 0) then
+			local indicators = getIndicators()
+			for iName, iData in next, indicators do
+				if(iData.enabled ~= false) then
+					editingName = iName
+					spawnSettingsCards(iName, iData)
+					layoutList()
+					break
+				end
+			end
+		end
+
 		content:SetHeight(math.abs(gridTopY) + C.Spacing.normal)
 		scroll:UpdateScrollRange()
 
