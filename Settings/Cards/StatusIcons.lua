@@ -155,7 +155,6 @@ function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfi
 
 		-- Role style dropdown with icon previews
 		local RoleIcon = F.Elements.RoleIcon
-		local oUF = F.oUF
 		local ICON_SIZE = 14
 		local ICON_GAP = 2
 		local TC = RoleIcon.TEXCOORDS
