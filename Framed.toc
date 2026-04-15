@@ -30,7 +30,6 @@ Core/Version.lua
 Core/ColorUtils.lua
 Media/Media.lua
 Core/SecretValues.lua
-Core/DispelCapability.lua
 Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
