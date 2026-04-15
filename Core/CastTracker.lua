@@ -142,7 +142,12 @@ CheckUnitCast = function(sourceUnit, isRecheck)
 			or previousTarget ~= targetUnit
 			or previousStart  ~= entry.startTime
 			or previousEnd    ~= entry.endTime
-			or previousSpell  ~= entry.spellId
+		-- spellId may be secret — only diff it when both sides are safe. If
+		-- either is secret, skip the check and leave `changed` as-is so the
+		-- recheck optimization still holds when target/timing are stable.
+		if(not changed and F.IsValueNonSecret(previousSpell) and F.IsValueNonSecret(entry.spellId)) then
+			changed = (previousSpell ~= entry.spellId)
+		end
 		if(changed) then
 			BroadcastUpdate()
 		end
