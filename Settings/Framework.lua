@@ -205,6 +205,11 @@ local function activateAuraHeaderControls(info)
 	if(not info or info.subSection ~= 'auras') then
 		if(dd.Close) then dd:Close() end
 		dd:Hide()
+		if(Settings._headerCopyToLabel) then Settings._headerCopyToLabel:Hide() end
+		if(Settings._headerCopyToDD) then
+			if(Settings._headerCopyToDD.Close) then Settings._headerCopyToDD:Close() end
+			Settings._headerCopyToDD:Hide()
+		end
 		copy:Hide()
 		indic:Hide()
 		indic:SetText('')
@@ -230,18 +235,58 @@ local function activateAuraHeaderControls(info)
 
 	-- Copy-to: visible only when the panel registered a configKey.
 	local configKey = Settings._auraConfigKeys[info.id]
+	local copyLabel = Settings._headerCopyToLabel
+	local copyDD    = Settings._headerCopyToDD
 	if(configKey) then
-		copy:SetOnClick(function()
-			Settings.ShowCopyToDialog(configKey, info.label or info.id, info.id)
-		end)
-		-- Disable when there's only one unit type to choose from.
-		if(#Settings._getUnitTypeItems() <= 1) then
-			copy:Disable()
-		else
-			copy:Enable()
+		-- Build target list = all unit types EXCEPT the current source.
+		local sourceUnit = Settings.GetEditingUnitType()
+		local targets = {}
+		for _, item in next, Settings._getUnitTypeItems() do
+			if(item.value ~= sourceUnit) then
+				targets[#targets + 1] = { text = item.text, value = item.value }
+			end
 		end
-		copy:Show()
+
+		if(#targets == 0) then
+			-- Only one unit type exists — nothing to copy to.
+			if(copyLabel) then copyLabel:Hide() end
+			if(copyDD) then copyDD:Hide() end
+			copy:Hide()
+		else
+			if(copyDD) then
+				copyDD:SetItems(targets)
+				copyDD:SetValue(targets[1].value)
+				copyDD:Show()
+			end
+			if(copyLabel) then copyLabel:Show() end
+
+			copy:SetOnClick(function()
+				local target = copyDD and copyDD:GetValue() or nil
+				if(not target) then return end
+				if(Settings.CopyTo(configKey, target)) then
+					-- Invalidate + refresh so the active panel rebuilds
+					-- against the new config.
+					Settings._panelFrames[info.id] = nil
+					if(Settings.RefreshActivePanel) then
+						Settings.RefreshActivePanel()
+					end
+					-- Friendly chat confirmation (mirrors dialog output).
+					local targetLabel = target
+					for _, item in next, Settings._getUnitTypeItems() do
+						if(item.value == target) then targetLabel = item.text; break end
+					end
+					print('Framed: Copied ' .. (info.label or info.id) .. ' settings to ' .. targetLabel)
+				end
+			end)
+			copy:Enable()
+			copy:Show()
+		end
 	else
+		if(copyLabel) then copyLabel:Hide() end
+		if(copyDD) then
+			if(copyDD.Close) then copyDD:Close() end
+			copyDD:Hide()
+		end
 		copy:Hide()
 	end
 
@@ -468,10 +513,17 @@ function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 
 	local indic = Settings._headerIndicatorText
 	local copy  = Settings._headerCopyToBtn
+	local copyLabel = Settings._headerCopyToLabel
+	local copyDD    = Settings._headerCopyToDD
 	if(indicatorName) then
 		if(indic) then
 			indic:SetText('|cff6688cc>|r  ' .. indicatorName)
 			indic:Show()
+		end
+		if(copyLabel) then copyLabel:Hide() end
+		if(copyDD) then
+			if(copyDD.Close) then copyDD:Close() end
+			copyDD:Hide()
 		end
 		if(copy) then copy:Hide() end
 	else
@@ -480,10 +532,12 @@ function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 			indic:Hide()
 		end
 		-- Restore Copy-to only if this panel has a configKey registered.
-		if(copy) then
-			local activeId = Settings._activePanelId
-			local configKey = activeId and Settings._auraConfigKeys[activeId]
-			if(configKey) then copy:Show() end
+		local activeId = Settings._activePanelId
+		local configKey = activeId and Settings._auraConfigKeys[activeId]
+		if(configKey) then
+			if(copyLabel) then copyLabel:Show() end
+			if(copyDD) then copyDD:Show() end
+			if(copy) then copy:Show() end
 		end
 	end
 end

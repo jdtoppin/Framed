@@ -251,7 +251,8 @@ function Settings.CreateMainFrame()
 	-- ── Copy-to control (label + dropdown + Copy button) ───────
 	-- Visible only on aura panels that registered a configKey.
 	-- Framework.activateAuraHeaderControls populates the dropdown and
-	-- wires the button per panel.
+	-- wires the button per panel. Hidden whenever _headerIndicatorText
+	-- is visible (drill-in state) since both anchor off _headerUnitTypeDD.
 	Settings._headerCopyToLabel = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textNormal)
 	Settings._headerCopyToLabel:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerCopyToLabel, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 12, 0)
