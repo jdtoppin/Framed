@@ -10,7 +10,8 @@ local C = F.Constants
 
 local ROW_H        = 28
 local BUTTON_H     = 22
-local EDITBOX_H    = 22
+local EDITBOX_H    = 20
+local PAD_H        = 6
 
 -- Binding field widths
 local CAPTURE_W   = 130
@@ -272,19 +273,19 @@ F.Settings.RegisterPanel({
 		local hdrBind = Widgets.CreateFontString(bindInner, C.Font.sizeSmall, C.Colors.textSecondary)
 		hdrBind:SetJustifyH('LEFT')
 		hdrBind:ClearAllPoints()
-		Widgets.SetPoint(hdrBind, 'TOPLEFT', bindInner, 'TOPLEFT', 0, headerY)
+		Widgets.SetPoint(hdrBind, 'TOPLEFT', bindInner, 'TOPLEFT', PAD_H, headerY)
 		hdrBind:SetText('Binding')
 
 		local hdrType = Widgets.CreateFontString(bindInner, C.Font.sizeSmall, C.Colors.textSecondary)
 		hdrType:SetJustifyH('LEFT')
 		hdrType:ClearAllPoints()
-		Widgets.SetPoint(hdrType, 'TOPLEFT', bindInner, 'TOPLEFT', CAPTURE_W + C.Spacing.base, headerY)
+		Widgets.SetPoint(hdrType, 'TOPLEFT', bindInner, 'TOPLEFT', PAD_H + CAPTURE_W + C.Spacing.base, headerY)
 		hdrType:SetText('Type')
 
 		local hdrValue = Widgets.CreateFontString(bindInner, C.Font.sizeSmall, C.Colors.textSecondary)
 		hdrValue:SetJustifyH('LEFT')
 		hdrValue:ClearAllPoints()
-		Widgets.SetPoint(hdrValue, 'TOPLEFT', bindInner, 'TOPLEFT', CAPTURE_W + TYPE_DD_W + C.Spacing.base * 2, headerY)
+		Widgets.SetPoint(hdrValue, 'TOPLEFT', bindInner, 'TOPLEFT', PAD_H + CAPTURE_W + TYPE_DD_W + C.Spacing.base * 2, headerY)
 		hdrValue:SetText('Value')
 
 		bindCardY = bindCardY - C.Font.sizeSmall - C.Spacing.base
@@ -312,6 +313,7 @@ F.Settings.RegisterPanel({
 					modifier = row._modifier,
 					type     = bindType,
 					isKey    = row._isKey or nil,
+					enabled  = row._enabled == false and false or nil,
 				}
 				if(VALUE_TYPES[bindType]) then
 					local val = row._valueDD:GetValue()
@@ -397,11 +399,12 @@ F.Settings.RegisterPanel({
 			end)
 		end
 
-		local function addBindingRow(btnVal, modVal, typeVal, valText, isKey)
+		local function addBindingRow(btnVal, modVal, typeVal, valText, isKey, enabledVal)
 			local idx = #bindingRows + 1
 			local rowY = -(idx - 1) * (ROW_H + C.Spacing.base)
 
-			local row = CreateFrame('Frame', nil, rowContainer)
+			local row = CreateFrame('Frame', nil, rowContainer, 'BackdropTemplate')
+			Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.border)
 			row:ClearAllPoints()
 			Widgets.SetPoint(row, 'TOPLEFT', rowContainer, 'TOPLEFT', 0, rowY)
 			row:SetSize(innerWidth, ROW_H)
@@ -410,11 +413,12 @@ F.Settings.RegisterPanel({
 			row._button   = btnVal or 'LeftButton'
 			row._modifier = modVal or ''
 			row._isKey    = isKey or false
+			row._enabled  = enabledVal ~= false
 
 			-- ── Capture button ────────────────────────────────
 			local captureBtn = Widgets.CreateButton(row, '', 'widget', CAPTURE_W, EDITBOX_H)
 			captureBtn:ClearAllPoints()
-			Widgets.SetPoint(captureBtn, 'LEFT', row, 'LEFT', 0, 0)
+			Widgets.SetPoint(captureBtn, 'LEFT', row, 'LEFT', PAD_H, 0)
 			captureBtn._displayText = FormatBindText(row._modifier, row._button)
 			captureBtn._label:SetText(captureBtn._displayText)
 			captureBtn._capturing = false
@@ -454,7 +458,7 @@ F.Settings.RegisterPanel({
 			-- Remove button (created first so value dropdown can anchor to it)
 			local remBtn = Widgets.CreateIconButton(row, F.Media.GetIcon('Close'), REM_BTN_W)
 			remBtn:ClearAllPoints()
-			Widgets.SetPoint(remBtn, 'RIGHT', row, 'RIGHT', 0, 0)
+			Widgets.SetPoint(remBtn, 'RIGHT', row, 'RIGHT', -PAD_H, 0)
 			local capturedRow = row
 			remBtn:SetOnClick(function()
 				local bindText = FormatBindText(capturedRow._modifier, capturedRow._button)
@@ -465,11 +469,22 @@ F.Settings.RegisterPanel({
 				)
 			end)
 
-			-- Value dropdown (spell or macro list) — stretches to fill between type and delete
+			-- Enabled checkbox (disable without deleting)
+			local enabledCB = Widgets.CreateCheckButton(row, '', function(checked)
+				row._enabled = checked
+				saveAllBindings()
+			end)
+			enabledCB:SetWidgetTooltip('Enable / Disable')
+			enabledCB:SetChecked(row._enabled)
+			enabledCB:ClearAllPoints()
+			Widgets.SetPoint(enabledCB, 'RIGHT', remBtn, 'LEFT', -C.Spacing.base, 0)
+			row._enabledCB = enabledCB
+
+			-- Value dropdown (spell or macro list) — stretches to fill between type and enabled
 			local valueDD = Widgets.CreateDropdown(row, VALUE_DD_W)
 			valueDD:ClearAllPoints()
 			Widgets.SetPoint(valueDD, 'LEFT', typeDD, 'RIGHT', C.Spacing.base, 0)
-			Widgets.SetPoint(valueDD, 'RIGHT', remBtn, 'LEFT', -C.Spacing.base, 0)
+			Widgets.SetPoint(valueDD, 'RIGHT', enabledCB, 'LEFT', -C.Spacing.base, 0)
 			valueDD:SetOnSelect(saveAllBindings)
 			row._valueDD = valueDD
 
@@ -545,6 +560,23 @@ F.Settings.RegisterPanel({
 				saveAllBindings()
 			end)
 
+			-- Row hover highlight (matches Buffs/Debuffs table theme)
+			row:EnableMouse(true)
+			row:SetScript('OnEnter', function(self)
+				Widgets.SetBackdropHighlight(self, true)
+			end)
+			row:SetScript('OnLeave', function(self)
+				if(self:IsMouseOver()) then return end
+				Widgets.SetBackdropHighlight(self, false)
+			end)
+			for _, child in next, { captureBtn, typeDD, valueDD, enabledCB, remBtn } do
+				child:HookScript('OnEnter', function() Widgets.SetBackdropHighlight(row, true) end)
+				child:HookScript('OnLeave', function()
+					if(row:IsMouseOver()) then return end
+					Widgets.SetBackdropHighlight(row, false)
+				end)
+			end
+
 			bindingRows[idx] = row
 
 			-- Expand container
@@ -573,11 +605,11 @@ F.Settings.RegisterPanel({
 		local savedBindings = getBindings()
 		if(#savedBindings > 0) then
 			for _, b in next, savedBindings do
-				addBindingRow(b.button, b.modifier, b.type, b.spell or b.macro or '', b.isKey)
+				addBindingRow(b.button, b.modifier, b.type, b.spell or b.macro or '', b.isKey, b.enabled)
 			end
 		else
 			-- Start with one empty row
-			addBindingRow('LeftButton', '', 'spell', '')
+			addBindingRow('LeftButton', '', 'spell', '', false, true)
 		end
 
 		-- ── Add Binding button ─────────────────────────────────
@@ -588,7 +620,7 @@ F.Settings.RegisterPanel({
 		addBtn:ClearAllPoints()
 		Widgets.SetPoint(addBtn, 'TOPLEFT', bindInner, 'TOPLEFT', 0, addBtnY)
 		addBtn:SetOnClick(function()
-			addBindingRow('LeftButton', '', 'spell', '')
+			addBindingRow('LeftButton', '', 'spell', '', false, true)
 			saveAllBindings()
 			updateLayout()
 		end)
