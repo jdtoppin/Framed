@@ -141,8 +141,7 @@ F.Elements.RoleIcon.GetTexCoord = getTexCoord
 -- a GroupRoleIndicator.
 -- ============================================================
 
-F.EventBus:Register('CONFIG_CHANGED', function(path)
-	if(path ~= 'general.roleIconStyle') then return end
+local function forceUpdateAll()
 	local oUF = F.oUF
 	if(not oUF or not oUF.objects) then return end
 	for _, frame in next, oUF.objects do
@@ -151,4 +150,21 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			element:ForceUpdate()
 		end
 	end
+end
+
+F.EventBus:Register('CONFIG_CHANGED', function(path)
+	if(path ~= 'general.roleIconStyle') then return end
+	forceUpdateAll()
 end, 'RoleIcon.StyleLiveUpdate')
+
+-- ============================================================
+-- Live update on spec change
+-- oUF's GroupRoleIndicator only subscribes to PLAYER_ROLES_ASSIGNED
+-- (LFG system) and GROUP_ROSTER_UPDATE (join/leave), neither of which
+-- fires when a player respecs mid-dungeon. UnitGroupRolesAssigned
+-- returns the new role immediately, so we just force a re-query.
+-- ============================================================
+
+local specWatcher = CreateFrame('Frame')
+specWatcher:RegisterEvent('PLAYER_SPECIALIZATION_CHANGED')
+specWatcher:SetScript('OnEvent', forceUpdateAll)
