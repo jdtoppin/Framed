@@ -363,6 +363,44 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	title:SetText('Preview — ' .. (unitType:sub(1, 1):upper() .. unitType:sub(2)))
 	cy = cy - C.Font.sizeMedium - 8
 
+	if(unitType == 'raid') then
+		local count = F.Config:Get('settings.raidPreviewCount')
+
+		local countText = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSubtle)
+		countText:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeMedium / 2)
+		countText:SetText('units: ' .. count)
+
+		local decBtn = CreateFrame('Button', nil, inner)
+		decBtn:SetSize(16, 16)
+		decBtn:SetPoint('RIGHT', countText, 'LEFT', -4, 0)
+		decBtn:SetNormalFontObject(GameFontNormalSmall)
+		decBtn:SetText('▼')
+		decBtn:SetScript('OnClick', function()
+			local cur = F.Config:Get('settings.raidPreviewCount')
+			if(cur > 1) then
+				F.Config:Set('settings.raidPreviewCount', cur - 1)
+				countText:SetText('units: ' .. (cur - 1))
+				FP.RebuildPreview()
+			end
+		end)
+
+		local incBtn = CreateFrame('Button', nil, inner)
+		incBtn:SetSize(16, 16)
+		incBtn:SetPoint('LEFT', countText, 'RIGHT', 4, 0)
+		incBtn:SetNormalFontObject(GameFontNormalSmall)
+		incBtn:SetText('▲')
+		incBtn:SetScript('OnClick', function()
+			local cur = F.Config:Get('settings.raidPreviewCount')
+			if(cur < 40) then
+				F.Config:Set('settings.raidPreviewCount', cur + 1)
+				countText:SetText('units: ' .. (cur + 1))
+				FP.RebuildPreview()
+			end
+		end)
+
+		card._countText = countText
+	end
+
 	-- Preview viewport (horizontal scroll for overflow)
 	local viewport = CreateFrame('ScrollFrame', nil, inner)
 	local viewContent = CreateFrame('Frame', nil, viewport)
@@ -384,6 +422,10 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		viewH = 60
 	elseif(SOLO_FAKES[unitType]) then
 		viewH = config.height + 20
+	elseif(unitType == 'raid') then
+		local count = F.Config:Get('settings.raidPreviewCount')
+		local rows = math.min(count, config.unitsPerColumn)
+		viewH = rows * config.height + (rows - 1) * config.spacing + 20
 	elseif(GROUP_COUNTS[unitType]) then
 		local count = GROUP_COUNTS[unitType]
 		local rows = math.min(count, config.unitsPerColumn)
@@ -398,6 +440,9 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	activeUnitType = unitType
 	if(SOLO_FAKES[unitType]) then
 		RenderSoloPreview(viewContent, unitType)
+	elseif(unitType == 'raid') then
+		local count = F.Config:Get('settings.raidPreviewCount')
+		RenderGroupPreview(viewContent, unitType, count)
 	elseif(GROUP_COUNTS[unitType]) then
 		local count = GROUP_COUNTS[unitType]
 		RenderGroupPreview(viewContent, unitType, count)
