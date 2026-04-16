@@ -2,13 +2,14 @@ local addonName, Framed = ...
 local F = Framed
 local Widgets = F.Widgets
 local B = F.FrameSettingsBuilder
+local C = F.Constants
 
 F.SettingsCards = F.SettingsCards or {}
 
 
 local GROUP_TYPES = { party = true, raid = true, arena = true }
 
-function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize)
+function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize, pinnedMode)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 	local isGroup = GROUP_TYPES[unitType] or false
@@ -170,6 +171,35 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 	nudgeRight:SetOnClick(function() nudge(1, 0) end)
 
 	cardY = B.PlaceWidget(nudgeFrame, inner, cardY, 50)
+
+	if(pinnedMode) then
+		local greyGroup = { anchorPicker, posXSlider, posYSlider, nudgeFrame }
+		for _, widget in next, greyGroup do
+			widget:SetAlpha(0.35)
+			widget:EnableMouse(false)
+		end
+	end
+
+	if(pinnedMode) then
+		local editModeLink = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSubtle)
+		editModeLink:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
+		editModeLink:SetText('Edit Mode →')
+		cardY = cardY - C.Font.sizeSmall - 4
+
+		local clickFrame = CreateFrame('Button', nil, inner)
+		clickFrame:SetAllPoints(editModeLink)
+		clickFrame:SetScript('OnClick', function()
+			if(F.EditMode and F.EditMode.Toggle) then
+				F.EditMode.Toggle()
+			end
+		end)
+		clickFrame:SetScript('OnEnter', function(self)
+			editModeLink:SetTextColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
+		end)
+		clickFrame:SetScript('OnLeave', function(self)
+			editModeLink:SetTextColor(C.Colors.textSubtle[1], C.Colors.textSubtle[2], C.Colors.textSubtle[3], 1)
+		end)
+	end
 
 	-- ── Live sync from resize handles ────────────────────────
 	local evtTag = 'PositionAndLayout.' .. unitType
