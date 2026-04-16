@@ -214,7 +214,7 @@ F.Settings.RegisterPanel({
 
 		-- ── Pinned row: Preview | Indicator List card ───────────────
 		local CARD_GAP       = C.Spacing.normal
-		local TITLE_ROW_H    = 24
+		local TITLE_ROW_H    = 18
 		local FORM_ROW_H     = BUTTON_H
 		local FORM_HEIGHT    = FORM_ROW_H + PAD_H * 2
 		local previewCardW = math.floor((width - CARD_GAP) * 0.40)
