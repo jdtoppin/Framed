@@ -271,13 +271,35 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 		end
 
-		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
-		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+		local function rebuildPinnedRow()
+			local oldOverview = overviewCard
+			overviewCard = buildOverviewCard(scroll, currentOverviewW)
+			overviewCard:SetFrameLevel(previewOrigLevel + 50)
+			overviewCard:ClearAllPoints()
+			Widgets.SetPoint(overviewCard, 'TOPLEFT', scroll, 'TOPLEFT', currentPreviewW + CARD_GAP, pinnedRowY)
+
+			pinnedRowH = math.max(previewCard:GetHeight(), overviewCard:GetHeight())
+			previewCard:SetHeight(pinnedRowH)
+			overviewCard:SetHeight(pinnedRowH)
+			scrim:SetHeight(math.abs(pinnedRowY) + pinnedRowH + C.Spacing.normal)
+			grid:SetTopOffset(math.abs(pinnedRowY) + pinnedRowH + C.Spacing.normal)
+
+			oldOverview:Hide()
+			oldOverview:SetParent(nil)
+		end
+
+		local function fullRebuild()
+			rebuildPinnedRow()
 			grid:RebuildCards()
+			content:SetHeight(grid:GetTotalHeight())
+			scroll:UpdateScrollRange()
 			if(F.Settings._auraPreview) then
 				F.Settings.AuraPreview.Rebuild()
 			end
-		end, resizeKey .. '.complete')
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', fullRebuild, resizeKey .. '.complete')
 
 		-- ── Cleanup on hide, re-register on show ─────────────────
 		scroll:HookScript('OnHide', function()
@@ -288,19 +310,10 @@ F.Settings.RegisterPanel({
 
 		scroll:HookScript('OnShow', function()
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
-			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
-				grid:RebuildCards()
-				if(F.Settings._auraPreview) then
-					F.Settings.AuraPreview.Rebuild()
-				end
-			end, resizeKey .. '.complete')
+			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', fullRebuild, resizeKey .. '.complete')
 			local curW = parent._explicitWidth  or parent:GetWidth()  or parentW
-			local curH = parent._explicitHeight or parent:GetHeight() or parentH
-			onResize(curW, curH)
-			grid:RebuildCards()
-			if(F.Settings._auraPreview) then
-				F.Settings.AuraPreview.Rebuild()
-			end
+			onResize(curW)
+			fullRebuild()
 		end)
 
 		scroll._ownedPreview = F.Settings._auraPreview
