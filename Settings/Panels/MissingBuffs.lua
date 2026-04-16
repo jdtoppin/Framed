@@ -29,6 +29,9 @@ local function makeHelpers(unitType)
 		if(key ~= 'enabled' and F.EventBus) then
 			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs')
 		end
+		if(key == 'enabled' and F.Settings.AuraPreview) then
+			F.Settings.AuraPreview.Rebuild()
+		end
 		F.Settings.UpdateAuraPreviewDimming('missingBuffs', nil)
 	end
 

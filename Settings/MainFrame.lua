@@ -337,6 +337,10 @@ function Settings.CreateMainFrame()
 				F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
 			end
 		end
+		-- Restore preview ref cleared by OnHide (SetActivePanel only runs on panel switch)
+		if(Settings._activePanelFrame and Settings._activePanelFrame._ownedPreview) then
+			Settings._auraPreview = Settings._activePanelFrame._ownedPreview
+		end
 	end)
 
 	frame:HookScript('OnHide', function()

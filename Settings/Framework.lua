@@ -433,12 +433,19 @@ function Settings.SetActivePanel(panelId)
 			Settings._activePanelFrame:ScrollToTop()
 		end
 
-		-- Restore this panel's owned preview (if it has one) and re-render
+		-- Restore this panel's owned preview (if it has one) and re-render.
+		-- OnShow (triggered by Show above) may have rebuilt the preview via
+		-- RebuildCards → BuildPreviewCard, which sets _auraPreview to the
+		-- new frame.  In that case, sync _ownedPreview forward rather than
+		-- overwriting the fresh reference with the stale one.
 		if(Settings._activePanelFrame._ownedPreview) then
-			Settings._auraPreview = Settings._activePanelFrame._ownedPreview
+			if(Settings._auraPreview) then
+				Settings._activePanelFrame._ownedPreview = Settings._auraPreview
+			else
+				Settings._auraPreview = Settings._activePanelFrame._ownedPreview
+			end
 			Settings._activePreviewGroup = panelId
 			if(F.Settings.AuraPreview) then
-				-- Use the preview's stored unit type (matches "Configure for")
 				local unitType = Settings._auraPreview._unitType
 					or (Settings.GetEditingUnitType and Settings.GetEditingUnitType())
 					or 'player'
