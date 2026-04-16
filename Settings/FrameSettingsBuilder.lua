@@ -137,7 +137,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		local oldScroll   = scroll._scrollFrame:GetVerticalScroll()
 
 		grid:AnimatedReflow()
-		content:SetHeight(grid:GetTotalHeight())
+		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
 		scroll:UpdateScrollRange()
 
 		local growth = content:GetHeight() - oldContentH
@@ -156,17 +156,11 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		previewCard:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
 	end
 
-	-- DEBUG: raw test frame at top of content (bypasses all preview code)
-	local dbgTest = CreateFrame('Frame', nil, content)
-	dbgTest:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
-	dbgTest:SetSize(200, 30)
-	dbgTest:SetFrameLevel(content:GetFrameLevel() + 50)
-	local dbgTex = dbgTest:CreateTexture(nil, 'OVERLAY')
-	dbgTex:SetAllPoints(dbgTest)
-	dbgTex:SetColorTexture(1, 0, 0, 0.8)
-	print('|cffff0000[DEBUG]|r test frame at content TOPLEFT, content shown=' .. tostring(content:IsShown()) .. ' parent shown=' .. tostring(content:GetParent():IsShown()))
-
 	local pinnedH = previewCard and previewCard:GetHeight() or 0
+
+	-- Move grid container below the preview card so it doesn't cover it
+	grid._container:ClearAllPoints()
+	grid._container:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, -(pinnedH + C.Spacing.normal))
 
 	-- Register cards in display order
 	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig, relayout })
@@ -211,9 +205,8 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ── Initial layout ─────────────────────────────────────────
-	grid:SetTopOffset(pinnedH + C.Spacing.normal)
 	grid:Layout(0, parentH)
-	content:SetHeight(grid:GetTotalHeight())
+	content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
 
 	-- ── Focus mode click targets (after initial layout so cards are built) ──
 	if(previewCard) then
@@ -243,7 +236,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end)
 	scroll:HookScript('OnShow', function()
 		grid:Layout(0, parentH, false)
-		content:SetHeight(grid:GetTotalHeight())
+		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
 	end)
 
 	-- ── Lazy loading on scroll ─────────────────────────────────
@@ -251,7 +244,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		local offset = scroll._scrollFrame:GetVerticalScroll()
 		local viewH  = scroll._scrollFrame:GetHeight()
 		grid:Layout(offset, viewH)
-		content:SetHeight(grid:GetTotalHeight())
+		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
 	end
 
 	scroll._scrollFrame:HookScript('OnMouseWheel', function()
@@ -262,7 +255,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
 		local gridW = newW - C.Spacing.normal * 2
 		grid:SetWidth(gridW)
-		content:SetHeight(grid:GetTotalHeight())
+		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
 	end, 'FrameSettingsBuilder.resize.' .. unitType)
 
 	F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()

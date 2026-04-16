@@ -320,24 +320,13 @@ end
 -- ============================================================
 
 local function RenderSoloPreview(viewport, unitType)
-	print('|cff00ccff[Preview]|r RenderSolo start:', unitType)
 	local config = getUnitConfig(unitType)
-	if(not config) then print('|cffff0000[Preview]|r config is nil!') return end
-	print('|cff00ccff[Preview]|r config OK, w=' .. config.width .. ' h=' .. config.height)
-	print('|cff00ccff[Preview]|r elementStrata:', config.elementStrata and 'exists' or 'NIL')
-	print('|cff00ccff[Preview]|r viewport size:', viewport:GetWidth(), viewport:GetHeight())
+	if(not config) then return end
 
 	local fakeFn = SOLO_FAKES[unitType]
 	local fakeUnit = fakeFn and fakeFn() or { name = 'Unit', class = 'WARRIOR', healthPct = 0.85, powerPct = 0.7 }
 
-	local ok, frame = pcall(function()
-		return AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil)
-	end)
-	if(not ok) then
-		print('|cffff0000[Preview]|r Create ERROR:', frame)
-		return
-	end
-	print('|cff00ccff[Preview]|r frame created, shown=' .. tostring(frame:IsShown()))
+	local frame = AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil)
 	frame._fakeUnit = fakeUnit
 	if(frame._config) then
 		F.PreviewFrame.UpdateFromConfig(frame, config, nil)
@@ -345,7 +334,6 @@ local function RenderSoloPreview(viewport, unitType)
 
 	frame:ClearAllPoints()
 	frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', 0, 0)
-	print('|cff00ccff[Preview]|r frame placed, size:', frame:GetWidth(), frame:GetHeight())
 
 	previewFrames[1] = frame
 end
@@ -560,10 +548,7 @@ end
 -- ============================================================
 
 function FP.BuildPreviewCard(parent, width, unitType)
-	print('|cff00ccff[Preview]|r BuildPreviewCard:', unitType, 'width=' .. width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
-	card:SetFrameLevel(parent:GetFrameLevel() + 10)
-	print('|cff00ccff[Preview]|r card level=' .. card:GetFrameLevel() .. ' parent level=' .. parent:GetFrameLevel() .. ' shown=' .. tostring(card:IsShown()) .. ' alpha=' .. card:GetAlpha())
 	Widgets.CreateAccentBar(card, 'top')
 
 	-- Header row
@@ -647,20 +632,6 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	viewport:SetPoint('RIGHT', inner, 'RIGHT', 0, 0)
 	viewContent:SetWidth(width)
 
-	-- DEBUG: bright markers to trace visibility
-	local dbgCard = card:CreateTexture(nil, 'OVERLAY')
-	dbgCard:SetPoint('TOPLEFT', card, 'TOPLEFT', 0, 0)
-	dbgCard:SetSize(4, 4)
-	dbgCard:SetColorTexture(1, 0, 0, 1) -- red dot = card corner
-
-	local dbgVP = viewport:CreateTexture(nil, 'OVERLAY')
-	dbgVP:SetAllPoints(viewport)
-	dbgVP:SetColorTexture(0, 1, 0, 0.15) -- green tint = viewport area
-
-	local dbgVC = viewContent:CreateTexture(nil, 'OVERLAY')
-	dbgVC:SetAllPoints(viewContent)
-	dbgVC:SetColorTexture(0, 0, 1, 0.15) -- blue tint = viewContent area
-
 	-- Horizontal mouse wheel scrolling for wide group layouts
 	viewport:EnableMouseWheel(true)
 	viewport:SetScript('OnMouseWheel', function(self, delta)
@@ -708,11 +679,6 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	end, 'FramePreview.PresetListener')
 
 	Widgets.EndCard(card, parent, cy)
-	local np = card:GetNumPoints()
-	local p1, rel1, rp1, x1, y1 = card:GetPoint(1)
-	print('|cff00ccff[Preview]|r card built, cy=' .. cy .. ' cardH=' .. card:GetHeight() .. ' cardW=' .. card:GetWidth() .. ' viewH=' .. viewH)
-	print('|cff00ccff[Preview]|r card points=' .. np .. ' p1=' .. tostring(p1) .. ' rel=' .. tostring(rel1 and rel1:GetName() or rel1) .. ' rp=' .. tostring(rp1) .. ' x=' .. tostring(x1) .. ' y=' .. tostring(y1))
-	print('|cff00ccff[Preview]|r card shown=' .. tostring(card:IsShown()) .. ' visible=' .. tostring(card:IsVisible()) .. ' clips=' .. tostring(card:DoesClipChildren()))
 
 	activePreview = card
 	card._viewport = viewport
