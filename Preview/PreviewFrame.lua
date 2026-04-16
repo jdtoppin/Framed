@@ -127,6 +127,8 @@ end
 
 local function BuildHealthBar(frame, config)
 	local wrapper = CreateFrame('Frame', nil, frame)
+	local strata = config.elementStrata or {}
+	wrapper:SetFrameLevel(frame:GetFrameLevel() + (strata.healthBar or 0))
 	-- Points set after power bar is built (health fills remaining space)
 	wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 	wrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
@@ -255,7 +257,8 @@ local function BuildNameText(frame, config, fakeUnit)
 	local anchorParent = frame._healthWrapper or frame
 	local nameOverlay = CreateFrame('Frame', nil, anchorParent)
 	nameOverlay:SetAllPoints(anchorParent)
-	nameOverlay:SetFrameLevel(frame._healthBar:GetFrameLevel() + 3)
+	local strata = config.elementStrata or {}
+	nameOverlay:SetFrameLevel(frame:GetFrameLevel() + (strata.nameText or 5))
 	local text = Widgets.CreateFontString(nameOverlay, nc.fontSize, C.Colors.textActive)
 	text:SetFont(F.Media.GetActiveFont(), nc.fontSize, nc.outline or '')
 	if(nc.shadow ~= false) then
@@ -328,7 +331,8 @@ local function BuildStatusIcons(frame, config)
 	-- Overlay frame above health/power bars so icons are visible
 	local iconOverlay = CreateFrame('Frame', nil, frame)
 	iconOverlay:SetAllPoints(frame)
-	iconOverlay:SetFrameLevel(frame._healthBar:GetFrameLevel() + 5)
+	local strata = config.elementStrata or {}
+	iconOverlay:SetFrameLevel(frame:GetFrameLevel() + (strata.statusIcons or 6))
 	frame._iconOverlay = iconOverlay
 
 	frame._statusIcons = {}
@@ -378,6 +382,8 @@ local function BuildCastbar(frame, config)
 	local cb = config.castbar
 
 	local wrapper = CreateFrame('Frame', nil, frame)
+	local strata = config.elementStrata or {}
+	wrapper:SetFrameLevel(frame:GetFrameLevel() + (strata.castBar or 8))
 	local cbWidth = (cb.sizeMode == 'detached' and cb.width) or config.width
 	wrapper:SetSize(cbWidth, cb.height or 16)
 	wrapper:SetPoint('TOP', frame, 'BOTTOM', 0, -C.Spacing.base)
@@ -447,7 +453,9 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 
 	-- Build aura indicators (delegated to PreviewAuras)
 	local animated = F.PreviewManager.IsAnimationEnabled()
-	F.PreviewAuras.BuildAll(frame, auraConfig, animated)
+	if(auraConfig) then
+		F.PreviewAuras.BuildAll(frame, auraConfig, animated)
+	end
 
 	-- Apply fake unit data with config-aware colors and text formats
 	if(fakeUnit) then
