@@ -562,6 +562,7 @@ end
 function FP.BuildPreviewCard(parent, width, unitType)
 	print('|cff00ccff[Preview]|r BuildPreviewCard:', unitType, 'width=' .. width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	print('|cff00ccff[Preview]|r card level=' .. card:GetFrameLevel() .. ' parent level=' .. parent:GetFrameLevel() .. ' shown=' .. tostring(card:IsShown()) .. ' alpha=' .. card:GetAlpha())
 	Widgets.CreateAccentBar(card, 'top')
 
 	-- Header row
@@ -706,7 +707,11 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	end, 'FramePreview.PresetListener')
 
 	Widgets.EndCard(card, parent, cy)
-	print('|cff00ccff[Preview]|r card built, cy=' .. cy .. ' cardH=' .. card:GetHeight() .. ' viewH=' .. viewH)
+	local np = card:GetNumPoints()
+	local p1, rel1, rp1, x1, y1 = card:GetPoint(1)
+	print('|cff00ccff[Preview]|r card built, cy=' .. cy .. ' cardH=' .. card:GetHeight() .. ' cardW=' .. card:GetWidth() .. ' viewH=' .. viewH)
+	print('|cff00ccff[Preview]|r card points=' .. np .. ' p1=' .. tostring(p1) .. ' rel=' .. tostring(rel1 and rel1:GetName() or rel1) .. ' rp=' .. tostring(rp1) .. ' x=' .. tostring(x1) .. ' y=' .. tostring(y1))
+	print('|cff00ccff[Preview]|r card shown=' .. tostring(card:IsShown()) .. ' visible=' .. tostring(card:IsVisible()) .. ' clips=' .. tostring(card:DoesClipChildren()))
 
 	activePreview = card
 	card._viewport = viewport
