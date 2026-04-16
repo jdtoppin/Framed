@@ -117,19 +117,22 @@ local function CreateRow(parent)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
 
-	-- Spell name (priority) + ID — both truncate, ID truncates first
-	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
-	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
-	nameFS:SetJustifyH('LEFT')
-	nameFS:SetWordWrap(false)
-	row._nameFS = nameFS
-
+	-- Spell ID (fixed width, right-aligned, truncates at its boundary)
+	local ID_WIDTH = 80
 	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
 	idFS:SetJustifyH('RIGHT')
 	idFS:SetWordWrap(false)
-	idFS:SetPoint('LEFT', nameFS, 'RIGHT', ICON_GAP, 0)
+	idFS:SetWidth(ID_WIDTH)
 	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -ICON_GAP, 0)
 	row._idFS = idFS
+
+	-- Spell name (fills remaining space, truncates only when truly long)
+	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
+	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
+	nameFS:SetPoint('RIGHT', idFS, 'LEFT', -ICON_GAP, 0)
+	nameFS:SetJustifyH('LEFT')
+	nameFS:SetWordWrap(false)
+	row._nameFS = nameFS
 
 	-- Hover highlight (accent color)
 	local highlight = row:CreateTexture(nil, 'BACKGROUND')
