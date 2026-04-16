@@ -633,7 +633,7 @@ F.Settings.RegisterPanel({
 		content:SetHeight(math.abs(yOffset) + C.Spacing.normal)
 		scroll:UpdateScrollRange()
 
-		F.EventBus:Register('SETTINGS_RESIZED', function(newW)
+		local function onResize(newW)
 			width      = newW - C.Spacing.normal * 2
 			innerWidth = width - Widgets.CARD_PADDING * 2
 			bindCard:SetWidth(width)
@@ -642,8 +642,27 @@ F.Settings.RegisterPanel({
 				row:SetWidth(innerWidth)
 			end
 			updateLayout()
-		end, 'ClickCastingPanel.resize')
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, 'ClickCastingPanel.resize')
+
+		scroll:HookScript('OnHide', function()
+			F.EventBus:Unregister('SETTINGS_RESIZED', 'ClickCastingPanel.resize')
+		end)
+		scroll:HookScript('OnShow', function()
+			F.EventBus:Register('SETTINGS_RESIZED', onResize, 'ClickCastingPanel.resize')
+			local curW = parent._explicitWidth or parent:GetWidth() or parentW
+			onResize(curW)
+		end)
 
 		return scroll
 	end,
 })
+
+F.EventBus:Register('SPEC_CHANGED', function()
+	if(not F.Settings._panelFrames) then return end
+	F.Settings._panelFrames['clickcasting'] = nil
+	if(F.Settings._activePanelId == 'clickcasting') then
+		F.Settings.SetActivePanel('clickcasting')
+	end
+end, 'ClickCastingPanel.specChanged')

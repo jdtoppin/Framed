@@ -19,11 +19,17 @@ local FAKE_ICONS = {
 	crowdControl   = { 118699 },                   -- Polymorph
 }
 
--- Resolve actual Fort icon from spell data (hardcoded ID may differ across expansions)
+-- Resolve missing buff icons from spell data (hardcoded IDs may differ across expansions)
 if(C_Spell and C_Spell.GetSpellInfo) then
-	local info = C_Spell.GetSpellInfo(21562)
-	if(info and info.iconID) then
-		FAKE_ICONS.missingBuffs = { info.iconID }
+	local resolved = {}
+	for _, spellId in next, { 21562, 1459, 6673 } do
+		local info = C_Spell.GetSpellInfo(spellId)
+		if(info and info.iconID) then
+			resolved[#resolved + 1] = info.iconID
+		end
+	end
+	if(#resolved > 0) then
+		FAKE_ICONS.missingBuffs = resolved
 	end
 end
 

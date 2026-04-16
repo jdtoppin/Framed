@@ -391,6 +391,7 @@ F.Settings.RegisterPanel({
 			scroll:UpdateScrollRange()
 
 			-- Update breadcrumb and preview dimming
+			scroll._editingIndicatorName = iName
 			F.Settings.UpdateAuraBreadcrumb('Buffs', iName)
 			F.Settings.UpdateAuraPreviewDimming('buffs', iName)
 		end
@@ -401,6 +402,7 @@ F.Settings.RegisterPanel({
 			grid:Layout(0, parentH)
 
 			editingName = nil
+			scroll._editingIndicatorName = nil
 
 			-- Reset selected-row highlight
 			for _, r in next, listRowPool do

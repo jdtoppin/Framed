@@ -254,6 +254,8 @@ function Settings.CreateMainFrame()
 	Settings._headerIndicatorText:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerIndicatorText, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 8, 0)
 	Settings._headerIndicatorText:SetText('')
+	Settings._headerIndicatorText:SetWordWrap(false)
+	Settings._headerIndicatorText:SetJustifyH('LEFT')
 	Settings._headerIndicatorText:Hide()
 
 	Settings._headerPresetText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.accent)
@@ -266,9 +268,7 @@ function Settings.CreateMainFrame()
 	-- Right-aligned stack that sits immediately left of _headerPresetText.
 	-- Visible only on aura panels that registered a configKey.
 	-- Framework.activateAuraHeaderControls populates the dropdown and
-	-- wires the button per panel. Still hidden during the drill-in
-	-- (_headerIndicatorText) state, since Copy-to is a whole-panel
-	-- action that doesn't apply while editing a single indicator.
+	-- wires the button per panel.
 	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy To', 'accent', 64, 20)
 	Settings._headerCopyToBtn:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerCopyToBtn, 'RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)

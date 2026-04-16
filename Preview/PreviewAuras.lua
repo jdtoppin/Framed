@@ -334,16 +334,28 @@ local function BuildSimpleIconGroup(frame, groupKey, cfg)
 	local fakeIcons = PI.GetFakeIcons(groupKey)
 
 	if(groupKey == 'missingBuffs') then
-		local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[1], size, 1, nil, { showCooldown = false, showDuration = false, showStacks = false })
-		bi:SetPoint(pt, frame, relPt, offX, offY)
-		groupFrame._elements[1] = bi
-		if(cfg.glowType and cfg.glowType ~= 'None' and F.Indicators and F.Indicators.BorderGlow) then
-			local glow = F.Indicators.BorderGlow.Create(bi, {
-				borderGlowMode = 'Glow',
-				glowType = cfg.glowType,
-				glowColor = cfg.glowColor,
-			})
-			glow:Start()
+		local orient = cfg.growDirection or 'LEFT'
+		local spacing = cfg.spacing or 2
+		local count = math.min(#fakeIcons, 3)
+		for i = 1, count do
+			local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[((i - 1) % #fakeIcons) + 1], size, 1, nil, { showCooldown = false, showDuration = false, showStacks = false })
+			local offset = (i - 1) * (size + spacing)
+			local dx, dy = 0, 0
+			if(orient == 'RIGHT') then     dx =  offset
+			elseif(orient == 'LEFT') then  dx = -offset
+			elseif(orient == 'DOWN') then  dy = -offset
+			elseif(orient == 'UP') then    dy =  offset
+			end
+			bi:SetPoint(pt, frame, pt, offX + dx, offY + dy)
+			groupFrame._elements[#groupFrame._elements + 1] = bi
+			if(cfg.glowType and cfg.glowType ~= 'None' and F.Indicators and F.Indicators.BorderGlow) then
+				local glow = F.Indicators.BorderGlow.Create(bi, {
+					borderGlowMode = 'Glow',
+					glowType = cfg.glowType,
+					glowColor = cfg.glowColor,
+				})
+				glow:Start()
+			end
 		end
 	else
 		local icon = PI.CreateIcon(groupFrame, fakeIcons[1], size, size, { showCooldown = false, durationMode = 'Never', showStacks = false })

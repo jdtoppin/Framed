@@ -283,6 +283,10 @@ local function activateAuraHeaderControls(info)
 		copy:Hide()
 	end
 
+	-- Constrain indicator text width so it truncates before right-side controls.
+	local rightAnchor = (copyDD and copy:IsShown()) and copyDD or Settings._headerPresetText
+	indic:SetPoint('RIGHT', rightAnchor, 'LEFT', -C.Spacing.normal, 0)
+
 	-- Reset drill-in state — SetActivePanel always lands on the base page.
 	indic:Hide()
 	indic:SetText('')
@@ -412,6 +416,12 @@ function Settings.SetActivePanel(panelId)
 
 	Settings._activePanelFrame = Settings._panelFrames[panelId]
 	if(Settings._activePanelFrame) then
+		-- Clear stale preview pointer before Show.  OnShow for CardGrid
+		-- panels will set it to a fresh frame via BuildPreviewCard;
+		-- pinned-preview panels leave it nil so the sync below restores
+		-- from _ownedPreview instead of keeping the previous panel's ref.
+		Settings._auraPreview = nil
+
 		local SLIDE_OFFSET = 20
 		Settings._activePanelFrame:SetAlpha(0)
 		Settings._activePanelFrame:Show()
@@ -493,6 +503,11 @@ function Settings.SetActivePanel(panelId)
 	-- Show/hide and populate the inline unit dropdown + Copy-to button
 	activateAuraHeaderControls(info)
 
+	-- Restore drill-in breadcrumb if the panel re-entered with an active indicator
+	if(Settings._activePanelFrame and Settings._activePanelFrame._editingIndicatorName) then
+		Settings.UpdateAuraBreadcrumb(info.label or '', Settings._activePanelFrame._editingIndicatorName)
+	end
+
 	-- ── Show/hide aura sidebar buttons based on active panel ─
 	-- Defensives/Externals are hidden only while the Pet page is active.
 	F.EventBus:Fire('ACTIVE_PANEL_CHANGED', panelId)
@@ -519,11 +534,6 @@ function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 			indic:SetText('|cff6688cc>|r  ' .. indicatorName)
 			indic:Show()
 		end
-		if(copyDD) then
-			if(copyDD.Close) then copyDD:Close() end
-			copyDD:Hide()
-		end
-		if(copy) then copy:Hide() end
 	else
 		if(indic) then
 			indic:SetText('')
@@ -567,6 +577,15 @@ end, 'Settings.HeaderUnitTypeSync')
 -- Invalidate all preset-scoped panels so stale frames are rebuilt
 -- when the user navigates to them.
 F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+	-- Refresh header dropdown items unconditionally — during zone
+	-- transitions the main frame may not be :IsShown() yet, but the
+	-- items must be correct when it reappears.
+	local dd = Settings._headerUnitTypeDD
+	if(dd) then
+		dd:SetItems(buildHeaderUnitTypeItems())
+		dd:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
+	end
+
 	for _, p in next, registeredPanels do
 		if(p.section == 'PRESET_SCOPED' and Settings._panelFrames[p.id]) then
 			Settings._panelFrames[p.id] = nil
@@ -631,11 +650,11 @@ function Settings.Show()
 	if(not Settings._mainFrame) then
 		Settings.CreateMainFrame()
 	end
-	Settings._syncPresetIfContentChanged()
 	Widgets.FadeIn(Settings._mainFrame)
 	if(not Settings._sidebarBuilt) then
 		Settings.BuildSidebar()
 	end
+	Settings._syncPresetIfContentChanged()
 end
 
 --- Hide the settings window (fade out).
