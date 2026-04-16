@@ -592,6 +592,18 @@ F.Settings.RegisterPanel({
 		-- ── Pin cards to the scroll viewport so they never scroll ──
 		local previewOrigLevel = previewCard:GetFrameLevel()
 
+		-- Semi-transparent scrim behind the pinned cards so scrolling
+		-- content is dimmed rather than clearly visible through the gap.
+		local scrim = CreateFrame('Frame', nil, scroll)
+		scrim:SetFrameLevel(previewOrigLevel + 49)
+		scrim:SetPoint('TOPLEFT', scroll, 'TOPLEFT', 0, 0)
+		scrim:SetPoint('TOPRIGHT', scroll, 'TOPRIGHT', 0, 0)
+		scrim:SetHeight(math.abs(pinnedRowY) + previewCardH + C.Spacing.normal)
+		local scrimBg = scrim:CreateTexture(nil, 'BACKGROUND')
+		scrimBg:SetAllPoints(scrim)
+		local bg = C.Colors.background
+		scrimBg:SetColorTexture(bg[1], bg[2], bg[3], 0.85)
+
 		previewCard:SetParent(scroll)
 		previewCard:SetFrameLevel(previewOrigLevel + 50)
 		previewCard:ClearAllPoints()
