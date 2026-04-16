@@ -267,15 +267,10 @@ F.Settings.RegisterPanel({
 		addHitArea:SetPoint('TOP', addToggleBtn, 'TOP', 0, 0)
 		addHitArea:SetPoint('BOTTOMRIGHT', addToggleBtn, 'BOTTOMRIGHT', 0, 0)
 
-		addHitArea:SetScript('OnEnter', function()
-			addToggleBtn._icon:SetVertexColor(1, 1, 1, 1)
-			addHintFS:SetAlpha(1)
-		end)
-		addHitArea:SetScript('OnLeave', function()
-			local ts = C.Colors.textSecondary
-			addToggleBtn._icon:SetVertexColor(ts[1], ts[2], ts[3], ts[4] or 1)
-			addHintFS:SetAlpha(0.6)
-		end)
+		Widgets.SetupAccentHover(addHitArea, {
+			{ addToggleBtn._icon, true },
+			{ addHintFS, false },
+		})
 
 		listY = listY - TITLE_ROW_H - C.Spacing.tight
 

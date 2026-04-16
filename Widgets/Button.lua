@@ -621,40 +621,61 @@ end
 -- ============================================================
 
 --- Override a button's hover to smoothly fade between dim and accent color.
---- @param btn Button  The button frame
---- @param target Texture|FontString  The element to tint
---- @param isTexture boolean  true for SetVertexColor, false for SetTextColor
+--- Single target:  SetupAccentHover(btn, icon, true)
+--- Multi target:   SetupAccentHover(btn, { {icon, true}, {label, false} })
+--- @param btn Button  The button frame receiving mouse events
+--- @param target Texture|FontString|table  Element to tint, or list of {element, isTexture} pairs
+--- @param isTexture boolean|nil  true=SetVertexColor, false=SetTextColor (ignored in multi mode)
 function Widgets.SetupAccentHover(btn, target, isTexture)
 	local ac  = C.Colors.accent
 	local dim = C.Colors.textSecondary
 	local dur = C.Animation.durationFast
 
-	local function setColor(r, g, b)
-		if(isTexture) then
-			target:SetVertexColor(r, g, b)
-		else
-			target:SetTextColor(r, g, b)
-		end
+	-- Normalize to a list of { element, isTexture } pairs
+	local targets
+	if(type(target) == 'table' and target[1] and type(target[1]) == 'table') then
+		targets = target
+	else
+		targets = { { target, isTexture } }
 	end
 
-	local function getColor()
-		if(isTexture) then
-			return target:GetVertexColor()
-		else
-			return target:GetTextColor()
+	local function captureStarts()
+		local starts = {}
+		for i, pair in next, targets do
+			local el, isTex = pair[1], pair[2]
+			if(isTex) then
+				local r, g, b = el:GetVertexColor()
+				starts[i] = { r, g, b }
+			else
+				local r, g, b = el:GetTextColor()
+				starts[i] = { r, g, b }
+			end
+		end
+		return starts
+	end
+
+	local function applyLerp(starts, dest, t)
+		for i, pair in next, targets do
+			local el, isTex = pair[1], pair[2]
+			local s = starts[i]
+			local r = s[1] + (dest[1] - s[1]) * t
+			local g = s[2] + (dest[2] - s[2]) * t
+			local b = s[3] + (dest[3] - s[3]) * t
+			if(isTex) then
+				el:SetVertexColor(r, g, b)
+			else
+				el:SetTextColor(r, g, b)
+			end
 		end
 	end
 
 	btn:SetScript('OnEnter', function(self)
-		local startR, startG, startB = getColor()
+		local starts = captureStarts()
 		local elapsed = 0
 		self:SetScript('OnUpdate', function(_, dt)
 			elapsed = elapsed + dt
 			local t = math.min(elapsed / dur, 1)
-			setColor(
-				startR + (ac[1] - startR) * t,
-				startG + (ac[2] - startG) * t,
-				startB + (ac[3] - startB) * t)
+			applyLerp(starts, ac, t)
 			if(t >= 1) then self:SetScript('OnUpdate', nil) end
 		end)
 		if(Widgets.ShowTooltip and self._tooltipTitle) then
@@ -663,15 +684,12 @@ function Widgets.SetupAccentHover(btn, target, isTexture)
 	end)
 
 	btn:SetScript('OnLeave', function(self)
-		local startR, startG, startB = getColor()
+		local starts = captureStarts()
 		local elapsed = 0
 		self:SetScript('OnUpdate', function(_, dt)
 			elapsed = elapsed + dt
 			local t = math.min(elapsed / dur, 1)
-			setColor(
-				startR + (dim[1] - startR) * t,
-				startG + (dim[2] - startG) * t,
-				startB + (dim[3] - startB) * t)
+			applyLerp(starts, dim, t)
 			if(t >= 1) then self:SetScript('OnUpdate', nil) end
 		end)
 		if(Widgets.HideTooltip) then Widgets.HideTooltip() end
