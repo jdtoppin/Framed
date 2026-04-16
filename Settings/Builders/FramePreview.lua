@@ -562,6 +562,7 @@ end
 function FP.BuildPreviewCard(parent, width, unitType)
 	print('|cff00ccff[Preview]|r BuildPreviewCard:', unitType, 'width=' .. width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
+	card:SetFrameLevel(parent:GetFrameLevel() + 10)
 	print('|cff00ccff[Preview]|r card level=' .. card:GetFrameLevel() .. ' parent level=' .. parent:GetFrameLevel() .. ' shown=' .. tostring(card:IsShown()) .. ' alpha=' .. card:GetAlpha())
 	Widgets.CreateAccentBar(card, 'top')
 
