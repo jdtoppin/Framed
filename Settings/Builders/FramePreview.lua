@@ -91,6 +91,85 @@ local function getUnitConfig(unitType)
 end
 
 -- ============================================================
+-- CONFIG_CHANGED dispatch
+-- ============================================================
+
+local STRUCTURAL_KEYS = {
+	width = true, height = true, showPower = true,
+	orientation = true, unitsPerColumn = true, maxColumns = true, spacing = true,
+}
+
+local rebuildPending = false
+
+local function debouncedRebuild()
+	if(rebuildPending) then return end
+	rebuildPending = true
+	C_Timer.After(0.05, function()
+		rebuildPending = false
+		FP.RebuildPreview()
+	end)
+end
+
+local function onConfigChanged(path)
+	if(not activePreview or not activeUnitType) then return end
+
+	local preset, unit, key = path:match('presets%.([^%.]+)%.unitConfigs%.([^%.]+)%.(.+)')
+	if(not preset) then return end
+
+	if(preset ~= F.Settings.GetEditingPreset()) then return end
+	if(unit ~= activeUnitType) then return end
+
+	local config = getUnitConfig(activeUnitType)
+	if(not config) then return end
+
+	if(STRUCTURAL_KEYS[key:match('^[^%.]+')]) then
+		debouncedRebuild()
+	else
+		for _, frame in next, previewFrames do
+			F.PreviewFrame.UpdateFromConfig(frame, config, nil)
+		end
+	end
+end
+
+local configListenerHandle = nil
+
+local function RegisterConfigListener()
+	configListenerHandle = F.EventBus:Register('CONFIG_CHANGED', onConfigChanged, 'FramePreview.ConfigListener')
+end
+
+local function UnregisterConfigListener()
+	if(configListenerHandle) then
+		F.EventBus:Unregister('CONFIG_CHANGED', 'FramePreview.ConfigListener')
+		configListenerHandle = nil
+	end
+end
+
+-- ============================================================
+-- RebuildPreview
+-- ============================================================
+
+function FP.RebuildPreview()
+	if(not activePreview or not activeUnitType) then return end
+
+	for _, frame in next, previewFrames do
+		ReleaseFrame(frame)
+	end
+	wipe(previewFrames)
+
+	local viewport = activePreview._viewContent
+	local config = getUnitConfig(activeUnitType)
+	if(not viewport or not config) then return end
+
+	local viewH = config.height + 20
+	activePreview._viewport:SetHeight(viewH)
+	viewport:SetHeight(viewH)
+
+	if(SOLO_FAKES[activeUnitType]) then
+		RenderSoloPreview(viewport, activeUnitType)
+	end
+end
+
+-- ============================================================
 -- Solo preview rendering
 -- ============================================================
 
@@ -153,6 +232,12 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	activeUnitType = unitType
 	RenderSoloPreview(viewContent, unitType)
 
+	RegisterConfigListener()
+
+	F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+		FP.RebuildPreview()
+	end, 'FramePreview.PresetListener')
+
 	Widgets.EndCard(card, parent, cy)
 
 	activePreview = card
@@ -173,6 +258,9 @@ function FP.Destroy()
 	end
 	wipe(previewFrames)
 	DrainPool()
+
+	UnregisterConfigListener()
+	F.EventBus:Unregister('EDITING_PRESET_CHANGED', 'FramePreview.PresetListener')
 
 	if(activePreview) then
 		activePreview:Hide()
