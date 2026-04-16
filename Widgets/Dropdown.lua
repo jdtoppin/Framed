@@ -591,11 +591,12 @@ function Widgets.CreateDropdown(parent, width)
 	Widgets.SetSize(dropdown, width, HEIGHT)
 	dropdown:EnableMouse(true)
 
-	-- Selected text label (left-aligned, inset)
+	-- Selected text label (left-aligned, inset, single-line truncation)
 	local label = Widgets.CreateFontString(dropdown, C.Font.sizeNormal, C.Colors.textNormal)
 	label:SetPoint('LEFT',  dropdown, 'LEFT',  6, 0)
 	label:SetPoint('RIGHT', dropdown, 'RIGHT', -20, 0)
 	label:SetJustifyH('LEFT')
+	label:SetWordWrap(false)
 	label:SetText('')
 	dropdown._label = label
 

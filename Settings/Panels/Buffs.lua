@@ -216,8 +216,7 @@ F.Settings.RegisterPanel({
 		local CARD_GAP       = C.Spacing.normal
 		local TITLE_ROW_H    = 24
 		local FORM_ROW_H     = BUTTON_H
-		local FORM_PAD_Y     = C.Spacing.tight
-		local FORM_HEIGHT    = FORM_ROW_H + FORM_PAD_Y + BUTTON_H + FORM_PAD_Y
+		local FORM_HEIGHT    = FORM_ROW_H + PAD_H * 2
 		local previewCardW = math.floor((width - CARD_GAP) * 0.40)
 		local listCardW    = width - previewCardW - CARD_GAP
 		local pinnedRowY   = yOffset
@@ -283,9 +282,11 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(formFrame, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
 		formFrame:Hide()
 
+		local CREATE_BTN_SIZE = FORM_ROW_H
 		local formInnerW = listCardW - Widgets.CARD_PADDING * 2 - PAD_H * 2
-		local nameBoxW   = math.floor((formInnerW - C.Spacing.normal) * 0.55)
-		local typeDDW    = formInnerW - nameBoxW - C.Spacing.normal
+		local fieldW     = formInnerW - CREATE_BTN_SIZE - C.Spacing.normal
+		local nameBoxW   = math.floor((fieldW - C.Spacing.normal) * 0.40)
+		local typeDDW    = fieldW - nameBoxW - C.Spacing.normal
 
 		local nameBox = Widgets.CreateEditBox(formFrame, nil, nameBoxW, FORM_ROW_H)
 		nameBox:SetPlaceholder('Indicator name')
@@ -296,12 +297,11 @@ F.Settings.RegisterPanel({
 		typeDD:SetItems(getTypeItems())
 		typeDD:SetValue(C.IndicatorType.ICONS)
 		typeDD:ClearAllPoints()
-		-- Center the dropdown (DROPDOWN_H = 22) vertically within the row height (FORM_ROW_H = 24)
 		Widgets.SetPoint(typeDD, 'TOPLEFT', nameBox, 'TOPRIGHT', C.Spacing.normal, -math.floor((FORM_ROW_H - DROPDOWN_H) / 2))
 
-		local createBtn = Widgets.CreateButton(formFrame, 'Create', 'accent', 64, BUTTON_H)
+		local createBtn = Widgets.CreateIconButton(formFrame, F.Media.GetIcon('Tick'), CREATE_BTN_SIZE)
 		createBtn:ClearAllPoints()
-		Widgets.SetPoint(createBtn, 'BOTTOMRIGHT', formFrame, 'BOTTOMRIGHT', -PAD_H, PAD_H)
+		Widgets.SetPoint(createBtn, 'TOPRIGHT', formFrame, 'TOPRIGHT', -PAD_H, -PAD_H)
 
 		-- ── Indicator list scroll (height recomputes when form toggles) ──
 		local function computeListScrollH()
@@ -686,8 +686,9 @@ F.Settings.RegisterPanel({
 
 			-- Inline create form widgets
 			local newFormInnerW = newListW - Widgets.CARD_PADDING * 2 - PAD_H * 2
-			local newNameBoxW   = math.floor((newFormInnerW - C.Spacing.normal) * 0.55)
-			local newTypeDDW    = newFormInnerW - newNameBoxW - C.Spacing.normal
+			local newFieldW     = newFormInnerW - CREATE_BTN_SIZE - C.Spacing.normal
+			local newNameBoxW   = math.floor((newFieldW - C.Spacing.normal) * 0.40)
+			local newTypeDDW    = newFieldW - newNameBoxW - C.Spacing.normal
 			nameBox:SetWidth(newNameBoxW)
 			typeDD:SetWidth(newTypeDDW)
 			-- formFrame auto-adjusts via its TOPRIGHT anchor on listInner
