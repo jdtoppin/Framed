@@ -152,11 +152,13 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	-- ── Pinned preview card (full width, above grid) ──
 	local previewCard = F.Settings.FramePreview.BuildPreviewCard(content, width, unitType)
+	local pinnedH = 0
 	if(previewCard) then
+		previewCard:ClearAllPoints()
 		previewCard:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
+		previewCard:SetFrameStrata('DIALOG')
+		pinnedH = previewCard:GetHeight()
 	end
-
-	local pinnedH = previewCard and previewCard:GetHeight() or 0
 
 	-- Move grid container below the preview card so it doesn't cover it
 	grid._container:ClearAllPoints()
