@@ -215,10 +215,9 @@ F.Settings.RegisterPanel({
 		-- ── Pinned row: Preview | Indicator List card ───────────────
 		local CARD_GAP       = C.Spacing.normal
 		local TITLE_ROW_H    = 24
-		local FORM_TITLE_H   = 14   -- matches C.Font.sizeSmall leading
 		local FORM_ROW_H     = BUTTON_H
 		local FORM_PAD_Y     = C.Spacing.tight
-		local FORM_HEIGHT    = PAD_H + FORM_TITLE_H + FORM_PAD_Y + FORM_ROW_H + FORM_PAD_Y + BUTTON_H + PAD_H
+		local FORM_HEIGHT    = FORM_ROW_H + FORM_PAD_Y + BUTTON_H + FORM_PAD_Y
 		local previewCardW = math.floor((width - CARD_GAP) * 0.40)
 		local listCardW    = width - previewCardW - CARD_GAP
 		local pinnedRowY   = yOffset
@@ -249,9 +248,16 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(titleLabel, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
 		titleLabel:SetText('Indicators')
 
+		local addHintFS = Widgets.CreateFontString(listInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		addHintFS:SetJustifyH('RIGHT')
+		addHintFS:SetAlpha(0.6)
+		addHintFS:SetText('Add new')
+
 		local addToggleBtn = Widgets.CreateIconButton(listInner, F.Media.GetIcon('Plus'), TITLE_ROW_H)
+		addToggleBtn:SetBackdrop(nil)
 		addToggleBtn:ClearAllPoints()
 		Widgets.SetPoint(addToggleBtn, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
+		Widgets.SetPoint(addHintFS, 'RIGHT', addToggleBtn, 'LEFT', -C.Spacing.tight, 0)
 
 		listY = listY - TITLE_ROW_H - C.Spacing.tight
 
@@ -268,17 +274,10 @@ F.Settings.RegisterPanel({
 		local nameBoxW   = math.floor((formInnerW - C.Spacing.normal) * 0.55)
 		local typeDDW    = formInnerW - nameBoxW - C.Spacing.normal
 
-		-- Form title hint
-		local formTitleFS = Widgets.CreateFontString(formFrame, C.Font.sizeSmall, C.Colors.textSecondary)
-		formTitleFS:SetJustifyH('LEFT')
-		formTitleFS:ClearAllPoints()
-		Widgets.SetPoint(formTitleFS, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -PAD_H)
-		formTitleFS:SetText('Add new indicator')
-
 		local nameBox = Widgets.CreateEditBox(formFrame, nil, nameBoxW, FORM_ROW_H)
 		nameBox:SetPlaceholder('Indicator name')
 		nameBox:ClearAllPoints()
-		Widgets.SetPoint(nameBox, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -(PAD_H + FORM_TITLE_H + FORM_PAD_Y))
+		Widgets.SetPoint(nameBox, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -PAD_H)
 
 		local typeDD = Widgets.CreateDropdown(formFrame, typeDDW)
 		typeDD:SetItems(getTypeItems())
@@ -524,10 +523,14 @@ F.Settings.RegisterPanel({
 		local function setFormOpen(open)
 			if(open) then
 				formFrame:Show()
+				addHintFS:Hide()
 				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Close'))
+				Widgets.ApplyBackdrop(addToggleBtn, C.Colors.widget, C.Colors.border)
 			else
 				formFrame:Hide()
+				addHintFS:Show()
 				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Plus'))
+				addToggleBtn:SetBackdrop(nil)
 				resetForm()
 			end
 			anchorListScroll()
