@@ -748,12 +748,24 @@ F.Settings.RegisterPanel({
 			scroll:UpdateScrollRange()
 		end
 
-		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
-		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
-			grid:RebuildCards()
+		local function syncPreviewHeight()
 			if(F.Settings._auraPreview) then
 				F.Settings.AuraPreview.Rebuild()
 			end
+			local newH = previewCard:GetHeight()
+			if(newH ~= previewCardH) then
+				previewCardH = newH
+				listCard:SetHeight(previewCardH)
+				scrim:SetHeight(math.abs(pinnedRowY) + previewCardH + C.Spacing.normal)
+				grid:SetTopOffset(math.abs(pinnedRowY) + previewCardH + C.Spacing.normal)
+				anchorListScroll()
+			end
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+			syncPreviewHeight()
+			grid:RebuildCards()
 		end, resizeKey .. '.complete')
 
 		-- ── Cleanup on hide, re-register on show ─────────────────
@@ -766,19 +778,15 @@ F.Settings.RegisterPanel({
 		scroll:HookScript('OnShow', function()
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
 			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+				syncPreviewHeight()
 				grid:RebuildCards()
-				if(F.Settings._auraPreview) then
-					F.Settings.AuraPreview.Rebuild()
-				end
 			end, resizeKey .. '.complete')
 			-- Catch up with any resize that happened while hidden
 			local curW = parent._explicitWidth  or parent:GetWidth()  or parentW
 			local curH = parent._explicitHeight or parent:GetHeight() or parentH
 			onResize(curW, curH)
+			syncPreviewHeight()
 			grid:RebuildCards()
-			if(F.Settings._auraPreview) then
-				F.Settings.AuraPreview.Rebuild()
-			end
 			-- Respawn cards for the editing indicator, or auto-select one
 			layoutList()
 			if(editingName) then

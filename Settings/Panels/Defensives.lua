@@ -289,13 +289,13 @@ F.Settings.RegisterPanel({
 		end
 
 		local function fullRebuild()
+			if(F.Settings._auraPreview) then
+				F.Settings.AuraPreview.Rebuild()
+			end
 			rebuildPinnedRow()
 			grid:RebuildCards()
 			content:SetHeight(grid:GetTotalHeight())
 			scroll:UpdateScrollRange()
-			if(F.Settings._auraPreview) then
-				F.Settings.AuraPreview.Rebuild()
-			end
 		end
 
 		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)

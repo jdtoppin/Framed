@@ -176,6 +176,10 @@ function AuraPreview.BuildPreviewCard(parent, width)
 	Widgets.SetPoint(blurb, 'TOPLEFT', inner, 'TOPLEFT', 0, cy - 2)
 	cy = cy - blurb:GetStringHeight() - C.Spacing.tight
 
+	-- Store references for resize recalculation
+	preview._card  = card
+	preview._blurb = blurb
+
 	-- Initial render
 	local panelId = Settings._activePanelId
 	AuraPreview.Render(preview, unitType, panelId, nil)
@@ -201,8 +205,20 @@ end
 function AuraPreview.Rebuild()
 	local Settings = F.Settings
 	if(not Settings._auraPreview) then return end
-	local unitType = Settings._auraPreview._unitType or (Settings.GetEditingUnitType and Settings.GetEditingUnitType()) or 'player'
-	AuraPreview.Render(Settings._auraPreview, unitType, Settings._activePreviewGroup, nil)
+	local preview = Settings._auraPreview
+	local unitType = preview._unitType or (Settings.GetEditingUnitType and Settings.GetEditingUnitType()) or 'player'
+	AuraPreview.Render(preview, unitType, Settings._activePreviewGroup, nil)
+
+	-- Recalculate card height when width changed (blurb reflows)
+	local card  = preview._card
+	local blurb = preview._blurb
+	if(card and blurb and preview._maxWidth) then
+		blurb:SetWidth(preview._maxWidth)
+		local cy = -preview:GetHeight() - C.Spacing.normal - CHECK_H - blurb:GetStringHeight() - C.Spacing.tight
+		local innerH = math.abs(cy)
+		card.content:SetHeight(innerH)
+		card:SetHeight(innerH + Widgets.CARD_PADDING * 2 + (card._cardGridTitleH or 0))
+	end
 end
 
 -- ── Lightweight dispel overlay alpha update (no rebuild) ────
