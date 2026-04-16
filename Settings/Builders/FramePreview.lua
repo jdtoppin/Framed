@@ -44,6 +44,87 @@ local SOLO_FAKES = {
 	} end,
 }
 
+local GROUP_FAKES = {
+	{ name = 'Tankadin',   class = 'PALADIN', role = 'TANK',    healthPct = 0.85, powerPct = 0.7,  incomingHeal = 0.10, damageAbsorb = 0.08 },
+	{ name = 'Healbot',    class = 'PRIEST',  role = 'HEALER',  healthPct = 0.92, powerPct = 0.95, overAbsorb = true },
+	{ name = 'Stabsworth', class = 'ROGUE',   role = 'DAMAGER', healthPct = 0.65, powerPct = 0.4,  healAbsorb = 0.05 },
+	{ name = 'Frostbolt',  class = 'MAGE',    role = 'DAMAGER', healthPct = 0.78, powerPct = 0.9,  damageAbsorb = 0.12 },
+	{ name = 'Deadshot',   class = 'HUNTER',  role = 'DAMAGER', healthPct = 0,    powerPct = 0,    isDead = true },
+}
+
+local BOSS_FAKES = {
+	{ name = 'Boss 1', class = 'WARRIOR', healthPct = 0.95, powerPct = 1.0 },
+	{ name = 'Boss 2', class = 'WARRIOR', healthPct = 0.72, powerPct = 0.8 },
+	{ name = 'Boss 3', class = 'WARRIOR', healthPct = 0.50, powerPct = 0.6 },
+	{ name = 'Boss 4', class = 'WARRIOR', healthPct = 0.30, powerPct = 0.4 },
+}
+
+local GROUP_COUNTS = {
+	party = 5,
+	arena = 3,
+	boss  = 4,
+}
+
+local function getFakeUnit(index)
+	local base = GROUP_FAKES[((index - 1) % #GROUP_FAKES) + 1]
+	if(index > #GROUP_FAKES) then
+		local copy = {}
+		for k, v in next, base do copy[k] = v end
+		copy.name = base.name .. ' ' .. math.ceil(index / #GROUP_FAKES)
+		return copy
+	end
+	return base
+end
+
+local function CalculateGroupLayout(config, count)
+	local w = config.width
+	local h = config.height
+	local spacing = config.spacing
+	local upc = config.unitsPerColumn
+	local isVertical = config.orientation == 'vertical'
+
+	local positions = {}
+	for i = 0, count - 1 do
+		local col = math.floor(i / upc)
+		local row = i % upc
+		local x, y
+		if(isVertical) then
+			x = col * (w + spacing)
+			y = -(row * (h + spacing))
+		else
+			x = row * (w + spacing)
+			y = -(col * (h + spacing))
+		end
+		positions[i + 1] = { x = x, y = y }
+	end
+	return positions
+end
+
+local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
+
+local function SortFakeUnits(units, config)
+	local sortMode = config.sortMode
+	if(not sortMode or sortMode == 'index') then return units end
+
+	local sorted = {}
+	for i, u in next, units do sorted[i] = u end
+
+	if(sortMode == 'role') then
+		table.sort(sorted, function(a, b)
+			return (ROLE_ORDER[a.role] or 99) < (ROLE_ORDER[b.role] or 99)
+		end)
+	elseif(sortMode == 'class') then
+		table.sort(sorted, function(a, b)
+			return (a.class or '') < (b.class or '')
+		end)
+	elseif(sortMode == 'name') then
+		table.sort(sorted, function(a, b)
+			return (a.name or '') < (b.name or '')
+		end)
+	end
+	return sorted
+end
+
 -- ============================================================
 -- State
 -- ============================================================
@@ -160,12 +241,32 @@ function FP.RebuildPreview()
 	local config = getUnitConfig(activeUnitType)
 	if(not viewport or not config) then return end
 
-	local viewH = config.height + 20
+	local viewH
+	if(SOLO_FAKES[activeUnitType]) then
+		viewH = config.height + 20
+	elseif(GROUP_COUNTS[activeUnitType]) then
+		local count
+		if(activeUnitType == 'raid') then
+			count = F.Config:Get('settings.raidPreviewCount')
+		else
+			count = GROUP_COUNTS[activeUnitType]
+		end
+		local rows = math.min(count, config.unitsPerColumn)
+		viewH = rows * config.height + (rows - 1) * config.spacing + 20
+	else
+		viewH = config.height + 20
+	end
 	activePreview._viewport:SetHeight(viewH)
 	viewport:SetHeight(viewH)
 
 	if(SOLO_FAKES[activeUnitType]) then
 		RenderSoloPreview(viewport, activeUnitType)
+	elseif(activeUnitType == 'raid') then
+		local count = F.Config:Get('settings.raidPreviewCount')
+		RenderGroupPreview(viewport, activeUnitType, count)
+	elseif(GROUP_COUNTS[activeUnitType]) then
+		local count = GROUP_COUNTS[activeUnitType]
+		RenderGroupPreview(viewport, activeUnitType, count)
 	end
 end
 
@@ -190,6 +291,62 @@ local function RenderSoloPreview(viewport, unitType)
 	frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', 0, 0)
 
 	previewFrames[1] = frame
+end
+
+-- ============================================================
+-- Group preview rendering
+-- ============================================================
+
+local function RenderGroupPreview(viewport, unitType, count)
+	local config = getUnitConfig(unitType)
+	if(not config) then return end
+
+	local fakes
+	if(unitType == 'boss') then
+		fakes = BOSS_FAKES
+	end
+
+	local sortedFakes = {}
+	for i = 1, count do
+		sortedFakes[i] = fakes and fakes[i] or getFakeUnit(i)
+	end
+	sortedFakes = SortFakeUnits(sortedFakes, config)
+
+	local positions = CalculateGroupLayout(config, count)
+
+	for i = 1, count do
+		local fakeUnit = sortedFakes[i]
+		local frame = AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil)
+		if(frame._config) then
+			frame._fakeUnit = fakeUnit
+			F.PreviewFrame.UpdateFromConfig(frame, config, nil)
+		end
+
+		frame:ClearAllPoints()
+		frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', positions[i].x, positions[i].y)
+
+		previewFrames[i] = frame
+	end
+
+	local config_w = config.width
+	local config_h = config.height
+	local spacing = config.spacing
+	local upc = config.unitsPerColumn
+	local isVertical = config.orientation == 'vertical'
+
+	local cols = math.ceil(count / upc)
+	local rows = math.min(count, upc)
+
+	local totalW, totalH
+	if(isVertical) then
+		totalW = cols * config_w + (cols - 1) * spacing
+		totalH = rows * config_h + (rows - 1) * spacing
+	else
+		totalW = rows * config_w + (rows - 1) * spacing
+		totalH = cols * config_h + (cols - 1) * spacing
+	end
+
+	viewport:SetSize(math.max(totalW, 1), math.max(totalH, 1))
 end
 
 -- ============================================================
@@ -222,15 +379,29 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	end)
 
 	local config = getUnitConfig(unitType)
-	local viewH = config and (config.height + 20) or 60
+	local viewH
+	if(not config) then
+		viewH = 60
+	elseif(SOLO_FAKES[unitType]) then
+		viewH = config.height + 20
+	elseif(GROUP_COUNTS[unitType]) then
+		local count = GROUP_COUNTS[unitType]
+		local rows = math.min(count, config.unitsPerColumn)
+		viewH = rows * config.height + (rows - 1) * config.spacing + 20
+	else
+		viewH = config.height + 20
+	end
 	viewport:SetHeight(viewH)
-	-- Width derived from parent after layout; content sizes to fit frames
 	viewContent:SetHeight(viewH)
 	cy = cy - viewH - 8
 
-	-- Render the preview
 	activeUnitType = unitType
-	RenderSoloPreview(viewContent, unitType)
+	if(SOLO_FAKES[unitType]) then
+		RenderSoloPreview(viewContent, unitType)
+	elseif(GROUP_COUNTS[unitType]) then
+		local count = GROUP_COUNTS[unitType]
+		RenderGroupPreview(viewContent, unitType, count)
+	end
 
 	RegisterConfigListener()
 
