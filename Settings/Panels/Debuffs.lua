@@ -82,6 +82,7 @@ local function createListRow(scrollContent)
 	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
 	nameFS:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
 	nameFS:SetJustifyH('LEFT')
+	nameFS:SetWordWrap(false)
 	nameFS:SetWidth(100)
 	row.__nameFS = nameFS
 
