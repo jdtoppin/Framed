@@ -145,6 +145,70 @@ local activeUnitType = nil   -- 'player', 'target', 'party', etc.
 local previewFrames = {}     -- array of child preview frames
 local framePool = {}         -- recycled preview frames
 
+local focusModeEnabled = false
+local focusedCardId = nil
+
+local CARD_ELEMENT_MAP = {
+	healthColor      = { '_healthBar', '_portrait', '_portraitTex' },
+	healthText       = { '_healthText' },
+	power            = { '_powerBar', '_powerWrapper' },
+	powerText        = { '_powerText' },
+	name             = { '_nameText' },
+	castbar          = { '_castbar' },
+	statusIcons      = { '_iconOverlay' },
+	statusText       = { '_statusText', '_statusTextOverlay' },
+	shields          = { '_healPredBar', '_damageAbsorbBar', '_healAbsorbBar', '_overAbsorbGlow' },
+	partyPets        = {},
+}
+
+local function SetElementAlpha(frame, keys, alpha)
+	for _, key in next, keys do
+		local obj = frame
+		for part in key:gmatch('[^%.]+') do
+			obj = obj and obj[part]
+		end
+		if(obj and obj.SetAlpha) then
+			obj:SetAlpha(alpha)
+		end
+	end
+end
+
+local function ApplyFocusMode(cardId)
+	focusedCardId = cardId
+
+	for _, frame in next, previewFrames do
+		for _, keys in next, CARD_ELEMENT_MAP do
+			SetElementAlpha(frame, keys, 0.2)
+		end
+
+		if(cardId and CARD_ELEMENT_MAP[cardId]) then
+			SetElementAlpha(frame, CARD_ELEMENT_MAP[cardId], 1.0)
+		end
+	end
+
+	local petAlpha = (cardId == 'partyPets') and 1.0 or 0.2
+	for _, petFrame in next, petFrames do
+		petFrame:SetAlpha(petAlpha)
+	end
+end
+
+local function ClearFocusMode()
+	focusedCardId = nil
+	for _, frame in next, previewFrames do
+		for _, keys in next, CARD_ELEMENT_MAP do
+			SetElementAlpha(frame, keys, 1.0)
+		end
+	end
+	for _, petFrame in next, petFrames do
+		petFrame:SetAlpha(1.0)
+	end
+end
+
+function FP.OnCardFocused(cardId)
+	if(not focusModeEnabled) then return end
+	ApplyFocusMode(cardId)
+end
+
 -- ============================================================
 -- Frame pool
 -- ============================================================
@@ -472,6 +536,10 @@ function FP.RebuildPreview()
 		local count = GROUP_COUNTS[activeUnitType]
 		RenderGroupPreview(viewport, activeUnitType, count)
 	end
+
+	if(focusModeEnabled and focusedCardId) then
+		ApplyFocusMode(focusedCardId)
+	end
 end
 
 -- ============================================================
@@ -537,6 +605,23 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		petToggle:SetChecked(false)
 		petToggle:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeMedium / 2)
 	end
+
+	local focusToggle = Widgets.CreateCheckButton(inner, 'Focus Mode', function(checked)
+		focusModeEnabled = checked
+		if(checked) then
+			ApplyFocusMode('healthColor')
+			if(card._onFocusChanged) then
+				card._onFocusChanged('healthColor')
+			end
+		else
+			ClearFocusMode()
+			if(card._onFocusChanged) then
+				card._onFocusChanged(nil)
+			end
+		end
+	end)
+	focusToggle:SetChecked(false)
+	focusToggle:SetPoint('LEFT', title, 'RIGHT', 12, 0)
 
 	-- Preview viewport (horizontal scroll for overflow)
 	local viewport = CreateFrame('ScrollFrame', nil, inner)
@@ -616,6 +701,9 @@ function FP.Destroy()
 	wipe(petFrames)
 	showPets = false
 	DrainPool()
+
+	focusModeEnabled = false
+	focusedCardId = nil
 
 	UnregisterConfigListener()
 	F.EventBus:Unregister('EDITING_PRESET_CHANGED', 'FramePreview.PresetListener')

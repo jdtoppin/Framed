@@ -220,6 +220,27 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:Layout(0, parentH)
 	content:SetHeight(grid:GetTotalHeight())
 
+	-- ── Focus mode click targets (after initial layout so cards are built) ──
+	if(previewCard) then
+		previewCard._onFocusChanged = function(cardId)
+		end
+
+		local focusCardIds = { 'healthColor', 'shields', 'power', 'castbar', 'name', 'healthText', 'powerText', 'statusIcons', 'statusText', 'sorting', 'groupIcons', 'markers', 'partyPets' }
+
+		for _, cardId in next, focusCardIds do
+			local entry = grid._cardIndex[cardId]
+			if(entry and entry.built and entry.card) then
+				local clickOverlay = CreateFrame('Button', nil, entry.card)
+				clickOverlay:SetPoint('TOPLEFT', entry.card, 'TOPLEFT', 0, 0)
+				clickOverlay:SetPoint('TOPRIGHT', entry.card, 'TOPRIGHT', 0, 0)
+				clickOverlay:SetHeight(24)
+				clickOverlay:SetScript('OnClick', function()
+					F.Settings.FramePreview.OnCardFocused(cardId)
+				end)
+			end
+		end
+	end
+
 	-- ── Cancel animations on hide, re-layout on show ──────────
 	scroll:HookScript('OnHide', function()
 		grid:CancelAnimations()
