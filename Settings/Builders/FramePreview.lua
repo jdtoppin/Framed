@@ -59,6 +59,17 @@ local BOSS_FAKES = {
 	{ name = 'Boss 4', class = 'WARRIOR', healthPct = 0.30, powerPct = 0.4 },
 }
 
+local PET_FAKES = {
+	{ name = 'Cat',             class = 'HUNTER',  healthPct = 0.90, powerPct = 0.8 },
+	{ name = 'Wolf',            class = 'HUNTER',  healthPct = 0.75, powerPct = 0.6 },
+	{ name = 'Imp',             class = 'WARLOCK', healthPct = 0.85, powerPct = 0.9 },
+	{ name = 'Water Elemental', class = 'MAGE',    healthPct = 0.80, powerPct = 0.7 },
+	{ name = 'Treant',          class = 'DRUID',   healthPct = 0.95, powerPct = 1.0 },
+}
+
+local showPets = false
+local petFrames = {}
+
 local GROUP_COUNTS = {
 	party = 5,
 	arena = 3,
@@ -195,7 +206,19 @@ local function onConfigChanged(path)
 	if(not activePreview or not activeUnitType) then return end
 
 	local preset, unit, key = path:match('presets%.([^%.]+)%.unitConfigs%.([^%.]+)%.(.+)')
-	if(not preset) then return end
+	if(not preset) then
+		local petPreset, petKey = path:match('presets%.([^%.]+)%.partyPets%.(.+)')
+		if(petPreset and activeUnitType == 'party') then
+			if(petPreset ~= F.Settings.GetEditingPreset()) then return end
+			if(showPets) then
+				local config = getUnitConfig(activeUnitType)
+				if(config) then
+					RenderPetFrames(activePreview._viewContent, config)
+				end
+			end
+		end
+		return
+	end
 
 	if(preset ~= F.Settings.GetEditingPreset()) then return end
 	if(unit ~= activeUnitType) then return end
@@ -246,6 +269,57 @@ local function RenderSoloPreview(viewport, unitType)
 	frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', 0, 0)
 
 	previewFrames[1] = frame
+end
+
+-- ============================================================
+-- Pet frame rendering
+-- ============================================================
+
+local function RenderPetFrames(viewport, config)
+	for _, frame in next, petFrames do
+		ReleaseFrame(frame)
+	end
+	wipe(petFrames)
+
+	if(not showPets) then return end
+
+	local presetName = F.Settings.GetEditingPreset()
+	local petConfig = F.Config:Get('presets.' .. presetName .. '.partyPets')
+	if(not petConfig or petConfig.enabled == false) then return end
+
+	local petSpacing = petConfig.spacing
+	local petH = math.floor(config.height * 0.4)
+	local petW = config.width
+
+	for i, ownerFrame in next, previewFrames do
+		local petFake = PET_FAKES[((i - 1) % #PET_FAKES) + 1]
+		local petFrame = AcquireFrame(viewport) or CreateFrame('Frame', nil, viewport)
+
+		petFrame:SetSize(petW, petH)
+		petFrame:ClearAllPoints()
+		petFrame:SetPoint('TOPLEFT', ownerFrame, 'BOTTOMLEFT', 0, -petSpacing)
+
+		local bg = petFrame:CreateTexture(nil, 'BACKGROUND')
+		bg:SetAllPoints(petFrame)
+		bg:SetColorTexture(0.1, 0.12, 0.15, 0.8)
+
+		if(petConfig.showName) then
+			local nameText = Widgets.CreateFontString(petFrame, petConfig.nameFontSize, C.Colors.textActive)
+			nameText:SetPoint(petConfig.nameAnchor, petFrame, petConfig.nameAnchor,
+				petConfig.nameOffsetX, petConfig.nameOffsetY)
+			nameText:SetText(petFake.name)
+		end
+
+		if(petConfig.showHealthText) then
+			local healthText = Widgets.CreateFontString(petFrame, petConfig.healthTextFontSize, C.Colors.textActive)
+			healthText:SetPoint(petConfig.healthTextAnchor, petFrame, petConfig.healthTextAnchor,
+				petConfig.healthTextOffsetX, petConfig.healthTextOffsetY)
+			healthText:SetText(math.floor(petFake.healthPct * 100) .. '%')
+		end
+
+		petFrame:Show()
+		petFrames[i] = petFrame
+	end
 end
 
 -- ============================================================
@@ -302,6 +376,10 @@ local function RenderGroupPreview(viewport, unitType, count)
 	end
 
 	viewport:SetSize(math.max(totalW, 1), math.max(totalH, 1))
+
+	if(unitType == 'party') then
+		RenderPetFrames(viewport, config)
+	end
 end
 
 -- ============================================================
@@ -401,6 +479,18 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		card._countText = countText
 	end
 
+	if(unitType == 'party') then
+		local petToggle = Widgets.CreateCheckButton(inner, 'Show Pets', function(checked)
+			showPets = checked
+			local config = getUnitConfig(unitType)
+			if(config) then
+				RenderPetFrames(card._viewContent, config)
+			end
+		end)
+		petToggle:SetChecked(false)
+		petToggle:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeMedium / 2)
+	end
+
 	-- Preview viewport (horizontal scroll for overflow)
 	local viewport = CreateFrame('ScrollFrame', nil, inner)
 	local viewContent = CreateFrame('Frame', nil, viewport)
@@ -473,6 +563,11 @@ function FP.Destroy()
 		ReleaseFrame(frame)
 	end
 	wipe(previewFrames)
+	for _, frame in next, petFrames do
+		ReleaseFrame(frame)
+	end
+	wipe(petFrames)
+	showPets = false
 	DrainPool()
 
 	UnregisterConfigListener()
