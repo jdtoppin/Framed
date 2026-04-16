@@ -151,14 +151,15 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ── Pinned preview card (full width, above grid) ──
-	local previewCard = F.Settings.FramePreview.BuildPreviewCard(content, width, unitType)
-	local pinnedH = 0
-	if(previewCard) then
-		previewCard:ClearAllPoints()
-		previewCard:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
-		previewCard:SetFrameStrata('DIALOG')
-		pinnedH = previewCard:GetHeight()
-	end
+	-- DEBUG: minimal test card to isolate whether BuildPreviewCard is the issue
+	local testCard, testInner, testCy = Widgets.StartCard(content, width, 0)
+	local testLabel = Widgets.CreateFontString(testInner, C.Font.sizeNormal, C.Colors.textActive)
+	testLabel:SetPoint('TOPLEFT', testInner, 'TOPLEFT', 0, testCy)
+	testLabel:SetText('TEST PREVIEW CARD — ' .. unitType)
+	testCy = testCy - 40
+	Widgets.EndCard(testCard, content, testCy)
+	local previewCard = testCard
+	local pinnedH = previewCard:GetHeight()
 
 	-- Move grid container below the preview card so it doesn't cover it
 	grid._container:ClearAllPoints()
