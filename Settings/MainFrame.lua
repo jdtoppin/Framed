@@ -269,7 +269,7 @@ function Settings.CreateMainFrame()
 	-- wires the button per panel. Still hidden during the drill-in
 	-- (_headerIndicatorText) state, since Copy-to is a whole-panel
 	-- action that doesn't apply while editing a single indicator.
-	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy', 'accent', 52, 20)
+	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy To', 'accent', 64, 20)
 	Settings._headerCopyToBtn:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerCopyToBtn, 'RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)
 	Settings._headerCopyToBtn:Hide()
@@ -278,12 +278,6 @@ function Settings.CreateMainFrame()
 	Settings._headerCopyToDD:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerCopyToDD, 'RIGHT', Settings._headerCopyToBtn, 'LEFT', -C.Spacing.tight, 0)
 	Settings._headerCopyToDD:Hide()
-
-	Settings._headerCopyToLabel = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textNormal)
-	Settings._headerCopyToLabel:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerCopyToLabel, 'RIGHT', Settings._headerCopyToDD, 'LEFT', -C.Spacing.tight, 0)
-	Settings._headerCopyToLabel:SetText('Copy to')
-	Settings._headerCopyToLabel:Hide()
 
 	-- Preview anchor (populated by AuraPreview when an aura panel is active)
 	Settings._headerPreviewAnchor = titleCard

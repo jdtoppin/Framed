@@ -343,17 +343,8 @@ F.Settings.RegisterPanel({
 		-- ── CardGrid for settings cards ──────────────────────────
 		local gridTopY = yOffset
 
-		-- ── Editing label (above the first settings card) ──
-		local EDITING_LABEL_H = 14   -- matches C.Font.sizeSmall leading
-		local editingLabelFS = Widgets.CreateFontString(content, C.Font.sizeSmall, C.Colors.textSecondary)
-		editingLabelFS:ClearAllPoints()
-		Widgets.SetPoint(editingLabelFS, 'TOPLEFT', content, 'TOPLEFT', 0, gridTopY)
-		editingLabelFS:SetJustifyH('LEFT')
-		editingLabelFS:SetWordWrap(false)
-		editingLabelFS:Hide()
-
 		local grid = Widgets.CreateCardGrid(content, width)
-		grid:SetTopOffset(math.abs(gridTopY) + EDITING_LABEL_H + C.Spacing.tight)
+		grid:SetTopOffset(math.abs(gridTopY))
 
 		-- ── State ────────────────────────────────────────────────
 		local editingName = nil
@@ -396,12 +387,6 @@ F.Settings.RegisterPanel({
 			content:SetHeight(grid:GetTotalHeight())
 			scroll:UpdateScrollRange()
 
-			-- Update the Editing label
-			local typeLabel = TYPE_DISPLAY[iData.type] or iData.type or '?'
-			local anchorLabel = (iData.anchor and iData.anchor[1]) or 'TOPLEFT'
-			editingLabelFS:SetText('Editing: ' .. iName .. ' (' .. typeLabel .. ', ' .. anchorLabel .. ')')
-			editingLabelFS:Show()
-
 			-- Update breadcrumb and preview dimming
 			F.Settings.UpdateAuraBreadcrumb('Buffs', iName)
 			F.Settings.UpdateAuraPreviewDimming('buffs', iName)
@@ -413,8 +398,6 @@ F.Settings.RegisterPanel({
 			grid:Layout(0, parentH)
 
 			editingName = nil
-
-			editingLabelFS:Hide()
 
 			-- Reset selected-row highlight
 			for _, r in next, listRowPool do

@@ -200,14 +200,12 @@ local function activateAuraHeaderControls(info)
 	local dd        = Settings._headerUnitTypeDD
 	local copy      = Settings._headerCopyToBtn
 	local indic     = Settings._headerIndicatorText
-	local copyLabel = Settings._headerCopyToLabel
 	local copyDD    = Settings._headerCopyToDD
 	if(not dd or not copy or not indic) then return end
 
 	if(not info or info.subSection ~= 'auras') then
 		if(dd.Close) then dd:Close() end
 		dd:Hide()
-		if(copyLabel) then copyLabel:Hide() end
 		if(copyDD) then
 			if(copyDD.Close) then copyDD:Close() end
 			copyDD:Hide()
@@ -249,7 +247,6 @@ local function activateAuraHeaderControls(info)
 
 		if(#targets == 0) then
 			-- Only one unit type exists — nothing to copy to.
-			if(copyLabel) then copyLabel:Hide() end
 			if(copyDD) then copyDD:Hide() end
 			copy:Hide()
 		else
@@ -258,7 +255,6 @@ local function activateAuraHeaderControls(info)
 				copyDD:SetValue(targets[1].value)
 				copyDD:Show()
 			end
-			if(copyLabel) then copyLabel:Show() end
 
 			copy:SetOnClick(function()
 				local target = copyDD:GetValue()
@@ -280,7 +276,6 @@ local function activateAuraHeaderControls(info)
 			copy:Show()
 		end
 	else
-		if(copyLabel) then copyLabel:Hide() end
 		if(copyDD) then
 			if(copyDD.Close) then copyDD:Close() end
 			copyDD:Hide()
@@ -511,14 +506,12 @@ function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 
 	local indic = Settings._headerIndicatorText
 	local copy  = Settings._headerCopyToBtn
-	local copyLabel = Settings._headerCopyToLabel
 	local copyDD    = Settings._headerCopyToDD
 	if(indicatorName) then
 		if(indic) then
 			indic:SetText('|cff6688cc>|r  ' .. indicatorName)
 			indic:Show()
 		end
-		if(copyLabel) then copyLabel:Hide() end
 		if(copyDD) then
 			if(copyDD.Close) then copyDD:Close() end
 			copyDD:Hide()
@@ -533,7 +526,6 @@ function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 		local activeId = Settings._activePanelId
 		local configKey = activeId and Settings._auraConfigKeys[activeId]
 		if(configKey) then
-			if(copyLabel) then copyLabel:Show() end
 			if(copyDD) then copyDD:Show() end
 			if(copy) then copy:Show() end
 		end
