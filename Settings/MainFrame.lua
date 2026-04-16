@@ -274,7 +274,7 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerCopyToBtn, 'RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)
 	Settings._headerCopyToBtn:Hide()
 
-	Settings._headerCopyToDD = Widgets.CreateDropdown(titleCard, 120)
+	Settings._headerCopyToDD = Widgets.CreateDropdown(titleCard, 84)
 	Settings._headerCopyToDD:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerCopyToDD, 'RIGHT', Settings._headerCopyToBtn, 'LEFT', -C.Spacing.tight, 0)
 	Settings._headerCopyToDD:Hide()
