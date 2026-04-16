@@ -18,6 +18,7 @@ local ARROW_SIZE   = 12
 local ARROW_GAP    = 2
 local PAD_H        = 6   -- horizontal padding inside each row
 local SWATCH_SIZE  = 12  -- per-spell color swatch
+local ID_WIDTH     = 48
 
 -- Use a single arrow icon; flip via TexCoord for the other direction
 local ARROW_ICON = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
@@ -31,6 +32,16 @@ local function GetSpellData(spellID)
 		if(name) then return name, icon end
 	end
 	return nil, nil
+end
+
+local function TruncateText(fs, text, maxWidth)
+	fs:SetText(text)
+	if(fs:GetStringWidth() <= maxWidth) then return end
+	for i = #text, 1, -1 do
+		fs:SetText(text:sub(1, i) .. '..')
+		if(fs:GetStringWidth() <= maxWidth) then return end
+	end
+	fs:SetText('..')
 end
 
 -- Row pool helpers
@@ -117,31 +128,18 @@ local function CreateRow(parent)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
 
-	-- Spell ID inside a clipping frame so text can't overflow into buttons
-	local ID_WIDTH = 48
-	local idClip = CreateFrame('Frame', nil, row)
-	idClip:SetClipsChildren(true)
-	idClip:SetSize(ID_WIDTH, ROW_HEIGHT)
-	idClip:SetPoint('RIGHT', upBtn, 'LEFT', -PAD_H, 0)
-
-	local idFS = Widgets.CreateFontString(idClip, C.Font.sizeSmall, C.Colors.textSecondary)
-	idFS:SetJustifyH('RIGHT')
-	idFS:SetWordWrap(false)
-	idFS:SetAllPoints(idClip)
-	row._idFS = idFS
-
-	-- Spell name inside a clipping frame for clean truncation
-	local nameClip = CreateFrame('Frame', nil, row)
-	nameClip:SetClipsChildren(true)
-	nameClip:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
-	nameClip:SetPoint('RIGHT', idClip, 'LEFT', -ICON_GAP, 0)
-	nameClip:SetHeight(ROW_HEIGHT)
-
-	local nameFS = Widgets.CreateFontString(nameClip, C.Font.sizeNormal, C.Colors.textActive)
+	-- Spell name + ID on same line (left-to-right anchor chain)
+	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
 	nameFS:SetJustifyH('LEFT')
 	nameFS:SetWordWrap(false)
-	nameFS:SetAllPoints(nameClip)
+	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
 	row._nameFS = nameFS
+
+	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	idFS:SetJustifyH('LEFT')
+	idFS:SetWordWrap(false)
+	idFS:SetPoint('LEFT', nameFS, 'RIGHT', ICON_GAP, 0)
+	row._idFS = idFS
 
 	-- Hover highlight (accent color)
 	local highlight = row:CreateTexture(nil, 'BACKGROUND')
@@ -318,13 +316,17 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 				row._upBtn:SetPoint('RIGHT', row._downBtn, 'LEFT', -ARROW_GAP, 0)
 			end
 
-			-- Clamp name + ID width so they do not overlap controls
+			-- Truncate ID first (limited width), then name gets remaining space.
+			-- nameFS:SetWidth drives idFS position via the anchor chain.
 			local swatchUsed = showSwatch and (SWATCH_SIZE + PAD_H) or 0
 			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + swatchUsed
 			local usedLeft  = PAD_H + ICON_SIZE + ICON_GAP
-			local idWidth = row._idFS:GetStringWidth() + ICON_GAP
-			local availName = math.max(1, contentWidth - usedLeft - usedRight - idWidth)
-			row._nameFS:SetWidth(availName)
+			local totalAvail = math.max(1, contentWidth - usedLeft - usedRight)
+			TruncateText(row._idFS, tostring(spellID), ID_WIDTH)
+			local idW = row._idFS:GetStringWidth() + ICON_GAP
+			local nameAvail = math.max(1, totalAvail - idW)
+			TruncateText(row._nameFS, name or ('Spell ' .. spellID), nameAvail)
+			row._nameFS:SetWidth(nameAvail)
 
 			-- Wire remove button with confirmation
 			row._removeBtn:SetScript('OnClick', function()

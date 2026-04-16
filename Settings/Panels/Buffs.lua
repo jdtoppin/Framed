@@ -231,10 +231,11 @@ F.Settings.RegisterPanel({
 		-- List card height matches the preview card height
 		local leftColumnH = previewCardH
 
-		local listCard, listInner, listY = Widgets.StartCard(content, listCardW, pinnedRowY)
+		local listCard, listInner = Widgets.StartCard(content, listCardW, pinnedRowY)
 		listCard:ClearAllPoints()
 		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
 		listCard._startY = pinnedRowY
+		local listY = 4  -- align with CardGrid title padding (8px from card edge)
 
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
 
