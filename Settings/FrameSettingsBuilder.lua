@@ -130,6 +130,11 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ── CardGrid orchestrator ──────────────────────────────────
+	local previewCard = F.Settings.FramePreview.BuildPreviewCard(content, width, unitType)
+	if(previewCard) then
+		previewCard:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
+	end
+
 	local grid = Widgets.CreateCardGrid(content, width)
 
 	-- Helper: animated re-layout after a card changes height.
@@ -198,13 +203,18 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ── Initial layout ─────────────────────────────────────────
-	grid:SetTopOffset(C.Spacing.normal)
+	local previewOffset = 0
+	if(previewCard) then
+		previewOffset = previewCard:GetHeight() + C.Spacing.normal
+	end
+	grid:SetTopOffset(previewOffset + C.Spacing.normal)
 	grid:Layout(0, parentH)
 	content:SetHeight(grid:GetTotalHeight())
 
 	-- ── Cancel animations on hide, re-layout on show ──────────
 	scroll:HookScript('OnHide', function()
 		grid:CancelAnimations()
+		F.Settings.FramePreview.Destroy()
 	end)
 	scroll:HookScript('OnShow', function()
 		grid:Layout(0, parentH, false)
