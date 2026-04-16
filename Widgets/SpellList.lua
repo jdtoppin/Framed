@@ -117,13 +117,13 @@ local function CreateRow(parent)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
 
-	-- Spell ID (fixed width, right-aligned, truncates at its boundary)
-	local ID_WIDTH = 80
+	-- Spell ID (compact, right-aligned, truncates before the name does)
+	local ID_WIDTH = 48
 	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
 	idFS:SetJustifyH('RIGHT')
 	idFS:SetWordWrap(false)
 	idFS:SetWidth(ID_WIDTH)
-	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -ICON_GAP, 0)
+	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -PAD_H, 0)
 	row._idFS = idFS
 
 	-- Spell name (fills remaining space, truncates only when truly long)
@@ -145,8 +145,8 @@ local function CreateRow(parent)
 	row:EnableMouse(true)
 	row:SetScript('OnEnter', function(self)
 		self._highlight:Show()
-		if(Widgets.ShowTooltip and self._nameFS:IsTruncated()) then
-			Widgets.ShowTooltip(self, self._nameFS:GetText())
+		if(Widgets.ShowTooltip and self._spellID) then
+			Widgets.ShowTooltip(self, self._nameFS:GetText(), 'Spell ID: ' .. self._spellID)
 		end
 	end)
 	row:SetScript('OnLeave', function(self)
@@ -244,7 +244,8 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 			-- Populate spell data
 			local name, icon = GetSpellData(spellID)
 			row._nameFS:SetText(name or ('Spell ' .. spellID))
-			row._idFS:SetText('Spell ID: ' .. spellID)
+			row._idFS:SetText(tostring(spellID))
+			row._spellID = spellID
 
 			if(icon) then
 				row._icon:SetTexture(icon)
