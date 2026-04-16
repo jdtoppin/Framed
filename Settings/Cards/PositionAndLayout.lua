@@ -101,87 +101,83 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		cardY = B.PlaceWidget(apDropdown, inner, cardY, B.DROPDOWN_H)
 	end
 
-	-- Read the actual frame position from config
-	local actualX = getConfig('position.x')
-	local actualY = getConfig('position.y')
+	local posXSlider, posYSlider
 
-	-- Frame Position sliders (X / Y) — range matches actual screen, accounting for UI scale
-	cardY = B.PlaceHeading(inner, 'Frame Position', 4, cardY)
-	local posRangeX = math.floor(UIParent:GetWidth() / 2)
-	local posRangeY = math.floor(UIParent:GetHeight() / 2)
+	if(not pinnedMode) then
+		-- Read the actual frame position from config
+		local actualX = getConfig('position.x')
+		local actualY = getConfig('position.y')
 
-	local posUpdateTime = 0
-	local POS_THROTTLE = 0.03
+		-- Frame Position sliders (X / Y) — range matches actual screen, accounting for UI scale
+		cardY = B.PlaceHeading(inner, 'Frame Position', 4, cardY)
+		local posRangeX = math.floor(UIParent:GetWidth() / 2)
+		local posRangeY = math.floor(UIParent:GetHeight() / 2)
 
-	local posXSlider = Widgets.CreateSlider(inner, 'X', widgetW, -posRangeX, posRangeX, 1)
-	posXSlider:SetValue(actualX)
-	posXSlider:SetOnValueChanged(function(value)
-		local now = GetTime()
-		if(now - posUpdateTime < POS_THROTTLE) then return end
-		posUpdateTime = now
-		F.EditCache.Set(unitType, 'position.x', value)
-	end)
-	posXSlider:SetAfterValueChanged(function(value)
-		setConfig('position.x', value)
-		F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', unitType)
-	end)
-	cardY = B.PlaceWidget(posXSlider, inner, cardY, B.SLIDER_H)
+		local posUpdateTime = 0
+		local POS_THROTTLE = 0.03
 
-	local posYSlider = Widgets.CreateSlider(inner, 'Y', widgetW, -posRangeY, posRangeY, 1)
-	posYSlider:SetValue(actualY)
-	posYSlider:SetOnValueChanged(function(value)
-		local now = GetTime()
-		if(now - posUpdateTime < POS_THROTTLE) then return end
-		posUpdateTime = now
-		F.EditCache.Set(unitType, 'position.y', value)
-	end)
-	posYSlider:SetAfterValueChanged(function(value)
-		setConfig('position.y', value)
-		F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', unitType)
-	end)
-	cardY = B.PlaceWidget(posYSlider, inner, cardY, B.SLIDER_H)
+		posXSlider = Widgets.CreateSlider(inner, 'X', widgetW, -posRangeX, posRangeX, 1)
+		posXSlider:SetValue(actualX)
+		posXSlider:SetOnValueChanged(function(value)
+			local now = GetTime()
+			if(now - posUpdateTime < POS_THROTTLE) then return end
+			posUpdateTime = now
+			F.EditCache.Set(unitType, 'position.x', value)
+		end)
+		posXSlider:SetAfterValueChanged(function(value)
+			setConfig('position.x', value)
+			F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', unitType)
+		end)
+		cardY = B.PlaceWidget(posXSlider, inner, cardY, B.SLIDER_H)
 
-	-- Pixel nudge arrows
-	cardY = B.PlaceHeading(inner, 'Pixel Nudge', 4, cardY)
+		posYSlider = Widgets.CreateSlider(inner, 'Y', widgetW, -posRangeY, posRangeY, 1)
+		posYSlider:SetValue(actualY)
+		posYSlider:SetOnValueChanged(function(value)
+			local now = GetTime()
+			if(now - posUpdateTime < POS_THROTTLE) then return end
+			posUpdateTime = now
+			F.EditCache.Set(unitType, 'position.y', value)
+		end)
+		posYSlider:SetAfterValueChanged(function(value)
+			setConfig('position.y', value)
+			F.EventBus:Fire('EDIT_MODE_DRAG_STOPPED', unitType)
+		end)
+		cardY = B.PlaceWidget(posYSlider, inner, cardY, B.SLIDER_H)
 
-	local nudgeFrame = CreateFrame('Frame', nil, inner)
-	nudgeFrame:SetSize(100, 50)
+		-- Pixel nudge arrows
+		cardY = B.PlaceHeading(inner, 'Pixel Nudge', 4, cardY)
 
-	local nudgeUp = Widgets.CreateButton(nudgeFrame, '^', 'widget', 24, 20)
-	nudgeUp:SetPoint('TOP', nudgeFrame, 'TOP', 0, 0)
-	local nudgeDown = Widgets.CreateButton(nudgeFrame, 'v', 'widget', 24, 20)
-	nudgeDown:SetPoint('BOTTOM', nudgeFrame, 'BOTTOM', 0, 0)
-	local nudgeLeft = Widgets.CreateButton(nudgeFrame, '<', 'widget', 24, 20)
-	nudgeLeft:SetPoint('LEFT', nudgeFrame, 'LEFT', 0, 0)
-	local nudgeRight = Widgets.CreateButton(nudgeFrame, '>', 'widget', 24, 20)
-	nudgeRight:SetPoint('RIGHT', nudgeFrame, 'RIGHT', 0, 0)
+		local nudgeFrame = CreateFrame('Frame', nil, inner)
+		nudgeFrame:SetSize(100, 50)
 
-	local function nudge(dx, dy)
-		local curX = posXSlider:GetValue()
-		local curY = posYSlider:GetValue()
-		posXSlider:SetValue(curX + dx)
-		posYSlider:SetValue(curY + dy)
-		setConfig('position.x', curX + dx)
-		setConfig('position.y', curY + dy)
-	end
+		local nudgeUp = Widgets.CreateButton(nudgeFrame, '^', 'widget', 24, 20)
+		nudgeUp:SetPoint('TOP', nudgeFrame, 'TOP', 0, 0)
+		local nudgeDown = Widgets.CreateButton(nudgeFrame, 'v', 'widget', 24, 20)
+		nudgeDown:SetPoint('BOTTOM', nudgeFrame, 'BOTTOM', 0, 0)
+		local nudgeLeft = Widgets.CreateButton(nudgeFrame, '<', 'widget', 24, 20)
+		nudgeLeft:SetPoint('LEFT', nudgeFrame, 'LEFT', 0, 0)
+		local nudgeRight = Widgets.CreateButton(nudgeFrame, '>', 'widget', 24, 20)
+		nudgeRight:SetPoint('RIGHT', nudgeFrame, 'RIGHT', 0, 0)
 
-	nudgeUp:SetOnClick(function() nudge(0, 1) end)
-	nudgeDown:SetOnClick(function() nudge(0, -1) end)
-	nudgeLeft:SetOnClick(function() nudge(-1, 0) end)
-	nudgeRight:SetOnClick(function() nudge(1, 0) end)
-
-	cardY = B.PlaceWidget(nudgeFrame, inner, cardY, 50)
-
-	if(pinnedMode) then
-		local greyGroup = { anchorPicker, posXSlider, posYSlider, nudgeFrame }
-		for _, widget in next, greyGroup do
-			widget:SetAlpha(0.35)
-			widget:EnableMouse(false)
+		local function nudge(dx, dy)
+			local curX = posXSlider:GetValue()
+			local curY = posYSlider:GetValue()
+			posXSlider:SetValue(curX + dx)
+			posYSlider:SetValue(curY + dy)
+			setConfig('position.x', curX + dx)
+			setConfig('position.y', curY + dy)
 		end
+
+		nudgeUp:SetOnClick(function() nudge(0, 1) end)
+		nudgeDown:SetOnClick(function() nudge(0, -1) end)
+		nudgeLeft:SetOnClick(function() nudge(-1, 0) end)
+		nudgeRight:SetOnClick(function() nudge(1, 0) end)
+
+		cardY = B.PlaceWidget(nudgeFrame, inner, cardY, 50)
 	end
 
 	if(pinnedMode) then
-		local editModeLink = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSubtle)
+		local editModeLink = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
 		editModeLink:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cardY)
 		editModeLink:SetText('Edit Mode →')
 		cardY = cardY - C.Font.sizeSmall - 4
@@ -197,7 +193,7 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 			editModeLink:SetTextColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
 		end)
 		clickFrame:SetScript('OnLeave', function(self)
-			editModeLink:SetTextColor(C.Colors.textSubtle[1], C.Colors.textSubtle[2], C.Colors.textSubtle[3], 1)
+			editModeLink:SetTextColor(C.Colors.textSecondary[1], C.Colors.textSecondary[2], C.Colors.textSecondary[3], 1)
 		end)
 	end
 
@@ -209,27 +205,31 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		heightSlider:SetValue(Widgets.Round(newH))
 	end, evtTag .. '.resize')
 
-	-- ── Live sync from drag stop ─────────────────────────────
-	F.EventBus:Register('EDIT_MODE_DRAG_STOPPED', function(frameKey)
-		if(frameKey ~= unitType) then return end
-		local x = F.EditCache.Get(unitType, 'position.x')
-		local y = F.EditCache.Get(unitType, 'position.y')
-		posXSlider:SetValue(Widgets.Round(x))
-		posYSlider:SetValue(Widgets.Round(y))
-	end, evtTag .. '.drag')
+	if(posXSlider and posYSlider) then
+		-- ── Live sync from drag stop ─────────────────────────────
+		F.EventBus:Register('EDIT_MODE_DRAG_STOPPED', function(frameKey)
+			if(frameKey ~= unitType) then return end
+			local x = F.EditCache.Get(unitType, 'position.x')
+			local y = F.EditCache.Get(unitType, 'position.y')
+			posXSlider:SetValue(Widgets.Round(x))
+			posYSlider:SetValue(Widgets.Round(y))
+		end, evtTag .. '.drag')
 
-	-- ── Live sync during drag ────────────────────────────────
-	F.EventBus:Register('EDIT_MODE_DRAGGING', function(frameKey, x, y)
-		if(frameKey ~= unitType) then return end
-		posXSlider:SetValue(x)
-		posYSlider:SetValue(y)
-	end, evtTag .. '.dragging')
+		-- ── Live sync during drag ────────────────────────────────
+		F.EventBus:Register('EDIT_MODE_DRAGGING', function(frameKey, x, y)
+			if(frameKey ~= unitType) then return end
+			posXSlider:SetValue(x)
+			posYSlider:SetValue(y)
+		end, evtTag .. '.dragging')
+	end
 
 	-- Unregister when card is destroyed
 	card:HookScript('OnHide', function()
 		F.EventBus:Unregister('EDIT_MODE_FRAME_RESIZED', evtTag .. '.resize')
-		F.EventBus:Unregister('EDIT_MODE_DRAG_STOPPED', evtTag .. '.drag')
-		F.EventBus:Unregister('EDIT_MODE_DRAGGING', evtTag .. '.dragging')
+		if(posXSlider) then
+			F.EventBus:Unregister('EDIT_MODE_DRAG_STOPPED', evtTag .. '.drag')
+			F.EventBus:Unregister('EDIT_MODE_DRAGGING', evtTag .. '.dragging')
+		end
 	end)
 
 	Widgets.EndCard(card, parent, cardY)

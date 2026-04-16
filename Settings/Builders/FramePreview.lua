@@ -525,6 +525,7 @@ function FP.RebuildPreview()
 		viewH = config.height + 20
 	end
 	AnimateViewportResize(activePreview._viewport, activePreview, activePreview._viewport:GetWidth(), viewH)
+	viewport:SetWidth(activePreview._viewport:GetWidth())
 	viewport:SetHeight(viewH)
 
 	if(SOLO_FAKES[activeUnitType]) then
@@ -629,6 +630,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	viewport:SetScrollChild(viewContent)
 	viewport:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cy)
 	viewport:SetPoint('RIGHT', inner, 'RIGHT', 0, 0)
+	viewContent:SetWidth(width)
 
 	-- Horizontal mouse wheel scrolling for wide group layouts
 	viewport:EnableMouseWheel(true)
