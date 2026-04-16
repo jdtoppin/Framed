@@ -173,6 +173,9 @@ local function DrainPool()
 	wipe(framePool)
 end
 
+-- Forward declarations for locals referenced before definition
+local RenderPetFrames
+
 -- ============================================================
 -- Config helpers
 -- ============================================================
@@ -275,7 +278,7 @@ end
 -- Pet frame rendering
 -- ============================================================
 
-local function RenderPetFrames(viewport, config)
+RenderPetFrames = function(viewport, config)
 	for _, frame in next, petFrames do
 		ReleaseFrame(frame)
 	end
