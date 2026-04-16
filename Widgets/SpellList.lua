@@ -85,17 +85,6 @@ local function CreateRow(parent)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 	row._icon = icon
 
-	-- Spell name + ID on same line
-	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
-	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
-	nameFS:SetJustifyH('LEFT')
-	row._nameFS = nameFS
-
-	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-	idFS:SetJustifyH('LEFT')
-	idFS:SetPoint('LEFT', nameFS, 'RIGHT', ICON_GAP, 0)
-	row._idFS = idFS
-
 	-- Right side controls (right to left): remove, down, up, [color swatch]
 
 	-- Remove button (Close icon)
@@ -127,6 +116,20 @@ local function CreateRow(parent)
 	local upBtn = CreateArrowButton(row, false)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
+
+	-- Spell name (priority) + ID — both truncate, ID truncates first
+	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
+	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
+	nameFS:SetJustifyH('LEFT')
+	nameFS:SetWordWrap(false)
+	row._nameFS = nameFS
+
+	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	idFS:SetJustifyH('RIGHT')
+	idFS:SetWordWrap(false)
+	idFS:SetPoint('LEFT', nameFS, 'RIGHT', ICON_GAP, 0)
+	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -ICON_GAP, 0)
+	row._idFS = idFS
 
 	-- Hover highlight (accent color)
 	local highlight = row:CreateTexture(nil, 'BACKGROUND')
