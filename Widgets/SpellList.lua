@@ -117,21 +117,30 @@ local function CreateRow(parent)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
 
-	-- Spell ID (compact, right-aligned — two anchor points for real clipping)
+	-- Spell ID inside a clipping frame so text can't overflow into buttons
 	local ID_WIDTH = 48
-	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	local idClip = CreateFrame('Frame', nil, row)
+	idClip:SetClipsChildren(true)
+	idClip:SetSize(ID_WIDTH, ROW_HEIGHT)
+	idClip:SetPoint('RIGHT', upBtn, 'LEFT', -PAD_H, 0)
+
+	local idFS = Widgets.CreateFontString(idClip, C.Font.sizeSmall, C.Colors.textSecondary)
 	idFS:SetJustifyH('RIGHT')
 	idFS:SetWordWrap(false)
-	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -PAD_H, 0)
-	idFS:SetPoint('LEFT', upBtn, 'LEFT', -(PAD_H + ID_WIDTH), 0)
+	idFS:SetAllPoints(idClip)
 	row._idFS = idFS
 
-	-- Spell name (fills icon → ID boundary, two anchors for real clipping)
-	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
-	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
-	nameFS:SetPoint('RIGHT', upBtn, 'LEFT', -(PAD_H + ID_WIDTH + ICON_GAP), 0)
+	-- Spell name inside a clipping frame for clean truncation
+	local nameClip = CreateFrame('Frame', nil, row)
+	nameClip:SetClipsChildren(true)
+	nameClip:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
+	nameClip:SetPoint('RIGHT', idClip, 'LEFT', -ICON_GAP, 0)
+	nameClip:SetHeight(ROW_HEIGHT)
+
+	local nameFS = Widgets.CreateFontString(nameClip, C.Font.sizeNormal, C.Colors.textActive)
 	nameFS:SetJustifyH('LEFT')
 	nameFS:SetWordWrap(false)
+	nameFS:SetAllPoints(nameClip)
 	row._nameFS = nameFS
 
 	-- Hover highlight (accent color)
