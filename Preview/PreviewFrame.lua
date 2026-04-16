@@ -70,7 +70,7 @@ end
 -- Apply health bar color based on config colorMode
 local function applyHealthColor(bar, config, fakeUnit)
 	local hc = config.health
-	local mode = hc and hc.colorMode or 'class'
+	local mode = hc.colorMode
 	local pct = fakeUnit and fakeUnit.healthPct or 1
 	if(mode == 'class' and fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
@@ -81,9 +81,9 @@ local function applyHealthColor(bar, config, fakeUnit)
 		bar:SetStatusBarColor(0.25, 0.25, 0.25, 1)
 	elseif(mode == 'gradient') then
 		local curve = buildColorCurve(
-			hc.gradientColor1 or { 0.2, 0.8, 0.2 }, hc.gradientThreshold1 or 95,
-			hc.gradientColor2 or { 0.9, 0.6, 0.1 }, hc.gradientThreshold2 or 50,
-			hc.gradientColor3 or { 0.8, 0.1, 0.1 }, hc.gradientThreshold3 or 5
+			hc.gradientColor1, hc.gradientThreshold1,
+			hc.gradientColor2, hc.gradientThreshold2,
+			hc.gradientColor3, hc.gradientThreshold3
 		)
 		local color = curve:GetColorAtPosition(pct)
 		if(color) then
@@ -98,22 +98,22 @@ end
 -- Apply health loss color (background behind depleted health)
 local function applyHealthLossColor(bg, config, fakeUnit)
 	local hc = config.health
-	local lossMode = hc and hc.lossColorMode or 'dark'
+	local lossMode = hc.lossColorMode
 	if(lossMode == 'class' and fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
 		bg:SetVertexColor(r * 0.3, g * 0.3, b * 0.3, 1)
-	elseif(lossMode == 'gradient' and hc) then
+	elseif(lossMode == 'gradient') then
 		local pct = fakeUnit and fakeUnit.healthPct or 1
 		local curve = buildColorCurve(
-			hc.lossGradientColor1 or { 0.1, 0.4, 0.1 }, hc.lossGradientThreshold1 or 95,
-			hc.lossGradientColor2 or { 0.4, 0.25, 0.05 }, hc.lossGradientThreshold2 or 50,
-			hc.lossGradientColor3 or { 0.4, 0.05, 0.05 }, hc.lossGradientThreshold3 or 5
+			hc.lossGradientColor1, hc.lossGradientThreshold1,
+			hc.lossGradientColor2, hc.lossGradientThreshold2,
+			hc.lossGradientColor3, hc.lossGradientThreshold3
 		)
 		local color = curve:GetColorAtPosition(pct)
 		if(color) then
 			bg:SetVertexColor(color:GetRGBA())
 		end
-	elseif(lossMode == 'custom' and hc and hc.lossCustomColor) then
+	elseif(lossMode == 'custom' and hc.lossCustomColor) then
 		local lc = hc.lossCustomColor
 		bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
 	elseif(lossMode == 'dark') then
@@ -127,8 +127,7 @@ end
 
 local function BuildHealthBar(frame, config)
 	local wrapper = CreateFrame('Frame', nil, frame)
-	local strata = config.elementStrata or {}
-	wrapper:SetFrameLevel(frame:GetFrameLevel() + (strata.healthBar or 0))
+	wrapper:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.healthBar)
 	-- Points set after power bar is built (health fills remaining space)
 	wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 	wrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
@@ -152,18 +151,18 @@ local function BuildHealthBar(frame, config)
 
 	-- Health text — overlay frame above the StatusBar child
 	local hc = config.health
-	if(hc and hc.showText ~= false) then
+	if(hc.showText ~= false) then
 		local textOverlay = CreateFrame('Frame', nil, wrapper)
 		textOverlay:SetAllPoints(wrapper)
 		textOverlay:SetFrameLevel(bar:GetFrameLevel() + 2)
 		local text = Widgets.CreateFontString(textOverlay, hc.fontSize, C.Colors.textActive)
-		text:SetFont(F.Media.GetActiveFont(), hc.fontSize, hc.outline or '')
+		text:SetFont(F.Media.GetActiveFont(), hc.fontSize, hc.outline)
 		if(hc.shadow ~= false) then
 			text:SetShadowOffset(1, -1)
 			text:SetShadowColor(0, 0, 0, 1)
 		end
 		-- Text color mode
-		local tcm = hc.textColorMode or 'white'
+		local tcm = hc.textColorMode
 		if(tcm == 'custom' and hc.textCustomColor) then
 			text:SetTextColor(hc.textCustomColor[1], hc.textCustomColor[2], hc.textCustomColor[3], 1)
 		elseif(tcm == 'class') then
@@ -171,8 +170,7 @@ local function BuildHealthBar(frame, config)
 		elseif(tcm == 'dark') then
 			text:SetTextColor(0.25, 0.25, 0.25, 1)
 		end
-		local anchor = hc.textAnchor or 'RIGHT'
-		text:SetPoint(anchor, wrapper, anchor, (hc.textAnchorX or 0) + 1, hc.textAnchorY or 0)
+		text:SetPoint(hc.textAnchor, wrapper, hc.textAnchor, hc.textAnchorX + 1, hc.textAnchorY)
 		frame._healthText = text
 	end
 end
@@ -184,11 +182,11 @@ end
 local function BuildPowerBar(frame, config)
 	if(config.showPower == false) then return end
 
-	local powerHeight = (config.power and config.power.height) or 8
+	local powerHeight = config.power.height
 	local wrapper = CreateFrame('Frame', nil, frame)
 	wrapper:SetHeight(powerHeight)
 
-	if(config.power and config.power.position == 'top') then
+	if(config.power.position == 'top') then
 		wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 		wrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
 		-- Shrink health below power
@@ -213,25 +211,25 @@ local function BuildPowerBar(frame, config)
 	local bgC = C.Colors.background
 	bar._bg = wrapper:CreateTexture(nil, 'BACKGROUND')
 	bar._bg:SetAllPoints(wrapper)
-	bar._bg:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+	bar._bg:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4])
 
 	frame._powerWrapper = wrapper
 	frame._powerBar = bar
 
 	-- Power text
 	local pc = config.power
-	if(pc and pc.showText) then
+	if(pc.showText) then
 		local textOverlay = CreateFrame('Frame', nil, wrapper)
 		textOverlay:SetAllPoints(wrapper)
 		textOverlay:SetFrameLevel(bar:GetFrameLevel() + 2)
 		local text = Widgets.CreateFontString(textOverlay, pc.fontSize, C.Colors.textActive)
-		text:SetFont(F.Media.GetActiveFont(), pc.fontSize, pc.outline or '')
+		text:SetFont(F.Media.GetActiveFont(), pc.fontSize, pc.outline)
 		if(pc.shadow ~= false) then
 			text:SetShadowOffset(1, -1)
 			text:SetShadowColor(0, 0, 0, 1)
 		end
 		-- Text color mode
-		local tcm = pc.textColorMode or 'white'
+		local tcm = pc.textColorMode
 		if(tcm == 'custom' and pc.textCustomColor) then
 			text:SetTextColor(pc.textCustomColor[1], pc.textCustomColor[2], pc.textCustomColor[3], 1)
 		elseif(tcm == 'class') then
@@ -239,8 +237,7 @@ local function BuildPowerBar(frame, config)
 		elseif(tcm == 'dark') then
 			text:SetTextColor(0.25, 0.25, 0.25, 1)
 		end
-		local anchor = pc.textAnchor or 'CENTER'
-		text:SetPoint(anchor, wrapper, anchor, (pc.textAnchorX or 0) + 1, pc.textAnchorY or 0)
+		text:SetPoint(pc.textAnchor, wrapper, pc.textAnchor, pc.textAnchorX + 1, pc.textAnchorY)
 		frame._powerText = text
 	end
 end
@@ -257,21 +254,19 @@ local function BuildNameText(frame, config, fakeUnit)
 	local anchorParent = frame._healthWrapper or frame
 	local nameOverlay = CreateFrame('Frame', nil, anchorParent)
 	nameOverlay:SetAllPoints(anchorParent)
-	local strata = config.elementStrata or {}
-	nameOverlay:SetFrameLevel(frame:GetFrameLevel() + (strata.nameText or 5))
+	nameOverlay:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.nameText)
 	local text = Widgets.CreateFontString(nameOverlay, nc.fontSize, C.Colors.textActive)
-	text:SetFont(F.Media.GetActiveFont(), nc.fontSize, nc.outline or '')
+	text:SetFont(F.Media.GetActiveFont(), nc.fontSize, nc.outline)
 	if(nc.shadow ~= false) then
 		text:SetShadowOffset(1, -1)
 		text:SetShadowColor(0, 0, 0, 1)
 	end
 
-	local pt = nc.anchor or 'LEFT'
-	text:SetPoint(pt, anchorParent, pt, nc.anchorX or 0, nc.anchorY or 0)
+	text:SetPoint(nc.anchor, anchorParent, nc.anchor, nc.anchorX, nc.anchorY)
 	text:SetText(fakeUnit and fakeUnit.name or 'Unit Name')
 
 	-- Color mode
-	local ncMode = nc.colorMode or 'class'
+	local ncMode = nc.colorMode
 	if(ncMode == 'class' and fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
 		text:SetTextColor(r, g, b, 1)
@@ -331,17 +326,16 @@ local function BuildStatusIcons(frame, config)
 	-- Overlay frame above health/power bars so icons are visible
 	local iconOverlay = CreateFrame('Frame', nil, frame)
 	iconOverlay:SetAllPoints(frame)
-	local strata = config.elementStrata or {}
-	iconOverlay:SetFrameLevel(frame:GetFrameLevel() + (strata.statusIcons or 6))
+	iconOverlay:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.statusIcons)
 	frame._iconOverlay = iconOverlay
 
 	frame._statusIcons = {}
 	for _, key in next, STATUS_ICON_KEYS do
 		if(icons[key]) then
-			local pt   = icons[key .. 'Point'] or 'TOPLEFT'
-			local x    = icons[key .. 'X'] or 0
-			local y    = icons[key .. 'Y'] or 0
-			local size = icons[key .. 'Size'] or 14
+			local pt   = icons[key .. 'Point']
+			local x    = icons[key .. 'X']
+			local y    = icons[key .. 'Y']
+			local size = icons[key .. 'Size']
 
 			local icon = iconOverlay:CreateTexture(nil, 'OVERLAY')
 			icon:SetSize(size, size)
@@ -382,16 +376,15 @@ local function BuildCastbar(frame, config)
 	local cb = config.castbar
 
 	local wrapper = CreateFrame('Frame', nil, frame)
-	local strata = config.elementStrata or {}
-	wrapper:SetFrameLevel(frame:GetFrameLevel() + (strata.castBar or 8))
+	wrapper:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.castBar)
 	local cbWidth = (cb.sizeMode == 'detached' and cb.width) or config.width
-	wrapper:SetSize(cbWidth, cb.height or 16)
+	wrapper:SetSize(cbWidth, cb.height)
 	wrapper:SetPoint('TOP', frame, 'BOTTOM', 0, -C.Spacing.base)
 
 	local bgC = C.Colors.background
 	local bgTex = wrapper:CreateTexture(nil, 'BACKGROUND')
 	bgTex:SetAllPoints(wrapper)
-	bgTex:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+	bgTex:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4])
 
 	local bar = CreateFrame('StatusBar', nil, wrapper)
 	bar:SetAllPoints(wrapper)
@@ -433,7 +426,6 @@ end
 
 local function BuildPortrait(frame, config, fakeUnit)
 	if(not config.portrait) then return end
-	local strata = config.elementStrata or {}
 
 	local portraitType = config.portrait.type
 	local size = math.min(config.height, config.width) * 0.8
@@ -441,7 +433,7 @@ local function BuildPortrait(frame, config, fakeUnit)
 	local wrapper = CreateFrame('Frame', nil, frame)
 	wrapper:SetSize(size, size)
 	wrapper:SetPoint('LEFT', frame, 'LEFT', 4, 0)
-	wrapper:SetFrameLevel(frame:GetFrameLevel() + (strata.portrait or 9))
+	wrapper:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.portrait)
 
 	local tex = wrapper:CreateTexture(nil, 'ARTWORK')
 	tex:SetAllPoints(wrapper)
@@ -466,11 +458,10 @@ end
 local function BuildStatusText(frame, config, fakeUnit)
 	local stConfig = config.statusText
 	if(not stConfig or stConfig.enabled == false) then return end
-	local strata = config.elementStrata or {}
 
 	local overlay = CreateFrame('Frame', nil, frame)
 	overlay:SetAllPoints(frame)
-	overlay:SetFrameLevel(frame:GetFrameLevel() + (strata.statusText or 7))
+	overlay:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.statusText)
 
 	local text = Widgets.CreateFontString(overlay, stConfig.fontSize, C.Colors.textActive)
 	text:SetPoint(stConfig.anchor, overlay, stConfig.anchor,
@@ -495,7 +486,6 @@ end
 local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 	if(not frame._healthBar) then return end
 	local hc = config.health
-	local strata = config.elementStrata or {}
 	local healthBar = frame._healthBar
 	local barWidth = config.width
 	local healthPct = fakeUnit and fakeUnit.healthPct or 0.85
@@ -504,7 +494,7 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 	if(hc.healPrediction ~= false and fakeUnit and fakeUnit.incomingHeal) then
 		local healBar = CreateFrame('StatusBar', nil, healthBar)
 		healBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
-		healBar:SetFrameLevel(healthBar:GetFrameLevel() + (strata.healPrediction or 1))
+		healBar:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.healPrediction)
 		healBar:SetMinMaxValues(0, 1)
 		healBar:SetValue(fakeUnit.incomingHeal)
 
@@ -523,7 +513,7 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 	if(hc.damageAbsorb ~= false and fakeUnit and fakeUnit.damageAbsorb) then
 		local absorbBar = CreateFrame('StatusBar', nil, healthBar)
 		absorbBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
-		absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + (strata.damageAbsorb or 2))
+		absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.damageAbsorb)
 		absorbBar:SetMinMaxValues(0, 1)
 		absorbBar:SetValue(1)
 
@@ -541,7 +531,7 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 	if(hc.healAbsorb ~= false and fakeUnit and fakeUnit.healAbsorb) then
 		local healAbsorbBar = CreateFrame('StatusBar', nil, healthBar)
 		healAbsorbBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
-		healAbsorbBar:SetFrameLevel(healthBar:GetFrameLevel() + (strata.healAbsorb or 3))
+		healAbsorbBar:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.healAbsorb)
 		healAbsorbBar:SetMinMaxValues(0, 1)
 		healAbsorbBar:SetValue(1)
 
@@ -559,7 +549,7 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 	-- Overshield (texture on an OVERLAY-level wrapper frame for strata control)
 	if(hc.overAbsorb ~= false and fakeUnit and fakeUnit.overAbsorb) then
 		local overWrapper = CreateFrame('Frame', nil, healthBar)
-		overWrapper:SetFrameLevel(healthBar:GetFrameLevel() + (strata.overAbsorb or 4))
+		overWrapper:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.overAbsorb)
 		overWrapper:SetPoint('TOPRIGHT', healthBar, 'TOPRIGHT', 4, 2)
 		overWrapper:SetPoint('BOTTOMRIGHT', healthBar, 'BOTTOMRIGHT', 4, -2)
 		overWrapper:SetWidth(12)
@@ -587,7 +577,7 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(frame)
 	local bgC = C.Colors.background
-	bg:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+	bg:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4])
 	frame._bg = bg
 
 	-- Build structural elements (health fills remaining space, power has fixed height)
@@ -614,7 +604,7 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 
 		if(animated) then
 			-- Looping health depletion: 1 → healthPct over 8 seconds, then restart
-			local targetPct = fakeUnit.healthPct or 0.7
+			local targetPct = fakeUnit.healthPct
 			local healthBar = frame._healthBar
 			local function loopHealth(bar)
 				bar:SetValue(1)
@@ -622,8 +612,7 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 					function(f, v)
 						f:SetValue(v)
 						if(frame._healthText) then
-							local hFmt = (config.health and config.health.textFormat) or 'percent'
-							frame._healthText:SetText(formatHealthText(v, hFmt))
+							frame._healthText:SetText(formatHealthText(v, config.health.textFormat))
 						end
 					end,
 					function(f)
@@ -633,10 +622,9 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 			end
 			loopHealth(healthBar)
 		else
-			frame._healthBar:SetValue(fakeUnit.healthPct or 1)
+			frame._healthBar:SetValue(fakeUnit.healthPct)
 			if(frame._healthText) then
-				local hFmt = (config.health and config.health.textFormat) or 'percent'
-				frame._healthText:SetText(formatHealthText(fakeUnit.healthPct or 1, hFmt))
+				frame._healthText:SetText(formatHealthText(fakeUnit.healthPct, config.health.textFormat))
 			end
 		end
 
@@ -645,11 +633,10 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 			frame._healthText:SetTextColor(tr, tg, tb, 1)
 		end
 		if(frame._powerBar) then
-			frame._powerBar:SetValue(fakeUnit.powerPct or 1)
+			frame._powerBar:SetValue(fakeUnit.powerPct)
 		end
 		if(frame._powerText) then
-			local pFmt = (config.power and config.power.textFormat) or 'percent'
-			frame._powerText:SetText(formatPowerText(fakeUnit.powerPct or 1, pFmt))
+			frame._powerText:SetText(formatPowerText(fakeUnit.powerPct, config.power.textFormat))
 			if(frame._powerTextClassColor) then
 				local tr, tg, tb = getClassColor(fakeUnit.class)
 				frame._powerText:SetTextColor(tr, tg, tb, 1)
