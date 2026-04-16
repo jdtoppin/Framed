@@ -117,19 +117,19 @@ local function CreateRow(parent)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
 
-	-- Spell ID (compact, right-aligned, truncates before the name does)
+	-- Spell ID (compact, right-aligned — two anchor points for real clipping)
 	local ID_WIDTH = 48
 	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
 	idFS:SetJustifyH('RIGHT')
 	idFS:SetWordWrap(false)
-	idFS:SetWidth(ID_WIDTH)
 	idFS:SetPoint('RIGHT', upBtn, 'LEFT', -PAD_H, 0)
+	idFS:SetPoint('LEFT', upBtn, 'LEFT', -(PAD_H + ID_WIDTH), 0)
 	row._idFS = idFS
 
-	-- Spell name (fills remaining space, truncates only when truly long)
+	-- Spell name (fills icon → ID boundary, two anchors for real clipping)
 	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
 	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
-	nameFS:SetPoint('RIGHT', idFS, 'LEFT', -ICON_GAP, 0)
+	nameFS:SetPoint('RIGHT', upBtn, 'LEFT', -(PAD_H + ID_WIDTH + ICON_GAP), 0)
 	nameFS:SetJustifyH('LEFT')
 	nameFS:SetWordWrap(false)
 	row._nameFS = nameFS
