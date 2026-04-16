@@ -150,30 +150,16 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		end
 	end
 
-	-- ── Pinned row: Preview (left) + Position & Layout (right) ──
-	local pinnedRow = CreateFrame('Frame', nil, content)
-	pinnedRow:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
-	pinnedRow:SetPoint('RIGHT', content, 'RIGHT', 0, 0)
-
-	local previewCardW = math.floor(width * 0.55)
-	local posCardW = width - previewCardW - C.Spacing.normal
-
-	local previewCard = F.Settings.FramePreview.BuildPreviewCard(pinnedRow, previewCardW, unitType)
+	-- ── Pinned preview card (full width, above grid) ──
+	local previewCard = F.Settings.FramePreview.BuildPreviewCard(content, width, unitType)
 	if(previewCard) then
-		previewCard:SetPoint('TOPLEFT', pinnedRow, 'TOPLEFT', 0, 0)
+		previewCard:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
 	end
 
-	local posCard = F.SettingsCards.PositionAndLayout(pinnedRow, posCardW, unitType, getConfig, setConfig, relayout, true)
-	posCard:SetPoint('TOPLEFT', pinnedRow, 'TOPLEFT', previewCardW + C.Spacing.normal, 0)
+	local pinnedH = previewCard and previewCard:GetHeight() or 0
 
-	local function updatePinnedRowHeight()
-		local previewH = previewCard and previewCard:GetHeight() or 0
-		local posH = posCard:GetHeight()
-		pinnedRow:SetHeight(math.max(previewH, posH))
-	end
-	updatePinnedRowHeight()
-
-	-- Register cards in display order (position card is now in pinned row)
+	-- Register cards in display order
+	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig, relayout })
 	if(unitType == 'party' or unitType == 'raid') then
 		grid:AddCard('sorting', 'Sorting', F.SettingsCards.Sorting, { unitType, getConfig, setConfig })
 	end
@@ -215,7 +201,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ── Initial layout ─────────────────────────────────────────
-	local pinnedH = pinnedRow:GetHeight()
 	grid:SetTopOffset(pinnedH + C.Spacing.normal)
 	grid:Layout(0, parentH)
 	content:SetHeight(grid:GetTotalHeight())
@@ -225,7 +210,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		previewCard._onFocusChanged = function(cardId)
 		end
 
-		local focusCardIds = { 'healthColor', 'shields', 'power', 'castbar', 'name', 'healthText', 'powerText', 'statusIcons', 'statusText', 'sorting', 'groupIcons', 'markers', 'partyPets' }
+		local focusCardIds = { 'position', 'healthColor', 'shields', 'power', 'castbar', 'name', 'healthText', 'powerText', 'statusIcons', 'statusText', 'sorting', 'groupIcons', 'markers', 'partyPets' }
 
 		for _, cardId in next, focusCardIds do
 			local entry = grid._cardIndex[cardId]
