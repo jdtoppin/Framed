@@ -162,7 +162,6 @@ Preview/PreviewManager.lua
 
 # Settings
 Settings/Framework.lua
-Settings/CopyToDialog.lua
 Settings/MainFrame.lua
 Settings/Sidebar.lua
 Settings/FrameSettingsBuilder.lua

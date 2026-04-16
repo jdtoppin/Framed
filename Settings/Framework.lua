@@ -578,7 +578,6 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 end, 'Settings.PanelRefresh')
 
 --- Call the active panel's Refresh callback, if it has one.
---- Used by CopyToDialog after a copy operation completes.
 function Settings.RefreshActivePanel()
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
