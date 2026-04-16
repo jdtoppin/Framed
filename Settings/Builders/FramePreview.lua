@@ -551,16 +551,16 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	Widgets.CreateAccentBar(card, 'top')
 
 	-- Header row
-	local title = Widgets.CreateFontString(inner, C.Font.sizeMedium, C.Colors.textActive)
+	local title = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textActive)
 	title:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cy)
 	title:SetText('Preview — ' .. (unitType:sub(1, 1):upper() .. unitType:sub(2)))
-	cy = cy - C.Font.sizeMedium - 8
+	cy = cy - C.Font.sizeNormal - 8
 
 	if(unitType == 'raid') then
 		local count = F.Config:GetChar('settings.raidPreviewCount')
 
 		local countText = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSubtle)
-		countText:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeMedium / 2)
+		countText:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeNormal / 2)
 		countText:SetText('units: ' .. count)
 
 		local decBtn = CreateFrame('Button', nil, inner)
@@ -603,7 +603,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 			end
 		end)
 		petToggle:SetChecked(false)
-		petToggle:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeMedium / 2)
+		petToggle:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeNormal / 2)
 	end
 
 	local focusToggle = Widgets.CreateCheckButton(inner, 'Focus Mode', function(checked)
