@@ -7,9 +7,10 @@ local C = F.Constants
 -- Widget constants
 -- ============================================================
 
-local SLIDER_H   = 26
-local CHECK_H    = 22
-local DROPDOWN_H = 22
+local SLIDER_H    = 26
+local CHECK_H     = 22
+local DROPDOWN_H  = 22
+local CARD_MIN_W  = 240
 
 -- ============================================================
 -- Config helpers (assigned per-panel in create; card builders close over these)
@@ -233,16 +234,31 @@ F.Settings.RegisterPanel({
 			end
 			wipe(settingsCards)
 
-			local cy = cardsTopY
+			local cols = math.max(1, math.floor((w + CARD_GAP) / (CARD_MIN_W + CARD_GAP)))
+			local colW = math.floor((w - (cols - 1) * CARD_GAP) / cols)
+
+			local colY = {}
+			for c = 0, cols - 1 do colY[c] = cardsTopY end
+
 			for _, def in next, CARD_DEFS do
-				local card = def.builder(content, w)
+				local shortCol = 0
+				for c = 1, cols - 1 do
+					if(colY[c] > colY[shortCol]) then shortCol = c end
+				end
+
+				local card = def.builder(content, colW)
 				addCardTitle(card, def.title)
 				card:ClearAllPoints()
-				Widgets.SetPoint(card, 'TOPLEFT', content, 'TOPLEFT', 0, cy)
-				cy = cy - card:GetHeight() - C.Spacing.normal
+				Widgets.SetPoint(card, 'TOPLEFT', content, 'TOPLEFT', shortCol * (colW + CARD_GAP), colY[shortCol])
+				colY[shortCol] = colY[shortCol] - card:GetHeight() - C.Spacing.normal
 				settingsCards[#settingsCards + 1] = card
 			end
-			content:SetHeight(math.abs(cy))
+
+			local lowestY = colY[0]
+			for c = 1, cols - 1 do
+				if(colY[c] < lowestY) then lowestY = colY[c] end
+			end
+			content:SetHeight(math.abs(lowestY))
 			scroll:UpdateScrollRange()
 		end
 
@@ -288,8 +304,10 @@ F.Settings.RegisterPanel({
 				preview._maxWidth = currentPreviewW - Widgets.CARD_PADDING * 2
 			end
 
+			local cols = math.max(1, math.floor((currentWidth + CARD_GAP) / (CARD_MIN_W + CARD_GAP)))
+			local colW = math.floor((currentWidth - (cols - 1) * CARD_GAP) / cols)
 			for _, card in next, settingsCards do
-				card:SetWidth(currentWidth)
+				card:SetWidth(colW)
 			end
 		end
 
