@@ -55,6 +55,9 @@ local charDefaults = {
 	lastPanel = nil,
 	lastEditingPreset = nil,
 	lastEditingUnitType = nil,
+	settings = {
+		raidPreviewCount = 8,
+	},
 }
 
 local function applyRuntimeConfig()

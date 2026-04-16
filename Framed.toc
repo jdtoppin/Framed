@@ -192,6 +192,7 @@ Settings/Builders/DebuffIndicatorCRUD.lua
 Settings/Builders/SharedCards.lua
 Settings/Builders/IndicatorCardBuilders.lua
 Settings/Builders/AuraPreview.lua
+Settings/Builders/FramePreview.lua
 Settings/Panels/Appearance.lua
 Settings/Panels/FramePresets.lua
 Settings/Panels/Backups.lua

@@ -119,6 +119,18 @@ local function baseUnitConfig()
 		},
 		targetHighlight    = true,
 		mouseoverHighlight = true,
+		elementStrata = {
+			healthBar      = 0,
+			healPrediction = 1,
+			damageAbsorb   = 2,
+			healAbsorb     = 3,
+			overAbsorb     = 4,
+			nameText       = 5,
+			statusIcons    = 6,
+			statusText     = 7,
+			castBar        = 8,
+			portrait       = 9,
+		},
 	}
 end
 
@@ -256,6 +268,8 @@ local function bossConfig()
 	c.spacing     = 4
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
+	c.unitsPerColumn = 4
+	c.maxColumns     = 1
 	c.health.showText       = true
 	c.health.textFormat     = 'current'
 	c.health.healPrediction = false
@@ -285,6 +299,8 @@ local function partyConfig()
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
 	c.position    = { x = 40, y = -48, anchor = 'TOPLEFT' }
+	c.unitsPerColumn = 5
+	c.maxColumns     = 1
 	c.sortMode  = 'index'
 	c.roleOrder = 'HEALER,TANK,DAMAGER'
 	c.health.showText   = true
@@ -305,6 +321,8 @@ local function raidConfig()
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
 	c.position    = { x = 40, y = -48, anchor = 'TOPLEFT' }
+	c.unitsPerColumn = 5
+	c.maxColumns     = 8
 	c.sortMode    = 'group'
 	c.roleOrder   = 'TANK,HEALER,DAMAGER'
 	c.health.showText   = true
@@ -324,6 +342,8 @@ local function arenaConfig()
 	c.spacing     = 4
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
+	c.unitsPerColumn = 3
+	c.maxColumns     = 1
 	c.health.showText       = true
 	c.health.textFormat     = 'current'
 	c.health.healPrediction = false
