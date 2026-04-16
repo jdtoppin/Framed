@@ -774,6 +774,21 @@ F.Settings.RegisterPanel({
 			if(F.Settings._auraPreview) then
 				F.Settings.AuraPreview.Rebuild()
 			end
+			-- Auto-select first enabled indicator if nothing is being edited
+			if(not editingName) then
+				layoutList()
+				if(indicatorCount > 0) then
+					local indicators = getIndicators()
+					for iName, iData in next, indicators do
+						if(iData.enabled ~= false) then
+							editingName = iName
+							spawnSettingsCards(iName, iData)
+							layoutList()
+							break
+						end
+					end
+				end
+			end
 		end)
 
 		scroll._ownedPreview = F.Settings._auraPreview
