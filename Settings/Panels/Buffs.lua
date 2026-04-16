@@ -154,9 +154,9 @@ local function createListRow(scrollContent)
 	row.__selectedBar = selectedBar
 
 	-- Solid lighter tint across the whole row for selected state
-	local selectedBg = row:CreateTexture(nil, 'BACKGROUND')
+	local selectedBg = row:CreateTexture(nil, 'BORDER')
 	selectedBg:SetTexture(F.Media.GetPlainTexture())
-	selectedBg:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 0.15)
+	selectedBg:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 0.25)
 	selectedBg:SetPoint('TOPLEFT', row, 'TOPLEFT', 2, 0)
 	selectedBg:SetPoint('BOTTOMRIGHT', row, 'BOTTOMRIGHT', 0, 0)
 	selectedBg:Hide()
@@ -255,9 +255,27 @@ F.Settings.RegisterPanel({
 
 		local addToggleBtn = Widgets.CreateIconButton(listInner, F.Media.GetIcon('Plus'), TITLE_ROW_H)
 		addToggleBtn:SetBackdrop(nil)
+		addToggleBtn:EnableMouse(false)
 		addToggleBtn:ClearAllPoints()
 		Widgets.SetPoint(addToggleBtn, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
 		Widgets.SetPoint(addHintFS, 'RIGHT', addToggleBtn, 'LEFT', -C.Spacing.tight, 0)
+
+		-- Hit area spans both the hint text and the icon for unified hover + click
+		local addHitArea = CreateFrame('Button', nil, listInner)
+		addHitArea:SetFrameLevel(addToggleBtn:GetFrameLevel() + 1)
+		addHitArea:SetPoint('LEFT', addHintFS, 'LEFT', -2, 0)
+		addHitArea:SetPoint('TOP', addToggleBtn, 'TOP', 0, 0)
+		addHitArea:SetPoint('BOTTOMRIGHT', addToggleBtn, 'BOTTOMRIGHT', 0, 0)
+
+		addHitArea:SetScript('OnEnter', function()
+			addToggleBtn._icon:SetVertexColor(1, 1, 1, 1)
+			addHintFS:SetAlpha(1)
+		end)
+		addHitArea:SetScript('OnLeave', function()
+			local ts = C.Colors.textSecondary
+			addToggleBtn._icon:SetVertexColor(ts[1], ts[2], ts[3], ts[4] or 1)
+			addHintFS:SetAlpha(0.6)
+		end)
 
 		listY = listY - TITLE_ROW_H - C.Spacing.tight
 
@@ -524,11 +542,15 @@ F.Settings.RegisterPanel({
 			if(open) then
 				formFrame:Show()
 				addHintFS:Hide()
+				addHitArea:Hide()
+				addToggleBtn:EnableMouse(true)
 				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Close'))
 				Widgets.ApplyBackdrop(addToggleBtn, C.Colors.widget, C.Colors.border)
 			else
 				formFrame:Hide()
 				addHintFS:Show()
+				addHitArea:Show()
+				addToggleBtn:EnableMouse(false)
 				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Plus'))
 				addToggleBtn:SetBackdrop(nil)
 				resetForm()
@@ -536,8 +558,11 @@ F.Settings.RegisterPanel({
 			anchorListScroll()
 		end
 
+		addHitArea:SetScript('OnClick', function()
+			setFormOpen(true)
+		end)
 		addToggleBtn:SetOnClick(function()
-			setFormOpen(not formFrame:IsShown())
+			setFormOpen(false)
 		end)
 
 		-- ── Create handler ───────────────────────────────────────
