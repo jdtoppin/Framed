@@ -225,7 +225,6 @@ F.Settings.RegisterPanel({
 		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, previewCardW)
 		previewCard:ClearAllPoints()
 		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
-		local previewAccentBar = Widgets.CreateAccentBar(previewCard)
 		local previewCardH = previewCard:GetHeight()
 
 		-- ── Indicator List card ──────────────────────────────────
@@ -236,7 +235,6 @@ F.Settings.RegisterPanel({
 		listCard:ClearAllPoints()
 		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
 		listCard._startY = pinnedRowY
-		local listAccentBar = Widgets.CreateAccentBar(listCard)
 
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
 
@@ -591,50 +589,24 @@ F.Settings.RegisterPanel({
 		content:SetHeight(math.abs(gridTopY) + C.Spacing.normal)
 		scroll:UpdateScrollRange()
 
-		-- ── Scroll integration ───────────────────────────────────
-		local previewNaturalY = math.abs(pinnedRowY)
-		local previewSticky = false
+		-- ── Pin cards to the scroll viewport so they never scroll ──
 		local previewOrigLevel = previewCard:GetFrameLevel()
+
+		previewCard:SetParent(scroll)
+		previewCard:SetFrameLevel(previewOrigLevel + 50)
+		previewCard:ClearAllPoints()
+		Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, pinnedRowY)
+
+		listCard:SetParent(scroll)
+		listCard:SetFrameLevel(previewOrigLevel + 50)
+		listCard:ClearAllPoints()
+		Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
 
 		local function onScroll()
 			local offset = scroll._scrollFrame:GetVerticalScroll()
 			local viewH  = scroll._scrollFrame:GetHeight()
 			grid:Layout(offset, viewH)
 			content:SetHeight(grid:GetTotalHeight())
-
-			-- Sticky row: reparent both preview and list cards to the scroll viewport
-			local shouldStick = offset > previewNaturalY
-			if(shouldStick and not previewSticky) then
-				previewSticky = true
-				previewAccentBar:Hide()
-				listAccentBar:Hide()
-
-				previewCard:SetParent(scroll)
-				previewCard:SetFrameLevel(previewOrigLevel + 50)
-				previewCard:ClearAllPoints()
-				Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, 0)
-
-				local pW = previewCard:GetWidth()
-				listCard:SetParent(scroll)
-				listCard:SetFrameLevel(previewOrigLevel + 50)
-				listCard:ClearAllPoints()
-				Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', pW + CARD_GAP, 0)
-			elseif(not shouldStick and previewSticky) then
-				previewSticky = false
-				previewAccentBar:Show()
-				listAccentBar:Show()
-
-				previewCard:SetParent(content)
-				previewCard:SetFrameLevel(previewOrigLevel)
-				previewCard:ClearAllPoints()
-				Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
-
-				local pW = previewCard:GetWidth()
-				listCard:SetParent(content)
-				listCard:SetFrameLevel(previewOrigLevel)
-				listCard:ClearAllPoints()
-				Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', pW + CARD_GAP, pinnedRowY)
-			end
 		end
 
 		scroll._scrollFrame:HookScript('OnMouseWheel', function()
@@ -652,11 +624,7 @@ F.Settings.RegisterPanel({
 			previewCard:SetWidth(newPreviewW)
 			listCard:SetWidth(newListW)
 			listCard:ClearAllPoints()
-			if(previewSticky) then
-				Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', newPreviewW + CARD_GAP, 0)
-			else
-				Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newPreviewW + CARD_GAP, pinnedRowY)
-			end
+			Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', newPreviewW + CARD_GAP, pinnedRowY)
 
 			-- Preview frame max width
 			local preview = F.Settings._auraPreview
