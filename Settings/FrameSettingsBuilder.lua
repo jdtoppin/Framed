@@ -129,16 +129,9 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		F.PresetManager.MarkCustomized(getPresetName())
 	end
 
-	-- ── CardGrid orchestrator ──────────────────────────────────
-	local previewCard = F.Settings.FramePreview.BuildPreviewCard(content, width, unitType)
-	if(previewCard) then
-		previewCard:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
-	end
-
+	-- ── CardGrid orchestrator (created first, positioned later) ──
 	local grid = Widgets.CreateCardGrid(content, width)
 
-	-- Helper: animated re-layout after a card changes height.
-	-- Auto-scrolls down when content grows below the visible area.
 	local function relayout()
 		local oldContentH = content:GetHeight()
 		local oldScroll   = scroll._scrollFrame:GetVerticalScroll()
@@ -147,8 +140,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		content:SetHeight(grid:GetTotalHeight())
 		scroll:UpdateScrollRange()
 
-		-- If content grew, scroll down by the growth amount so the
-		-- newly revealed controls stay visible
 		local growth = content:GetHeight() - oldContentH
 		if(growth > 0) then
 			local viewH    = scroll._scrollFrame:GetHeight()
@@ -159,9 +150,30 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		end
 	end
 
-	-- Register cards in display order
-	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig })
+	-- ── Pinned row: Preview (left) + Position & Layout (right) ──
+	local pinnedRow = CreateFrame('Frame', nil, content)
+	pinnedRow:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
+	pinnedRow:SetPoint('RIGHT', content, 'RIGHT', 0, 0)
 
+	local previewCardW = math.floor(width * 0.55)
+	local posCardW = width - previewCardW - C.Spacing.normal
+
+	local previewCard = F.Settings.FramePreview.BuildPreviewCard(pinnedRow, previewCardW, unitType)
+	if(previewCard) then
+		previewCard:SetPoint('TOPLEFT', pinnedRow, 'TOPLEFT', 0, 0)
+	end
+
+	local posCard = F.SettingsCards.PositionAndLayout(pinnedRow, posCardW, unitType, getConfig, setConfig, relayout, true)
+	posCard:SetPoint('TOPLEFT', pinnedRow, 'TOPLEFT', previewCardW + C.Spacing.normal, 0)
+
+	local function updatePinnedRowHeight()
+		local previewH = previewCard and previewCard:GetHeight() or 0
+		local posH = posCard:GetHeight()
+		pinnedRow:SetHeight(math.max(previewH, posH))
+	end
+	updatePinnedRowHeight()
+
+	-- Register cards in display order (position card is now in pinned row)
 	if(unitType == 'party' or unitType == 'raid') then
 		grid:AddCard('sorting', 'Sorting', F.SettingsCards.Sorting, { unitType, getConfig, setConfig })
 	end
@@ -203,11 +215,8 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	end
 
 	-- ── Initial layout ─────────────────────────────────────────
-	local previewOffset = 0
-	if(previewCard) then
-		previewOffset = previewCard:GetHeight() + C.Spacing.normal
-	end
-	grid:SetTopOffset(previewOffset + C.Spacing.normal)
+	local pinnedH = pinnedRow:GetHeight()
+	grid:SetTopOffset(pinnedH + C.Spacing.normal)
 	grid:Layout(0, parentH)
 	content:SetHeight(grid:GetTotalHeight())
 
