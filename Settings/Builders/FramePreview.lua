@@ -226,51 +226,6 @@ local function UnregisterConfigListener()
 end
 
 -- ============================================================
--- RebuildPreview
--- ============================================================
-
-function FP.RebuildPreview()
-	if(not activePreview or not activeUnitType) then return end
-
-	for _, frame in next, previewFrames do
-		ReleaseFrame(frame)
-	end
-	wipe(previewFrames)
-
-	local viewport = activePreview._viewContent
-	local config = getUnitConfig(activeUnitType)
-	if(not viewport or not config) then return end
-
-	local viewH
-	if(SOLO_FAKES[activeUnitType]) then
-		viewH = config.height + 20
-	elseif(GROUP_COUNTS[activeUnitType]) then
-		local count
-		if(activeUnitType == 'raid') then
-			count = F.Config:Get('settings.raidPreviewCount')
-		else
-			count = GROUP_COUNTS[activeUnitType]
-		end
-		local rows = math.min(count, config.unitsPerColumn)
-		viewH = rows * config.height + (rows - 1) * config.spacing + 20
-	else
-		viewH = config.height + 20
-	end
-	activePreview._viewport:SetHeight(viewH)
-	viewport:SetHeight(viewH)
-
-	if(SOLO_FAKES[activeUnitType]) then
-		RenderSoloPreview(viewport, activeUnitType)
-	elseif(activeUnitType == 'raid') then
-		local count = F.Config:Get('settings.raidPreviewCount')
-		RenderGroupPreview(viewport, activeUnitType, count)
-	elseif(GROUP_COUNTS[activeUnitType]) then
-		local count = GROUP_COUNTS[activeUnitType]
-		RenderGroupPreview(viewport, activeUnitType, count)
-	end
-end
-
--- ============================================================
 -- Solo preview rendering
 -- ============================================================
 
@@ -347,6 +302,51 @@ local function RenderGroupPreview(viewport, unitType, count)
 	end
 
 	viewport:SetSize(math.max(totalW, 1), math.max(totalH, 1))
+end
+
+-- ============================================================
+-- RebuildPreview (after render functions so locals are in scope)
+-- ============================================================
+
+function FP.RebuildPreview()
+	if(not activePreview or not activeUnitType) then return end
+
+	for _, frame in next, previewFrames do
+		ReleaseFrame(frame)
+	end
+	wipe(previewFrames)
+
+	local viewport = activePreview._viewContent
+	local config = getUnitConfig(activeUnitType)
+	if(not viewport or not config) then return end
+
+	local viewH
+	if(SOLO_FAKES[activeUnitType]) then
+		viewH = config.height + 20
+	elseif(GROUP_COUNTS[activeUnitType]) then
+		local count
+		if(activeUnitType == 'raid') then
+			count = F.Config:Get('settings.raidPreviewCount')
+		else
+			count = GROUP_COUNTS[activeUnitType]
+		end
+		local rows = math.min(count, config.unitsPerColumn)
+		viewH = rows * config.height + (rows - 1) * config.spacing + 20
+	else
+		viewH = config.height + 20
+	end
+	activePreview._viewport:SetHeight(viewH)
+	viewport:SetHeight(viewH)
+
+	if(SOLO_FAKES[activeUnitType]) then
+		RenderSoloPreview(viewport, activeUnitType)
+	elseif(activeUnitType == 'raid') then
+		local count = F.Config:Get('settings.raidPreviewCount')
+		RenderGroupPreview(viewport, activeUnitType, count)
+	elseif(GROUP_COUNTS[activeUnitType]) then
+		local count = GROUP_COUNTS[activeUnitType]
+		RenderGroupPreview(viewport, activeUnitType, count)
+	end
 end
 
 -- ============================================================
