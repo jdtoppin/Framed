@@ -248,7 +248,7 @@ F.Settings.RegisterPanel({
 		Widgets.SetPoint(titleLabel, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
 		titleLabel:SetText('Indicators')
 
-		local addToggleBtn = Widgets.CreateButton(listInner, '+', 'widget', 24, TITLE_ROW_H)
+		local addToggleBtn = Widgets.CreateIconButton(listInner, F.Media.GetIcon('Plus'), TITLE_ROW_H)
 		addToggleBtn:ClearAllPoints()
 		Widgets.SetPoint(addToggleBtn, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
 
@@ -513,10 +513,10 @@ F.Settings.RegisterPanel({
 		local function setFormOpen(open)
 			if(open) then
 				formFrame:Show()
-				addToggleBtn:SetText('×')
+				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Close'))
 			else
 				formFrame:Hide()
-				addToggleBtn:SetText('+')
+				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Plus'))
 				resetForm()
 			end
 			anchorListScroll()
