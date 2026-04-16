@@ -428,6 +428,153 @@ local function BuildHighlights(frame, config)
 end
 
 -- ============================================================
+-- Portrait builder
+-- ============================================================
+
+local function BuildPortrait(frame, config, fakeUnit)
+	if(not config.portrait) then return end
+	local strata = config.elementStrata or {}
+
+	local portraitType = config.portrait.type
+	local size = math.min(config.height, config.width) * 0.8
+
+	local wrapper = CreateFrame('Frame', nil, frame)
+	wrapper:SetSize(size, size)
+	wrapper:SetPoint('LEFT', frame, 'LEFT', 4, 0)
+	wrapper:SetFrameLevel(frame:GetFrameLevel() + (strata.portrait or 9))
+
+	local tex = wrapper:CreateTexture(nil, 'ARTWORK')
+	tex:SetAllPoints(wrapper)
+
+	-- Use class icon as portrait stand-in (real portraits need a unit token)
+	if(fakeUnit and fakeUnit.class) then
+		local coords = CLASS_ICON_TCOORDS[fakeUnit.class]
+		tex:SetTexture([[Interface\GLUES\CHARACTERCREATE\UI-CHARACTERCREATE-CLASSES]])
+		if(coords) then
+			tex:SetTexCoord(unpack(coords))
+		end
+	end
+
+	frame._portrait = wrapper
+	frame._portraitTex = tex
+end
+
+-- ============================================================
+-- Status text builder
+-- ============================================================
+
+local function BuildStatusText(frame, config, fakeUnit)
+	local stConfig = config.statusText
+	if(not stConfig or stConfig.enabled == false) then return end
+	local strata = config.elementStrata or {}
+
+	local overlay = CreateFrame('Frame', nil, frame)
+	overlay:SetAllPoints(frame)
+	overlay:SetFrameLevel(frame:GetFrameLevel() + (strata.statusText or 7))
+
+	local text = Widgets.CreateFontString(overlay, stConfig.fontSize, C.Colors.textActive)
+	text:SetPoint(stConfig.anchor, overlay, stConfig.anchor,
+		stConfig.anchorX, stConfig.anchorY)
+
+	-- Show a fake status for dead units
+	if(fakeUnit and fakeUnit.isDead) then
+		text:SetText('DEAD')
+		text:SetTextColor(0.8, 0.2, 0.2, 1)
+	else
+		text:SetText('')
+	end
+
+	frame._statusText = text
+	frame._statusTextOverlay = overlay
+end
+
+-- ============================================================
+-- Shields and absorbs builder
+-- ============================================================
+
+local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
+	if(not frame._healthBar) then return end
+	local hc = config.health
+	local strata = config.elementStrata or {}
+	local healthBar = frame._healthBar
+	local barWidth = config.width
+	local healthPct = fakeUnit and fakeUnit.healthPct or 0.85
+
+	-- Heal prediction
+	if(hc.healPrediction ~= false and fakeUnit and fakeUnit.incomingHeal) then
+		local healBar = CreateFrame('StatusBar', nil, healthBar)
+		healBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
+		healBar:SetFrameLevel(healthBar:GetFrameLevel() + (strata.healPrediction or 1))
+		healBar:SetMinMaxValues(0, 1)
+		healBar:SetValue(fakeUnit.incomingHeal)
+
+		local healColor = hc.healPredictionColor
+		healBar:SetStatusBarColor(healColor[1], healColor[2], healColor[3], healColor[4])
+
+		-- Position after the health fill
+		local fillWidth = barWidth * healthPct
+		healBar:SetPoint('LEFT', healthBar, 'LEFT', fillWidth, 0)
+		healBar:SetSize(barWidth * fakeUnit.incomingHeal, healthBar:GetHeight())
+
+		frame._healPredBar = healBar
+	end
+
+	-- Damage absorb (shields)
+	if(hc.damageAbsorb ~= false and fakeUnit and fakeUnit.damageAbsorb) then
+		local absorbBar = CreateFrame('StatusBar', nil, healthBar)
+		absorbBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
+		absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + (strata.damageAbsorb or 2))
+		absorbBar:SetMinMaxValues(0, 1)
+		absorbBar:SetValue(1)
+
+		local absorbColor = hc.damageAbsorbColor
+		absorbBar:SetStatusBarColor(absorbColor[1], absorbColor[2], absorbColor[3], absorbColor[4])
+
+		local fillWidth = barWidth * healthPct
+		absorbBar:SetPoint('LEFT', healthBar, 'LEFT', fillWidth, 0)
+		absorbBar:SetSize(barWidth * fakeUnit.damageAbsorb, healthBar:GetHeight())
+
+		frame._damageAbsorbBar = absorbBar
+	end
+
+	-- Heal absorb
+	if(hc.healAbsorb ~= false and fakeUnit and fakeUnit.healAbsorb) then
+		local healAbsorbBar = CreateFrame('StatusBar', nil, healthBar)
+		healAbsorbBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
+		healAbsorbBar:SetFrameLevel(healthBar:GetFrameLevel() + (strata.healAbsorb or 3))
+		healAbsorbBar:SetMinMaxValues(0, 1)
+		healAbsorbBar:SetValue(1)
+
+		local haColor = hc.healAbsorbColor
+		healAbsorbBar:SetStatusBarColor(haColor[1], haColor[2], haColor[3], haColor[4])
+
+		-- Heal absorbs eat into the health bar from the right
+		local absorbWidth = barWidth * fakeUnit.healAbsorb
+		healAbsorbBar:SetPoint('RIGHT', healthBar, 'LEFT', barWidth * healthPct, 0)
+		healAbsorbBar:SetSize(absorbWidth, healthBar:GetHeight())
+
+		frame._healAbsorbBar = healAbsorbBar
+	end
+
+	-- Overshield (texture on an OVERLAY-level wrapper frame for strata control)
+	if(hc.overAbsorb ~= false and fakeUnit and fakeUnit.overAbsorb) then
+		local overWrapper = CreateFrame('Frame', nil, healthBar)
+		overWrapper:SetFrameLevel(healthBar:GetFrameLevel() + (strata.overAbsorb or 4))
+		overWrapper:SetPoint('TOPRIGHT', healthBar, 'TOPRIGHT', 4, 2)
+		overWrapper:SetPoint('BOTTOMRIGHT', healthBar, 'BOTTOMRIGHT', 4, -2)
+		overWrapper:SetWidth(12)
+
+		local overGlow = overWrapper:CreateTexture(nil, 'OVERLAY')
+		overGlow:SetAllPoints(overWrapper)
+		overGlow:SetTexture([[Interface\RaidFrame\Shield-Overshield]])
+		overGlow:SetBlendMode('ADD')
+		overGlow:SetAlpha(0.8)
+
+		frame._overAbsorbGlow = overWrapper
+	end
+end
+
+-- ============================================================
 -- Aura indicator builders (extracted to Preview/PreviewAuras.lua)
 -- ============================================================
 
@@ -450,6 +597,9 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 	BuildStatusIcons(frame, config)
 	BuildCastbar(frame, config)
 	BuildHighlights(frame, config)
+	BuildPortrait(frame, config, fakeUnit)
+	BuildStatusText(frame, config, fakeUnit)
+	BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 
 	-- Build aura indicators (delegated to PreviewAuras)
 	local animated = F.PreviewManager.IsAnimationEnabled()
@@ -525,6 +675,8 @@ local function DestroyChildren(frame)
 		'_bg', '_healthWrapper', '_healthBar', '_healthText', '_healthTextClassColor',
 		'_powerWrapper', '_powerBar', '_powerText', '_powerTextClassColor',
 		'_nameText', '_castbar', '_targetHighlight', '_iconOverlay', '_auraGroups',
+		'_portrait', '_portraitTex', '_statusText', '_statusTextOverlay',
+		'_healPredBar', '_damageAbsorbBar', '_healAbsorbBar', '_overAbsorbGlow',
 	}
 	for _, key in next, keys do
 		frame[key] = nil
