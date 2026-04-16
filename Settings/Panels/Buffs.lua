@@ -213,11 +213,12 @@ F.Settings.RegisterPanel({
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'buffs', 'buffs')
 
 		-- ── Pinned row: Preview | Indicator List card ───────────────
-		local CARD_GAP     = C.Spacing.normal
-		local TITLE_ROW_H  = 24
-		local FORM_ROW_H   = BUTTON_H
-		local FORM_PAD_Y   = C.Spacing.tight
-		local FORM_HEIGHT  = FORM_ROW_H + FORM_PAD_Y + BUTTON_H + FORM_PAD_Y
+		local CARD_GAP       = C.Spacing.normal
+		local TITLE_ROW_H    = 24
+		local FORM_TITLE_H   = 14   -- matches C.Font.sizeSmall leading
+		local FORM_ROW_H     = BUTTON_H
+		local FORM_PAD_Y     = C.Spacing.tight
+		local FORM_HEIGHT    = PAD_H + FORM_TITLE_H + FORM_PAD_Y + FORM_ROW_H + FORM_PAD_Y + BUTTON_H + PAD_H
 		local previewCardW = math.floor((width - CARD_GAP) * 0.40)
 		local listCardW    = width - previewCardW - CARD_GAP
 		local pinnedRowY   = yOffset
@@ -267,10 +268,17 @@ F.Settings.RegisterPanel({
 		local nameBoxW   = math.floor((formInnerW - C.Spacing.normal) * 0.55)
 		local typeDDW    = formInnerW - nameBoxW - C.Spacing.normal
 
+		-- Form title hint
+		local formTitleFS = Widgets.CreateFontString(formFrame, C.Font.sizeSmall, C.Colors.textSecondary)
+		formTitleFS:SetJustifyH('LEFT')
+		formTitleFS:ClearAllPoints()
+		Widgets.SetPoint(formTitleFS, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -PAD_H)
+		formTitleFS:SetText('Add new indicator')
+
 		local nameBox = Widgets.CreateEditBox(formFrame, nil, nameBoxW, FORM_ROW_H)
 		nameBox:SetPlaceholder('Indicator name')
 		nameBox:ClearAllPoints()
-		Widgets.SetPoint(nameBox, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -PAD_H)
+		Widgets.SetPoint(nameBox, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -(PAD_H + FORM_TITLE_H + FORM_PAD_Y))
 
 		local typeDD = Widgets.CreateDropdown(formFrame, typeDDW)
 		typeDD:SetItems(getTypeItems())
@@ -507,6 +515,9 @@ F.Settings.RegisterPanel({
 		-- ── Inline create form toggle ────────────────────────────
 		local function resetForm()
 			nameBox:SetText('')
+			-- SetText('') clears the placeholder active flag; re-apply so the
+			-- hint text returns when the form is reopened or first shown.
+			nameBox:SetPlaceholder('Indicator name')
 			typeDD:SetValue(C.IndicatorType.ICONS)
 		end
 
