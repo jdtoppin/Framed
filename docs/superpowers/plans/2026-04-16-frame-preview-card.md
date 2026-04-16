@@ -12,6 +12,8 @@
 
 **Scope boundaries:** This is strictly a UI/UX project. Do NOT modify: Config API, EventBus, preset system, live frame rendering (`Units/`, `Elements/`, `StyleBuilder.lua`), LiveUpdate handlers, Edit Mode, or any settings card wiring except `PositionAndLayout.lua`. If a task requires changing any of these, stop and re-evaluate.
 
+**Canonical defaults:** Every config key the preview reads MUST have a default in `Presets/Defaults.lua`. No hardcoded `or` fallbacks in new code (`FramePreview.lua`, new builders). The one exception is `config.elementStrata or {}` guards in `PreviewFrame.lua` — that file is shared with Edit Mode and the `or {}` handles migration of configs created before elementStrata was added. Existing fallbacks in existing code that serve a documented purpose should be left alone.
+
 ---
 
 ## File Map
@@ -22,7 +24,7 @@
 | `Preview/PreviewFrame.lua` | **Modify** | Add `if(auraConfig)` nil guard; wire `elementStrata` into existing builders; add `BuildPortrait`, `BuildStatusText`, `BuildShieldsAndAbsorbs` |
 | `Settings/FrameSettingsBuilder.lua` | **Modify** | Migrate off CardGrid to wrapper-grid pinned row; inject preview card; extract PositionAndLayout to pinned row |
 | `Settings/Cards/PositionAndLayout.lua` | **Modify** | Split active/greyed controls; add Edit Mode link |
-| `Presets/Defaults.lua` | **Modify** | Add `elementStrata` default table; add `raidPreviewCount` to charDefaults |
+| `Presets/Defaults.lua` | **Modify** | Add `elementStrata` default table; add `unitsPerColumn`/`maxColumns` to group configs; add `raidPreviewCount` to charDefaults |
 | `Framed.toc` | **Modify** | Add `Settings/Builders/FramePreview.lua` load line |
 
 ---
@@ -52,7 +54,35 @@ elementStrata = {
 },
 ```
 
-- [ ] **Step 2: Add `raidPreviewCount` to `charDefaults` in `Presets/Defaults.lua`**
+- [ ] **Step 2: Add `unitsPerColumn` and `maxColumns` to group unit configs**
+
+These keys are read by CalculateGroupLayout but don't exist in defaults yet. Add them to each group config function:
+
+In `partyConfig()` (around line 280), after `c.anchorPoint`:
+```lua
+c.unitsPerColumn = 5
+c.maxColumns     = 1
+```
+
+In `raidConfig()` (around line 300), after `c.anchorPoint`:
+```lua
+c.unitsPerColumn = 5
+c.maxColumns     = 8
+```
+
+In `bossConfig()` (around line 251), after `c.anchorPoint`:
+```lua
+c.unitsPerColumn = 4
+c.maxColumns     = 1
+```
+
+In `arenaConfig()` (around line 319), after `c.anchorPoint`:
+```lua
+c.unitsPerColumn = 3
+c.maxColumns     = 1
+```
+
+- [ ] **Step 3: Add `raidPreviewCount` to `charDefaults` in `Presets/Defaults.lua`**
 
 Find `charDefaults` (or the character-level defaults table). Add:
 
@@ -64,7 +94,7 @@ settings = {
 
 If `settings` already exists as a sub-table, merge into it rather than overwriting.
 
-- [ ] **Step 3: Add `FramePreview.lua` to `Framed.toc`**
+- [ ] **Step 4: Add `FramePreview.lua` to `Framed.toc`**
 
 Find the Settings/Builders section (around line 195, near `AuraPreview.lua`). Add immediately after:
 
@@ -72,15 +102,15 @@ Find the Settings/Builders section (around line 195, near `AuraPreview.lua`). Ad
 Settings\Builders\FramePreview.lua
 ```
 
-- [ ] **Step 4: Verify in-game**
+- [ ] **Step 5: Verify in-game**
 
 `/reload` — confirm no errors. Run `/framed config` to verify `elementStrata` appears in preset config output.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add Presets/Defaults.lua Framed.toc
-git commit -m "feat: add elementStrata defaults and raidPreviewCount charDefault"
+git commit -m "feat: add elementStrata, unitsPerColumn/maxColumns defaults, raidPreviewCount charDefault"
 ```
 
 ---
@@ -212,8 +242,8 @@ local function BuildPortrait(frame, config, fakeUnit)
 	if(not config.portrait) then return end
 	local strata = config.elementStrata or {}
 
-	local portraitType = (type(config.portrait) == 'table' and config.portrait.type) or '2D'
-	local size = math.min(config.height or 40, config.width or 40) * 0.8
+	local portraitType = config.portrait.type
+	local size = math.min(config.height, config.width) * 0.8
 
 	local wrapper = CreateFrame('Frame', nil, frame)
 	wrapper:SetSize(size, size)
@@ -253,9 +283,9 @@ local function BuildStatusText(frame, config, fakeUnit)
 	overlay:SetAllPoints(frame)
 	overlay:SetFrameLevel(frame:GetFrameLevel() + (strata.statusText or 7))
 
-	local text = Widgets.CreateFontString(overlay, stConfig.fontSize or C.Font.sizeSmall, C.Colors.textActive)
-	text:SetPoint(stConfig.anchor or 'CENTER', overlay, stConfig.anchor or 'CENTER',
-		stConfig.offsetX or 0, stConfig.offsetY or 0)
+	local text = Widgets.CreateFontString(overlay, stConfig.fontSize, C.Colors.textActive)
+	text:SetPoint(stConfig.anchor, overlay, stConfig.anchor,
+		stConfig.anchorX, stConfig.anchorY)
 
 	-- Show a fake status for dead units
 	if(fakeUnit and fakeUnit.isDead) then
@@ -277,10 +307,10 @@ Add after `BuildStatusText`:
 ```lua
 local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 	if(not frame._healthBar) then return end
-	local hc = config.health or {}
+	local hc = config.health
 	local strata = config.elementStrata or {}
 	local healthBar = frame._healthBar
-	local barWidth = config.width or 200
+	local barWidth = config.width
 	local healthPct = fakeUnit and fakeUnit.healthPct or 0.85
 
 	-- Heal prediction
@@ -291,8 +321,8 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 		healBar:SetMinMaxValues(0, 1)
 		healBar:SetValue(fakeUnit.incomingHeal)
 
-		local healColor = hc.healPredictionColor or { 0.0, 0.5, 0.0, 0.4 }
-		healBar:SetStatusBarColor(healColor[1], healColor[2], healColor[3], healColor[4] or 0.4)
+		local healColor = hc.healPredictionColor
+		healBar:SetStatusBarColor(healColor[1], healColor[2], healColor[3], healColor[4])
 
 		-- Position after the health fill
 		local fillWidth = barWidth * healthPct
@@ -310,8 +340,8 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 		absorbBar:SetMinMaxValues(0, 1)
 		absorbBar:SetValue(1)
 
-		local absorbColor = hc.damageAbsorbColor or { 0.4, 0.8, 1.0, 0.5 }
-		absorbBar:SetStatusBarColor(absorbColor[1], absorbColor[2], absorbColor[3], absorbColor[4] or 0.5)
+		local absorbColor = hc.damageAbsorbColor
+		absorbBar:SetStatusBarColor(absorbColor[1], absorbColor[2], absorbColor[3], absorbColor[4])
 
 		local fillWidth = barWidth * healthPct
 		absorbBar:SetPoint('LEFT', healthBar, 'LEFT', fillWidth, 0)
@@ -328,8 +358,8 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 		healAbsorbBar:SetMinMaxValues(0, 1)
 		healAbsorbBar:SetValue(1)
 
-		local haColor = hc.healAbsorbColor or { 0.8, 0.2, 0.2, 0.5 }
-		healAbsorbBar:SetStatusBarColor(haColor[1], haColor[2], haColor[3], haColor[4] or 0.5)
+		local haColor = hc.healAbsorbColor
+		healAbsorbBar:SetStatusBarColor(haColor[1], haColor[2], haColor[3], haColor[4])
 
 		-- Heal absorbs eat into the health bar from the right
 		local absorbWidth = barWidth * fakeUnit.healAbsorb
@@ -521,6 +551,7 @@ local function RenderSoloPreview(viewport, unitType)
 		F.PreviewFrame.UpdateFromConfig(frame, config, nil)
 	end
 
+	frame._fakeUnit = fakeUnit
 	frame:ClearAllPoints()
 	frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', 0, 0)
 
@@ -548,10 +579,19 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	viewport:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cy)
 	viewport:SetPoint('RIGHT', inner, 'RIGHT', 0, 0)
 
+	-- Horizontal mouse wheel scrolling for wide group layouts
+	viewport:EnableMouseWheel(true)
+	viewport:SetScript('OnMouseWheel', function(self, delta)
+		local maxScroll = math.max(0, viewContent:GetWidth() - self:GetWidth())
+		local current = self:GetHorizontalScroll()
+		self:SetHorizontalScroll(math.max(0, math.min(maxScroll, current - delta * 30)))
+	end)
+
 	local config = getUnitConfig(unitType)
-	local viewH = (config and config.height or 60) + 20
+	local viewH = config and (config.height + 20) or 60
 	viewport:SetHeight(viewH)
-	viewContent:SetSize(width, viewH)
+	-- Width derived from parent after layout; content sizes to fit frames
+	viewContent:SetHeight(viewH)
 	cy = cy - viewH - 8
 
 	-- Render the preview
@@ -713,6 +753,17 @@ local STRUCTURAL_KEYS = {
 	orientation = true, unitsPerColumn = true, maxColumns = true, spacing = true,
 }
 
+local rebuildPending = false
+
+local function debouncedRebuild()
+	if(rebuildPending) then return end
+	rebuildPending = true
+	C_Timer.After(0.05, function()
+		rebuildPending = false
+		FP.RebuildPreview()
+	end)
+end
+
 local function onConfigChanged(path)
 	if(not activePreview or not activeUnitType) then return end
 
@@ -722,9 +773,13 @@ local function onConfigChanged(path)
 		-- Check partyPets path: presets.<preset>.partyPets.<key>
 		local petPreset, petKey = path:match('presets%.([^%.]+)%.partyPets%.(.+)')
 		if(petPreset and activeUnitType == 'party') then
-			preset = petPreset
-			-- Rebuild pet frames if pet toggle is on
-			-- (handled in Task 10)
+			if(petPreset ~= F.Settings.GetEditingPreset()) then return end
+			if(showPets) then
+				local config = getUnitConfig(activeUnitType)
+				if(config) then
+					RenderPetFrames(activePreview._viewContent, config)
+				end
+			end
 			return
 		end
 		return
@@ -739,10 +794,10 @@ local function onConfigChanged(path)
 	if(not config) then return end
 
 	if(STRUCTURAL_KEYS[key:match('^[^%.]+')]) then
-		-- Structural: full rebuild with animation
-		FP.RebuildPreview()
+		-- Structural: debounced full rebuild
+		debouncedRebuild()
 	else
-		-- Cosmetic: rebuild elements in place (no layout change)
+		-- Cosmetic: update in place, no debounce (cheap per-tick)
 		for _, frame in next, previewFrames do
 			F.PreviewFrame.UpdateFromConfig(frame, config, nil)
 		end
@@ -780,14 +835,19 @@ function FP.RebuildPreview()
 	if(not viewport or not config) then return end
 
 	-- Update viewport height
-	local viewH = (config.height or 60) + 20
+	local viewH = config.height + 20
 	activePreview._viewport:SetHeight(viewH)
-	viewport:SetSize(activePreview._viewport:GetWidth(), viewH)
+	viewport:SetHeight(viewH)
 
 	-- Re-render based on unit type
 	if(SOLO_FAKES[activeUnitType]) then
 		RenderSoloPreview(viewport, activeUnitType)
 	-- Group rendering added in Task 7
+	end
+
+	-- Re-apply focus mode if active (rebuild creates fresh frames)
+	if(focusModeEnabled and focusedCardId) then
+		ApplyFocusMode(focusedCardId)
 	end
 end
 ```
@@ -886,11 +946,11 @@ end
 -- ============================================================
 
 local function CalculateGroupLayout(config, count)
-	local w = config.width or 80
-	local h = config.height or 40
-	local spacing = config.spacing or 2
-	local upc = config.unitsPerColumn or 5
-	local isVertical = (config.orientation or 'VERTICAL') == 'VERTICAL'
+	local w = config.width
+	local h = config.height
+	local spacing = config.spacing
+	local upc = config.unitsPerColumn
+	local isVertical = config.orientation == 'vertical'
 
 	local positions = {}
 	for i = 0, count - 1 do
@@ -939,11 +999,11 @@ local function RenderGroupPreview(viewport, unitType, count)
 	end
 
 	-- Size the viewport to fit all frames
-	local config_w = config.width or 80
-	local config_h = config.height or 40
-	local spacing = config.spacing or 2
-	local upc = config.unitsPerColumn or 5
-	local isVertical = (config.orientation or 'VERTICAL') == 'VERTICAL'
+	local config_w = config.width
+	local config_h = config.height
+	local spacing = config.spacing
+	local upc = config.unitsPerColumn
+	local isVertical = config.orientation == 'vertical'
 
 	local cols = math.ceil(count / upc)
 	local rows = math.min(count, upc)
@@ -969,21 +1029,21 @@ Add after `CalculateGroupLayout`:
 local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
 
 local function SortFakeUnits(units, config)
-	local sortBy = config.sortBy or 'INDEX'
-	if(sortBy == 'INDEX') then return units end
+	local sortMode = config.sortMode
+	if(not sortMode or sortMode == 'index') then return units end
 
 	local sorted = {}
 	for i, u in next, units do sorted[i] = u end
 
-	if(sortBy == 'ROLE') then
+	if(sortMode == 'role') then
 		table.sort(sorted, function(a, b)
 			return (ROLE_ORDER[a.role] or 99) < (ROLE_ORDER[b.role] or 99)
 		end)
-	elseif(sortBy == 'CLASS') then
+	elseif(sortMode == 'class') then
 		table.sort(sorted, function(a, b)
 			return (a.class or '') < (b.class or '')
 		end)
-	elseif(sortBy == 'NAME') then
+	elseif(sortMode == 'name') then
 		table.sort(sorted, function(a, b)
 			return (a.name or '') < (b.name or '')
 		end)
@@ -1023,17 +1083,16 @@ Also update the viewport height calculation to handle group frames:
 ```lua
 local config = getUnitConfig(unitType)
 local viewH
-if(SOLO_FAKES[unitType]) then
-	viewH = (config and config.height or 60) + 20
+if(not config) then
+	viewH = 60
+elseif(SOLO_FAKES[unitType]) then
+	viewH = config.height + 20
 elseif(GROUP_COUNTS[unitType]) then
 	local count = GROUP_COUNTS[unitType]
-	local h = config and config.height or 40
-	local spacing = config and config.spacing or 2
-	local upc = config and config.unitsPerColumn or 5
-	local rows = math.min(count, upc)
-	viewH = rows * h + (rows - 1) * spacing + 20
+	local rows = math.min(count, config.unitsPerColumn)
+	viewH = rows * config.height + (rows - 1) * config.spacing + 20
 else
-	viewH = 80
+	viewH = config.height + 20
 end
 ```
 
@@ -1045,7 +1104,7 @@ In `RebuildPreview`, add the group rendering branch:
 if(SOLO_FAKES[activeUnitType]) then
 	RenderSoloPreview(viewport, activeUnitType)
 elseif(activeUnitType == 'raid') then
-	local count = F.Config:Get('settings.raidPreviewCount') or 8
+	local count = F.Config:Get('settings.raidPreviewCount')
 	RenderGroupPreview(viewport, activeUnitType, count)
 elseif(GROUP_COUNTS[activeUnitType]) then
 	local count = GROUP_COUNTS[activeUnitType]
@@ -1077,7 +1136,7 @@ In `BuildPreviewCard`, after the title FontString, add raid stepper conditionall
 
 ```lua
 if(unitType == 'raid') then
-	local count = F.Config:Get('settings.raidPreviewCount') or 8
+	local count = F.Config:Get('settings.raidPreviewCount')
 
 	local countText = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSubtle)
 	countText:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeMedium / 2)
@@ -1089,7 +1148,7 @@ if(unitType == 'raid') then
 	decBtn:SetNormalFontObject(GameFontNormalSmall)
 	decBtn:SetText('▼')
 	decBtn:SetScript('OnClick', function()
-		local cur = F.Config:Get('settings.raidPreviewCount') or 8
+		local cur = F.Config:Get('settings.raidPreviewCount')
 		if(cur > 1) then
 			F.Config:Set('settings.raidPreviewCount', cur - 1)
 			countText:SetText('units: ' .. (cur - 1))
@@ -1103,7 +1162,7 @@ if(unitType == 'raid') then
 	incBtn:SetNormalFontObject(GameFontNormalSmall)
 	incBtn:SetText('▲')
 	incBtn:SetScript('OnClick', function()
-		local cur = F.Config:Get('settings.raidPreviewCount') or 8
+		local cur = F.Config:Get('settings.raidPreviewCount')
 		if(cur < 40) then
 			F.Config:Set('settings.raidPreviewCount', cur + 1)
 			countText:SetText('units: ' .. (cur + 1))
@@ -1121,19 +1180,16 @@ In the viewport height calculation, add the raid case:
 
 ```lua
 elseif(unitType == 'raid') then
-	local count = F.Config:Get('settings.raidPreviewCount') or 8
-	local h = config and config.height or 40
-	local spacing = config and config.spacing or 2
-	local upc = config and config.unitsPerColumn or 5
-	local rows = math.min(count, upc)
-	viewH = rows * h + (rows - 1) * spacing + 20
+	local count = F.Config:Get('settings.raidPreviewCount')
+	local rows = math.min(count, config.unitsPerColumn)
+	viewH = rows * config.height + (rows - 1) * config.spacing + 20
 ```
 
 And in the render call:
 
 ```lua
 elseif(unitType == 'raid') then
-	local count = F.Config:Get('settings.raidPreviewCount') or 8
+	local count = F.Config:Get('settings.raidPreviewCount')
 	RenderGroupPreview(viewContent, unitType, count)
 ```
 
@@ -1188,9 +1244,9 @@ local function RenderPetFrames(viewport, config)
 	local petConfig = F.Config:Get('presets.' .. presetName .. '.partyPets')
 	if(not petConfig or petConfig.enabled == false) then return end
 
-	local petSpacing = petConfig.spacing or 2
-	local petH = math.floor((config.height or 40) * 0.4)
-	local petW = config.width or 200
+	local petSpacing = petConfig.spacing
+	local petH = math.floor(config.height * 0.4)
+	local petW = config.width
 
 	for i, ownerFrame in next, previewFrames do
 		local petFake = PET_FAKES[((i - 1) % #PET_FAKES) + 1]
@@ -1205,18 +1261,18 @@ local function RenderPetFrames(viewport, config)
 		bg:SetAllPoints(petFrame)
 		bg:SetColorTexture(0.1, 0.12, 0.15, 0.8)
 
-		if(petConfig.showName ~= false) then
-			local nameText = Widgets.CreateFontString(petFrame, petConfig.nameFontSize or C.Font.sizeSmall, C.Colors.textActive)
-			nameText:SetPoint(petConfig.nameAnchor or 'TOP', petFrame, petConfig.nameAnchor or 'TOP',
-				petConfig.nameOffsetX or 0, petConfig.nameOffsetY or -2)
+		if(petConfig.showName) then
+			local nameText = Widgets.CreateFontString(petFrame, petConfig.nameFontSize, C.Colors.textActive)
+			nameText:SetPoint(petConfig.nameAnchor, petFrame, petConfig.nameAnchor,
+				petConfig.nameOffsetX, petConfig.nameOffsetY)
 			nameText:SetText(petFake.name)
 		end
 
-		if(petConfig.showHealthText ~= false) then
-			local healthText = Widgets.CreateFontString(petFrame, petConfig.healthTextFontSize or C.Font.sizeSmall, C.Colors.textActive)
-			healthText:SetPoint(petConfig.healthTextAnchor or 'CENTER', petFrame, petConfig.healthTextAnchor or 'CENTER',
-				petConfig.healthTextOffsetX or 0, petConfig.healthTextOffsetY or 2)
-			healthText:SetText(math.floor((petFake.healthPct or 1) * 100) .. '%')
+		if(petConfig.showHealthText) then
+			local healthText = Widgets.CreateFontString(petFrame, petConfig.healthTextFontSize, C.Colors.textActive)
+			healthText:SetPoint(petConfig.healthTextAnchor, petFrame, petConfig.healthTextAnchor,
+				petConfig.healthTextOffsetX, petConfig.healthTextOffsetY)
+			healthText:SetText(math.floor(petFake.healthPct * 100) .. '%')
 		end
 
 		petFrame:Show()
@@ -1684,7 +1740,7 @@ local function ShowFocusAccent(cardFrame)
 		focusAccent:SetWidth(3)
 		local tex = focusAccent:CreateTexture(nil, 'OVERLAY')
 		tex:SetAllPoints(focusAccent)
-		tex:SetColorTexture(C.Colors.accent[1] or 0.35, C.Colors.accent[2] or 0.55, C.Colors.accent[3] or 0.8, 1)
+		tex:SetColorTexture(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
 	end
 	focusAccent:SetParent(cardFrame)
 	focusAccent:ClearAllPoints()
