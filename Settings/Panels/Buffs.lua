@@ -239,22 +239,25 @@ F.Settings.RegisterPanel({
 		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
 
 		-- ── Title row: "Indicators" label + collapse/expand button ──
+		local addToggleBtn = Widgets.CreateIconButton(listInner, F.Media.GetIcon('Plus'), TITLE_ROW_H)
+		addToggleBtn:SetBackdrop(nil)
+		addToggleBtn:EnableMouse(false)
+		addToggleBtn:ClearAllPoints()
+		Widgets.SetPoint(addToggleBtn, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
+
+		-- Title + hint anchored to the button row so everything shares the same vertical center
 		local titleLabel = Widgets.CreateFontString(listInner, C.Font.sizeNormal, C.Colors.textActive)
 		titleLabel:SetJustifyH('LEFT')
 		titleLabel:ClearAllPoints()
-		Widgets.SetPoint(titleLabel, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
+		titleLabel:SetPoint('LEFT', listInner, 'LEFT', 0, 0)
+		titleLabel:SetPoint('TOP', addToggleBtn, 'TOP', 0, 0)
+		titleLabel:SetPoint('BOTTOM', addToggleBtn, 'BOTTOM', 0, 0)
 		titleLabel:SetText('Indicators')
 
 		local addHintFS = Widgets.CreateFontString(listInner, C.Font.sizeSmall, C.Colors.textSecondary)
 		addHintFS:SetJustifyH('RIGHT')
 		addHintFS:SetAlpha(0.6)
 		addHintFS:SetText('Add new')
-
-		local addToggleBtn = Widgets.CreateIconButton(listInner, F.Media.GetIcon('Plus'), TITLE_ROW_H)
-		addToggleBtn:SetBackdrop(nil)
-		addToggleBtn:EnableMouse(false)
-		addToggleBtn:ClearAllPoints()
-		Widgets.SetPoint(addToggleBtn, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
 		Widgets.SetPoint(addHintFS, 'RIGHT', addToggleBtn, 'LEFT', -C.Spacing.tight, 0)
 
 		-- Hit area spans both the hint text and the icon for unified hover + click

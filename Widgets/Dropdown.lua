@@ -789,7 +789,7 @@ function Widgets.CreateInlineDropdown(parent)
 	-- Chevron — right of label, colored to match. Repositioned by autoSize().
 	local chevron = trigger:CreateTexture(nil, 'OVERLAY')
 	chevron:SetSize(INLINE_CHEVRON_SIZE, INLINE_CHEVRON_SIZE)
-	chevron:SetPoint('LEFT', trigger, 'LEFT', INLINE_EDGE_PAD, -1)
+	chevron:SetPoint('LEFT', trigger, 'LEFT', INLINE_EDGE_PAD, 0)
 	chevron:SetTexture(ARROW_ICON)
 	chevron:SetTexCoord(0.15, 0.85, 0.85, 0.15)  -- flip vertically for down arrow
 	chevron:SetVertexColor(trigger._color[1], trigger._color[2], trigger._color[3], trigger._color[4] or 1)
@@ -839,7 +839,7 @@ function Widgets.CreateInlineDropdown(parent)
 
 		local chevronX = labelX + labelW + INLINE_LABEL_PAD
 		chevron:ClearAllPoints()
-		chevron:SetPoint('LEFT', trigger, 'LEFT', chevronX, -1)
+		chevron:SetPoint('LEFT', trigger, 'LEFT', chevronX, 0)
 
 		underline:ClearAllPoints()
 		underline:SetPoint('TOPLEFT', trigger, 'LEFT', labelX, INLINE_UNDERLINE_Y)
