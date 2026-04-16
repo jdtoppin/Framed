@@ -581,13 +581,18 @@ F.Settings.RegisterPanel({
 		-- Auto-select the first enabled indicator so the cards area isn't blank
 		if(indicatorCount > 0) then
 			local indicators = getIndicators()
+			local firstName, firstData
 			for iName, iData in next, indicators do
+				if(not firstName) then firstName, firstData = iName, iData end
 				if(iData.enabled ~= false) then
-					editingName = iName
-					spawnSettingsCards(iName, iData)
-					layoutList()
+					firstName, firstData = iName, iData
 					break
 				end
+			end
+			if(firstName) then
+				editingName = firstName
+				spawnSettingsCards(firstName, firstData)
+				layoutList()
 			end
 		end
 
@@ -707,13 +712,18 @@ F.Settings.RegisterPanel({
 				end
 			elseif(indicatorCount > 0) then
 				local indicators = getIndicators()
+				local firstName, firstData
 				for iName, iData in next, indicators do
+					if(not firstName) then firstName, firstData = iName, iData end
 					if(iData.enabled ~= false) then
-						editingName = iName
-						spawnSettingsCards(iName, iData)
-						layoutList()
+						firstName, firstData = iName, iData
 						break
 					end
+				end
+				if(firstName) then
+					editingName = firstName
+					spawnSettingsCards(firstName, firstData)
+					layoutList()
 				end
 			end
 		end)
