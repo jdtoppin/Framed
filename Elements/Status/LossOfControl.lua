@@ -260,9 +260,9 @@ local function Rebuild(element, config)
 	if(element.icon) then element.icon:Hide() end
 	if(element.duration) then element.duration:Hide() end
 
-	local iconSize = config.iconSize or 22
-	local point    = config.anchor or { 'CENTER', nil, 'CENTER', 0, 0 }
-	element._types = config.types or { 'stun', 'incapacitate', 'disorient', 'fear', 'silence', 'root' }
+	local iconSize = config.iconSize
+	local point    = config.anchor
+	element._types = config.types
 
 	if(element.icon) then
 		Widgets.SetSize(element.icon, iconSize, iconSize)

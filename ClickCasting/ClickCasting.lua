@@ -69,6 +69,7 @@ function F.ClickCasting.ApplyBindings(frame)
 	if(not bindings) then return end
 
 	for i, binding in next, bindings do
+		if(binding.enabled ~= false) then
 		local prefix = (binding.modifier and binding.modifier ~= '') and (binding.modifier .. '-') or ''
 		local button = binding.button or 'LeftButton'
 
@@ -124,6 +125,7 @@ function F.ClickCasting.ApplyBindings(frame)
 				setTrackedAttribute(frame, attrKey, 'togglemenu')
 			end
 		end
+		end
 	end
 
 	-- Wrap frame with secure header for keyboard override bindings (once per frame).
@@ -174,7 +176,7 @@ local function buildKeyBindings()
 	end
 
 	for i, binding in next, bindings do
-		if(binding.isKey) then
+		if(binding.isKey and binding.enabled ~= false) then
 			local prefix = (binding.modifier and binding.modifier ~= '') and (binding.modifier:upper() .. '-') or ''
 			local key = prefix .. (binding.button or ''):upper()
 			keyBindings[#keyBindings + 1] = {

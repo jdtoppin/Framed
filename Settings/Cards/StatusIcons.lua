@@ -155,10 +155,8 @@ function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfi
 
 		-- Role style dropdown with icon previews
 		local RoleIcon = F.Elements.RoleIcon
-		local oUF = F.oUF
 		local ICON_SIZE = 14
 		local ICON_GAP = 2
-		local TC = RoleIcon.TEXCOORDS
 		local PREVIEW_ROLES = { 'TANK', 'HEALER', 'DAMAGER' }
 
 		local roleStyleLabel = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
@@ -182,7 +180,7 @@ function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfi
 			for j, role in next, PREVIEW_ROLES do
 				local icon = row._roleIcons[j]
 				icon:SetTexture(texPath)
-				local tc = TC[role]
+				local tc = RoleIcon.GetTexCoord(item.value, role)
 				icon:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
 				icon:Show()
 			end
@@ -217,7 +215,7 @@ function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfi
 			for j, role in next, PREVIEW_ROLES do
 				local icon = btnIcons[j]
 				icon:SetTexture(texPath)
-				local tc = TC[role]
+				local tc = RoleIcon.GetTexCoord(style, role)
 				icon:SetTexCoord(tc[1], tc[2], tc[3], tc[4])
 			end
 		end
@@ -229,14 +227,6 @@ function F.SettingsCards.GroupIcons(parent, width, unitType, getConfig, setConfi
 		roleStyleDD:SetOnSelect(function(value)
 			F.Config:Set('general.roleIconStyle', value)
 			updateButtonIcons(value)
-			if(oUF and oUF.objects) then
-				for _, frame in next, oUF.objects do
-					local element = frame.GroupRoleIndicator
-					if(element and element.ForceUpdate) then
-						element:ForceUpdate()
-					end
-				end
-			end
 		end)
 
 		roleSection.extras = {

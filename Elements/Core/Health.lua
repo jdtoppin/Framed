@@ -327,7 +327,7 @@ function F.Elements.Health.Setup(self, width, height, config)
 			elseif(h._lossColorMode == 'dark') then
 				h._bg:SetVertexColor(0.15, 0.15, 0.15, 1)
 			elseif(h._lossColorMode == 'custom') then
-				local lc = h._lossCustomColor or { 0.15, 0.15, 0.15 }
+				local lc = h._lossCustomColor
 				h._bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
 			end
 		end

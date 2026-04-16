@@ -17,7 +17,7 @@ rawset(_G, 'FramedAddon', Framed)
 local eventFrame = CreateFrame('Frame')
 eventFrame:RegisterEvent('ADDON_LOADED')
 eventFrame:RegisterEvent('PLAYER_LOGIN')
-eventFrame:RegisterEvent('ACTIVE_TALENT_GROUP_CHANGED')
+eventFrame:RegisterEvent('PLAYER_SPECIALIZATION_CHANGED')
 
 eventFrame:SetScript('OnEvent', function(self, event, arg1)
 	if(event == 'ADDON_LOADED' and arg1 == addonName) then
@@ -103,8 +103,9 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		end
 
 		self:UnregisterEvent('PLAYER_LOGIN')
-	elseif(event == 'ACTIVE_TALENT_GROUP_CHANGED') then
+	elseif(event == 'PLAYER_SPECIALIZATION_CHANGED') then
 		F.ClickCasting.RefreshAll()
+		F.EventBus:Fire('SPEC_CHANGED')
 	end
 end)
 

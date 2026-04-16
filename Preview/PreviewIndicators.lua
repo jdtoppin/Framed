@@ -11,13 +11,27 @@ local FAKE_ICONS = {
 	debuffs        = { 136139, 135813, 136188 },   -- Corruption, Curse of Agony, SW:P
 	externals      = { 135936, 135964 },           -- BoP, BoS
 	defensives     = { 135919, 135872 },           -- Divine Shield, Ice Block
-	missingBuffs   = { 136075 },                   -- Fort
+	missingBuffs   = { 136075 },                   -- Fort (fallback)
 	targetedSpells = { 136197 },                   -- Shadow Bolt
 	privateAuras   = { 134400 },                   -- question mark
 	dispellable    = { 136139 },                   -- Corruption
 	lossOfControl  = { 132168 },                   -- stun
 	crowdControl   = { 118699 },                   -- Polymorph
 }
+
+-- Resolve missing buff icons from spell data (hardcoded IDs may differ across expansions)
+if(C_Spell and C_Spell.GetSpellInfo) then
+	local resolved = {}
+	for _, spellId in next, { 21562, 1459, 6673 } do
+		local info = C_Spell.GetSpellInfo(spellId)
+		if(info and info.iconID) then
+			resolved[#resolved + 1] = info.iconID
+		end
+	end
+	if(#resolved > 0) then
+		FAKE_ICONS.missingBuffs = resolved
+	end
+end
 
 local FAKE_DEPLETION_PCT = 0.6
 local FAKE_STACKS = 2

@@ -17,16 +17,20 @@ local TYPE_DISPLAY = {
 	Overlay = 'Color / Duration Overlay',
 }
 
--- Type descriptions for the Create card
-local TYPE_DESCRIPTIONS = {
-	Icon      = 'Single spell icon or colored square',
-	Icons     = 'Row/grid of spell icons or colored squares',
-	Bar       = 'Single depleting status bar',
-	Bars      = 'Row/grid of depleting status bars',
-	Rectangle = 'Colored rectangle positioned on frame',
-	Overlay   = 'Color fill, depleting overlay, or both',
-	Border    = 'Colored border or glow effect around the frame',
-}
+-- Indicator type dropdown items (used by the inline create form)
+local function getTypeItems()
+	return {
+		{ text = 'Icons',                    value = C.IndicatorType.ICONS },
+		{ text = 'Icon',                     value = C.IndicatorType.ICON },
+		{ text = 'Bars',                     value = C.IndicatorType.BARS },
+		{ text = 'Bar',                      value = C.IndicatorType.BAR },
+		{ text = 'Color / Duration Overlay', value = C.IndicatorType.OVERLAY },
+		{ text = 'Border / Glow',            value = C.IndicatorType.BORDER },
+		{ text = 'Rectangle',                value = C.IndicatorType.RECTANGLE },
+	}
+end
+
+local createDefaultData = F.Settings.Builders.CreateDefaultIndicatorData
 
 -- ============================================================
 -- Config helpers
@@ -70,21 +74,6 @@ local function makeConfigHelpers(unitType)
 end
 
 -- ============================================================
--- Indicator type dropdown items
--- ============================================================
-local function getTypeItems()
-	return {
-		{ text = 'Icons',     value = C.IndicatorType.ICONS },
-		{ text = 'Icon',      value = C.IndicatorType.ICON },
-		{ text = 'Bars',      value = C.IndicatorType.BARS },
-		{ text = 'Bar',       value = C.IndicatorType.BAR },
-		{ text = 'Color / Duration Overlay', value = C.IndicatorType.OVERLAY },
-		{ text = 'Border / Glow', value = C.IndicatorType.BORDER },
-		{ text = 'Rectangle', value = C.IndicatorType.RECTANGLE },
-	}
-end
-
--- ============================================================
 -- List row creation
 -- ============================================================
 local function createListRow(scrollContent)
@@ -95,22 +84,9 @@ local function createListRow(scrollContent)
 	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
 	nameFS:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
 	nameFS:SetJustifyH('LEFT')
+	nameFS:SetWordWrap(false)
 	nameFS:SetWidth(100)
 	row.__nameFS = nameFS
-
-	-- "Editing: name" overlay (RIGHT anchor set after enabledCB is created)
-	local editingWrap = CreateFrame('Frame', nil, row)
-	editingWrap:SetPoint('LEFT', row, 'LEFT', PAD_H, 0)
-	editingWrap:SetHeight(ROW_HEIGHT)
-	editingWrap:Hide()
-	row.__editingWrap = editingWrap
-
-	local editingFS = Widgets.CreateFontString(editingWrap, C.Font.sizeNormal, { 0.3, 0.9, 0.3, 1 })
-	editingFS:SetPoint('LEFT', editingWrap, 'LEFT', 0, 0)
-	editingFS:SetPoint('RIGHT', editingWrap, 'RIGHT', 0, 0)
-	editingFS:SetJustifyH('LEFT')
-	editingFS:SetWordWrap(false)
-	row.__editingFS = editingFS
 
 	local typeFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
 	typeFS:SetJustifyH('RIGHT')
@@ -137,7 +113,6 @@ local function createListRow(scrollContent)
 	Widgets.SetPoint(enabledCB, 'RIGHT', deleteBtn, 'LEFT', -C.Spacing.base, 0)
 	typeFS:SetPoint('LEFT', nameFS, 'RIGHT', C.Spacing.tight, 0)
 	typeFS:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
-	editingWrap:SetPoint('RIGHT', enabledCB, 'LEFT', -C.Spacing.tight, 0)
 
 	-- Row highlight + truncation tooltip
 	row:EnableMouse(true)
@@ -169,6 +144,35 @@ local function createListRow(scrollContent)
 		end)
 	end
 
+	-- Accent left bar (2px) for selected state
+	local selectedBar = row:CreateTexture(nil, 'OVERLAY')
+	selectedBar:SetTexture(F.Media.GetPlainTexture())
+	selectedBar:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
+	selectedBar:SetPoint('TOPLEFT', row, 'TOPLEFT', 0, 0)
+	selectedBar:SetPoint('BOTTOMLEFT', row, 'BOTTOMLEFT', 0, 0)
+	selectedBar:SetWidth(2)
+	selectedBar:Hide()
+	row.__selectedBar = selectedBar
+
+	-- Solid lighter tint across the whole row for selected state
+	local selectedBg = row:CreateTexture(nil, 'BORDER')
+	selectedBg:SetTexture(F.Media.GetPlainTexture())
+	selectedBg:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 0.25)
+	selectedBg:SetPoint('TOPLEFT', row, 'TOPLEFT', 2, 0)
+	selectedBg:SetPoint('BOTTOMRIGHT', row, 'BOTTOMRIGHT', 0, 0)
+	selectedBg:Hide()
+	row.__selectedBg = selectedBg
+
+	function row:__setSelected(selected)
+		if(selected) then
+			self.__selectedBar:Show()
+			self.__selectedBg:Show()
+		else
+			self.__selectedBar:Hide()
+			self.__selectedBg:Hide()
+		end
+	end
+
 	return row
 end
 
@@ -182,8 +186,6 @@ local function resolveBuilder(builderOrString)
 	end
 	return builderOrString
 end
-
-local createDefaultData = F.Settings.Builders.CreateDefaultIndicatorData
 
 -- ============================================================
 -- Panel Registration
@@ -211,149 +213,127 @@ F.Settings.RegisterPanel({
 		-- ── Unit type dropdown + copy-to ─────────────────────────
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'buffs', 'buffs')
 
-		-- ── Pinned row: Preview + Create card + Indicator List card ─
-		local CARD_GAP    = C.Spacing.normal
-		local createCardW = math.floor((width - CARD_GAP) * 0.40)
-		local listCardW   = width - createCardW - CARD_GAP
-		local pinnedRowY  = yOffset
+		-- ── Pinned row: Preview | Indicator List card ───────────────
+		local CARD_GAP       = C.Spacing.normal
+		local TITLE_ROW_H    = 18
+		local FORM_ROW_H     = BUTTON_H
+		local FORM_HEIGHT    = FORM_ROW_H + PAD_H * 2
+		local previewCardW = math.floor((width - CARD_GAP) * 0.40)
+		local listCardW    = width - previewCardW - CARD_GAP
+		local pinnedRowY   = yOffset
 
-		-- ── Preview card (above create card, same column) ────────
-		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, createCardW)
+		-- ── Preview card ─────────────────────────────────────────
+		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, previewCardW)
 		previewCard:ClearAllPoints()
 		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
-		local previewAccentBar = Widgets.CreateAccentBar(previewCard)
 		local previewCardH = previewCard:GetHeight()
-		local createStartY = pinnedRowY - previewCardH - CARD_GAP
 
-		-- ── Create card ──────────────────────────────────────────
-		local selectedType = C.IndicatorType.ICONS
-		local selectedDisplayType = C.IconDisplay.SPELL_ICON
-		local selectedBorderGlowMode = 'Border'
+		-- ── Indicator List card ──────────────────────────────────
+		-- List card height matches the preview card height
+		local leftColumnH = previewCardH
 
-		local createCard, createInner, createY = Widgets.StartCard(content, createCardW, createStartY)
-		Widgets.CreateAccentBar(createCard)
+		local listCard, listInner = Widgets.StartCard(content, listCardW, pinnedRowY)
+		listCard:ClearAllPoints()
+		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
+		listCard._startY = pinnedRowY
+		local listY = 4  -- align with CardGrid title padding (8px from card edge)
 
-		-- Type dropdown
-		local typeDD = Widgets.CreateDropdown(createInner, createCardW - Widgets.CARD_PADDING * 2)
+		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
+
+		-- ── Title row: "Indicators" label + collapse/expand button ──
+		local addToggleBtn = Widgets.CreateIconButton(listInner, F.Media.GetIcon('Plus'), TITLE_ROW_H)
+		addToggleBtn:SetBackdrop(nil)
+		addToggleBtn:EnableMouse(false)
+		addToggleBtn:ClearAllPoints()
+		Widgets.SetPoint(addToggleBtn, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
+
+		-- Title + hint anchored to the button row so everything shares the same vertical center
+		local titleLabel = Widgets.CreateFontString(listInner, C.Font.sizeNormal, C.Colors.textActive)
+		titleLabel:SetJustifyH('LEFT')
+		titleLabel:ClearAllPoints()
+		titleLabel:SetPoint('LEFT', listInner, 'LEFT', 0, 0)
+		titleLabel:SetPoint('TOP', addToggleBtn, 'TOP', 0, 0)
+		titleLabel:SetPoint('BOTTOM', addToggleBtn, 'BOTTOM', 0, 0)
+		titleLabel:SetText('Indicators')
+
+		local addHintFS = Widgets.CreateFontString(listInner, C.Font.sizeSmall, C.Colors.textSecondary)
+		addHintFS:SetJustifyH('RIGHT')
+		addHintFS:SetAlpha(0.6)
+		addHintFS:SetText('Add new')
+		Widgets.SetPoint(addHintFS, 'RIGHT', addToggleBtn, 'LEFT', -C.Spacing.tight, 0)
+
+		-- Hit area spans both the hint text and the icon for unified hover + click
+		local addHitArea = CreateFrame('Button', nil, listInner)
+		addHitArea:SetFrameLevel(addToggleBtn:GetFrameLevel() + 1)
+		addHitArea:SetPoint('LEFT', addHintFS, 'LEFT', -2, 0)
+		addHitArea:SetPoint('TOP', addToggleBtn, 'TOP', 0, 0)
+		addHitArea:SetPoint('BOTTOMRIGHT', addToggleBtn, 'BOTTOMRIGHT', 0, 0)
+
+		Widgets.SetupAccentHover(addHitArea, {
+			{ addToggleBtn._icon, true },
+			{ addHintFS, false },
+		})
+
+		listY = listY - TITLE_ROW_H - C.Spacing.tight
+
+		-- ── Collapsible create form (hidden by default) ──
+		local formFrame = CreateFrame('Frame', nil, listInner, 'BackdropTemplate')
+		Widgets.ApplyBackdrop(formFrame, C.Colors.panel, C.Colors.accent)
+		formFrame:SetHeight(FORM_HEIGHT)
+		formFrame:ClearAllPoints()
+		Widgets.SetPoint(formFrame, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
+		Widgets.SetPoint(formFrame, 'TOPRIGHT', listInner, 'TOPRIGHT', 0, listY)
+		formFrame:Hide()
+
+		local CREATE_BTN_SIZE = FORM_ROW_H
+		local formInnerW = listCardW - Widgets.CARD_PADDING * 2 - PAD_H * 2
+		local fieldW     = formInnerW - CREATE_BTN_SIZE - C.Spacing.normal
+		local nameBoxW   = math.floor((fieldW - C.Spacing.normal) * 0.40)
+		local typeDDW    = fieldW - nameBoxW - C.Spacing.normal
+
+		local nameBox = Widgets.CreateEditBox(formFrame, nil, nameBoxW, FORM_ROW_H)
+		nameBox:SetPlaceholder('Indicator name')
+		nameBox:ClearAllPoints()
+		Widgets.SetPoint(nameBox, 'TOPLEFT', formFrame, 'TOPLEFT', PAD_H, -PAD_H)
+
+		local typeDD = Widgets.CreateDropdown(formFrame, typeDDW)
 		typeDD:SetItems(getTypeItems())
 		typeDD:SetValue(C.IndicatorType.ICONS)
 		typeDD:ClearAllPoints()
-		Widgets.SetPoint(typeDD, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		createY = createY - DROPDOWN_H - C.Spacing.tight
+		Widgets.SetPoint(typeDD, 'TOPLEFT', nameBox, 'TOPRIGHT', C.Spacing.normal, -math.floor((FORM_ROW_H - DROPDOWN_H) / 2))
 
-		-- Type description
-		local typeDescFS = Widgets.CreateFontString(createInner, C.Font.sizeSmall, C.Colors.textSecondary)
-		typeDescFS:ClearAllPoints()
-		Widgets.SetPoint(typeDescFS, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		typeDescFS:SetJustifyH('LEFT')
-		typeDescFS:SetWidth(createCardW - Widgets.CARD_PADDING * 2)
-		typeDescFS:SetWordWrap(true)
-		typeDescFS:SetText(TYPE_DESCRIPTIONS[selectedType] or '')
-		createY = createY - 14 - C.Spacing.tight
-
-		-- Display type toggle (Icon/Icons only)
-		local function isIconType(t)
-			return t == C.IndicatorType.ICON or t == C.IndicatorType.ICONS
-		end
-
-		local initialInnerW = createCardW - Widgets.CARD_PADDING * 2
-		local initialHalfW  = math.floor((initialInnerW - C.Spacing.tight) / 2)
-
-		local displayTypeRow = CreateFrame('Frame', nil, createInner)
-		displayTypeRow:SetSize(initialInnerW, BUTTON_H)
-		displayTypeRow:ClearAllPoints()
-		Widgets.SetPoint(displayTypeRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-
-		local spellIconsBtn = Widgets.CreateButton(displayTypeRow, 'Spell Icons', 'accent', initialHalfW, BUTTON_H)
-		spellIconsBtn:SetPoint('TOPLEFT', displayTypeRow, 'TOPLEFT', 0, 0)
-		spellIconsBtn.value = C.IconDisplay.SPELL_ICON
-
-		local squareColorsBtn = Widgets.CreateButton(displayTypeRow, 'Squares', 'widget', initialInnerW - initialHalfW - C.Spacing.tight, BUTTON_H)
-		squareColorsBtn:SetPoint('LEFT', spellIconsBtn, 'RIGHT', C.Spacing.tight, 0)
-		squareColorsBtn.value = C.IconDisplay.COLORED_SQUARE
-
-		local displayTypeGroup = Widgets.CreateButtonGroup({ spellIconsBtn, squareColorsBtn }, function(value)
-			selectedDisplayType = value
-		end)
-		displayTypeGroup:SetValue(C.IconDisplay.SPELL_ICON)
-
-		-- Border/Glow toggle (Border type only)
-		local borderGlowRow = CreateFrame('Frame', nil, createInner)
-		borderGlowRow:SetSize(initialInnerW, BUTTON_H)
-		borderGlowRow:ClearAllPoints()
-		Widgets.SetPoint(borderGlowRow, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-
-		local borderModeBtn = Widgets.CreateButton(borderGlowRow, 'Border', 'accent', initialHalfW, BUTTON_H)
-		borderModeBtn:SetPoint('TOPLEFT', borderGlowRow, 'TOPLEFT', 0, 0)
-		borderModeBtn.value = 'Border'
-
-		local glowModeBtn = Widgets.CreateButton(borderGlowRow, 'Glow', 'widget', initialInnerW - initialHalfW - C.Spacing.tight, BUTTON_H)
-		glowModeBtn:SetPoint('LEFT', borderModeBtn, 'RIGHT', C.Spacing.tight, 0)
-		glowModeBtn.value = 'Glow'
-
-		local borderGlowGroup = Widgets.CreateButtonGroup({ borderModeBtn, glowModeBtn }, function(value)
-			selectedBorderGlowMode = value
-		end)
-		borderGlowGroup:SetValue('Border')
-
-		if(isIconType(selectedType)) then
-			displayTypeRow:Show()
-			borderGlowRow:Hide()
-			createY = createY - BUTTON_H - C.Spacing.tight
-		elseif(selectedType == C.IndicatorType.BORDER) then
-			displayTypeRow:Hide()
-			borderGlowRow:Show()
-			createY = createY - BUTTON_H - C.Spacing.tight
-		else
-			displayTypeRow:Hide()
-			borderGlowRow:Hide()
-		end
-
-		typeDD:SetOnSelect(function(value)
-			typeDescFS:SetText(TYPE_DESCRIPTIONS[value] or '')
-			if(isIconType(value)) then
-				displayTypeRow:Show()
-			else
-				displayTypeRow:Hide()
-			end
-			if(value == C.IndicatorType.BORDER) then
-				borderGlowRow:Show()
-			else
-				borderGlowRow:Hide()
-			end
-		end)
-
-		-- Name input
-		local nameBox = Widgets.CreateEditBox(createInner, nil, createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
-		nameBox:ClearAllPoints()
-		Widgets.SetPoint(nameBox, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		nameBox:SetPlaceholder('Indicator name')
-		createY = createY - BUTTON_H - C.Spacing.tight
-
-		-- Create button
-		local createBtn = Widgets.CreateButton(createInner, 'Create', 'accent', createCardW - Widgets.CARD_PADDING * 2, BUTTON_H)
+		local createBtn = Widgets.CreateIconButton(formFrame, F.Media.GetIcon('Tick'), CREATE_BTN_SIZE)
 		createBtn:ClearAllPoints()
-		Widgets.SetPoint(createBtn, 'TOPLEFT', createInner, 'TOPLEFT', 0, createY)
-		createY = createY - BUTTON_H
+		Widgets.SetPoint(createBtn, 'TOPRIGHT', formFrame, 'TOPRIGHT', -PAD_H, -PAD_H)
 
-		Widgets.EndCard(createCard, content, createY)
+		-- ── Indicator list scroll (height recomputes when form toggles) ──
+		local function computeListScrollH()
+			local usedAbove = TITLE_ROW_H + C.Spacing.tight
+			if(formFrame:IsShown()) then
+				usedAbove = usedAbove + FORM_HEIGHT + C.Spacing.tight
+			end
+			return previewCardH - Widgets.CARD_PADDING * 2 - usedAbove
+		end
 
-		-- ── Indicator List card ──────────────────────────────────
-		-- Match list card height to the combined preview + create column
-		local leftColumnH = previewCardH + CARD_GAP + createCard:GetHeight()
-		local listScrollH = leftColumnH - Widgets.CARD_PADDING * 2
+		-- Forward-declare so anchorListScroll can close over it
+		local listScroll
+		local listScrollBaseY = listY
 
-		local listCard, listInner, listY = Widgets.StartCard(content, listCardW, pinnedRowY)
-		listCard:ClearAllPoints()
-		Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', createCardW + CARD_GAP, pinnedRowY)
-		listCard._startY = pinnedRowY
-		Widgets.CreateAccentBar(listCard)
+		local function anchorListScroll()
+			local y = listScrollBaseY
+			if(formFrame:IsShown()) then
+				y = y - FORM_HEIGHT - C.Spacing.tight
+			end
+			listScroll:ClearAllPoints()
+			Widgets.SetPoint(listScroll, 'TOPLEFT', listInner, 'TOPLEFT', 0, y)
+			listScroll:SetHeight(computeListScrollH())
+			listScroll:UpdateScrollRange()
+		end
 
-		local listWidgetW = listCardW - Widgets.CARD_PADDING * 2
-		local listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, listScrollH)
+		listScroll = Widgets.CreateScrollFrame(listInner, nil, listWidgetW, computeListScrollH())
 		listScroll:ClearAllPoints()
 		Widgets.SetPoint(listScroll, 'TOPLEFT', listInner, 'TOPLEFT', 0, listY)
-		listY = listY - listScrollH
+		listY = listY - computeListScrollH()
 		local listContent = listScroll:GetContentFrame()
 
 		local emptyLabel = Widgets.CreateFontString(listScroll, C.Font.sizeNormal, C.Colors.textSecondary)
@@ -365,6 +345,7 @@ F.Settings.RegisterPanel({
 
 		-- ── CardGrid for settings cards ──────────────────────────
 		local gridTopY = yOffset
+
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(gridTopY))
 
@@ -410,6 +391,7 @@ F.Settings.RegisterPanel({
 			scroll:UpdateScrollRange()
 
 			-- Update breadcrumb and preview dimming
+			scroll._editingIndicatorName = iName
 			F.Settings.UpdateAuraBreadcrumb('Buffs', iName)
 			F.Settings.UpdateAuraPreviewDimming('buffs', iName)
 		end
@@ -420,12 +402,12 @@ F.Settings.RegisterPanel({
 			grid:Layout(0, parentH)
 
 			editingName = nil
+			scroll._editingIndicatorName = nil
 
-			-- Reset editing labels
+			-- Reset selected-row highlight
 			for _, r in next, listRowPool do
-				if(r.__editingWrap) then
-					r.__editingWrap:Hide()
-					r.__nameFS:Show()
+				if(r.__setSelected) then
+					r:__setSelected(false)
 				end
 			end
 
@@ -469,16 +451,9 @@ F.Settings.RegisterPanel({
 				row:SetPoint('TOPLEFT', listContent, 'TOPLEFT', 0, -(idx - 1) * ROW_HEIGHT)
 				row:SetPoint('TOPRIGHT', listContent, 'TOPRIGHT', 0, -(idx - 1) * ROW_HEIGHT)
 
-				-- Name + editing state
+				-- Name + selected state
 				row.__nameFS:SetText(iName)
-				row.__nameFS:Show()
-				row.__editingWrap:Hide()
-				if(editingName == iName) then
-					row.__nameFS:Hide()
-					row.__editingFS:SetText('Editing: ' .. iName)
-					row.__editingWrap:SetAlpha(1)
-					row.__editingWrap:Show()
-				end
+				row:__setSelected(editingName == iName)
 				row.__typeFS:SetText(TYPE_DISPLAY[iData.type] or iData.type or '?')
 				row.__enabledCB:SetChecked(iData.enabled ~= false)
 
@@ -501,20 +476,16 @@ F.Settings.RegisterPanel({
 
 					editingName = capName
 
-					-- Reset all row editing labels
+					-- Reset all row selections
 					for _, r in next, listRowPool do
-						if(r.__editingWrap) then
-							r.__editingWrap:Hide()
-							r.__nameFS:Show()
+						if(r.__setSelected) then
+							r:__setSelected(false)
 						end
 						if(r.__editBtn) then
 							r.__editBtn:SetText('Edit')
 						end
 					end
-					row.__nameFS:Hide()
-					row.__editingFS:SetText('Editing: ' .. capName)
-					row.__editingWrap:SetAlpha(1)
-					row.__editingWrap:Show()
+					row:__setSelected(true)
 					row.__editBtn:SetText('Close')
 
 					-- Fetch fresh data and spawn cards
@@ -536,10 +507,46 @@ F.Settings.RegisterPanel({
 			end
 
 			listContent:SetHeight(idx * ROW_HEIGHT)
-			local listH = math.min(listScrollH, math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
+			local listH = math.min(computeListScrollH(), math.max(ROW_HEIGHT, indicatorCount * ROW_HEIGHT))
 			listScroll:SetHeight(listH)
 			listScroll:UpdateScrollRange()
 		end
+
+		-- ── Inline create form toggle ────────────────────────────
+		local function resetForm()
+			nameBox:SetText('')
+			-- SetText('') clears the placeholder active flag; re-apply so the
+			-- hint text returns when the form is reopened or first shown.
+			nameBox:SetPlaceholder('Indicator name')
+			typeDD:SetValue(C.IndicatorType.ICONS)
+		end
+
+		local function setFormOpen(open)
+			if(open) then
+				formFrame:Show()
+				addHintFS:Hide()
+				addHitArea:Hide()
+				addToggleBtn:EnableMouse(true)
+				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Close'))
+				Widgets.ApplyBackdrop(addToggleBtn, C.Colors.widget, C.Colors.border)
+			else
+				formFrame:Hide()
+				addHintFS:Show()
+				addHitArea:Show()
+				addToggleBtn:EnableMouse(false)
+				addToggleBtn._icon:SetTexture(F.Media.GetIcon('Plus'))
+				addToggleBtn:SetBackdrop(nil)
+				resetForm()
+			end
+			anchorListScroll()
+		end
+
+		addHitArea:SetScript('OnClick', function()
+			setFormOpen(true)
+		end)
+		addToggleBtn:SetOnClick(function()
+			setFormOpen(false)
+		end)
 
 		-- ── Create handler ───────────────────────────────────────
 		local function doCreate()
@@ -548,57 +555,82 @@ F.Settings.RegisterPanel({
 			local indicators = getIndicators()
 			if(indicators[iName]) then return end
 
-			local data = createDefaultData(typeDD:GetValue(), selectedDisplayType, selectedBorderGlowMode)
+			local data = createDefaultData(typeDD:GetValue(), C.IconDisplay.SPELL_ICON, 'Border')
 			setIndicator(iName, data)
-			nameBox:SetText('')
 			layoutList()
 
-			-- Auto-open for editing
+			-- Auto-open the new indicator for editing
 			editingName = iName
 			local freshData = getIndicators()[iName]
 			if(freshData) then
 				spawnSettingsCards(iName, freshData)
 			end
-			-- Update list to reflect editing state
 			layoutList()
+
+			-- Collapse the form after successful create
+			setFormOpen(false)
 		end
 
 		createBtn:SetOnClick(doCreate)
 		nameBox:SetOnEnterPressed(doCreate)
 
+		-- ── Initial state ────────────────────────────────────────
+		setFormOpen(false)
+
 		-- ── Initial layout ───────────────────────────────────────
 		layoutList()
+
+		-- Auto-select the first enabled indicator so the cards area isn't blank
+		if(indicatorCount > 0) then
+			local indicators = getIndicators()
+			local firstName, firstData
+			for iName, iData in next, indicators do
+				if(not firstName) then firstName, firstData = iName, iData end
+				if(iData.enabled ~= false) then
+					firstName, firstData = iName, iData
+					break
+				end
+			end
+			if(firstName) then
+				editingName = firstName
+				spawnSettingsCards(firstName, firstData)
+				layoutList()
+			end
+		end
+
 		content:SetHeight(math.abs(gridTopY) + C.Spacing.normal)
 		scroll:UpdateScrollRange()
 
-		-- ── Scroll integration ───────────────────────────────────
-		local previewNaturalY = math.abs(pinnedRowY)
-		local previewSticky = false
+		-- ── Pin cards to the scroll viewport so they never scroll ──
 		local previewOrigLevel = previewCard:GetFrameLevel()
+
+		-- Semi-transparent scrim behind the pinned cards so scrolling
+		-- content is dimmed rather than clearly visible through the gap.
+		local scrim = CreateFrame('Frame', nil, scroll)
+		scrim:SetFrameLevel(previewOrigLevel + 49)
+		scrim:SetPoint('TOPLEFT', scroll, 'TOPLEFT', 0, 0)
+		scrim:SetPoint('TOPRIGHT', scroll, 'TOPRIGHT', 0, 0)
+		scrim:SetHeight(math.abs(pinnedRowY) + previewCardH + C.Spacing.normal)
+		local scrimBg = scrim:CreateTexture(nil, 'BACKGROUND')
+		scrimBg:SetAllPoints(scrim)
+		local bg = C.Colors.background
+		scrimBg:SetColorTexture(bg[1], bg[2], bg[3], 0.85)
+
+		previewCard:SetParent(scroll)
+		previewCard:SetFrameLevel(previewOrigLevel + 50)
+		previewCard:ClearAllPoints()
+		Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, pinnedRowY)
+
+		listCard:SetParent(scroll)
+		listCard:SetFrameLevel(previewOrigLevel + 50)
+		listCard:ClearAllPoints()
+		Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
 
 		local function onScroll()
 			local offset = scroll._scrollFrame:GetVerticalScroll()
 			local viewH  = scroll._scrollFrame:GetHeight()
 			grid:Layout(offset, viewH)
 			content:SetHeight(grid:GetTotalHeight())
-
-			-- Sticky preview: reparent to scroll viewport when scrolled past
-			local shouldStick = offset > previewNaturalY
-			if(shouldStick and not previewSticky) then
-				previewSticky = true
-				previewAccentBar:Hide()
-				previewCard:SetParent(scroll)
-				previewCard:SetFrameLevel(previewOrigLevel + 50)
-				previewCard:ClearAllPoints()
-				Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, 0)
-			elseif(not shouldStick and previewSticky) then
-				previewSticky = false
-				previewAccentBar:Show()
-				previewCard:SetParent(content)
-				previewCard:SetFrameLevel(previewOrigLevel)
-				previewCard:ClearAllPoints()
-				Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
-			end
 		end
 
 		scroll._scrollFrame:HookScript('OnMouseWheel', function()
@@ -608,54 +640,57 @@ F.Settings.RegisterPanel({
 		-- ── Resize handling ──────────────────────────────────────
 		local resizeKey = 'Buffs.resize.' .. unitType
 		local function onResize(newW, newH)
-			local newWidth = newW - C.Spacing.normal * 2
-			local newCreateW = math.floor((newWidth - CARD_GAP) * 0.40)
-			local newListW   = newWidth - newCreateW - CARD_GAP
-			local newCreateInnerW = newCreateW - Widgets.CARD_PADDING * 2
-			local newListInnerW   = newListW - Widgets.CARD_PADDING * 2
+			local newWidth    = newW - C.Spacing.normal * 2
+			local newPreviewW = math.floor((newWidth - CARD_GAP) * 0.40)
+			local newListW    = newWidth - newPreviewW - CARD_GAP
+			local newListInnerW = newListW - Widgets.CARD_PADDING * 2
 
-			-- Wrapper card frames
-			previewCard:SetWidth(newCreateW)
-			createCard:SetWidth(newCreateW)
+			previewCard:SetWidth(newPreviewW)
 			listCard:SetWidth(newListW)
 			listCard:ClearAllPoints()
-			Widgets.SetPoint(listCard, 'TOPLEFT', content, 'TOPLEFT', newCreateW + CARD_GAP, pinnedRowY)
-
-			-- Create card inner widgets
-			typeDD:SetWidth(newCreateInnerW)
-			typeDescFS:SetWidth(newCreateInnerW)
-			displayTypeRow:SetWidth(newCreateInnerW)
-			borderGlowRow:SetWidth(newCreateInnerW)
-			nameBox:SetWidth(newCreateInnerW)
-			createBtn:SetWidth(newCreateInnerW)
-
-			-- Display type toggle buttons (fill row proportionally)
-			local halfBtnW = math.floor((newCreateInnerW - C.Spacing.tight) / 2)
-			spellIconsBtn:SetWidth(halfBtnW)
-			squareColorsBtn:SetWidth(newCreateInnerW - halfBtnW - C.Spacing.tight)
-			borderModeBtn:SetWidth(halfBtnW)
-			glowModeBtn:SetWidth(newCreateInnerW - halfBtnW - C.Spacing.tight)
+			Widgets.SetPoint(listCard, 'TOPLEFT', scroll, 'TOPLEFT', newPreviewW + CARD_GAP, pinnedRowY)
 
 			-- Preview frame max width
 			local preview = F.Settings._auraPreview
 			if(preview) then
-				preview._maxWidth = newCreateW - Widgets.CARD_PADDING * 2
+				preview._maxWidth = newPreviewW - Widgets.CARD_PADDING * 2
 			end
 
 			-- List card inner scroll (content width auto-updates via OnSizeChanged)
 			listScroll:SetWidth(newListInnerW)
+
+			-- Inline create form widgets
+			local newFormInnerW = newListW - Widgets.CARD_PADDING * 2 - PAD_H * 2
+			local newFieldW     = newFormInnerW - CREATE_BTN_SIZE - C.Spacing.normal
+			local newNameBoxW   = math.floor((newFieldW - C.Spacing.normal) * 0.40)
+			local newTypeDDW    = newFieldW - newNameBoxW - C.Spacing.normal
+			nameBox:SetWidth(newNameBoxW)
+			typeDD:SetWidth(newTypeDDW)
+			-- formFrame auto-adjusts via its TOPRIGHT anchor on listInner
 
 			grid:SetWidth(newWidth)
 			content:SetHeight(grid:GetTotalHeight())
 			scroll:UpdateScrollRange()
 		end
 
-		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
-		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
-			grid:RebuildCards()
+		local function syncPreviewHeight()
 			if(F.Settings._auraPreview) then
 				F.Settings.AuraPreview.Rebuild()
 			end
+			local newH = previewCard:GetHeight()
+			if(newH ~= previewCardH) then
+				previewCardH = newH
+				listCard:SetHeight(previewCardH)
+				scrim:SetHeight(math.abs(pinnedRowY) + previewCardH + C.Spacing.normal)
+				grid:SetTopOffset(math.abs(pinnedRowY) + previewCardH + C.Spacing.normal)
+				anchorListScroll()
+			end
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+			syncPreviewHeight()
+			grid:RebuildCards()
 		end, resizeKey .. '.complete')
 
 		-- ── Cleanup on hide, re-register on show ─────────────────
@@ -668,13 +703,39 @@ F.Settings.RegisterPanel({
 		scroll:HookScript('OnShow', function()
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
 			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+				syncPreviewHeight()
 				grid:RebuildCards()
-				if(F.Settings._auraPreview) then
-					F.Settings.AuraPreview.Rebuild()
-				end
 			end, resizeKey .. '.complete')
-			grid:Layout(0, parentH, false)
-			content:SetHeight(grid:GetTotalHeight())
+			-- Catch up with any resize that happened while hidden
+			local curW = parent._explicitWidth  or parent:GetWidth()  or parentW
+			local curH = parent._explicitHeight or parent:GetHeight() or parentH
+			onResize(curW, curH)
+			syncPreviewHeight()
+			grid:RebuildCards()
+			-- Respawn cards for the editing indicator, or auto-select one
+			layoutList()
+			if(editingName) then
+				local freshData = getIndicators()[editingName]
+				if(freshData) then
+					spawnSettingsCards(editingName, freshData)
+					layoutList()
+				end
+			elseif(indicatorCount > 0) then
+				local indicators = getIndicators()
+				local firstName, firstData
+				for iName, iData in next, indicators do
+					if(not firstName) then firstName, firstData = iName, iData end
+					if(iData.enabled ~= false) then
+						firstName, firstData = iName, iData
+						break
+					end
+				end
+				if(firstName) then
+					editingName = firstName
+					spawnSettingsCards(firstName, firstData)
+					layoutList()
+				end
+			end
 		end)
 
 		scroll._ownedPreview = F.Settings._auraPreview

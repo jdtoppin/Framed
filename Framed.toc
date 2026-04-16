@@ -30,7 +30,6 @@ Core/Version.lua
 Core/ColorUtils.lua
 Media/Media.lua
 Core/SecretValues.lua
-Core/DispelCapability.lua
 Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
@@ -163,7 +162,6 @@ Preview/PreviewManager.lua
 
 # Settings
 Settings/Framework.lua
-Settings/CopyToDialog.lua
 Settings/MainFrame.lua
 Settings/Sidebar.lua
 Settings/FrameSettingsBuilder.lua
