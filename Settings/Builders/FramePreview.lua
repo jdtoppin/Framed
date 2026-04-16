@@ -320,13 +320,24 @@ end
 -- ============================================================
 
 local function RenderSoloPreview(viewport, unitType)
+	print('|cff00ccff[Preview]|r RenderSolo start:', unitType)
 	local config = getUnitConfig(unitType)
-	if(not config) then return end
+	if(not config) then print('|cffff0000[Preview]|r config is nil!') return end
+	print('|cff00ccff[Preview]|r config OK, w=' .. config.width .. ' h=' .. config.height)
+	print('|cff00ccff[Preview]|r elementStrata:', config.elementStrata and 'exists' or 'NIL')
+	print('|cff00ccff[Preview]|r viewport size:', viewport:GetWidth(), viewport:GetHeight())
 
 	local fakeFn = SOLO_FAKES[unitType]
 	local fakeUnit = fakeFn and fakeFn() or { name = 'Unit', class = 'WARRIOR', healthPct = 0.85, powerPct = 0.7 }
 
-	local frame = AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil)
+	local ok, frame = pcall(function()
+		return AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil)
+	end)
+	if(not ok) then
+		print('|cffff0000[Preview]|r Create ERROR:', frame)
+		return
+	end
+	print('|cff00ccff[Preview]|r frame created, shown=' .. tostring(frame:IsShown()))
 	frame._fakeUnit = fakeUnit
 	if(frame._config) then
 		F.PreviewFrame.UpdateFromConfig(frame, config, nil)
@@ -334,6 +345,7 @@ local function RenderSoloPreview(viewport, unitType)
 
 	frame:ClearAllPoints()
 	frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', 0, 0)
+	print('|cff00ccff[Preview]|r frame placed, size:', frame:GetWidth(), frame:GetHeight())
 
 	previewFrames[1] = frame
 end
@@ -548,6 +560,7 @@ end
 -- ============================================================
 
 function FP.BuildPreviewCard(parent, width, unitType)
+	print('|cff00ccff[Preview]|r BuildPreviewCard:', unitType, 'width=' .. width)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
 	Widgets.CreateAccentBar(card, 'top')
 
@@ -560,7 +573,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	if(unitType == 'raid') then
 		local count = F.Config:GetChar('settings.raidPreviewCount')
 
-		local countText = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSubtle)
+		local countText = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
 		countText:SetPoint('RIGHT', inner, 'RIGHT', 0, cy + C.Font.sizeNormal / 2)
 		countText:SetText('units: ' .. count)
 
@@ -679,6 +692,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	end, 'FramePreview.PresetListener')
 
 	Widgets.EndCard(card, parent, cy)
+	print('|cff00ccff[Preview]|r card built, cy=' .. cy .. ' cardH=' .. card:GetHeight() .. ' viewH=' .. viewH)
 
 	activePreview = card
 	card._viewport = viewport
