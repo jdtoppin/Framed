@@ -354,9 +354,28 @@ local function RenderGroupPreview(viewport, unitType, count)
 			F.PreviewFrame.UpdateFromConfig(frame, config, nil)
 		end
 
-		frame:ClearAllPoints()
-		frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', positions[i].x, positions[i].y)
+		local pos = positions[i]
+		if(frame._lastX and frame._lastY) then
+			local fromX, fromY = frame._lastX, frame._lastY
+			Widgets.StartAnimation(frame, 'reposition', 0, 1, 0.3,
+				function(f, t)
+					f:ClearAllPoints()
+					f:SetPoint('TOPLEFT', viewport, 'TOPLEFT',
+						fromX + (pos.x - fromX) * t,
+						fromY + (pos.y - fromY) * t)
+				end,
+				function(f)
+					f:ClearAllPoints()
+					f:SetPoint('TOPLEFT', viewport, 'TOPLEFT', pos.x, pos.y)
+				end
+			)
+		else
+			frame:ClearAllPoints()
+			frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', pos.x, pos.y)
+		end
 
+		frame._lastX = pos.x
+		frame._lastY = pos.y
 		previewFrames[i] = frame
 	end
 
@@ -383,6 +402,31 @@ local function RenderGroupPreview(viewport, unitType, count)
 	if(unitType == 'party') then
 		RenderPetFrames(viewport, config)
 	end
+end
+
+-- ============================================================
+-- Animated viewport resize
+-- ============================================================
+
+local function AnimateViewportResize(viewport, card, targetW, targetH)
+	local currentW = viewport:GetWidth()
+	local currentH = viewport:GetHeight()
+
+	if(math.abs(currentW - targetW) < 1 and math.abs(currentH - targetH) < 1) then
+		viewport:SetSize(targetW, targetH)
+		return
+	end
+
+	Widgets.StartAnimation(viewport, 'previewResize', 0, 1, 0.3,
+		function(f, t)
+			local w = currentW + (targetW - currentW) * t
+			local h = currentH + (targetH - currentH) * t
+			f:SetSize(w, h)
+		end,
+		function(f)
+			f:SetSize(targetW, targetH)
+		end
+	)
 end
 
 -- ============================================================
@@ -416,7 +460,7 @@ function FP.RebuildPreview()
 	else
 		viewH = config.height + 20
 	end
-	activePreview._viewport:SetHeight(viewH)
+	AnimateViewportResize(activePreview._viewport, activePreview, activePreview._viewport:GetWidth(), viewH)
 	viewport:SetHeight(viewH)
 
 	if(SOLO_FAKES[activeUnitType]) then
