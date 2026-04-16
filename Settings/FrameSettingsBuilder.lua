@@ -156,6 +156,16 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		previewCard:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
 	end
 
+	-- DEBUG: raw test frame at top of content (bypasses all preview code)
+	local dbgTest = CreateFrame('Frame', nil, content)
+	dbgTest:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, 0)
+	dbgTest:SetSize(200, 30)
+	dbgTest:SetFrameLevel(content:GetFrameLevel() + 50)
+	local dbgTex = dbgTest:CreateTexture(nil, 'OVERLAY')
+	dbgTex:SetAllPoints(dbgTest)
+	dbgTex:SetColorTexture(1, 0, 0, 0.8)
+	print('|cffff0000[DEBUG]|r test frame at content TOPLEFT, content shown=' .. tostring(content:IsShown()) .. ' parent shown=' .. tostring(content:GetParent():IsShown()))
+
 	local pinnedH = previewCard and previewCard:GetHeight() or 0
 
 	-- Register cards in display order
