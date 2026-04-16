@@ -645,6 +645,20 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	viewport:SetPoint('RIGHT', inner, 'RIGHT', 0, 0)
 	viewContent:SetWidth(width)
 
+	-- DEBUG: bright markers to trace visibility
+	local dbgCard = card:CreateTexture(nil, 'OVERLAY')
+	dbgCard:SetPoint('TOPLEFT', card, 'TOPLEFT', 0, 0)
+	dbgCard:SetSize(4, 4)
+	dbgCard:SetColorTexture(1, 0, 0, 1) -- red dot = card corner
+
+	local dbgVP = viewport:CreateTexture(nil, 'OVERLAY')
+	dbgVP:SetAllPoints(viewport)
+	dbgVP:SetColorTexture(0, 1, 0, 0.15) -- green tint = viewport area
+
+	local dbgVC = viewContent:CreateTexture(nil, 'OVERLAY')
+	dbgVC:SetAllPoints(viewContent)
+	dbgVC:SetColorTexture(0, 0, 1, 0.15) -- blue tint = viewContent area
+
 	-- Horizontal mouse wheel scrolling for wide group layouts
 	viewport:EnableMouseWheel(true)
 	viewport:SetScript('OnMouseWheel', function(self, delta)
