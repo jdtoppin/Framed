@@ -572,7 +572,7 @@ end
 -- Shared: build all elements and apply fake data
 -- ============================================================
 
-local function BuildAllElements(frame, config, fakeUnit, auraConfig)
+local function BuildAllElements(frame, config, fakeUnit, auraConfig, animated)
 	-- Dark background (match StyleBuilder)
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(frame)
@@ -592,7 +592,6 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig)
 	BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 
 	-- Build aura indicators (delegated to PreviewAuras)
-	local animated = F.PreviewManager.IsAnimationEnabled()
 	if(auraConfig) then
 		F.PreviewAuras.BuildAll(frame, auraConfig, animated)
 	end
@@ -683,17 +682,19 @@ end
 function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame, auraConfig)
 	local frame = CreateFrame('Frame', nil, parent)
 
-	-- Match effective scale so config dimensions render at the correct visual
-	-- size. For solo frames, sync to the real frame's scale. For group frames
-	-- (no realFrame), sync to UIParent's scale since headers anchor to UIParent.
-	local targetScale = realFrame and realFrame:GetEffectiveScale() or UIParent:GetEffectiveScale()
-	local parentScale = frame:GetParent():GetEffectiveScale()
-	if(parentScale > 0) then
-		frame:SetScale(targetScale / parentScale)
+	if(realFrame) then
+		-- Edit Mode: match effective scale so config dimensions render at the
+		-- correct visual size relative to the real frame.
+		local targetScale = realFrame:GetEffectiveScale()
+		local parentScale = frame:GetParent():GetEffectiveScale()
+		if(parentScale > 0) then
+			frame:SetScale(targetScale / parentScale)
+		end
 	end
 	Widgets.SetSize(frame, config.width, config.height)
 
-	BuildAllElements(frame, config, fakeUnit, auraConfig)
+	local animated = realFrame and F.PreviewManager.IsAnimationEnabled() or false
+	BuildAllElements(frame, config, fakeUnit, auraConfig, animated)
 
 	return frame
 end
@@ -702,8 +703,11 @@ end
 -- Public: Rebuild preview in-place with new config
 -- ============================================================
 
-function F.PreviewFrame.UpdateFromConfig(frame, config, auraConfig)
+function F.PreviewFrame.UpdateFromConfig(frame, config, auraConfig, animated)
 	DestroyChildren(frame)
 	Widgets.SetSize(frame, config.width, config.height)
-	BuildAllElements(frame, config, frame._fakeUnit, auraConfig)
+	if(animated == nil) then
+		animated = F.PreviewManager.IsAnimationEnabled()
+	end
+	BuildAllElements(frame, config, frame._fakeUnit, auraConfig, animated)
 end

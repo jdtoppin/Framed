@@ -129,7 +129,18 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		F.PresetManager.MarkCustomized(getPresetName())
 	end
 
-	-- ── CardGrid orchestrator (created first, positioned later) ──
+	-- ── Pinned preview card (parented to outer scroll container so it doesn't scroll) ──
+	local previewCard = F.Settings.FramePreview.BuildPreviewCard(scroll, width, unitType)
+	previewCard:ClearAllPoints()
+	Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, -C.Spacing.normal)
+	local pinnedH = previewCard:GetHeight() + C.Spacing.normal
+
+	-- Push the internal ScrollFrame down below the pinned card
+	scroll._scrollFrame:ClearAllPoints()
+	scroll._scrollFrame:SetPoint('TOPLEFT', scroll, 'TOPLEFT', 0, -(pinnedH + C.Spacing.normal))
+	scroll._scrollFrame:SetPoint('BOTTOMRIGHT', scroll, 'BOTTOMRIGHT', -7, 0)
+
+	-- ── CardGrid orchestrator ──
 	local grid = Widgets.CreateCardGrid(content, width)
 
 	local function relayout()
@@ -137,7 +148,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		local oldScroll   = scroll._scrollFrame:GetVerticalScroll()
 
 		grid:AnimatedReflow()
-		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
+		content:SetHeight(grid:GetTotalHeight())
 		scroll:UpdateScrollRange()
 
 		local growth = content:GetHeight() - oldContentH
@@ -149,21 +160,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 			scroll:_UpdateThumb()
 		end
 	end
-
-	-- ── Pinned preview card (full width, above grid) ──
-	-- DEBUG: minimal test card to isolate whether BuildPreviewCard is the issue
-	local testCard, testInner, testCy = Widgets.StartCard(content, width, 0)
-	local testLabel = Widgets.CreateFontString(testInner, C.Font.sizeNormal, C.Colors.textActive)
-	testLabel:SetPoint('TOPLEFT', testInner, 'TOPLEFT', 0, testCy)
-	testLabel:SetText('TEST PREVIEW CARD — ' .. unitType)
-	testCy = testCy - 40
-	Widgets.EndCard(testCard, content, testCy)
-	local previewCard = testCard
-	local pinnedH = previewCard:GetHeight()
-
-	-- Move grid container below the preview card so it doesn't cover it
-	grid._container:ClearAllPoints()
-	grid._container:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, -(pinnedH + C.Spacing.normal))
 
 	-- Register cards in display order
 	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig, relayout })
@@ -209,7 +205,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	-- ── Initial layout ─────────────────────────────────────────
 	grid:Layout(0, parentH)
-	content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
+	content:SetHeight(grid:GetTotalHeight())
 
 	-- ── Focus mode click targets (after initial layout so cards are built) ──
 	if(previewCard) then
@@ -235,11 +231,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- ── Cancel animations on hide, re-layout on show ──────────
 	scroll:HookScript('OnHide', function()
 		grid:CancelAnimations()
-		F.Settings.FramePreview.Destroy()
 	end)
 	scroll:HookScript('OnShow', function()
 		grid:Layout(0, parentH, false)
-		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
+		content:SetHeight(grid:GetTotalHeight())
 	end)
 
 	-- ── Lazy loading on scroll ─────────────────────────────────
@@ -247,7 +242,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		local offset = scroll._scrollFrame:GetVerticalScroll()
 		local viewH  = scroll._scrollFrame:GetHeight()
 		grid:Layout(offset, viewH)
-		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
+		content:SetHeight(grid:GetTotalHeight())
 	end
 
 	scroll._scrollFrame:HookScript('OnMouseWheel', function()
@@ -258,7 +253,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
 		local gridW = newW - C.Spacing.normal * 2
 		grid:SetWidth(gridW)
-		content:SetHeight(pinnedH + C.Spacing.normal + grid:GetTotalHeight())
+		content:SetHeight(grid:GetTotalHeight())
 	end, 'FrameSettingsBuilder.resize.' .. unitType)
 
 	F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()

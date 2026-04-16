@@ -297,7 +297,7 @@ local function onConfigChanged(path)
 		debouncedRebuild()
 	else
 		for _, frame in next, previewFrames do
-			F.PreviewFrame.UpdateFromConfig(frame, config, nil)
+			F.PreviewFrame.UpdateFromConfig(frame, config, nil, false)
 		end
 	end
 end
@@ -329,7 +329,7 @@ local function RenderSoloPreview(viewport, unitType)
 	local frame = AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil)
 	frame._fakeUnit = fakeUnit
 	if(frame._config) then
-		F.PreviewFrame.UpdateFromConfig(frame, config, nil)
+		F.PreviewFrame.UpdateFromConfig(frame, config, nil, false)
 	end
 
 	frame:ClearAllPoints()
@@ -415,7 +415,7 @@ local function RenderGroupPreview(viewport, unitType, count)
 		local frame = AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil)
 		if(frame._config) then
 			frame._fakeUnit = fakeUnit
-			F.PreviewFrame.UpdateFromConfig(frame, config, nil)
+			F.PreviewFrame.UpdateFromConfig(frame, config, nil, false)
 		end
 
 		local pos = positions[i]
@@ -548,6 +548,10 @@ end
 -- ============================================================
 
 function FP.BuildPreviewCard(parent, width, unitType)
+	if(activePreview) then
+		FP.Destroy()
+	end
+
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
 	Widgets.CreateAccentBar(card, 'top')
 
@@ -631,14 +635,6 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	viewport:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cy)
 	viewport:SetPoint('RIGHT', inner, 'RIGHT', 0, 0)
 	viewContent:SetWidth(width)
-
-	-- Horizontal mouse wheel scrolling for wide group layouts
-	viewport:EnableMouseWheel(true)
-	viewport:SetScript('OnMouseWheel', function(self, delta)
-		local maxScroll = math.max(0, viewContent:GetWidth() - self:GetWidth())
-		local current = self:GetHorizontalScroll()
-		self:SetHorizontalScroll(math.max(0, math.min(maxScroll, current - delta * 30)))
-	end)
 
 	local config = getUnitConfig(unitType)
 	local viewH
