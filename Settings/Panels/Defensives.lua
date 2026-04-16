@@ -259,6 +259,8 @@ F.Settings.RegisterPanel({
 
 			previewCard:SetWidth(currentPreviewW)
 			overviewCard:SetWidth(currentOverviewW)
+			overviewCard:ClearAllPoints()
+			Widgets.SetPoint(overviewCard, 'TOPLEFT', scroll, 'TOPLEFT', currentPreviewW + CARD_GAP, pinnedRowY)
 
 			local preview = F.Settings._auraPreview
 			if(preview) then
