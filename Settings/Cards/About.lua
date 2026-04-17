@@ -187,7 +187,8 @@ function F.AboutCards.License(parent, width)
 
 	y = placeWrapped(inner, innerW, y,
 		'Framed is released under the GNU General Public License v3 (GPL v3). ' ..
-		'The embedded oUF library is released under the MIT License. ' ..
+		'Framed includes the following third-party libraries, each subject to their own license terms: ' ..
+		'oUF, LibStub, CallbackHandler, LibCustomGlow, LibSerialize, LibDeflate, LibSharedMedia, LibDataBroker, and LibDBIcon. ' ..
 		'See each respective LICENSE file for full terms.')
 
 	Widgets.EndCard(card, parent, y)
