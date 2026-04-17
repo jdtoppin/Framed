@@ -89,6 +89,131 @@ function F.FrameSettingsBuilder.PlaceHeading(content, text, level, yOffset, widt
 end
 
 -- ============================================================
+-- Summary Card
+-- ============================================================
+
+local SUMMARY_ROW_H = 16
+local DOT_SIZE = 6
+
+local GROUP_ICON_TYPES = { party = true, raid = true, arena = true }
+
+local function getSummaryItems(unitType)
+	local items = {
+		{ id = 'position',    label = 'Position & Layout' },
+		{ id = 'healthColor', label = 'Portrait & Color' },
+		{ id = 'shields',     label = 'Shields & Absorbs', keys = { 'health.healPrediction', 'health.damageAbsorb' } },
+		{ id = 'power',       label = 'Power Bar',         key = 'showPower' },
+		{ id = 'castbar',     label = 'Cast Bar',          key = 'showCastBar' },
+		{ id = 'name',        label = 'Name Text',         key = 'showName' },
+		{ id = 'healthText',  label = 'Health Text',       key = 'health.showText' },
+		{ id = 'powerText',   label = 'Power Text',        key = 'power.showText' },
+	}
+	if(GROUP_ICON_TYPES[unitType]) then
+		items[#items + 1] = { id = 'groupIcons',  label = 'Group Icons' }
+		items[#items + 1] = { id = 'statusText',  label = 'Status Text',  key = 'statusText.enabled' }
+	end
+	items[#items + 1] = { id = 'statusIcons', label = 'Status Icons' }
+	items[#items + 1] = { id = 'markers',     label = 'Markers' }
+	if(unitType == 'party' or unitType == 'raid') then
+		items[#items + 1] = { id = 'sorting', label = 'Sorting' }
+	end
+	return items
+end
+
+local function isFeatureEnabled(getConfig, item)
+	if(item.key) then
+		return getConfig(item.key) and true or false
+	end
+	if(item.keys) then
+		for _, k in next, item.keys do
+			if(getConfig(k)) then return true end
+		end
+		return false
+	end
+	return nil
+end
+
+function F.FrameSettingsBuilder.BuildSummaryCard(parent, width, unitType, getConfig)
+	local card = CreateFrame('Frame', nil, parent, 'BackdropTemplate')
+	card:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 1,
+		insets   = { left = 1, right = 1, top = 1, bottom = 1 },
+	})
+	local bg = C.Colors.card
+	local border = C.Colors.cardBorder
+	card:SetBackdropColor(bg[1], bg[2], bg[3], bg[4] or 1)
+	card:SetBackdropBorderColor(border[1], border[2], border[3], border[4] or 1)
+	card:SetWidth(width)
+
+	local pad = 10
+	local items = getSummaryItems(unitType)
+	local cols = 2
+	local colW = math.floor((width - pad * 2 - C.Spacing.tight) / cols)
+	local y = -pad
+	local rows = math.ceil(#items / cols)
+
+	local rowFrames = {}
+
+	for i, item in next, items do
+		local col = (i - 1) % cols
+		local row = math.floor((i - 1) / cols)
+		local x = pad + col * (colW + C.Spacing.tight)
+
+		local rowFrame = CreateFrame('Button', nil, card)
+		rowFrame:SetSize(colW, SUMMARY_ROW_H)
+		rowFrame:ClearAllPoints()
+		rowFrame:SetPoint('TOPLEFT', card, 'TOPLEFT', x, -pad + (-row * (SUMMARY_ROW_H + 2)))
+
+		local enabled = isFeatureEnabled(getConfig, item)
+
+		local dot = rowFrame:CreateTexture(nil, 'ARTWORK')
+		dot:SetSize(DOT_SIZE, DOT_SIZE)
+		dot:SetPoint('LEFT', rowFrame, 'LEFT', 0, 0)
+
+		if(enabled == nil) then
+			local tc = C.Colors.textNormal
+			dot:SetColorTexture(tc[1], tc[2], tc[3], 0.5)
+		elseif(enabled) then
+			dot:SetColorTexture(0.2, 0.8, 0.3, 1)
+		else
+			dot:SetColorTexture(0.4, 0.4, 0.4, 0.4)
+		end
+
+		local label = Widgets.CreateFontString(rowFrame, C.Font.sizeSmall,
+			enabled == false and C.Colors.textDisabled or C.Colors.textNormal)
+		label:SetPoint('LEFT', dot, 'RIGHT', 4, 0)
+		label:SetText(item.label)
+
+		rowFrame:SetScript('OnClick', function()
+			if(card._onItemClicked) then
+				card._onItemClicked(item.id)
+			end
+		end)
+
+		rowFrame:SetScript('OnEnter', function(self)
+			label:SetTextColor(1, 1, 1, 1)
+		end)
+		rowFrame:SetScript('OnLeave', function(self)
+			local tc = enabled == false and C.Colors.textDisabled or C.Colors.textNormal
+			label:SetTextColor(tc[1], tc[2], tc[3], tc[4] or 1)
+		end)
+
+		rowFrame._dot = dot
+		rowFrame._label = label
+		rowFrame._item = item
+		rowFrames[#rowFrames + 1] = rowFrame
+	end
+
+	local totalH = pad * 2 + rows * SUMMARY_ROW_H + (rows - 1) * 2
+	card:SetHeight(totalH)
+	card._rowFrames = rowFrames
+
+	return card
+end
+
+-- ============================================================
 -- FrameSettingsBuilder.Create
 -- ============================================================
 
@@ -133,22 +258,33 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	local previewCard = F.Settings.FramePreview.BuildPreviewCard(scroll, width, unitType)
 	previewCard:ClearAllPoints()
 	Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, -C.Spacing.normal)
-	local pinnedH = previewCard:GetHeight() + C.Spacing.normal
 
-	-- Push the internal ScrollFrame down below the pinned card
+	-- ── Summary card (pinned below preview) ──────────────────
+	local summaryCard, summaryInner = F.FrameSettingsBuilder.BuildSummaryCard(
+		scroll, width, unitType, getConfig
+	)
+	summaryCard:ClearAllPoints()
+	Widgets.SetPoint(summaryCard, 'TOPLEFT', previewCard, 'BOTTOMLEFT', 0, -C.Spacing.tight)
+
+	local pinnedH = previewCard:GetHeight() + C.Spacing.tight + summaryCard:GetHeight() + C.Spacing.normal
+
+	-- Push the internal ScrollFrame down below the pinned cards
 	scroll._scrollFrame:ClearAllPoints()
 	scroll._scrollFrame:SetPoint('TOPLEFT', scroll, 'TOPLEFT', 0, -(pinnedH + C.Spacing.normal))
 	scroll._scrollFrame:SetPoint('BOTTOMRIGHT', scroll, 'BOTTOMRIGHT', -7, 0)
 
-	-- Forward mouse wheel from preview card to vertical scroll
-	previewCard:EnableMouseWheel(true)
-	previewCard:SetScript('OnMouseWheel', function(_, delta)
+	-- Forward mouse wheel from pinned area to vertical scroll
+	local function forwardMouseWheel(_, delta)
 		local sf = scroll._scrollFrame
 		local maxScroll = math.max(0, content:GetHeight() - sf:GetHeight())
 		local cur = sf:GetVerticalScroll()
 		sf:SetVerticalScroll(math.max(0, math.min(maxScroll, cur - delta * 40)))
 		scroll:_UpdateThumb()
-	end)
+	end
+	previewCard:EnableMouseWheel(true)
+	previewCard:SetScript('OnMouseWheel', forwardMouseWheel)
+	summaryCard:EnableMouseWheel(true)
+	summaryCard:SetScript('OnMouseWheel', forwardMouseWheel)
 
 	-- ── CardGrid orchestrator ──
 	local grid = Widgets.CreateCardGrid(content, width)
@@ -297,7 +433,6 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:AddCard('healthText', 'Health Text', F.SettingsCards.HealthText, { unitType, getConfig, makeCardSetConfig('healthText'), relayout })
 	grid:AddCard('powerText', 'Power Text', F.SettingsCards.PowerText, { unitType, getConfig, makeCardSetConfig('powerText'), relayout })
 	-- Icon cards — split by category, filtered by unit type relevance
-	local GROUP_ICON_TYPES = { party = true, raid = true, arena = true }
 	if(GROUP_ICON_TYPES[unitType]) then
 		grid:AddCard('groupIcons', 'Group Icons', F.SettingsCards.GroupIcons, { unitType, getConfig, makeCardSetConfig('groupIcons'), relayout })
 	end
@@ -359,6 +494,27 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 			hookCardInteraction(cardId, entry)
 		end
 	end
+
+	-- ── Wire summary card click-to-jump ──────────────────────
+	local function scrollToCard(cardId)
+		local entry = grid._cardIndex[cardId]
+		if(not entry) then return end
+
+		local targetY = entry._layoutY or 0
+		local sf = scroll._scrollFrame
+		local viewH = sf:GetHeight()
+		local maxScroll = math.max(0, content:GetHeight() - viewH)
+		local newScroll = math.min(math.abs(targetY), maxScroll)
+		sf:SetVerticalScroll(newScroll)
+		scroll:_UpdateThumb()
+
+		grid:Layout(newScroll, viewH)
+		content:SetHeight(grid:GetTotalHeight())
+
+		setActiveCard(cardId)
+	end
+
+	summaryCard._onItemClicked = scrollToCard
 
 	-- ── Cancel animations on hide, re-layout on show ──────────
 	scroll:HookScript('OnHide', function()

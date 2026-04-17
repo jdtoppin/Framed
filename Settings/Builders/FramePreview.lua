@@ -516,9 +516,10 @@ function FP.RebuildPreview()
 	if(not viewport or not config) then return end
 
 	local inset2 = PREVIEW_INSET * 2
-	local viewH
+	local MAX_PREVIEW_H = 120
+	local naturalH
 	if(SOLO_FAKES[activeUnitType]) then
-		viewH = config.height + inset2
+		naturalH = config.height + inset2
 	elseif(GROUP_COUNTS[activeUnitType]) then
 		local count
 		if(activeUnitType == 'raid') then
@@ -527,13 +528,22 @@ function FP.RebuildPreview()
 			count = GROUP_COUNTS[activeUnitType]
 		end
 		local rows = math.min(count, config.unitsPerColumn)
-		viewH = rows * config.height + (rows - 1) * config.spacing + inset2
+		naturalH = rows * config.height + (rows - 1) * config.spacing + inset2
 	else
-		viewH = config.height + inset2
+		naturalH = config.height + inset2
 	end
+
+	local previewScale = 1
+	if(naturalH > MAX_PREVIEW_H) then
+		previewScale = MAX_PREVIEW_H / naturalH
+	end
+	local viewH = math.ceil(naturalH * previewScale)
+
+	viewport:SetScale(previewScale)
+	viewport:SetWidth(activePreview._viewport:GetWidth() / previewScale)
+	viewport:SetHeight(naturalH)
+	activePreview._previewScale = previewScale
 	AnimateViewportResize(activePreview._viewport, activePreview, activePreview._viewport:GetWidth(), viewH)
-	viewport:SetWidth(activePreview._viewport:GetWidth())
-	viewport:SetHeight(viewH)
 
 	if(SOLO_FAKES[activeUnitType]) then
 		RenderSoloPreview(viewport, activeUnitType)
@@ -646,24 +656,35 @@ function FP.BuildPreviewCard(parent, width, unitType)
 
 	local config = getUnitConfig(unitType)
 	local inset2 = PREVIEW_INSET * 2
-	local viewH
+	local MAX_PREVIEW_H = 120
+	local naturalH
 	if(not config) then
-		viewH = 60
+		naturalH = 60
 	elseif(SOLO_FAKES[unitType]) then
-		viewH = config.height + inset2
+		naturalH = config.height + inset2
 	elseif(unitType == 'raid') then
 		local count = F.Config:GetChar('settings.raidPreviewCount')
 		local rows = math.min(count, config.unitsPerColumn)
-		viewH = rows * config.height + (rows - 1) * config.spacing + inset2
+		naturalH = rows * config.height + (rows - 1) * config.spacing + inset2
 	elseif(GROUP_COUNTS[unitType]) then
 		local count = GROUP_COUNTS[unitType]
 		local rows = math.min(count, config.unitsPerColumn)
-		viewH = rows * config.height + (rows - 1) * config.spacing + inset2
+		naturalH = rows * config.height + (rows - 1) * config.spacing + inset2
 	else
-		viewH = config.height + inset2
+		naturalH = config.height + inset2
 	end
+
+	local previewScale = 1
+	if(naturalH > MAX_PREVIEW_H) then
+		previewScale = MAX_PREVIEW_H / naturalH
+	end
+	local viewH = math.ceil(naturalH * previewScale)
+
+	viewContent:SetScale(previewScale)
+	viewContent:SetWidth(width / previewScale)
+	viewContent:SetHeight(naturalH)
 	viewport:SetHeight(viewH)
-	viewContent:SetHeight(viewH)
+	card._previewScale = previewScale
 	cy = cy - viewH - 8
 
 	activeUnitType = unitType
