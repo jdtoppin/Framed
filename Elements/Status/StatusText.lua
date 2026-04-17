@@ -17,6 +17,7 @@ local COLOR_OFFLINE  = { 0.5, 0.5, 0.5 }
 local COLOR_AFK      = { 0.8, 0.1, 0.1 }
 local COLOR_FEIGN    = { 1, 1, 0.12 }
 local COLOR_DRINKING = { 0.12, 0.75, 1 }
+local COLOR_PENDING  = { 1, 1, 0.12 }
 local COLOR_ACCEPTED = { 0.2, 0.8, 0.2 }
 local COLOR_DECLINED = { 0.8, 0.1, 0.1 }
 
@@ -172,8 +173,8 @@ local function Update(self, event, unit)
 		local status = C_IncomingSummon.IncomingSummonStatus(unit)
 		if(F.IsValueNonSecret(status)) then
 			if(status == SUMMON_PENDING) then
-				text  = 'SUMMON'
-				color = C.Colors.accent
+				text  = 'PENDING'
+				color = COLOR_PENDING
 			elseif(status == SUMMON_ACCEPTED) then
 				text  = 'ACCEPTED'
 				color = COLOR_ACCEPTED
