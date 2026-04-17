@@ -139,7 +139,7 @@ local function PetStyle(self, unit)
 		local isEligible = owner and UnitIsConnected(owner) and UnitInParty(owner)
 		if(isEligible) then
 			local inRange, checkedRange = UnitInRange(u)
-			if(not checkedRange) then
+			if(F.IsValueNonSecret(checkedRange) and not checkedRange) then
 				frame:SetAlpha(0)
 			else
 				frame:SetAlphaFromBoolean(inRange, element.insideAlpha, element.outsideAlpha)
