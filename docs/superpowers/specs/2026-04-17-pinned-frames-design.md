@@ -212,6 +212,34 @@ Built dynamically on each open by scanning the current roster. Structure:
 - Pin assignment UI (dropdown, placeholders) is disabled — `SetAttribute` is blocked during lockdown
 - Any assignment changes are queued and applied on `PLAYER_REGEN_ENABLED`
 
+## Aura Configuration
+
+Pinned frames integrate into the existing aura settings system as a first-class unit type. An `auras.pinned` section is added to `Presets/AuraDefaults.lua` with defaults matching the party/raid aura config (buffs, debuffs, dispellable, defensives, externals, etc.).
+
+In the Auras settings panel, "Pinned Frames" appears as a selectable unit type alongside Player, Target, Party, Raid, etc. It auto-hides in Solo preset (same behavior as Party/Raid). Aura config is shared across all pinned slots, consistent with the shared-style model.
+
+## Slot Identity Label
+
+Each pinned frame displays a small secondary label showing the pin assignment context. This is dimmed text positioned above or below the name element:
+
+- `type = 'name'` — no label needed; the name element already shows the player name
+- `type = 'nametarget'` — label shows the source player's name (e.g., `Bigshield's Target`) so the pin is distinguishable from a direct name pin
+- `type = 'unit'` — label shows the token in player-friendly form (e.g., `Focus Target`)
+
+The label is part of the shared style (always shown when applicable, no per-slot toggle).
+
+## Cross-Realm Name Handling
+
+Player names are stored and matched using full name-realm format for cross-realm players (e.g., `'Bigshield-Stormrage'`). For same-realm players, the short name is sufficient.
+
+- `UnitName(unit)` returns `name, realm` — the resolver concatenates with `'-'` when realm is non-nil
+- The dropdown displays the full name-realm for cross-realm players, short name for same-realm
+- Stored `value` in slot config uses the same format the resolver matches against
+
+## OnUpdate Throttle
+
+Frames flagged with `refreshOnUpdate` (`focustarget` and `nametarget` slots) use a throttled `OnUpdate` handler. The handler checks at most every **0.2 seconds** whether the derived unit has changed (via `UnitGUID` comparison against the last known value). If the GUID changes, element updates are triggered. This keeps CPU cost negligible even with multiple polling slots active.
+
 ## Settings Card
 
 **"Pinned Frames"** registered as a `PRESET_SCOPED` panel in the settings sidebar.
@@ -254,6 +282,7 @@ Pin stays on the player (name-tracked, not role-tracked). Dropdown reflects upda
 | `Settings/Panels/Pinned.lua` | New | Panel registration for sidebar |
 | `Settings/Cards/Pinned.lua` | New | Custom per-slot assignment list card |
 | `Presets/Defaults.lua` | Modify | Add `pinnedConfig()`, register in group presets |
+| `Presets/AuraDefaults.lua` | Modify | Add `pinned` aura defaults section |
 | `EditMode/EditMode.lua` | Modify | Add `pinned` entry to `FRAME_KEYS` |
 | `Units/LiveUpdate/FrameConfigPinned.lua` | New | `CONFIG_CHANGED` handler for runtime updates |
 | `Framed.toc` | Modify | Register new files in load order |
@@ -261,9 +290,9 @@ Pin stays on the player (name-tracked, not role-tracked). Dropdown reflects upda
 
 ## Estimated Size
 
-- `Units/Pinned.lua`: ~350 lines (spawning, resolver, combat deferral, grid layout, interaction, refreshOnUpdate)
+- `Units/Pinned.lua`: ~400 lines (spawning, resolver, combat deferral, grid layout, interaction, refreshOnUpdate, slot identity label)
 - `Settings/Panels/Pinned.lua`: ~15 lines
 - `Settings/Cards/Pinned.lua`: ~180 lines (slot assignment list with role-grouped dropdown, duplicate filtering)
 - `Units/LiveUpdate/FrameConfigPinned.lua`: ~80 lines
-- Modifications to existing files: ~30 lines
-- **Total: ~655 lines**
+- Modifications to existing files: ~50 lines (Defaults, AuraDefaults, EditMode, TOC, Init)
+- **Total: ~725 lines**
