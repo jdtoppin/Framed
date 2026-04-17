@@ -125,8 +125,29 @@ local function PetStyle(self, unit)
 	local moWidth = F.Config:Get('general.mouseoverHighlightWidth')
 	F.Elements.MouseoverHighlight.Setup(self, { color = moColor, thickness = moWidth })
 
-	-- Range fade (matches party frames — fades pet when out of range)
+	-- Range fade — oUF's default uses UnitInParty(unit) for eligibility,
+	-- which returns false for pet tokens.  Override to check the owner
+	-- and hide entirely when the pet is cross-zone (UnitInRange returns
+	-- false,false for units not in the same instance).
 	F.Elements.Range.Setup(self, config.range)
+	self.Range.Override = function(frame, event)
+		local element = frame.Range
+		local u = frame.unit
+		if(not u) then return end
+		local ownerIndex = u:match('partypet(%d+)')
+		local owner = ownerIndex and ('party' .. ownerIndex)
+		local isEligible = owner and UnitIsConnected(owner) and UnitInParty(owner)
+		if(isEligible) then
+			local inRange, checkedRange = UnitInRange(u)
+			if(not checkedRange) then
+				frame:SetAlpha(0)
+			else
+				frame:SetAlphaFromBoolean(inRange, element.insideAlpha, element.outsideAlpha)
+			end
+		else
+			frame:SetAlpha(element.outsideAlpha)
+		end
+	end
 
 	-- Store unit type for live config
 	self._framedUnitType = 'partypet'
