@@ -427,7 +427,6 @@ end
 local function BuildPortrait(frame, config, fakeUnit)
 	if(not config.portrait) then return end
 
-	local portraitType = config.portrait.type
 	local size = math.min(config.height, config.width) * 0.8
 
 	local wrapper = CreateFrame('Frame', nil, frame)

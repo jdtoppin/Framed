@@ -2,7 +2,6 @@ local addonName, Framed = ...
 local F = Framed
 local Widgets = F.Widgets
 local B = F.FrameSettingsBuilder
-local C = F.Constants
 
 F.SettingsCards = F.SettingsCards or {}
 
