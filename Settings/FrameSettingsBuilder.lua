@@ -140,6 +140,16 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	scroll._scrollFrame:SetPoint('TOPLEFT', scroll, 'TOPLEFT', 0, -(pinnedH + C.Spacing.normal))
 	scroll._scrollFrame:SetPoint('BOTTOMRIGHT', scroll, 'BOTTOMRIGHT', -7, 0)
 
+	-- Forward mouse wheel from preview card to vertical scroll
+	previewCard:EnableMouseWheel(true)
+	previewCard:SetScript('OnMouseWheel', function(_, delta)
+		local sf = scroll._scrollFrame
+		local maxScroll = math.max(0, content:GetHeight() - sf:GetHeight())
+		local cur = sf:GetVerticalScroll()
+		sf:SetVerticalScroll(math.max(0, math.min(maxScroll, cur - delta * 40)))
+		scroll:_UpdateThumb()
+	end)
+
 	-- ── CardGrid orchestrator ──
 	local grid = Widgets.CreateCardGrid(content, width)
 
@@ -161,30 +171,141 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		end
 	end
 
-	-- Register cards in display order
-	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, setConfig, relayout })
-	if(unitType == 'party' or unitType == 'raid') then
-		grid:AddCard('sorting', 'Sorting', F.SettingsCards.Sorting, { unitType, getConfig, setConfig })
+	-- ── Active card tracking ──────────────────────────────────
+	local activeCardId = nil
+	local activeAccentBar = nil
+	local FADE_DUR = C.Animation.durationFast
+
+	local defaultBg = C.Colors.card
+	local activeBg  = { 0.16, 0.16, 0.16, 1 }
+	local hoverBg   = { 0.14, 0.14, 0.14, 1 }
+
+	-- Track each card's current visual RGBA so animations always start from truth
+	local cardBgState = {}
+
+	local function getCardBg(card)
+		return cardBgState[card] or defaultBg
 	end
 
-	grid:AddCard('healthColor', 'Portrait & Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, setConfig, relayout })
+	local function animateCardBg(card, toBg)
+		local from = getCardBg(card)
+		local to = toBg
+		cardBgState[card] = to
+		Widgets.StartAnimation(card, 'cardBg', 0, 1, FADE_DUR, function(self, t)
+			self:SetBackdropColor(
+				from[1] + (to[1] - from[1]) * t,
+				from[2] + (to[2] - from[2]) * t,
+				from[3] + (to[3] - from[3]) * t,
+				(from[4] or 1) + ((to[4] or 1) - (from[4] or 1)) * t
+			)
+		end)
+	end
 
-	grid:AddCard('shields', 'Shields & Absorbs', F.SettingsCards.ShieldsAndAbsorbs, { unitType, getConfig, setConfig })
-	grid:AddCard('power', 'Power Bar', F.SettingsCards.PowerBar, { unitType, getConfig, setConfig })
-	grid:AddCard('castbar', 'Cast Bar', F.SettingsCards.CastBar, { unitType, getConfig, setConfig, relayout })
-	grid:AddCard('name', 'Name Text', F.SettingsCards.Name, { unitType, getConfig, setConfig, relayout })
-	grid:AddCard('healthText', 'Health Text', F.SettingsCards.HealthText, { unitType, getConfig, setConfig, relayout })
-	grid:AddCard('powerText', 'Power Text', F.SettingsCards.PowerText, { unitType, getConfig, setConfig, relayout })
+	local function animateTextColor(card, fs, fromC, toC)
+		Widgets.StartAnimation(card, 'textColor', 0, 1, FADE_DUR, function(self, t)
+			fs:SetTextColor(
+				fromC[1] + (toC[1] - fromC[1]) * t,
+				fromC[2] + (toC[2] - fromC[2]) * t,
+				fromC[3] + (toC[3] - fromC[3]) * t,
+				(fromC[4] or 1) + ((toC[4] or 1) - (fromC[4] or 1)) * t
+			)
+		end)
+	end
+
+	local function setActiveCard(cardId)
+		if(activeCardId == cardId) then return end
+
+		local hadPrev = activeCardId ~= nil
+
+		-- Deactivate previous card
+		if(activeCardId) then
+			local prev = grid._cardIndex[activeCardId]
+			if(prev and prev.built and prev.card) then
+				animateCardBg(prev.card, defaultBg)
+				if(prev._titleFS) then
+					animateTextColor(prev.card, prev._titleFS, C.Colors.textActive, C.Colors.textNormal)
+				end
+			end
+		end
+
+		activeCardId = cardId
+
+		-- Activate new card
+		if(cardId) then
+			local entry = grid._cardIndex[cardId]
+			if(entry and entry.built and entry.card) then
+				animateCardBg(entry.card, activeBg)
+				if(entry._titleFS) then
+					animateTextColor(entry.card, entry._titleFS, C.Colors.textNormal, C.Colors.textActive)
+				end
+
+				if(not activeAccentBar) then
+					activeAccentBar = CreateFrame('Frame', nil, scroll)
+					activeAccentBar:SetWidth(3)
+					local tex = activeAccentBar:CreateTexture(nil, 'OVERLAY')
+					tex:SetAllPoints(activeAccentBar)
+					local ac = C.Colors.accent
+					tex:SetColorTexture(ac[1], ac[2], ac[3], 1)
+					activeAccentBar._tex = tex
+				end
+				activeAccentBar:SetParent(entry.card)
+				activeAccentBar:ClearAllPoints()
+				activeAccentBar:SetPoint('TOPLEFT', entry.card, 'TOPLEFT', 0, 0)
+				activeAccentBar:SetPoint('BOTTOMLEFT', entry.card, 'BOTTOMLEFT', 0, 0)
+				activeAccentBar:SetFrameLevel(entry.card:GetFrameLevel() + 5)
+
+				if(hadPrev) then
+					activeAccentBar:SetAlpha(1)
+					activeAccentBar:Show()
+				else
+					activeAccentBar:SetAlpha(0)
+					activeAccentBar:Show()
+					Widgets.StartAnimation(activeAccentBar, 'fade', 0, 1, FADE_DUR,
+						function(self, v) self:SetAlpha(v) end)
+				end
+			end
+		elseif(activeAccentBar) then
+			Widgets.StartAnimation(activeAccentBar, 'fade', activeAccentBar:GetAlpha(), 0, FADE_DUR,
+				function(self, v) self:SetAlpha(v) end,
+				function(self) self:Hide() end)
+		end
+
+		-- Spotlight preview elements when focus mode is on
+		F.Settings.FramePreview.OnCardFocused(cardId)
+	end
+
+	-- Per-card setConfig wrapper that triggers active state on interaction
+	local function makeCardSetConfig(cardId)
+		return function(key, value)
+			setConfig(key, value)
+			setActiveCard(cardId)
+		end
+	end
+
+	-- Register cards in display order
+	grid:AddCard('position', 'Position & Layout', F.SettingsCards.PositionAndLayout, { unitType, getConfig, makeCardSetConfig('position'), relayout })
+	if(unitType == 'party' or unitType == 'raid') then
+		grid:AddCard('sorting', 'Sorting', F.SettingsCards.Sorting, { unitType, getConfig, makeCardSetConfig('sorting') })
+	end
+
+	grid:AddCard('healthColor', 'Portrait & Health Color', F.SettingsCards.HealthColor, { unitType, getConfig, makeCardSetConfig('healthColor'), relayout })
+
+	grid:AddCard('shields', 'Shields & Absorbs', F.SettingsCards.ShieldsAndAbsorbs, { unitType, getConfig, makeCardSetConfig('shields') })
+	grid:AddCard('power', 'Power Bar', F.SettingsCards.PowerBar, { unitType, getConfig, makeCardSetConfig('power') })
+	grid:AddCard('castbar', 'Cast Bar', F.SettingsCards.CastBar, { unitType, getConfig, makeCardSetConfig('castbar'), relayout })
+	grid:AddCard('name', 'Name Text', F.SettingsCards.Name, { unitType, getConfig, makeCardSetConfig('name'), relayout })
+	grid:AddCard('healthText', 'Health Text', F.SettingsCards.HealthText, { unitType, getConfig, makeCardSetConfig('healthText'), relayout })
+	grid:AddCard('powerText', 'Power Text', F.SettingsCards.PowerText, { unitType, getConfig, makeCardSetConfig('powerText'), relayout })
 	-- Icon cards — split by category, filtered by unit type relevance
 	local GROUP_ICON_TYPES = { party = true, raid = true, arena = true }
 	if(GROUP_ICON_TYPES[unitType]) then
-		grid:AddCard('groupIcons', 'Group Icons', F.SettingsCards.GroupIcons, { unitType, getConfig, setConfig, relayout })
+		grid:AddCard('groupIcons', 'Group Icons', F.SettingsCards.GroupIcons, { unitType, getConfig, makeCardSetConfig('groupIcons'), relayout })
 	end
 	if(GROUP_ICON_TYPES[unitType]) then
-		grid:AddCard('statusText', 'Status Text', F.SettingsCards.StatusText, { unitType, getConfig, setConfig, relayout })
+		grid:AddCard('statusText', 'Status Text', F.SettingsCards.StatusText, { unitType, getConfig, makeCardSetConfig('statusText'), relayout })
 	end
-	grid:AddCard('statusIcons', 'Status Icons', F.SettingsCards.StatusIcons, { unitType, getConfig, setConfig, relayout })
-	grid:AddCard('markers', 'Markers', F.SettingsCards.Markers, { unitType, getConfig, setConfig, relayout })
+	grid:AddCard('statusIcons', 'Status Icons', F.SettingsCards.StatusIcons, { unitType, getConfig, makeCardSetConfig('statusIcons'), relayout })
+	grid:AddCard('markers', 'Markers', F.SettingsCards.Markers, { unitType, getConfig, makeCardSetConfig('markers'), relayout })
 	if(unitType == 'party') then
 		grid:AddCard('partyPets', 'Party Pets', F.SettingsCards.PartyPets, {})
 	end
@@ -207,24 +328,35 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:Layout(0, parentH)
 	content:SetHeight(grid:GetTotalHeight())
 
-	-- ── Focus mode click targets (after initial layout so cards are built) ──
-	if(previewCard) then
-		previewCard._onFocusChanged = function(cardId)
-		end
+	-- ── Card click-to-activate (hooks attached per card on build) ──
+	local hookedCards = {}
 
-		local focusCardIds = { 'position', 'healthColor', 'shields', 'power', 'castbar', 'name', 'healthText', 'powerText', 'statusIcons', 'statusText', 'sorting', 'groupIcons', 'markers', 'partyPets' }
-
-		for _, cardId in next, focusCardIds do
-			local entry = grid._cardIndex[cardId]
-			if(entry and entry.built and entry.card) then
-				local clickOverlay = CreateFrame('Button', nil, entry.card)
-				clickOverlay:SetPoint('TOPLEFT', entry.card, 'TOPLEFT', 0, 0)
-				clickOverlay:SetPoint('TOPRIGHT', entry.card, 'TOPRIGHT', 0, 0)
-				clickOverlay:SetHeight(24)
-				clickOverlay:SetScript('OnClick', function()
-					F.Settings.FramePreview.OnCardFocused(cardId)
-				end)
+	local function hookCardInteraction(cid, entry)
+		if(hookedCards[cid]) then return end
+		hookedCards[cid] = true
+		entry.card:HookScript('OnMouseDown', function()
+			setActiveCard(cid)
+		end)
+		entry.card:HookScript('OnEnter', function(self)
+			if(activeCardId ~= cid) then
+				animateCardBg(self, hoverBg)
 			end
+		end)
+		entry.card:HookScript('OnLeave', function(self)
+			if(activeCardId ~= cid) then
+				animateCardBg(self, defaultBg)
+			end
+		end)
+	end
+
+	grid._onCardBuilt = function(cardId, entry)
+		hookCardInteraction(cardId, entry)
+	end
+
+	-- Hook any cards already built in the initial layout
+	for cardId, entry in next, grid._cardIndex do
+		if(entry.built and entry.card) then
+			hookCardInteraction(cardId, entry)
 		end
 	end
 

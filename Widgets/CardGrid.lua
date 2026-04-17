@@ -221,6 +221,9 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 				if(grid._pinEnabled ~= false) then
 					addPinButton(entry, grid)
 				end
+				if(grid._onCardBuilt) then
+					grid._onCardBuilt(entry.id, entry)
+				end
 			end
 		end
 

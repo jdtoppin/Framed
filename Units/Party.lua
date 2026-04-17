@@ -125,6 +125,9 @@ local function PetStyle(self, unit)
 	local moWidth = F.Config:Get('general.mouseoverHighlightWidth')
 	F.Elements.MouseoverHighlight.Setup(self, { color = moColor, thickness = moWidth })
 
+	-- Range fade (matches party frames — fades pet when out of range)
+	F.Elements.Range.Setup(self, config.range)
+
 	-- Store unit type for live config
 	self._framedUnitType = 'partypet'
 end

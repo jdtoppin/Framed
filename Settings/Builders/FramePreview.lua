@@ -111,6 +111,8 @@ local function CalculateGroupLayout(config, count)
 	return positions
 end
 
+local PREVIEW_INSET = 4
+
 local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
 
 local function SortFakeUnits(units, config)
@@ -145,7 +147,7 @@ local activeUnitType = nil   -- 'player', 'target', 'party', etc.
 local previewFrames = {}     -- array of child preview frames
 local framePool = {}         -- recycled preview frames
 
-local focusModeEnabled = false
+local focusModeEnabled = F.Config:Get('general.settingsFocusMode') or false
 local focusedCardId = nil
 
 local CARD_ELEMENT_MAP = {
@@ -333,7 +335,7 @@ local function RenderSoloPreview(viewport, unitType)
 	end
 
 	frame:ClearAllPoints()
-	frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', 0, 0)
+	frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', PREVIEW_INSET, -PREVIEW_INSET)
 
 	previewFrames[1] = frame
 end
@@ -371,16 +373,18 @@ RenderPetFrames = function(viewport, config)
 		bg:SetColorTexture(0.1, 0.12, 0.15, 0.8)
 
 		if(petConfig.showName) then
-			local nameText = Widgets.CreateFontString(petFrame, petConfig.nameFontSize, C.Colors.textActive)
-			nameText:SetPoint(petConfig.nameAnchor, petFrame, petConfig.nameAnchor,
-				petConfig.nameOffsetX, petConfig.nameOffsetY)
+			local nameAnchor = petConfig.nameAnchor or 'LEFT'
+			local nameText = Widgets.CreateFontString(petFrame, petConfig.nameFontSize or C.Font.sizeSmall, C.Colors.textActive)
+			nameText:SetPoint(nameAnchor, petFrame, nameAnchor,
+				petConfig.nameOffsetX or 4, petConfig.nameOffsetY or 0)
 			nameText:SetText(petFake.name)
 		end
 
 		if(petConfig.showHealthText) then
-			local healthText = Widgets.CreateFontString(petFrame, petConfig.healthTextFontSize, C.Colors.textActive)
-			healthText:SetPoint(petConfig.healthTextAnchor, petFrame, petConfig.healthTextAnchor,
-				petConfig.healthTextOffsetX, petConfig.healthTextOffsetY)
+			local htAnchor = petConfig.healthTextAnchor or 'CENTER'
+			local healthText = Widgets.CreateFontString(petFrame, petConfig.healthTextFontSize or C.Font.sizeSmall, C.Colors.textActive)
+			healthText:SetPoint(htAnchor, petFrame, htAnchor,
+				petConfig.healthTextOffsetX or 0, petConfig.healthTextOffsetY or 0)
 			healthText:SetText(math.floor(petFake.healthPct * 100) .. '%')
 		end
 
@@ -419,27 +423,29 @@ local function RenderGroupPreview(viewport, unitType, count)
 		end
 
 		local pos = positions[i]
+		local px = pos.x + PREVIEW_INSET
+		local py = pos.y - PREVIEW_INSET
 		if(frame._lastX and frame._lastY) then
 			local fromX, fromY = frame._lastX, frame._lastY
 			Widgets.StartAnimation(frame, 'reposition', 0, 1, 0.3,
 				function(f, t)
 					f:ClearAllPoints()
 					f:SetPoint('TOPLEFT', viewport, 'TOPLEFT',
-						fromX + (pos.x - fromX) * t,
-						fromY + (pos.y - fromY) * t)
+						fromX + (px - fromX) * t,
+						fromY + (py - fromY) * t)
 				end,
 				function(f)
 					f:ClearAllPoints()
-					f:SetPoint('TOPLEFT', viewport, 'TOPLEFT', pos.x, pos.y)
+					f:SetPoint('TOPLEFT', viewport, 'TOPLEFT', px, py)
 				end
 			)
 		else
 			frame:ClearAllPoints()
-			frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', pos.x, pos.y)
+			frame:SetPoint('TOPLEFT', viewport, 'TOPLEFT', px, py)
 		end
 
-		frame._lastX = pos.x
-		frame._lastY = pos.y
+		frame._lastX = px
+		frame._lastY = py
 		previewFrames[i] = frame
 	end
 
@@ -509,9 +515,10 @@ function FP.RebuildPreview()
 	local config = getUnitConfig(activeUnitType)
 	if(not viewport or not config) then return end
 
+	local inset2 = PREVIEW_INSET * 2
 	local viewH
 	if(SOLO_FAKES[activeUnitType]) then
-		viewH = config.height + 20
+		viewH = config.height + inset2
 	elseif(GROUP_COUNTS[activeUnitType]) then
 		local count
 		if(activeUnitType == 'raid') then
@@ -520,9 +527,9 @@ function FP.RebuildPreview()
 			count = GROUP_COUNTS[activeUnitType]
 		end
 		local rows = math.min(count, config.unitsPerColumn)
-		viewH = rows * config.height + (rows - 1) * config.spacing + 20
+		viewH = rows * config.height + (rows - 1) * config.spacing + inset2
 	else
-		viewH = config.height + 20
+		viewH = config.height + inset2
 	end
 	AnimateViewportResize(activePreview._viewport, activePreview, activePreview._viewport:GetWidth(), viewH)
 	viewport:SetWidth(activePreview._viewport:GetWidth())
@@ -613,6 +620,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 
 	local focusToggle = Widgets.CreateCheckButton(inner, 'Focus Mode', function(checked)
 		focusModeEnabled = checked
+		F.Config:Set('general.settingsFocusMode', checked)
 		if(checked) then
 			ApplyFocusMode('healthColor')
 			if(card._onFocusChanged) then
@@ -625,7 +633,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 			end
 		end
 	end)
-	focusToggle:SetChecked(false)
+	focusToggle:SetChecked(focusModeEnabled)
 	focusToggle:SetPoint('LEFT', title, 'RIGHT', 12, 0)
 
 	-- Preview viewport (horizontal scroll for overflow)
@@ -637,21 +645,22 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	viewContent:SetWidth(width)
 
 	local config = getUnitConfig(unitType)
+	local inset2 = PREVIEW_INSET * 2
 	local viewH
 	if(not config) then
 		viewH = 60
 	elseif(SOLO_FAKES[unitType]) then
-		viewH = config.height + 20
+		viewH = config.height + inset2
 	elseif(unitType == 'raid') then
 		local count = F.Config:GetChar('settings.raidPreviewCount')
 		local rows = math.min(count, config.unitsPerColumn)
-		viewH = rows * config.height + (rows - 1) * config.spacing + 20
+		viewH = rows * config.height + (rows - 1) * config.spacing + inset2
 	elseif(GROUP_COUNTS[unitType]) then
 		local count = GROUP_COUNTS[unitType]
 		local rows = math.min(count, config.unitsPerColumn)
-		viewH = rows * config.height + (rows - 1) * config.spacing + 20
+		viewH = rows * config.height + (rows - 1) * config.spacing + inset2
 	else
-		viewH = config.height + 20
+		viewH = config.height + inset2
 	end
 	viewport:SetHeight(viewH)
 	viewContent:SetHeight(viewH)
@@ -700,7 +709,7 @@ function FP.Destroy()
 	showPets = false
 	DrainPool()
 
-	focusModeEnabled = false
+	focusModeEnabled = F.Config:Get('general.settingsFocusMode') or false
 	focusedCardId = nil
 
 	UnregisterConfigListener()

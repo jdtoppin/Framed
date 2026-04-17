@@ -34,6 +34,7 @@ local accountDefaults = {
 		pinnedPresetCards = {},
 		editModeGridSnap = true,
 		editModeAnimate = false,
+		settingsFocusMode = false,
 		settingsPos = nil,
 		settingsSize = nil,
 	},
