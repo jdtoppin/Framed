@@ -276,7 +276,7 @@ local function onConfigChanged(path)
 
 	local preset, unit, key = path:match('presets%.([^%.]+)%.unitConfigs%.([^%.]+)%.(.+)')
 	if(not preset) then
-		local petPreset, petKey = path:match('presets%.([^%.]+)%.partyPets%.(.+)')
+		local petPreset = path:match('presets%.([^%.]+)%.partyPets%.')
 		if(petPreset and activeUnitType == 'party') then
 			if(petPreset ~= F.Settings.GetEditingPreset()) then return end
 			if(showPets) then

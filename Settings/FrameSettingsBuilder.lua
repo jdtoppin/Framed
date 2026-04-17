@@ -151,7 +151,6 @@ function F.FrameSettingsBuilder.BuildSummaryCard(parent, width, unitType, getCon
 	local items = getSummaryItems(unitType)
 	local cols = 2
 	local colW = math.floor((width - pad * 2 - C.Spacing.tight) / cols)
-	local y = -pad
 	local rows = math.ceil(#items / cols)
 
 	local rowFrames = {}
@@ -260,7 +259,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, -C.Spacing.normal)
 
 	-- ── Summary card (pinned below preview) ──────────────────
-	local summaryCard, summaryInner = F.FrameSettingsBuilder.BuildSummaryCard(
+	local summaryCard = F.FrameSettingsBuilder.BuildSummaryCard(
 		scroll, width, unitType, getConfig
 	)
 	summaryCard:ClearAllPoints()
