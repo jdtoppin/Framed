@@ -1,5 +1,30 @@
 # Framed Changelog
 
+## v0.8.10-alpha
+
+- Add **Frame Preview Card** — every Frame settings panel (player/target/party/raid/boss/arena/pet/solo) now renders a live unit frame preview at the top of the panel using your current config, pinned next to a summary card that stays in view while the settings scroll
+- Raid preview card includes a 1–40 count stepper saved per character, so you can dial the preview to the group size you're actually tuning for
+- Party preview includes a pet toggle to preview pet frames alongside party members
+- **Focus Mode** — click a settings card (Health Color, Castbar, Auras, etc.) to spotlight the matching element in the preview; other elements dim to 20%. Your selection persists across `/reload`
+- Preview card and frames animate smoothly when you change count, toggle Focus Mode, or resize the settings window
+- Preview re-renders live as you edit config — structural changes (count, spacing) rebuild, cosmetic changes (colors, textures) just refresh
+- Migrate **Defensives** and **Externals** panels to the same pinned Preview | Overview layout for consistency with the Frame panels
+- Fix boss and arena previews where per-frame castbars overlapped the next frame instead of sitting cleanly below
+- Fix boss/party/arena preview card titles truncating — fixed-count unit cards now get enough width for the title and Focus Mode toggle; raid keeps its auto-sizing
+- Scrollbar UX: hover the right-edge strip to reveal the scrollbar (no more stolen clicks from mouse-motion detection), and dragging the thumb keeps it visible and fires lazy-load
+- **Buffs/Debuffs** panels: auto-select the first enabled indicator on open; add/delete indicators with a cleaner inline form (Plus/Tick icons)
+- **SpellList**: fix spell ID and name truncation, combine hover tooltip, tighten the ID column
+- **StatusText**: replace the dead anchor controls with a proper position switch
+- **Copy To**: move the control into the sub-header with a dropdown + direct-write button (the old standalone dialog is gone)
+- Fix party pet ghost frames when members joined the group; roster now refreshes properly
+- Guard party pet cross-zone check against secret values so it doesn't error in combat
+- Fix `RoleIcon` not refreshing on spec change, and fix style 2 to use the correct quadrant overrides
+- Revert a `PartyMemberFrame` state-visibility driver change that was breaking Blizzard's own frame cleanup
+- Fix `StyleBuilder` preset `groupKey` fallback accidentally applying to derived presets — now scoped to base presets only
+- Update summon-pending status text and color
+- Add third-party library attribution to the README and mirror it in the About card
+- Internal cleanup: drop dead code (`Core/DispelCapability.lua`, `Core/Version.Compare`, `CopyToDialog`), luacheck branch is clean
+
 ## v0.8.9-alpha
 
 - Fix party/raid role sorting being silently ignored — the header was writing a nameList but kept `sortMethod='INDEX'`, which falls through Blizzard's sort branches and leaves frames in default order; now uses `sortMethod='NAMELIST'` so role order actually takes effect
