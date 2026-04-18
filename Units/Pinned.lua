@@ -185,21 +185,29 @@ local function Style(self, unit)
 		gear._icon = icon
 
 		gear:SetAlpha(0)
+		gear:EnableMouse(false)
 		gear:RegisterForClicks('LeftButtonUp')
 
 		-- Hide gear during combat
 		self:HookScript('OnEnter', function(frame)
 			if(InCombatLockdown()) then return end
 			if(frame._pinnedSlotIndex) then
+				gear:EnableMouse(true)
 				gear:SetAlpha(0.8)
 			end
 		end)
 		self:HookScript('OnLeave', function()
 			gear:SetAlpha(0)
+			gear:EnableMouse(false)
 		end)
 		gear:SetScript('OnEnter', function(self) self:SetAlpha(1) end)
 		gear:SetScript('OnLeave', function(self)
-			if(self:GetParent():IsMouseOver()) then self:SetAlpha(0.8) else self:SetAlpha(0) end
+			if(self:GetParent():IsMouseOver()) then
+				self:SetAlpha(0.8)
+			else
+				self:SetAlpha(0)
+				self:EnableMouse(false)
+			end
 		end)
 
 		gear:SetScript('OnClick', function(g)
@@ -376,12 +384,9 @@ function F.Units.Pinned.Resolve()
 					frame.SlotIdentity:Hide()
 				end
 			end
-			if(frame.ReassignGear) then
-				if(slot) then
-					-- Gear visible-on-hover; don't force show here
-				else
-					frame.ReassignGear:SetAlpha(0)
-				end
+			if(frame.ReassignGear and not slot) then
+				frame.ReassignGear:SetAlpha(0)
+				frame.ReassignGear:EnableMouse(false)
 			end
 		end
 	end
