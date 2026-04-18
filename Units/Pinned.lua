@@ -173,6 +173,45 @@ local function Style(self, unit)
 		self.SlotIdentity = fs
 	end
 
+	if(not self.ReassignGear) then
+		local gear = CreateFrame('Button', nil, self)
+		gear:SetSize(14, 14)
+		gear:SetPoint('TOPRIGHT', self, 'TOPRIGHT', -2, -2)
+		gear:SetFrameLevel(self:GetFrameLevel() + 5)
+
+		local icon = gear:CreateTexture(nil, 'OVERLAY')
+		icon:SetAllPoints(gear)
+		icon:SetTexture(F.Media.GetIcon('Settings'))
+		gear._icon = icon
+
+		gear:SetAlpha(0)
+		gear:RegisterForClicks('LeftButtonUp')
+
+		-- Hide gear during combat
+		self:HookScript('OnEnter', function(frame)
+			if(InCombatLockdown()) then return end
+			if(frame._pinnedSlotIndex) then
+				gear:SetAlpha(0.8)
+			end
+		end)
+		self:HookScript('OnLeave', function()
+			gear:SetAlpha(0)
+		end)
+		gear:SetScript('OnEnter', function(self) self:SetAlpha(1) end)
+		gear:SetScript('OnLeave', function(self)
+			if(self:GetParent():IsMouseOver()) then self:SetAlpha(0.8) else self:SetAlpha(0) end
+		end)
+
+		gear:SetScript('OnClick', function(g)
+			local parent = g:GetParent()
+			if(parent._pinnedSlotIndex and F.Units.Pinned.OpenAssignmentMenu) then
+				F.Units.Pinned.OpenAssignmentMenu(parent._pinnedSlotIndex, parent)
+			end
+		end)
+
+		self.ReassignGear = gear
+	end
+
 	F.Widgets.RegisterForUIScale(self)
 end
 
@@ -337,6 +376,13 @@ function F.Units.Pinned.Resolve()
 					frame.SlotIdentity:Hide()
 				end
 			end
+			if(frame.ReassignGear) then
+				if(slot) then
+					-- Gear visible-on-hover; don't force show here
+				else
+					frame.ReassignGear:SetAlpha(0)
+				end
+			end
 		end
 	end
 	updatePolling()
@@ -359,6 +405,7 @@ function F.Units.Pinned.Spawn()
 		local frame = oUF:Spawn('player', 'FramedPinnedFrame' .. i)
 		frame:SetParent(anchor)
 		frames[i] = frame
+		frame._pinnedSlotIndex = i
 	end
 	F.Units.Pinned.frames = frames
 
