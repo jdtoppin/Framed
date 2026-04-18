@@ -247,7 +247,35 @@ function F.Units.Party.Spawn()
 	header:SetVisibility('party')
 	local posX = config.position.x
 	local posY = config.position.y
+	-- DIAGNOSTIC: trace reload-time 0,0 snap on party frames.
+	-- Remove once root cause is identified.
+	do
+		local preset = F.AutoSwitch.GetCurrentPreset()
+		local pos = config.position
+		local uiScale = UIParent and UIParent:GetScale() or -1
+		print(('|cff00ccff[Framed diag]|r party spawn preset=%s pos=%s posX=%s(%s) posY=%s(%s) uiScale=%.3f elvui=%s'):format(
+			tostring(preset),
+			pos and ('{x=' .. tostring(pos.x) .. ',y=' .. tostring(pos.y) .. ',anchor=' .. tostring(pos.anchor) .. '}') or 'nil',
+			tostring(posX), type(posX),
+			tostring(posY), type(posY),
+			uiScale,
+			tostring(C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded('ElvUI'))
+		))
+	end
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', posX, posY)
+	-- DIAGNOSTIC: verify SetPoint stuck, and re-check a second later
+	-- to catch any post-spawn repositioner.
+	do
+		local pt, rel, relPt, x, y = header:GetPoint(1)
+		print(('|cff00ccff[Framed diag]|r party post-SetPoint pt=%s rel=%s relPt=%s x=%s y=%s'):format(
+			tostring(pt), tostring(rel and rel:GetName() or rel), tostring(relPt), tostring(x), tostring(y)))
+		C_Timer.After(1, function()
+			if(not header.GetPoint) then return end
+			local p2, r2, rp2, x2, y2 = header:GetPoint(1)
+			print(('|cff00ccff[Framed diag]|r party +1s pt=%s rel=%s relPt=%s x=%s y=%s'):format(
+				tostring(p2), tostring(r2 and r2:GetName() or r2), tostring(rp2), tostring(x2), tostring(y2)))
+		end)
+	end
 	Widgets.RegisterForUIScale(header)
 
 	F.Units.Party.header = header
