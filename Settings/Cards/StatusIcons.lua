@@ -26,6 +26,9 @@ local ICON_RELEVANCE = {
 	arena        = { role = true, combat = true, raidIcon = true, pvp = true },
 }
 
+F.Settings = F.Settings or {}
+F.Settings.IconRelevance = ICON_RELEVANCE
+
 local function isIconRelevant(unitType, iconKey)
 	local map = ICON_RELEVANCE[unitType]
 	if(not map) then return true end

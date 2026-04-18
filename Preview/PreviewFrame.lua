@@ -58,20 +58,32 @@ local function formatPowerText(pct, fmt)
 	return math.floor(pct * 100) .. '%'
 end
 
--- Build a C_CurveUtil color curve from 3 color/threshold pairs (matches Health.lua)
-local function buildColorCurve(c1, t1, c2, t2, c3, t3)
-	local curve = C_CurveUtil.CreateColorCurve()
-	curve:AddPoint(t3 / 100, CreateColor(c3[1], c3[2], c3[3]))
-	curve:AddPoint(t2 / 100, CreateColor(c2[1], c2[2], c2[3]))
-	curve:AddPoint(t1 / 100, CreateColor(c1[1], c1[2], c1[3]))
-	return curve
+-- Evaluate a 3-point color gradient at a given percent.
+-- C_CurveUtil.CreateColorCurve returns a curve evaluable only by native
+-- consumers (DurationObject:EvaluateRemainingPercent etc.), so preview-side
+-- evaluation is done in Lua. Thresholds come in 0–100, points are ordered
+-- high → low (t1 > t2 > t3), matching Health.lua's buildCurveTable layout.
+local function evalColorGradient(c1, t1, c2, t2, c3, t3, pct)
+	local p1, p2, p3 = t1 / 100, t2 / 100, t3 / 100
+	if(pct >= p1) then return c1[1], c1[2], c1[3] end
+	if(pct <= p3) then return c3[1], c3[2], c3[3] end
+	if(pct >= p2) then
+		local a = (pct - p2) / (p1 - p2)
+		return c2[1] + (c1[1] - c2[1]) * a,
+		       c2[2] + (c1[2] - c2[2]) * a,
+		       c2[3] + (c1[3] - c2[3]) * a
+	end
+	local a = (pct - p3) / (p2 - p3)
+	return c3[1] + (c2[1] - c3[1]) * a,
+	       c3[2] + (c2[2] - c3[2]) * a,
+	       c3[3] + (c2[3] - c3[3]) * a
 end
 
 -- Apply health bar color based on config colorMode
-local function applyHealthColor(bar, config, fakeUnit)
+local function applyHealthColor(bar, config, fakeUnit, overridePct)
 	local hc = config.health
 	local mode = hc.colorMode
-	local pct = fakeUnit and fakeUnit.healthPct or 1
+	local pct = overridePct or (fakeUnit and fakeUnit.healthPct) or 1
 	if(mode == 'class' and fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
 		bar:SetStatusBarColor(r, g, b, 1)
@@ -80,15 +92,13 @@ local function applyHealthColor(bar, config, fakeUnit)
 	elseif(mode == 'dark') then
 		bar:SetStatusBarColor(0.25, 0.25, 0.25, 1)
 	elseif(mode == 'gradient') then
-		local curve = buildColorCurve(
+		local r, g, b = evalColorGradient(
 			hc.gradientColor1, hc.gradientThreshold1,
 			hc.gradientColor2, hc.gradientThreshold2,
-			hc.gradientColor3, hc.gradientThreshold3
+			hc.gradientColor3, hc.gradientThreshold3,
+			pct
 		)
-		local color = curve:GetColorAtPosition(pct)
-		if(color) then
-			bar:SetStatusBarColor(color:GetRGBA())
-		end
+		bar:SetStatusBarColor(r, g, b, 1)
 	elseif(fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
 		bar:SetStatusBarColor(r, g, b, 1)
@@ -96,23 +106,21 @@ local function applyHealthColor(bar, config, fakeUnit)
 end
 
 -- Apply health loss color (background behind depleted health)
-local function applyHealthLossColor(bg, config, fakeUnit)
+local function applyHealthLossColor(bg, config, fakeUnit, overridePct)
 	local hc = config.health
 	local lossMode = hc.lossColorMode
 	if(lossMode == 'class' and fakeUnit) then
 		local r, g, b = getClassColor(fakeUnit.class)
 		bg:SetVertexColor(r * 0.3, g * 0.3, b * 0.3, 1)
 	elseif(lossMode == 'gradient') then
-		local pct = fakeUnit and fakeUnit.healthPct or 1
-		local curve = buildColorCurve(
+		local pct = overridePct or (fakeUnit and fakeUnit.healthPct) or 1
+		local r, g, b = evalColorGradient(
 			hc.lossGradientColor1, hc.lossGradientThreshold1,
 			hc.lossGradientColor2, hc.lossGradientThreshold2,
-			hc.lossGradientColor3, hc.lossGradientThreshold3
+			hc.lossGradientColor3, hc.lossGradientThreshold3,
+			pct
 		)
-		local color = curve:GetColorAtPosition(pct)
-		if(color) then
-			bg:SetVertexColor(color:GetRGBA())
-		end
+		bg:SetVertexColor(r, g, b, 1)
 	elseif(lossMode == 'custom' and hc.lossCustomColor) then
 		local lc = hc.lossCustomColor
 		bg:SetVertexColor(lc[1], lc[2], lc[3], 1)
@@ -126,24 +134,41 @@ end
 -- ============================================================
 
 local function BuildHealthBar(frame, config)
-	local wrapper = CreateFrame('Frame', nil, frame)
+	-- Match live's Widgets.CreateStatusBar: wrapper has a 1px black border +
+	-- panel bg, and the StatusBar sits inset 1px inside. The black border is
+	-- load-bearing for dark colorMode — without it, 0.25 gray against the
+	-- outer frame bg (0.05 gray) has almost no contrast and reads as washed out.
+	local wrapper = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
 	wrapper:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.healthBar)
 	-- Points set after power bar is built (health fills remaining space)
 	wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
 	wrapper:SetPoint('TOPRIGHT', frame, 'TOPRIGHT', 0, 0)
 	wrapper:SetPoint('BOTTOMLEFT', frame, 'BOTTOMLEFT', 0, 0)
 	wrapper:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', 0, 0)
+	Widgets.ApplyBackdrop(wrapper, C.Colors.panel, C.Colors.border)
 
 	local bar = CreateFrame('StatusBar', nil, wrapper)
-	bar:SetAllPoints(wrapper)
+	bar:SetPoint('TOPLEFT',     wrapper, 'TOPLEFT',      1, -1)
+	bar:SetPoint('BOTTOMRIGHT', wrapper, 'BOTTOMRIGHT', -1,  1)
 	bar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
+	-- Match live's Widgets.CreateStatusBar: tile-off so non-square textures
+	-- stretch rather than repeat, and push the fill below the ARTWORK sub-level
+	-- (-7) used by prediction overlays. Without tile-off, dark colorMode looked
+	-- noticeably dimmer in the preview than on the live bar because textures
+	-- with soft edges/gradients render differently when tiled.
+	bar:GetStatusBarTexture():SetHorizTile(false)
+	bar:GetStatusBarTexture():SetVertTile(false)
+	bar:GetStatusBarTexture():SetDrawLayer('ARTWORK', -7)
 	bar:SetMinMaxValues(0, 1)
 	bar:SetValue(1)
-	-- Background texture for health loss color (SetVertexColor for class/gradient modes)
-	local bg = wrapper:CreateTexture(nil, 'BACKGROUND')
-	bg:SetAllPoints(wrapper)
-	bg:SetTexture(F.Media.GetActiveBarTexture())
-	bg:SetVertexColor(0.15, 0.15, 0.15, 1)
+	-- Loss bg is a child of the StatusBar (not the wrapper), matching live
+	-- Elements/Core/Health.lua:147. Flat WHITE8x8 tinted via SetVertexColor so
+	-- the loss area renders as a solid color behind the textured fill.
+	local bg = bar:CreateTexture(nil, 'BACKGROUND')
+	bg:SetAllPoints(bar)
+	bg:SetTexture([[Interface\BUTTONS\WHITE8x8]])
+	local bgC = C.Colors.background
+	bg:SetVertexColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
 	bar._bg = bg
 
 	frame._healthWrapper = wrapper
@@ -247,7 +272,7 @@ end
 -- ============================================================
 
 local function BuildNameText(frame, config, fakeUnit)
-	if(config.name and config.name.showName == false) then return end
+	if(config.showName == false) then return end
 	local nc = config.name
 	if(not nc) then return end
 
@@ -319,25 +344,42 @@ local STATUS_ICON_TEXTURES = {
 	pvp        = { tex = F.Media.GetIcon('Faction2_Alliance') },
 }
 
+local MARKER_ICON_KEYS = { raidIcon = true, pvp = true }
+
 local function BuildStatusIcons(frame, config)
 	local icons = config.statusIcons
 	if(not icons) then return end
 
-	-- Overlay frame above health/power bars so icons are visible
+	-- Filter by settings relevance so the preview only shows icons whose unit
+	-- type has a toggle in the Settings UI. Without this, player-solo previews
+	-- display role/leader/readyCheck/raidIcon (inherited from baseUnitConfig)
+	-- despite those icons having no toggles for the player unit type.
+	local relevance = frame._unitType and F.Settings and F.Settings.IconRelevance
+		and F.Settings.IconRelevance[frame._unitType]
+
+	-- Two overlays so focus-mode can highlight Status Icons and Markers independently:
+	-- - _iconOverlay: role/leader/readyCheck/combat/resting/phase/resurrect/summon/raidRole
+	-- - _markerOverlay: raidIcon + pvp (the "Markers" card)
 	local iconOverlay = CreateFrame('Frame', nil, frame)
 	iconOverlay:SetAllPoints(frame)
 	iconOverlay:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.statusIcons)
 	frame._iconOverlay = iconOverlay
 
+	local markerOverlay = CreateFrame('Frame', nil, frame)
+	markerOverlay:SetAllPoints(frame)
+	markerOverlay:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.statusIcons)
+	frame._markerOverlay = markerOverlay
+
 	frame._statusIcons = {}
 	for _, key in next, STATUS_ICON_KEYS do
-		if(icons[key]) then
+		if(icons[key] and (not relevance or relevance[key])) then
 			local pt   = icons[key .. 'Point']
 			local x    = icons[key .. 'X']
 			local y    = icons[key .. 'Y']
 			local size = icons[key .. 'Size']
 
-			local icon = iconOverlay:CreateTexture(nil, 'OVERLAY')
+			local parent = MARKER_ICON_KEYS[key] and markerOverlay or iconOverlay
+			local icon = parent:CreateTexture(nil, 'OVERLAY')
 			icon:SetSize(size, size)
 			icon:SetPoint(pt, frame, pt, x, y)
 
@@ -381,22 +423,57 @@ local function BuildCastbar(frame, config)
 	wrapper:SetSize(cbWidth, cb.height)
 	wrapper:SetPoint('TOP', frame, 'BOTTOM', 0, -C.Spacing.base)
 
-	local bgC = C.Colors.background
-	local bgTex = wrapper:CreateTexture(nil, 'BACKGROUND')
-	bgTex:SetAllPoints(wrapper)
-	bgTex:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4])
-
 	local bar = CreateFrame('StatusBar', nil, wrapper)
 	bar:SetAllPoints(wrapper)
 	bar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
 	bar:SetMinMaxValues(0, 1)
-	bar:SetValue(0.6)
 	local ac = C.Colors.accent
 	bar:SetStatusBarColor(ac[1], ac[2], ac[3], 0.8)
+
+	-- 'always' keeps a dim background bar visible between casts; 'oncast' hides it.
+	if(cb.backgroundMode ~= 'oncast') then
+		local bgC = C.Colors.background
+		local bgTex = wrapper:CreateTexture(nil, 'BACKGROUND')
+		bgTex:SetAllPoints(wrapper)
+		bgTex:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4])
+	end
 
 	local label = Widgets.CreateFontString(wrapper, C.Font.sizeSmall, C.Colors.textActive)
 	label:SetPoint('LEFT', wrapper, 'LEFT', 4, 0)
 	label:SetText('Casting...')
+
+	-- Animation cycle runs in both modes. Alpha is applied to the fill bar and
+	-- label rather than the wrapper so focus-mode dimming (SetAlpha on wrapper)
+	-- still takes effect.
+	bar:SetValue(0)
+	bar:SetAlpha(0)
+	label:SetAlpha(0)
+
+	local castDur = 2.0
+	local pauseDur = 1.5
+	local fadeDur = 0.3
+	local totalCycle = fadeDur + castDur + fadeDur + pauseDur
+	local elapsed = 0
+	wrapper:SetScript('OnUpdate', function(_, dt)
+		elapsed = elapsed + dt
+		local t = elapsed % totalCycle
+		local a
+		if(t < fadeDur) then
+			a = t / fadeDur
+			bar:SetValue(0)
+		elseif(t < fadeDur + castDur) then
+			a = 1
+			bar:SetValue((t - fadeDur) / castDur)
+		elseif(t < fadeDur + castDur + fadeDur) then
+			a = 1 - (t - fadeDur - castDur) / fadeDur
+			bar:SetValue(1)
+		else
+			a = 0
+			bar:SetValue(0)
+		end
+		bar:SetAlpha(a)
+		label:SetAlpha(a)
+	end)
 
 	frame._castbar = wrapper
 end
@@ -427,26 +504,35 @@ end
 local function BuildPortrait(frame, config, fakeUnit)
 	if(not config.portrait) then return end
 
-	local size = math.min(config.height, config.width) * 0.8
+	local size = config.height
 
 	local wrapper = CreateFrame('Frame', nil, frame)
 	wrapper:SetSize(size, size)
-	wrapper:SetPoint('LEFT', frame, 'LEFT', 4, 0)
+	wrapper:SetPoint('TOPRIGHT', frame, 'TOPLEFT', -(C.Spacing.base), 0)
 	wrapper:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.portrait)
 
-	local tex = wrapper:CreateTexture(nil, 'ARTWORK')
-	tex:SetAllPoints(wrapper)
+	local bg = wrapper:CreateTexture(nil, 'BACKGROUND')
+	bg:SetAllPoints(wrapper)
+	bg:SetColorTexture(0.08, 0.08, 0.08, 1)
 
-	-- Use class icon as portrait stand-in (real portraits need a unit token)
+	local tex = wrapper:CreateTexture(nil, 'ARTWORK')
+
 	if(fakeUnit and fakeUnit.class) then
+		local classColor = RAID_CLASS_COLORS and RAID_CLASS_COLORS[fakeUnit.class]
+		if(classColor) then
+			bg:SetColorTexture(classColor.r * 0.35, classColor.g * 0.35, classColor.b * 0.35, 1)
+		end
 		local coords = CLASS_ICON_TCOORDS[fakeUnit.class]
-		tex:SetTexture([[Interface\GLUES\CHARACTERCREATE\UI-CHARACTERCREATE-CLASSES]])
 		if(coords) then
+			tex:SetTexture([[Interface\GLUES\CHARACTERCREATE\UI-CHARACTERCREATE-CLASSES]])
 			tex:SetTexCoord(unpack(coords))
+			tex:SetPoint('CENTER', wrapper, 'CENTER', 0, 0)
+			tex:SetSize(size * 0.7, size * 0.7)
 		end
 	end
 
 	frame._portrait = wrapper
+	frame._portraitBg = bg
 	frame._portraitTex = tex
 end
 
@@ -486,79 +572,84 @@ local function BuildShieldsAndAbsorbs(frame, config, fakeUnit)
 	if(not frame._healthBar) then return end
 	local hc = config.health
 	local healthBar = frame._healthBar
+	local wrapper = frame._healthWrapper
 	local barWidth = config.width
 	local healthPct = fakeUnit and fakeUnit.healthPct or 0.85
+	local fillWidth = barWidth * healthPct
+	local baseLevel = healthBar:GetFrameLevel()
 
-	-- Heal prediction
+	-- Shield bars parent to the health wrapper (sibling of healthBar) so that
+	-- focus-mode dimming healthBar doesn't also dim the shields via effective
+	-- alpha inheritance.
+	local shieldParent = wrapper or healthBar
+
+	-- Heal prediction — WHITE8x8 tinted bar, extends right from health fill edge.
 	if(hc.healPrediction ~= false and fakeUnit and fakeUnit.incomingHeal) then
-		local healBar = CreateFrame('StatusBar', nil, healthBar)
-		healBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
-		healBar:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.healPrediction)
+		local healBar = CreateFrame('StatusBar', nil, shieldParent)
+		healBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
+		healBar:SetFrameLevel(baseLevel + config.elementStrata.healPrediction)
 		healBar:SetMinMaxValues(0, 1)
-		healBar:SetValue(fakeUnit.incomingHeal)
-
-		local healColor = hc.healPredictionColor
-		healBar:SetStatusBarColor(healColor[1], healColor[2], healColor[3], healColor[4])
-
-		-- Position after the health fill
-		local fillWidth = barWidth * healthPct
-		healBar:SetPoint('LEFT', healthBar, 'LEFT', fillWidth, 0)
-		healBar:SetSize(barWidth * fakeUnit.incomingHeal, healthBar:GetHeight())
-
+		healBar:SetValue(1)
+		local hcc = hc.healPredictionColor
+		healBar:SetStatusBarColor(hcc[1], hcc[2], hcc[3], hcc[4] or 0.4)
+		healBar:SetPoint('TOPLEFT', healthBar, 'TOPLEFT', fillWidth, 0)
+		healBar:SetPoint('BOTTOMLEFT', healthBar, 'BOTTOMLEFT', fillWidth, 0)
+		healBar:SetWidth(math.max(1, barWidth * fakeUnit.incomingHeal))
 		frame._healPredBar = healBar
 	end
 
-	-- Damage absorb (shields)
+	-- Damage absorb — tiled stripe texture over the unfilled health region.
 	if(hc.damageAbsorb ~= false and fakeUnit and fakeUnit.damageAbsorb) then
-		local absorbBar = CreateFrame('StatusBar', nil, healthBar)
-		absorbBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
-		absorbBar:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.damageAbsorb)
-		absorbBar:SetMinMaxValues(0, 1)
-		absorbBar:SetValue(1)
+		local absorbBar = CreateFrame('Frame', nil, shieldParent)
+		absorbBar:SetFrameLevel(baseLevel + config.elementStrata.damageAbsorb)
+		local absorbWidth = barWidth * fakeUnit.damageAbsorb
+		absorbBar:SetPoint('TOPLEFT', healthBar, 'TOPLEFT', fillWidth, 0)
+		absorbBar:SetPoint('BOTTOMLEFT', healthBar, 'BOTTOMLEFT', fillWidth, 0)
+		absorbBar:SetWidth(math.max(1, absorbWidth))
 
-		local absorbColor = hc.damageAbsorbColor
-		absorbBar:SetStatusBarColor(absorbColor[1], absorbColor[2], absorbColor[3], absorbColor[4])
-
-		local fillWidth = barWidth * healthPct
-		absorbBar:SetPoint('LEFT', healthBar, 'LEFT', fillWidth, 0)
-		absorbBar:SetSize(barWidth * fakeUnit.damageAbsorb, healthBar:GetHeight())
-
+		local dc = hc.damageAbsorbColor
+		local stripe = absorbBar:CreateTexture(nil, 'OVERLAY')
+		stripe:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		stripe:SetVertexColor(dc[1], dc[2], dc[3], dc[4] or 0.6)
+		stripe:SetHorizTile(true)
+		stripe:SetVertTile(true)
+		stripe:SetAllPoints(absorbBar)
 		frame._damageAbsorbBar = absorbBar
 	end
 
-	-- Heal absorb
+	-- Heal absorb — same stripe pattern, anchored from the right edge of the fill.
 	if(hc.healAbsorb ~= false and fakeUnit and fakeUnit.healAbsorb) then
-		local healAbsorbBar = CreateFrame('StatusBar', nil, healthBar)
-		healAbsorbBar:SetStatusBarTexture(F.Media.GetActiveBarTexture())
-		healAbsorbBar:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.healAbsorb)
-		healAbsorbBar:SetMinMaxValues(0, 1)
-		healAbsorbBar:SetValue(1)
-
-		local haColor = hc.healAbsorbColor
-		healAbsorbBar:SetStatusBarColor(haColor[1], haColor[2], haColor[3], haColor[4])
-
-		-- Heal absorbs eat into the health bar from the right
+		local healAbsorbBar = CreateFrame('Frame', nil, shieldParent)
+		healAbsorbBar:SetFrameLevel(baseLevel + config.elementStrata.healAbsorb)
 		local absorbWidth = barWidth * fakeUnit.healAbsorb
-		healAbsorbBar:SetPoint('RIGHT', healthBar, 'LEFT', barWidth * healthPct, 0)
-		healAbsorbBar:SetSize(absorbWidth, healthBar:GetHeight())
+		healAbsorbBar:SetPoint('TOPRIGHT', healthBar, 'TOPLEFT', fillWidth, 0)
+		healAbsorbBar:SetPoint('BOTTOMRIGHT', healthBar, 'BOTTOMLEFT', fillWidth, 0)
+		healAbsorbBar:SetWidth(math.max(1, absorbWidth))
 
+		local hac = hc.healAbsorbColor
+		local stripe = healAbsorbBar:CreateTexture(nil, 'OVERLAY')
+		stripe:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		stripe:SetVertexColor(hac[1], hac[2], hac[3], hac[4] or 0.5)
+		stripe:SetHorizTile(true)
+		stripe:SetVertTile(true)
+		stripe:SetAllPoints(healAbsorbBar)
 		frame._healAbsorbBar = healAbsorbBar
 	end
 
-	-- Overshield (texture on an OVERLAY-level wrapper frame for strata control)
+	-- Overshield — additive glow tile on the right edge of the health bar.
 	if(hc.overAbsorb ~= false and fakeUnit and fakeUnit.overAbsorb) then
-		local overWrapper = CreateFrame('Frame', nil, healthBar)
-		overWrapper:SetFrameLevel(healthBar:GetFrameLevel() + config.elementStrata.overAbsorb)
-		overWrapper:SetPoint('TOPRIGHT', healthBar, 'TOPRIGHT', 4, 2)
-		overWrapper:SetPoint('BOTTOMRIGHT', healthBar, 'BOTTOMRIGHT', 4, -2)
-		overWrapper:SetWidth(12)
+		local overWrapper = CreateFrame('Frame', nil, shieldParent)
+		overWrapper:SetFrameLevel(baseLevel + config.elementStrata.overAbsorb)
+		overWrapper:SetPoint('TOPRIGHT', healthBar, 'TOPRIGHT', 0, 0)
+		overWrapper:SetPoint('BOTTOMRIGHT', healthBar, 'BOTTOMRIGHT', 0, 0)
+		overWrapper:SetWidth(4)
 
 		local overGlow = overWrapper:CreateTexture(nil, 'OVERLAY')
-		overGlow:SetAllPoints(overWrapper)
-		overGlow:SetTexture([[Interface\RaidFrame\Shield-Overshield]])
+		overGlow:SetTexture([[Interface\AddOns\Framed\Media\Textures\OverAbsorbGlow]])
+		overGlow:SetTexCoord(1, 0, 0, 1)
+		overGlow:SetVertexColor(1, 1, 1, 1)
 		overGlow:SetBlendMode('ADD')
-		overGlow:SetAlpha(0.8)
-
+		overGlow:SetAllPoints(overWrapper)
 		frame._overAbsorbGlow = overWrapper
 	end
 end
@@ -585,7 +676,6 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig, animated)
 	BuildNameText(frame, config, fakeUnit)
 	BuildStatusIcons(frame, config)
 	BuildCastbar(frame, config)
-	BuildHighlights(frame, config)
 	BuildPortrait(frame, config, fakeUnit)
 	BuildStatusText(frame, config, fakeUnit)
 	BuildShieldsAndAbsorbs(frame, config, fakeUnit)
@@ -601,24 +691,58 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig, animated)
 		applyHealthLossColor(frame._healthBar._bg, config, fakeUnit)
 
 		if(animated) then
-			-- Looping health depletion: 1 → healthPct over 8 seconds, then restart
-			local targetPct = fakeUnit.healthPct
+			-- Incremental-hit cycle: mimics real combat health — discrete drops
+			-- with dwells between, ending in a refill. Each transition respects
+			-- config.health.smooth: smooth eases between from/to; instant snaps
+			-- and holds for the same duration so cycle length is stable.
 			local healthBar = frame._healthBar
-			local function loopHealth(bar)
-				bar:SetValue(1)
-				Widgets.StartAnimation(bar, 'healthDrain', 1, targetPct, 8,
-					function(f, v)
-						f:SetValue(v)
-						if(frame._healthText) then
-							frame._healthText:SetText(formatHealthText(v, config.health.textFormat))
-						end
-					end,
-					function(f)
-						if(f:IsShown()) then loopHealth(f) end
-					end
-				)
+			-- from/to identical = hold. Different = transition (smooth or snap).
+			local STEPS = {
+				{ dur = 0.8,  from = 1.00, to = 1.00 },  -- dwell at full
+				{ dur = 0.22, from = 1.00, to = 0.72 },  -- hit
+				{ dur = 0.5,  from = 0.72, to = 0.72 },  -- dwell
+				{ dur = 0.22, from = 0.72, to = 0.45 },  -- hit
+				{ dur = 0.5,  from = 0.45, to = 0.45 },  -- dwell
+				{ dur = 0.28, from = 0.45, to = 0.12 },  -- hit (bigger — shows low-end gradient)
+				{ dur = 0.8,  from = 0.12, to = 0.12 },  -- low dwell (loss color readable)
+				{ dur = 1.2,  from = 0.12, to = 1.00 },  -- refill
+			}
+			local applyColorsForPct = function(pct)
+				applyHealthColor(healthBar, config, fakeUnit, pct)
+				applyHealthLossColor(healthBar._bg, config, fakeUnit, pct)
 			end
-			loopHealth(healthBar)
+			local setBarTo = function(v)
+				healthBar:SetValue(v)
+				applyColorsForPct(v)
+				if(frame._healthText) then
+					frame._healthText:SetText(formatHealthText(v, config.health.textFormat))
+				end
+			end
+
+			local runStep
+			runStep = function(bar, idx)
+				if(not bar:IsShown()) then return end
+				local step = STEPS[idx]
+				if(not step) then runStep(bar, 1); return end
+
+				if(step.from == step.to or not config.health.smooth) then
+					-- Hold, or instant snap + hold for the same duration
+					setBarTo(step.to)
+					Widgets.StartAnimation(bar, 'healthStep', 0, 1, step.dur,
+						function() end,
+						function(f) runStep(f, idx + 1) end)
+				else
+					-- Smooth transition with ease-out
+					Widgets.StartAnimation(bar, 'healthStep', 0, 1, step.dur,
+						function(f, t)
+							local inv = 1 - t
+							local eased = 1 - inv * inv * inv
+							setBarTo(step.from + (step.to - step.from) * eased)
+						end,
+						function(f) runStep(f, idx + 1) end)
+				end
+			end
+			runStep(healthBar, 1)
 		else
 			frame._healthBar:SetValue(fakeUnit.healthPct)
 			if(frame._healthText) then
@@ -659,7 +783,7 @@ local function DestroyChildren(frame)
 	local keys = {
 		'_bg', '_healthWrapper', '_healthBar', '_healthText', '_healthTextClassColor',
 		'_powerWrapper', '_powerBar', '_powerText', '_powerTextClassColor',
-		'_nameText', '_castbar', '_targetHighlight', '_iconOverlay', '_auraGroups',
+		'_nameText', '_castbar', '_targetHighlight', '_iconOverlay', '_markerOverlay', '_auraGroups',
 		'_portrait', '_portraitTex', '_statusText', '_statusTextOverlay',
 		'_healPredBar', '_damageAbsorbBar', '_healAbsorbBar', '_overAbsorbGlow',
 	}
@@ -678,7 +802,7 @@ end
 -- Public: Create preview frame
 -- ============================================================
 
-function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame, auraConfig)
+function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame, auraConfig, animated, unitType)
 	local frame = CreateFrame('Frame', nil, parent)
 
 	if(realFrame) then
@@ -692,7 +816,13 @@ function F.PreviewFrame.Create(parent, config, fakeUnit, realFrame, auraConfig)
 	end
 	Widgets.SetSize(frame, config.width, config.height)
 
-	local animated = realFrame and F.PreviewManager.IsAnimationEnabled() or false
+	-- Edit Mode: gated by the user's animation toggle.
+	-- Settings preview / explicit override: caller passes `animated` directly.
+	if(animated == nil) then
+		animated = realFrame and F.PreviewManager.IsAnimationEnabled() or false
+	end
+	frame._animated = animated
+	frame._unitType = unitType
 	BuildAllElements(frame, config, fakeUnit, auraConfig, animated)
 
 	return frame
@@ -702,11 +832,18 @@ end
 -- Public: Rebuild preview in-place with new config
 -- ============================================================
 
-function F.PreviewFrame.UpdateFromConfig(frame, config, auraConfig, animated)
+function F.PreviewFrame.UpdateFromConfig(frame, config, auraConfig, animated, unitType)
 	DestroyChildren(frame)
 	Widgets.SetSize(frame, config.width, config.height)
 	if(animated == nil) then
-		animated = F.PreviewManager.IsAnimationEnabled()
+		animated = frame._animated
+		if(animated == nil) then
+			animated = F.PreviewManager.IsAnimationEnabled()
+		end
+	end
+	frame._animated = animated
+	if(unitType ~= nil) then
+		frame._unitType = unitType
 	end
 	BuildAllElements(frame, config, frame._fakeUnit, auraConfig, animated)
 end

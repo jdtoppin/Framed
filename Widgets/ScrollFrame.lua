@@ -54,9 +54,10 @@ end
 --- Return the current scroll range max (0 when content fits).
 --- Uses the outer container height rather than the anchored ScrollFrame
 --- height, because WoW may not have resolved anchor-based sizes yet.
+--- _viewportOffset: set by callers that push the viewport down (e.g. pinned rows).
 local function GetScrollMax(scroll)
 	local contentH = scroll._content:GetHeight()
-	local viewH    = scroll:GetHeight()
+	local viewH    = scroll:GetHeight() - (scroll._viewportOffset or 0)
 	return math.max(0, contentH - viewH)
 end
 
@@ -151,7 +152,7 @@ end
 --- Auto-hides the scrollbar when the content fits within the view.
 function Widgets._ScrollFrame_UpdateThumb(scroll)
 	local contentH = scroll._content:GetHeight()
-	local viewH    = scroll._scrollFrame:GetHeight()
+	local viewH    = scroll:GetHeight() - (scroll._viewportOffset or 0)
 	local trackH   = scroll._scrollbar:GetHeight()
 
 	if(contentH <= viewH or viewH <= 0) then
