@@ -1005,9 +1005,14 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		scroll:_UpdateThumb()
 
 		local newPreviewW, newSummaryW = F.FrameSettingsBuilder.ComputePinnedSplit(totalW, pinnedGap, unitType, PREVIEW_PAD)
-		previewCard:SetWidth(newPreviewW)
+		-- Reflow summary first so previewCard's OnSizeChanged (fired
+		-- synchronously from its SetWidth below) reads the fresh
+		-- summary._naturalH, and re-anchor the scroll frame below the new
+		-- pinned height so cards below don't overlap the grown summary.
 		summaryCard:SetWidth(newSummaryW)
 		reorderSummary()
+		previewCard:SetWidth(newPreviewW)
+		anchorScrollBelowPinned()
 	end, 'FrameSettingsBuilder.resize.' .. unitType)
 
 	F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
