@@ -38,8 +38,14 @@ function F.StyleBuilder.GetConfig(unitType)
 	-- Current preset doesn't have this unitType (e.g. 'Solo' has no party config).
 	-- Find the canonical preset that owns it via PresetInfo.groupKey so user
 	-- customisations saved under that preset are still respected on reload.
+	-- Match only base presets: each groupKey has exactly one canonical owner
+	-- (the isBase=true entry). Derived presets share the same groupKey but
+	-- hold stale defaults from when they were DeepCopy'd, and hash-table
+	-- iteration order is non-deterministic — without this guard, reload
+	-- sometimes returned a derived preset's stale position instead of the
+	-- user's customised base preset.
 	for name, info in next, C.PresetInfo do
-		if(info.groupKey == unitType) then
+		if(info.groupKey == unitType and info.isBase) then
 			local _, groupData = F.AutoSwitch.ResolvePreset(name)
 			if(groupData and groupData.unitConfigs and groupData.unitConfigs[unitType]) then
 				return groupData.unitConfigs[unitType]
