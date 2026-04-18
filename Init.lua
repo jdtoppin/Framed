@@ -128,6 +128,7 @@ oUF:Factory(function(self)
 	F.Units.Raid.Spawn()
 	F.Units.Boss.Spawn()
 	F.Units.Arena.Spawn()
+	F.Units.Pinned.Spawn()
 
 	-- Force initial element updates on all spawned frames.
 	-- oUF's initObject enables elements but doesn't call UpdateAllElements;

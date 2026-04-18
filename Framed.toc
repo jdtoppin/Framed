@@ -119,6 +119,7 @@ Units/Party.lua
 Units/Raid.lua
 Units/Boss.lua
 Units/Arena.lua
+Units/Pinned.lua
 Units/LiveUpdate/FrameConfigShared.lua
 Units/LiveUpdate/FrameConfigLayout.lua
 Units/LiveUpdate/FrameConfigElements.lua
