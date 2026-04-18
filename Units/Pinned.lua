@@ -8,6 +8,66 @@ F.Units.Pinned = F.Units.Pinned or {}
 local MAX_SLOTS = 9
 
 -- ============================================================
+-- Roster / unit resolution
+-- ============================================================
+
+--- Convert UnitName(token) into storage format ('Name' or 'Name-Realm').
+local function fullUnitName(token)
+	if(not UnitExists(token)) then return nil end
+	local name, realm = UnitName(token)
+	if(not name) then return nil end
+	if(realm and realm ~= '') then
+		return name .. '-' .. realm
+	end
+	return name
+end
+F.Units.Pinned.FullUnitName = fullUnitName
+
+--- Scan the current group for a player matching storedName.
+local function findUnitForName(storedName)
+	if(not storedName) then return nil end
+	if(IsInRaid()) then
+		for i = 1, GetNumGroupMembers() do
+			if(fullUnitName('raid' .. i) == storedName) then
+				return 'raid' .. i
+			end
+		end
+	elseif(IsInGroup()) then
+		for i = 1, GetNumGroupMembers() - 1 do
+			if(fullUnitName('party' .. i) == storedName) then
+				return 'party' .. i
+			end
+		end
+		if(fullUnitName('player') == storedName) then
+			return 'player'
+		end
+	else
+		if(fullUnitName('player') == storedName) then
+			return 'player'
+		end
+	end
+	return nil
+end
+F.Units.Pinned.FindUnitForName = findUnitForName
+
+--- Swap a frame's unit. Updates secure attribute + frame.unit mirror.
+--- Combat-safe: returns false if InCombatLockdown prevents SetAttribute.
+local function setFrameUnit(frame, token)
+	if(InCombatLockdown()) then return false end
+	if(token) then
+		frame:SetAttribute('unit', token)
+		frame.unit = token
+	else
+		frame:SetAttribute('unit', nil)
+		frame.unit = nil
+	end
+	if(frame.UpdateAllElements) then
+		frame:UpdateAllElements('RefreshUnit')
+	end
+	return true
+end
+
+-- ============================================================
 -- Config accessor
 -- ============================================================
 function F.Units.Pinned.GetConfig()
@@ -93,6 +153,43 @@ function F.Units.Pinned.Layout()
 end
 
 -- ============================================================
+-- Resolve
+-- ============================================================
+local pendingResolve = false
+
+function F.Units.Pinned.Resolve()
+	if(InCombatLockdown()) then
+		pendingResolve = true
+		return
+	end
+	pendingResolve = false
+
+	local config = F.Units.Pinned.GetConfig()
+	local frames = F.Units.Pinned.frames
+	if(not config or not frames) then return end
+
+	local slots = config.slots or {}
+	for i = 1, MAX_SLOTS do
+		local frame = frames[i]
+		if(frame) then
+			local slot  = slots[i]
+			local token = nil
+			if(slot) then
+				if(slot.type == 'unit') then
+					token = slot.value
+				elseif(slot.type == 'name') then
+					token = findUnitForName(slot.value)
+				elseif(slot.type == 'nametarget') then
+					local base = findUnitForName(slot.value)
+					token = base and (base .. 'target') or nil
+				end
+			end
+			setFrameUnit(frame, token)
+		end
+	end
+end
+
+-- ============================================================
 -- Spawn
 -- ============================================================
 function F.Units.Pinned.Spawn()
@@ -113,4 +210,18 @@ function F.Units.Pinned.Spawn()
 	F.Units.Pinned.frames = frames
 
 	F.Units.Pinned.Layout()
+	F.Units.Pinned.Resolve()
 end
+
+-- ============================================================
+-- Event registration
+-- ============================================================
+F.EventBus:Register('GROUP_ROSTER_UPDATE', function()
+	F.Units.Pinned.Resolve()
+end, 'Pinned.Resolve')
+
+F.EventBus:Register('PLAYER_REGEN_ENABLED', function()
+	if(pendingResolve) then
+		F.Units.Pinned.Resolve()
+	end
+end, 'Pinned.CombatFlush')
