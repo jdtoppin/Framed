@@ -248,7 +248,6 @@ local function renderSlotRow(parent, slotIndex, cardY, width)
 			return
 		end
 		writeSlot(F.Settings.GetEditingPreset(), slotIndex, value)
-		refresh()
 	end)
 
 	refresh()
@@ -291,13 +290,13 @@ function F.SettingsCards.Pinned(parent, width, unitType, getConfig, setConfig)
 		if(path:match('unitConfigs%.pinned%.count$') or path:match('unitConfigs%.pinned%.slots')) then
 			rebuild()
 		end
-	end, 'PinnedCard.' .. tostring(card) .. '.CC')
+	end, 'PinnedCard.CC')
 
 	F.EventBus:Register('GROUP_ROSTER_UPDATE', function()
 		for _, r in next, rows do
 			if(r._refresh) then r._refresh() end
 		end
-	end, 'PinnedCard.' .. tostring(card) .. '.Roster')
+	end, 'PinnedCard.Roster')
 
 	return card
 end
