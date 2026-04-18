@@ -135,7 +135,12 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 	local scaledW = math.ceil(naturalW * previewScale)
 
 	local previewW = math.min(scaledW + previewPad * 2, math.floor(totalW * 0.6))
-	previewW = math.max(previewW, 160)
+	-- Floor just high enough for the title ('Preview — Raid') and the raid
+	-- stepper row to fit without truncating. 160 was too high: at low raid
+	-- counts (e.g. 5 frames, vertical orient → scaledW ≈ 80) it added
+	-- ~32px of blank space to the right of the frames and starved the
+	-- summary card of that width.
+	previewW = math.max(previewW, 128)
 	local summaryW = totalW - previewW - gap
 	return previewW, summaryW
 end
@@ -999,6 +1004,11 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	-- ── Re-layout on settings window resize ───────────────────
 	F.EventBus:Register('SETTINGS_RESIZED', function(newW, newH)
 		local totalW = newW - C.Spacing.normal * 2
+		-- Rebind the upvalue so _predictWidth / _onResize (which close over
+		-- `width`) see the current panel width on subsequent count changes.
+		-- Without this, a raid count change after a window resize computes
+		-- the pinned split against the stale pre-resize total.
+		width = totalW
 		grid:SetWidth(totalW)
 
 		local sf = scroll._scrollFrame
