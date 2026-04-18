@@ -530,8 +530,19 @@ local function BuildStatusText(frame, config, fakeUnit)
 	overlay:SetFrameLevel(frame:GetFrameLevel() + config.elementStrata.statusText)
 
 	local text = Widgets.CreateFontString(overlay, stConfig.fontSize, C.Colors.textActive)
-	text:SetPoint(stConfig.anchor, overlay, stConfig.anchor,
-		stConfig.anchorX, stConfig.anchorY)
+
+	-- Anchor by canonical statusText.position. Mirrors the top/center/bottom
+	-- rows used by Elements/Status/StatusText.lua so the preview matches the
+	-- live frame layout instead of guessing absolute anchor coordinates.
+	local anchorTo = frame._healthBar or overlay
+	local position = stConfig.position
+	if(position == 'top') then
+		text:SetPoint('TOP', anchorTo, 'TOP', 0, 0)
+	elseif(position == 'center') then
+		text:SetPoint('CENTER', anchorTo, 'CENTER', 0, 0)
+	else
+		text:SetPoint('BOTTOM', anchorTo, 'BOTTOM', 0, 0)
+	end
 
 	-- Show a fake status for dead units
 	if(fakeUnit and fakeUnit.isDead) then
