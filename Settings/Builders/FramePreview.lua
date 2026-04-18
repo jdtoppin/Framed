@@ -989,7 +989,11 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		local innerMeasuredW = cardW - Widgets.CARD_PADDING * 2 - EXTRA_RIGHT_PAD
 		local titleW = title:GetStringWidth() or 0
 		local toggleW = focusToggle:GetWidth() or 0
-		local onTitleRow = (titleW + TITLE_GAP + toggleW <= innerMeasuredW)
+		-- Raid always keeps Focus Mode below the title. The stepper sits on
+		-- its own row either way, so letting the toggle flip up to the title
+		-- row when the card is wide (e.g. raid count 15 widens the card via
+		-- the pinned split) just introduces a layout jump the user doesn't want.
+		local onTitleRow = (titleW + TITLE_GAP + toggleW <= innerMeasuredW) and not countText
 
 		if(card._focusOnTitleRow == onTitleRow) then return false end
 		card._focusOnTitleRow = onTitleRow
