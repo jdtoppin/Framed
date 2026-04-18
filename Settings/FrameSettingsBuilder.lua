@@ -104,9 +104,24 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 		return pw, totalW - pw - gap
 	end
 
-	local naturalW
+	-- PREVIEW_INSET_2 mirrors FramePreview.PREVIEW_INSET * 2 (4 * 2). naturalH
+	-- here must match RebuildPreview's naturalH *exactly* — otherwise the
+	-- previewScale we compute diverges from the scale the viewport actually
+	-- applies, and the card ends up sized for one scale while rendering at
+	-- another. The visible symptom is a right-side gap between the last frame
+	-- and the card edge.
+	local PREVIEW_INSET_2 = 8
+
+	local naturalW, naturalH
+	local MAX_PREVIEW_H = 120
+	local cbExtra = 0
+	if(config.showCastBar ~= false and config.castbar) then
+		cbExtra = config.castbar.height + (C.Spacing.base or 4)
+	end
+
 	if(SOLO_TYPES[unitType]) then
 		naturalW = config.width
+		naturalH = (config.height or 60) + cbExtra + PREVIEW_INSET_2
 	else
 		local count = unitType == 'raid' and (F.Config:GetChar('settings.raidPreviewCount') or 8)
 			or GROUP_COUNTS[unitType] or 5
@@ -119,18 +134,14 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 		else
 			naturalW = rows * config.width + (rows - 1) * (config.spacing or 2)
 		end
+		-- Match RebuildPreview: stacked rows + spacing + castbar + insets.
+		naturalH = rows * (config.height or 60) + (rows - 1) * (config.spacing or 2) + cbExtra + PREVIEW_INSET_2
 	end
 
 	if(config.portrait) then
 		naturalW = naturalW + (config.height or 60) + (C.Spacing.base or 4)
 	end
 
-	local MAX_PREVIEW_H = 120
-	local cbExtra = 0
-	if(config.showCastBar ~= false and config.castbar) then
-		cbExtra = config.castbar.height + (C.Spacing.base or 4)
-	end
-	local naturalH = (config.height or 60) + cbExtra
 	local previewScale = (naturalH > MAX_PREVIEW_H) and (MAX_PREVIEW_H / naturalH) or 1
 	local scaledW = math.ceil(naturalW * previewScale)
 
