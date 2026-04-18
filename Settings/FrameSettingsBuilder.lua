@@ -134,8 +134,10 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 		else
 			naturalW = rows * config.width + (rows - 1) * (config.spacing or 2)
 		end
-		-- Match RebuildPreview: stacked rows + spacing + castbar + insets.
-		naturalH = rows * (config.height or 60) + (rows - 1) * (config.spacing or 2) + cbExtra + PREVIEW_INSET_2
+		-- Match RebuildPreview: each row includes its own castbar, plus spacing
+		-- between rows and the outer viewport insets. cbExtra applies per row
+		-- because the castbar anchors below each frame (TOP → frame BOTTOM).
+		naturalH = rows * ((config.height or 60) + cbExtra) + (rows - 1) * (config.spacing or 2) + PREVIEW_INSET_2
 	end
 
 	if(config.portrait) then

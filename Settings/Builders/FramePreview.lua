@@ -89,9 +89,16 @@ local function getFakeUnit(index)
 	return base
 end
 
+local PREVIEW_INSET = 4
+
+local function getCastbarExtra(config)
+	if(config.showCastBar == false or not config.castbar) then return 0 end
+	return config.castbar.height + C.Spacing.base
+end
+
 local function CalculateGroupLayout(config, count)
 	local w = config.width
-	local h = config.height
+	local h = config.height + getCastbarExtra(config)
 	local spacing = config.spacing
 	local upc = config.unitsPerColumn
 	local isVertical = config.orientation == 'vertical'
@@ -111,13 +118,6 @@ local function CalculateGroupLayout(config, count)
 		positions[i + 1] = { x = x, y = y }
 	end
 	return positions
-end
-
-local PREVIEW_INSET = 4
-
-local function getCastbarExtra(config)
-	if(config.showCastBar == false or not config.castbar) then return 0 end
-	return config.castbar.height + C.Spacing.base
 end
 
 local ROLE_ORDER = { TANK = 1, HEALER = 2, DAMAGER = 3 }
@@ -794,7 +794,7 @@ function FP.RebuildPreview()
 		local cols = math.ceil(count / upc)
 		local rows = math.min(count, upc)
 		local isVertical = config.orientation == 'vertical'
-		naturalH = rows * config.height + (rows - 1) * config.spacing + cbExtra + inset2
+		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
 		if(isVertical) then
 			naturalW = cols * config.width + (cols - 1) * config.spacing
 		else
@@ -1070,11 +1070,11 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	elseif(unitType == 'raid') then
 		local count = F.Config:GetChar('settings.raidPreviewCount')
 		local rows = math.min(count, config.unitsPerColumn)
-		naturalH = rows * config.height + (rows - 1) * config.spacing + cbExtra + inset2
+		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
 	elseif(GROUP_COUNTS[unitType]) then
 		local count = GROUP_COUNTS[unitType]
 		local rows = math.min(count, config.unitsPerColumn)
-		naturalH = rows * config.height + (rows - 1) * config.spacing + cbExtra + inset2
+		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
 	else
 		naturalH = config.height + cbExtra + inset2
 	end
