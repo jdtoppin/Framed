@@ -84,6 +84,21 @@ function F.Units.Raid.Spawn()
 			uiScale,
 			tostring(C_AddOns and C_AddOns.IsAddOnLoaded and C_AddOns.IsAddOnLoaded('ElvUI'))
 		))
+		-- Dump raid position from every preset so we can see where the
+		-- save actually lives (if anywhere) across the preset chain.
+		if(FramedDB and FramedDB.presets) then
+			for name, data in next, FramedDB.presets do
+				local rc = data and data.unitConfigs and data.unitConfigs.raid
+				if(rc) then
+					local rp = rc.position
+					print(('|cff00ccff[Framed diag]|r   preset %s raid.position=%s'):format(
+						name,
+						rp and ('{x=' .. tostring(rp.x) .. ',y=' .. tostring(rp.y) .. ',anchor=' .. tostring(rp.anchor) .. '}') or 'nil'))
+				else
+					print(('|cff00ccff[Framed diag]|r   preset %s raid=nil (no raid config)'):format(name))
+				end
+			end
+		end
 	end
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', posX, posY)
 	-- DIAGNOSTIC: watch for any post-spawn repositioning for 30s.
