@@ -67,6 +67,18 @@ local function setFrameUnit(frame, token)
 	return true
 end
 
+local function slotIdentityText(slot)
+	if(not slot) then return nil end
+	if(slot.type == 'nametarget') then
+		return (slot.value or '?') .. "'s Target"
+	elseif(slot.type == 'unit') then
+		if(slot.value == 'focus')       then return 'Focus'        end
+		if(slot.value == 'focustarget') then return 'Focus Target' end
+		return slot.value
+	end
+	return nil
+end
+
 -- ============================================================
 -- Derived-unit polling
 -- WoW fires no event when a unit's target changes. Polls GUID of each
@@ -152,6 +164,13 @@ local function Style(self, unit)
 		F.StyleBuilder.Apply(self, unit, config, 'pinned')
 	else
 		F.Widgets.SetSize(self, 160, 40)
+	end
+
+	if(not self.SlotIdentity) then
+		local fs = F.Widgets.CreateFontString(self, F.Constants.Font.sizeSmall, F.Constants.Colors.textSecondary)
+		fs:SetPoint('BOTTOM', self, 'TOP', 0, 2)
+		fs:SetAlpha(0.7)
+		self.SlotIdentity = fs
 	end
 
 	F.Widgets.RegisterForUIScale(self)
@@ -248,6 +267,15 @@ function F.Units.Pinned.Resolve()
 				end
 			end
 			setFrameUnit(frame, token)
+			if(frame.SlotIdentity) then
+				local labelText = slotIdentityText(slot)
+				if(labelText) then
+					frame.SlotIdentity:SetText(labelText)
+					frame.SlotIdentity:Show()
+				else
+					frame.SlotIdentity:Hide()
+				end
+			end
 		end
 	end
 	updatePolling()
