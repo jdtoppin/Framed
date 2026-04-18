@@ -284,12 +284,21 @@ function F.Elements.StatusText.Setup(self, config)
 	if(isNew) then
 		container = CreateFrame('Frame', nil, overlay)
 	end
-	-- Anchor to the bottom of the health bar (not the unit frame) so the
-	-- status text sits above the power bar.
+	-- Anchor to the health bar (not the unit frame) so the status text sits
+	-- above the power bar. Position is configurable: top, center, or bottom.
 	local anchorTo = self.Health or self
 	container:ClearAllPoints()
-	container:SetPoint('BOTTOMLEFT', anchorTo, 'BOTTOMLEFT', 0, 0)
-	container:SetPoint('BOTTOMRIGHT', anchorTo, 'BOTTOMRIGHT', 0, 0)
+	local position = config.position
+	if(position == 'top') then
+		container:SetPoint('TOPLEFT',  anchorTo, 'TOPLEFT',  0, 0)
+		container:SetPoint('TOPRIGHT', anchorTo, 'TOPRIGHT', 0, 0)
+	elseif(position == 'center') then
+		container:SetPoint('LEFT',  anchorTo, 'LEFT',  0, 0)
+		container:SetPoint('RIGHT', anchorTo, 'RIGHT', 0, 0)
+	else
+		container:SetPoint('BOTTOMLEFT',  anchorTo, 'BOTTOMLEFT',  0, 0)
+		container:SetPoint('BOTTOMRIGHT', anchorTo, 'BOTTOMRIGHT', 0, 0)
+	end
 	container:SetHeight(size + 2)
 
 	-- Gradient background (dark left → transparent right)
