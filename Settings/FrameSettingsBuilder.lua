@@ -350,7 +350,14 @@ function F.FrameSettingsBuilder.BuildSummaryCard(parent, width, unitType, getCon
 
 		local label = Widgets.CreateFontString(rowFrame, C.Font.sizeSmall,
 			enabled == false and C.Colors.textDisabled or C.Colors.textNormal)
+		-- Bound to both edges so long labels truncate within the row
+		-- instead of spilling past the card/panel on narrow widths.
+		-- SUMMARY_ROW_H is fixed at 16, so wrap must stay off — we
+		-- truncate with "..." rather than growing a second line.
 		label:SetPoint('LEFT', rowFrame, 'LEFT', ICON_SIZE + 6, 0)
+		label:SetPoint('RIGHT', rowFrame, 'RIGHT', -2, 0)
+		label:SetJustifyH('LEFT')
+		label:SetWordWrap(false)
 		label:SetText(item.label)
 
 		rowFrame:SetScript('OnClick', function()
