@@ -13,21 +13,13 @@ function F.DisableBlizzardFrames()
 		CompactRaidFrameContainer:Hide()
 	end
 
-	-- Party member frames. Intentionally NOT calling
-	-- RegisterAttributeDriver(frame, 'state-visibility', 'hide') here:
-	-- ElvUI (and other unit frame addons) register their own state-visibility
-	-- driver on the same PartyMemberFrameN objects. Whichever addon loads
-	-- second wins the attribute, and the loser's call can taint the frame
-	-- and propagate up the secure-handler chain — which is what caused our
-	-- SecureGroupHeader to intermittently drop its layout attrs (party/raid
-	-- snapping to 0,0 on reload) and Blizzard defaults to occasionally leak
-	-- through. UnregisterAllEvents() alone is enough to neuter these frames;
-	-- without PARTY_MEMBERS_CHANGED they can't re-show themselves.
+	-- Party member frames
 	for i = 1, 4 do
 		local frame = _G['PartyMemberFrame' .. i]
 		if(frame) then
 			frame:UnregisterAllEvents()
 			frame:Hide()
+			RegisterAttributeDriver(frame, 'state-visibility', 'hide')
 		end
 	end
 
