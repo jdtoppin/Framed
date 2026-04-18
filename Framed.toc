@@ -180,6 +180,7 @@ Settings/Cards/StatusIcons.lua
 Settings/Cards/PartyPets.lua
 Settings/Cards/About.lua
 Settings/Cards/Backups.lua
+Settings/Cards/Pinned.lua
 Settings/Cards/Appearance/Theme.lua
 Settings/Cards/Appearance/UIScale.lua
 Settings/Cards/Appearance/TargetHighlight.lua
