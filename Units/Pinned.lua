@@ -189,6 +189,48 @@ function F.Units.Pinned.ApplyPosition()
 end
 
 -- ============================================================
+-- Empty-slot placeholders
+-- Non-secure overlay frames shown when a slot is unassigned.
+-- Safe in combat (non-secure, no SetAttribute).
+-- ============================================================
+
+local function createPlaceholder(parent, slotIndex)
+	local ph = CreateFrame('Button', nil, parent, 'BackdropTemplate')
+	ph:SetFrameStrata('MEDIUM')
+	ph:SetBackdrop({
+		bgFile   = [[Interface\BUTTONS\WHITE8x8]],
+		edgeFile = [[Interface\BUTTONS\WHITE8x8]],
+		edgeSize = 1,
+	})
+	ph:SetBackdropColor(0.08, 0.08, 0.08, 0.6)
+	ph:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.7)
+
+	local plus = F.Widgets.CreateFontString(ph, 20, F.Constants.Colors.textSecondary)
+	plus:SetPoint('CENTER', ph, 'CENTER', 0, 4)
+	plus:SetText('+')
+
+	local hint = F.Widgets.CreateFontString(ph, F.Constants.Font.sizeSmall, F.Constants.Colors.textSecondary)
+	hint:SetPoint('BOTTOM', ph, 'BOTTOM', 0, 4)
+	hint:SetAlpha(0.7)
+	hint:SetText('Click to assign')
+
+	ph._slotIndex = slotIndex
+	ph:SetAlpha(0)  -- hidden until hover
+	ph:RegisterForClicks('LeftButtonUp')
+
+	ph:SetScript('OnEnter', function(self) self:SetAlpha(1) end)
+	ph:SetScript('OnLeave', function(self) self:SetAlpha(0) end)
+
+	ph:SetScript('OnClick', function(self)
+		if(F.Units.Pinned.OpenAssignmentMenu) then
+			F.Units.Pinned.OpenAssignmentMenu(self._slotIndex, self)
+		end
+	end)
+
+	return ph
+end
+
+-- ============================================================
 -- Layout (grid)
 -- ============================================================
 function F.Units.Pinned.Layout()
@@ -231,6 +273,25 @@ function F.Units.Pinned.Layout()
 	F.Widgets.SetSize(anchor,
 		columns * width + (columns - 1) * spacing,
 		rows    * height + (rows    - 1) * spacing)
+
+	-- Manage placeholders for active but unassigned slots
+	F.Units.Pinned.placeholders = F.Units.Pinned.placeholders or {}
+	local phs = F.Units.Pinned.placeholders
+	local slots = config.slots or {}
+
+	for i = 1, MAX_SLOTS do
+		if(i <= count and not slots[i]) then
+			phs[i] = phs[i] or createPlaceholder(anchor, i)
+			local f = frames[i]
+			phs[i]:ClearAllPoints()
+			phs[i]:SetAllPoints(f)
+			F.Widgets.SetSize(phs[i], width, height)
+			phs[i]:Show()
+		elseif(phs[i]) then
+			phs[i]:Hide()
+		end
+	end
+
 	updatePolling()
 end
 
@@ -303,6 +364,13 @@ function F.Units.Pinned.Spawn()
 
 	F.Units.Pinned.Layout()
 	F.Units.Pinned.Resolve()
+end
+
+--- Placeholder: real implementation lives in Settings/Cards/Pinned.lua
+--- and attaches via F.Units.Pinned.OpenAssignmentMenu = ... on card load.
+--- When invoked before the card is loaded, print a hint.
+function F.Units.Pinned.OpenAssignmentMenu(slotIndex, anchorFrame)
+	print('|cff00ccffFramed|r Pinned: open /framed → Pinned to assign slot ' .. slotIndex)
 end
 
 -- ============================================================
