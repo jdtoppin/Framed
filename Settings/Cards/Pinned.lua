@@ -69,7 +69,13 @@ end
 -- Row decorators (class colors + non-selectable headers)
 -- ============================================================
 
-local function headerDecorator(row, item)
+local HEADER_PREFIX = '__hdr'
+
+local function isHeaderValue(value)
+	return type(value) == 'string' and value:sub(1, #HEADER_PREFIX) == HEADER_PREFIX
+end
+
+local function headerDecorator(row)
 	row._label:SetTextColor(0.6, 0.6, 0.6, 1)
 	row:SetScript('OnEnter', function() end)
 	row:SetScript('OnLeave', function() end)
@@ -208,7 +214,7 @@ function F.Units.Pinned.OpenAssignmentMenu(slotIndex, anchorFrame)
 	detachedDropdown:SetItems(buildItems(slotIndex, slots))
 	detachedDropdown:SetValue(slotToValue(slots[slotIndex]))
 	detachedDropdown:SetOnSelect(function(value)
-		if(type(value) == 'string' and value:sub(1, 5) == '__hdr') then return end
+		if(isHeaderValue(value)) then return end
 		writeSlot(presetName, slotIndex, value)
 	end)
 
@@ -243,7 +249,7 @@ local function renderSlotRow(parent, slotIndex, cardY, width)
 	end
 
 	dd:SetOnSelect(function(value)
-		if(type(value) == 'string' and value:sub(1, 5) == '__hdr') then
+		if(isHeaderValue(value)) then
 			refresh()
 			return
 		end

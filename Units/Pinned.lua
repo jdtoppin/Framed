@@ -152,8 +152,11 @@ end
 -- Style
 -- ============================================================
 local function Style(self, unit)
+	-- LOW so empty-slot placeholders (MEDIUM) render above and catch hover.
 	self:SetFrameStrata('LOW')
 	self:RegisterForClicks('AnyUp')
+	-- Also set by StyleBuilder.Apply, but Apply is gated on config being
+	-- non-nil — cold start under a preset without pinned leaves the tag unset.
 	self._framedUnitType = 'pinned'
 
 	local config = F.StyleBuilder.GetConfig('pinned')
@@ -416,11 +419,12 @@ function F.Units.Pinned.Spawn()
 	F.Units.Pinned.Resolve()
 end
 
---- Placeholder: real implementation lives in Settings/Cards/Pinned.lua
---- and attaches via F.Units.Pinned.OpenAssignmentMenu = ... on card load.
---- When invoked before the card is loaded, print a hint.
-function F.Units.Pinned.OpenAssignmentMenu(slotIndex, anchorFrame)
-	print('|cff00ccffFramed|r Pinned: open /framed → Pinned to assign slot ' .. slotIndex)
+--- Fallback: the real implementation lives in Settings/Cards/Pinned.lua and
+--- overwrites this at load time. This body only runs if that file failed to
+--- load — in which case the Settings UI is also unreachable, so don't direct
+--- the user there.
+function F.Units.Pinned.OpenAssignmentMenu(slotIndex)
+	print('|cff00ccffFramed|r Pinned panel is unavailable (slot ' .. slotIndex .. ').')
 end
 
 -- ============================================================
