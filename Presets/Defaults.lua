@@ -132,6 +132,21 @@ local function baseUnitConfig()
 	}
 end
 
+-- Pinned frames: shared style across up to 9 slots, per-slot name-tracking.
+-- Opt-in by default (enabled = false). Solo preset omits this block entirely.
+local function pinnedConfig()
+	local cfg = baseUnitConfig()
+	cfg.enabled  = false
+	cfg.count    = 3
+	cfg.columns  = 3
+	cfg.width    = 160
+	cfg.height   = 40
+	cfg.spacing  = 2
+	cfg.slots    = {}  -- keys 1..9; nil = unassigned
+	cfg.position = { x = 0, y = 0, anchor = 'CENTER' }
+	return cfg
+end
+
 local function defaultCastbar(frameWidth)
 	return {
 		height         = 16,
@@ -425,7 +440,8 @@ function F.PresetDefaults.GetAll()
 
 	-- Party
 	local partyAuras = soloUnitAuras()
-	partyAuras.party = A.Group(PARTY_AURA_SIZES)
+	partyAuras.party   = A.Group(PARTY_AURA_SIZES)
+	partyAuras.pinned  = A.Group(PARTY_AURA_SIZES)
 
 	presets['Party'] = {
 		isBase    = true,
@@ -441,8 +457,9 @@ function F.PresetDefaults.GetAll()
 				p.height = 18
 				return p
 			end)(),
-			boss  = bossConfig(),
-			party = partyConfig(),
+			boss   = bossConfig(),
+			party  = partyConfig(),
+			pinned = pinnedConfig(),
 		},
 		partyPets = {
 			enabled            = true,
@@ -469,7 +486,8 @@ function F.PresetDefaults.GetAll()
 
 	-- Raid
 	local raidAuras = soloUnitAuras()
-	raidAuras.raid = A.Group(RAID_AURA_SIZES)
+	raidAuras.raid   = A.Group(RAID_AURA_SIZES)
+	raidAuras.pinned = A.Group(RAID_AURA_SIZES)
 
 	presets['Raid'] = {
 		isBase    = true,
@@ -482,6 +500,7 @@ function F.PresetDefaults.GetAll()
 			pet          = petConfig(),
 			boss         = bossConfig(),
 			raid         = raidConfig(),
+			pinned       = pinnedConfig(),
 		},
 		auras = raidAuras,
 	}
@@ -495,7 +514,8 @@ function F.PresetDefaults.GetAll()
 		end
 		return a
 	end)()
-	arenaAuras.arena = A.Arena()
+	arenaAuras.arena   = A.Arena()
+	arenaAuras.pinned  = A.Group(PARTY_AURA_SIZES)
 
 	presets['Arena'] = {
 		isBase    = true,
@@ -517,6 +537,7 @@ function F.PresetDefaults.GetAll()
 			boss         = bossConfig(),
 			party        = partyConfig(),
 			arena        = arenaConfig(),
+			pinned       = pinnedConfig(),
 		},
 		auras = arenaAuras,
 	}
