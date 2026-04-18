@@ -1027,6 +1027,24 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		petToggle:SetChecked(false)
 	end
 
+	-- Pinned master enable — pinned is the only unit type gated by
+	-- config.enabled (default off), so the toggle has to live somewhere. On
+	-- the preview card it sits adjacent to what it turns on; the Slot
+	-- Assignments card below is then meaningful instead of dead weight. The
+	-- live frame responds automatically via FrameConfigPinned's CONFIG_CHANGED
+	-- handler (keys: 'enabled' → Layout + Resolve).
+	local pinnedEnabledToggle
+	if(unitType == 'pinned') then
+		pinnedEnabledToggle = Widgets.CreateCheckButton(inner, 'Enable Pinned Frames', function(checked)
+			local presetName = F.Settings.GetEditingPreset()
+			if(not presetName) then return end
+			F.Config:Set('presets.' .. presetName .. '.unitConfigs.pinned.enabled', checked)
+			F.PresetManager.MarkCustomized(presetName)
+		end)
+		local config = getUnitConfig('pinned')
+		pinnedEnabledToggle:SetChecked(config and config.enabled == true)
+	end
+
 	-- Preview viewport (horizontal scroll for overflow) — TOPLEFT y is applied
 	-- by the relayout closure below so it shifts when Focus Mode reflows.
 	local viewport = CreateFrame('ScrollFrame', nil, inner)
@@ -1076,6 +1094,12 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		if(petToggle) then
 			petToggle:ClearAllPoints()
 			petToggle:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cyNext)
+			cyNext = cyNext - 16
+		end
+
+		if(pinnedEnabledToggle) then
+			pinnedEnabledToggle:ClearAllPoints()
+			pinnedEnabledToggle:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cyNext)
 			cyNext = cyNext - 16
 		end
 
