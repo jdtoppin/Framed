@@ -97,14 +97,31 @@ local function getCastbarExtra(config)
 	return config.castbar.height + C.Spacing.base
 end
 
-local function CalculateGroupLayout(config, count)
+local function CalculateGroupLayout(config, count, unitType)
 	local w = config.width
 	local h = config.height + getCastbarExtra(config)
 	local spacing = config.spacing
+
+	local positions = {}
+
+	-- Pinned is a fixed-column, row-major grid (no orientation). Match
+	-- Units/Pinned.lua:Layout so the preview slot order mirrors the real frame.
+	if(unitType == 'pinned') then
+		local cols = math.max(1, math.min(config.columns, count))
+		for i = 0, count - 1 do
+			local col = i % cols
+			local row = math.floor(i / cols)
+			positions[i + 1] = {
+				x = col * (w + spacing),
+				y = -(row * (h + spacing)),
+			}
+		end
+		return positions
+	end
+
 	local upc = config.unitsPerColumn
 	local isVertical = config.orientation == 'vertical'
 
-	local positions = {}
 	for i = 0, count - 1 do
 		local col = math.floor(i / upc)
 		local row = i % upc
@@ -518,7 +535,7 @@ local function RenderGroupPreview(viewport, unitType, count)
 	end
 	sortedFakes = SortFakeUnits(sortedFakes, config)
 
-	local positions = CalculateGroupLayout(config, count)
+	local positions = CalculateGroupLayout(config, count, unitType)
 
 	-- Flush-left with title/toggle (no PREVIEW_INSET). Portrait still shifts
 	-- the frames right so the portrait box sits in the gutter.
@@ -590,19 +607,27 @@ local function RenderGroupPreview(viewport, unitType, count)
 	local config_w = config.width
 	local config_h = config.height
 	local spacing = config.spacing
-	local upc = config.unitsPerColumn
-	local isVertical = config.orientation == 'vertical'
-
-	local cols = math.ceil(count / upc)
-	local rows = math.min(count, upc)
 
 	local totalW, totalH
-	if(isVertical) then
-		totalW = cols * config_w + (cols - 1) * spacing
-		totalH = rows * config_h + (rows - 1) * spacing
+	if(unitType == 'pinned') then
+		local screenCols = math.max(1, math.min(config.columns, count))
+		local screenRows = math.ceil(count / screenCols)
+		totalW = screenCols * config_w + (screenCols - 1) * spacing
+		totalH = screenRows * config_h + (screenRows - 1) * spacing
 	else
-		totalW = rows * config_w + (rows - 1) * spacing
-		totalH = cols * config_h + (cols - 1) * spacing
+		local upc = config.unitsPerColumn
+		local isVertical = config.orientation == 'vertical'
+
+		local cols = math.ceil(count / upc)
+		local rows = math.min(count, upc)
+
+		if(isVertical) then
+			totalW = cols * config_w + (cols - 1) * spacing
+			totalH = rows * config_h + (rows - 1) * spacing
+		else
+			totalW = rows * config_w + (rows - 1) * spacing
+			totalH = cols * config_h + (cols - 1) * spacing
+		end
 	end
 
 	viewport:SetSize(math.max(totalW, 1), math.max(totalH, 1))
@@ -791,15 +816,22 @@ function FP.RebuildPreview()
 		else
 			count = GROUP_COUNTS[activeUnitType]
 		end
-		local upc = config.unitsPerColumn or count
-		local cols = math.ceil(count / upc)
-		local rows = math.min(count, upc)
-		local isVertical = config.orientation == 'vertical'
-		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
-		if(isVertical) then
-			naturalW = cols * config.width + (cols - 1) * config.spacing
+		if(activeUnitType == 'pinned') then
+			local screenCols = math.max(1, math.min(config.columns, count))
+			local screenRows = math.ceil(count / screenCols)
+			naturalH = screenRows * (config.height + cbExtra) + (screenRows - 1) * config.spacing + inset2
+			naturalW = screenCols * config.width + (screenCols - 1) * config.spacing
 		else
-			naturalW = rows * config.width + (rows - 1) * config.spacing
+			local upc = config.unitsPerColumn or count
+			local cols = math.ceil(count / upc)
+			local rows = math.min(count, upc)
+			local isVertical = config.orientation == 'vertical'
+			naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
+			if(isVertical) then
+				naturalW = cols * config.width + (cols - 1) * config.spacing
+			else
+				naturalW = rows * config.width + (rows - 1) * config.spacing
+			end
 		end
 	else
 		naturalH = config.height + cbExtra + inset2
@@ -1074,7 +1106,13 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
 	elseif(GROUP_COUNTS[unitType]) then
 		local count = GROUP_COUNTS[unitType]
-		local rows = math.min(count, config.unitsPerColumn)
+		local rows
+		if(unitType == 'pinned') then
+			local screenCols = math.max(1, math.min(config.columns, count))
+			rows = math.ceil(count / screenCols)
+		else
+			rows = math.min(count, config.unitsPerColumn)
+		end
 		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
 	else
 		naturalH = config.height + cbExtra + inset2
