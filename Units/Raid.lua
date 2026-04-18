@@ -86,17 +86,31 @@ function F.Units.Raid.Spawn()
 		))
 	end
 	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', posX, posY)
-	-- DIAGNOSTIC: verify SetPoint stuck, and re-check a second later
-	-- to catch any post-spawn repositioner.
+	-- DIAGNOSTIC: watch for any post-spawn repositioning for 30s.
+	-- Prints only when position changes from the baseline; also hooks
+	-- SetPoint to capture the stack of whoever moves it.
 	do
 		local pt, rel, relPt, x, y = header:GetPoint(1)
 		print(('|cff00ccff[Framed diag]|r raid post-SetPoint pt=%s rel=%s relPt=%s x=%s y=%s'):format(
 			tostring(pt), tostring(rel and rel:GetName() or rel), tostring(relPt), tostring(x), tostring(y)))
-		C_Timer.After(1, function()
-			if(not header.GetPoint) then return end
+		local lastX, lastY, lastPt = x, y, pt
+		hooksecurefunc(header, 'SetPoint', function(_, p, r, rp, nx, ny)
+			print(('|cff00ccff[Framed diag]|r raid SetPoint HOOK p=%s r=%s rp=%s x=%s y=%s'):format(
+				tostring(p), tostring(r and (type(r) == 'table' and r.GetName and r:GetName()) or r), tostring(rp), tostring(nx), tostring(ny)))
+			print(debugstack(2, 8, 0))
+		end)
+		local ticks = 0
+		local ticker
+		ticker = C_Timer.NewTicker(0.5, function()
+			ticks = ticks + 1
+			if(ticks > 60) then ticker:Cancel() return end
+			if(not header.GetPoint) then ticker:Cancel() return end
 			local p2, r2, rp2, x2, y2 = header:GetPoint(1)
-			print(('|cff00ccff[Framed diag]|r raid +1s pt=%s rel=%s relPt=%s x=%s y=%s'):format(
-				tostring(p2), tostring(r2 and r2:GetName() or r2), tostring(rp2), tostring(x2), tostring(y2)))
+			if(p2 ~= lastPt or x2 ~= lastX or y2 ~= lastY) then
+				print(('|cff00ccff[Framed diag]|r raid CHANGED @%.1fs pt=%s x=%s y=%s'):format(
+					ticks * 0.5, tostring(p2), tostring(x2), tostring(y2)))
+				lastPt, lastX, lastY = p2, x2, y2
+			end
 		end)
 	end
 	Widgets.RegisterForUIScale(header)
