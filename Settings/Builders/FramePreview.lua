@@ -808,10 +808,23 @@ function FP.RebuildPreview()
 		naturalW = naturalW + config.height + (C.Spacing.base or 4)
 	end
 
-	local outerW = activePreview:GetWidth()
-	local innerW = outerW - F.Widgets.CARD_PADDING * 2
+	-- Remember these on the card so AnimatePreviewWidth can rescale
+	-- viewContent per tick as the card width animates. Without this, a
+	-- +5 raid count would render at the *old* (smaller) inner width once
+	-- and stay small even after the card grew to its new target width —
+	-- the frames looked undersized until the next rebuild.
+	activePreview._previewNaturalW = naturalW
+	activePreview._previewNaturalH = naturalH
+	activePreview._previewMaxH = MAX_PREVIEW_H
 
-	-- Scale to fit BOTH the vertical cap and the card's actual inner width.
+	-- Compute against the *target* card width so viewContent is sized for
+	-- where the width tween is heading, not where it's coming from. This
+	-- keeps the add case (grow) symmetrical with the remove case (shrink).
+	local targetOuterW = (activePreview._predictWidth and activePreview._predictWidth())
+		or activePreview:GetWidth()
+	local innerW = targetOuterW - F.Widgets.CARD_PADDING * 2
+
+	-- Scale to fit BOTH the vertical cap and the card's target inner width.
 	-- Mirroring ComputePinnedSplit ensures the scale here matches the scale
 	-- the predictor used when it sized the card, so frames never overhang
 	-- the right edge (regardless of count or window width).
