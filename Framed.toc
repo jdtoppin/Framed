@@ -205,6 +205,7 @@ Settings/Panels/TargetOfTarget.lua
 Settings/Panels/Focus.lua
 Settings/Panels/Pet.lua
 Settings/Panels/Boss.lua
+Settings/Panels/Pinned.lua
 Settings/Panels/PartyFrames.lua
 Settings/Panels/Buffs.lua
 Settings/Panels/Debuffs.lua

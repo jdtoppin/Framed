@@ -73,9 +73,10 @@ local showPets = false
 local petFrames = {}
 
 local GROUP_COUNTS = {
-	party = 5,
-	arena = 3,
-	boss  = 4,
+	party  = 5,
+	arena  = 3,
+	boss   = 4,
+	pinned = 9,
 }
 
 local function getFakeUnit(index)

@@ -23,6 +23,7 @@ local GROUP_TYPES = {
 	raid         = true,
 	battleground = true,
 	worldraid    = true,
+	pinned       = true,
 }
 
 -- Unit types whose health bar uses oUF's full UpdateColor chain.
@@ -95,7 +96,7 @@ end
 -- ============================================================
 
 local SOLO_TYPES = { player = true, target = true, targettarget = true, focus = true, pet = true }
-local GROUP_COUNTS = { party = 5, arena = 3, boss = 4 }
+local GROUP_COUNTS = { party = 5, arena = 3, boss = 4, pinned = 9 }
 
 function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previewPad)
 	local config = F.Config:Get('presets.' .. (F.Settings.GetEditingPreset() or 'Solo') .. '.unitConfigs.' .. unitType)
@@ -184,7 +185,7 @@ end
 local SUMMARY_ROW_H = 16
 local ICON_SIZE = 12
 
-local GROUP_ICON_TYPES = { party = true, raid = true, arena = true }
+local GROUP_ICON_TYPES = { party = true, raid = true, arena = true, pinned = true }
 
 -- Icon-row definitions mirror Settings/Cards/StatusIcons.lua so the summary
 -- surfaces the same individual toggles (filtered per unit via IconRelevance).
@@ -872,6 +873,9 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	grid:AddCard('markers', 'Markers', F.SettingsCards.Markers, { unitType, getConfig, makeCardSetConfig('markers'), relayout })
 	if(unitType == 'party') then
 		grid:AddCard('partyPets', 'Party Pets', F.SettingsCards.PartyPets, {})
+	end
+	if(unitType == 'pinned' and F.SettingsCards.Pinned) then
+		grid:AddCard('slotAssignments', 'Slot Assignments', F.SettingsCards.Pinned, {})
 	end
 
 	-- ── Persist pin state ─────────────────────────────────────
