@@ -44,6 +44,7 @@ local FRAME_KEYS = {
 	{ key = 'raid',         label = 'Raid Frames',      isGroup = true,  getter = function() return F.Units.Raid and F.Units.Raid.header end },
 	{ key = 'boss',         label = 'Boss Frames',      isGroup = true,  getter = function() return F.Units.Boss and F.Units.Boss.frames and F.Units.Boss.frames[1] end },
 	{ key = 'arena',        label = 'Arena Frames',     isGroup = true,  getter = function() return F.Units.Arena and F.Units.Arena.frames and F.Units.Arena.frames[1] end },
+	{ key = 'pinned',       label = 'Pinned Frames',    isGroup = false, getter = function() return F.Units.Pinned and F.Units.Pinned.anchor end },
 }
 
 EditMode.FRAME_KEYS = FRAME_KEYS
