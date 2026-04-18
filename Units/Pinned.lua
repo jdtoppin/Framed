@@ -68,6 +68,68 @@ local function setFrameUnit(frame, token)
 end
 
 -- ============================================================
+-- Derived-unit polling
+-- WoW fires no event when a unit's target changes. Polls GUID of each
+-- polling slot at 0.2s intervals; fires RefreshUnit on change.
+-- ============================================================
+local POLL_INTERVAL = 0.2
+local pollFrame     = CreateFrame('Frame')
+local pollElapsed   = 0
+local lastGUIDs     = {}
+
+local function slotNeedsPolling(slot)
+	if(not slot) then return false end
+	if(slot.type == 'nametarget') then return true end
+	if(slot.type == 'unit' and slot.value == 'focustarget') then return true end
+	return false
+end
+
+local function onPollUpdate(_, elapsed)
+	pollElapsed = pollElapsed + elapsed
+	if(pollElapsed < POLL_INTERVAL) then return end
+	pollElapsed = 0
+
+	local config = F.Units.Pinned.GetConfig()
+	local frames = F.Units.Pinned.frames
+	if(not config or not frames) then return end
+	local slots = config.slots or {}
+
+	for i = 1, MAX_SLOTS do
+		local slot  = slots[i]
+		local frame = frames[i]
+		if(slotNeedsPolling(slot) and frame and frame.unit) then
+			local newGUID = UnitGUID(frame.unit)
+			if(newGUID ~= lastGUIDs[i]) then
+				lastGUIDs[i] = newGUID
+				if(frame.UpdateAllElements) then
+					frame:UpdateAllElements('RefreshUnit')
+				end
+			end
+		else
+			lastGUIDs[i] = nil
+		end
+	end
+end
+
+local function updatePolling()
+	local config = F.Units.Pinned.GetConfig()
+	if(not config or not config.enabled) then
+		pollFrame:SetScript('OnUpdate', nil)
+		return
+	end
+
+	local slots = config.slots or {}
+	for i = 1, MAX_SLOTS do
+		if(slotNeedsPolling(slots[i])) then
+			pollFrame:SetScript('OnUpdate', onPollUpdate)
+			return
+		end
+	end
+	pollFrame:SetScript('OnUpdate', nil)
+end
+F.Units.Pinned.UpdatePolling = updatePolling
+
+-- ============================================================
 -- Config accessor
 -- ============================================================
 function F.Units.Pinned.GetConfig()
@@ -150,6 +212,7 @@ function F.Units.Pinned.Layout()
 	F.Widgets.SetSize(anchor,
 		columns * width + (columns - 1) * spacing,
 		rows    * height + (rows    - 1) * spacing)
+	updatePolling()
 end
 
 -- ============================================================
@@ -187,6 +250,7 @@ function F.Units.Pinned.Resolve()
 			setFrameUnit(frame, token)
 		end
 	end
+	updatePolling()
 end
 
 -- ============================================================
