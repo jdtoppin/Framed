@@ -101,11 +101,14 @@ local function OnScrollActivity(scroll)
 		FadeScrollbar(scroll, 1, FADE_IN_DUR)
 	end
 
-	-- Schedule fade-out
+	-- While the user is hovering the panel or dragging the thumb, keep the
+	-- scrollbar visible — don't schedule fade-out. OnLeave / OnMouseUp will
+	-- schedule their own fade-out when interaction ends.
+	if(scroll._hovered or scroll._thumb._dragging) then return end
+
 	scroll._fadeOutTimer = C_Timer.NewTimer(FADE_OUT_DELAY, function()
 		scroll._fadeOutTimer = nil
-		-- Don't fade if thumb is being dragged
-		if(scroll._thumb._dragging) then return end
+		if(scroll._hovered or scroll._thumb._dragging) then return end
 		FadeScrollbar(scroll, 0, FADE_OUT_DUR)
 	end)
 end
@@ -320,12 +323,50 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 		ApplyScroll(scroll, current - delta * SCROLL_STEP)
 	end)
 
+	-- ── Hover reveals the scrollbar ────────────────────────────
+	-- Motion-only so clicks still reach the child widgets. Without this,
+	-- the scrollbar was only visible during active wheel-scroll, which
+	-- made it feel hidden most of the time.
+	if(scroll.SetMouseMotionEnabled) then
+		scroll:SetMouseMotionEnabled(true)
+	else
+		scroll:EnableMouse(true)
+	end
+	scroll:SetScript('OnEnter', function(self)
+		self._hovered = true
+		OnScrollActivity(self)
+	end)
+	scroll:SetScript('OnLeave', function(self)
+		self._hovered = false
+		if(self._thumb and self._thumb._dragging) then return end
+		if(self._fadeOutTimer) then
+			self._fadeOutTimer:Cancel()
+		end
+		self._fadeOutTimer = C_Timer.NewTimer(0.15, function()
+			self._fadeOutTimer = nil
+			if(self._hovered or self._thumb._dragging) then return end
+			FadeScrollbar(self, 0, FADE_OUT_DUR)
+		end)
+	end)
+
 	-- ── Thumb dragging ─────────────────────────────────────────
 	thumb:EnableMouse(true)
 
 	thumb:SetScript('OnMouseDown', function(self, button)
 		if(button ~= 'LeftButton') then return end
 		self._dragging   = true
+		-- Cancel any in-flight fade-out animation so the thumb doesn't
+		-- disappear mid-drag. The fade-out *timer* is already guarded by
+		-- _dragging, but once FadeScrollbar has started animating alpha
+		-- down, nothing else halts it — so the thumb can vanish while the
+		-- user is holding it. Force alpha back to 1 here.
+		if(track._anim) then track._anim['scrollbarFade'] = nil end
+		track:SetAlpha(1)
+		self:SetAlpha(1)
+		if(scroll._fadeOutTimer) then
+			scroll._fadeOutTimer:Cancel()
+			scroll._fadeOutTimer = nil
+		end
 		local _, cursorY = GetCursorPosition()
 		local scale      = track:GetEffectiveScale()
 		self._dragStartCursorY = cursorY / scale

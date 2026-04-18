@@ -142,14 +142,25 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 		naturalW = naturalW + (config.height or 60) + (C.Spacing.base or 4)
 	end
 
-	local previewScale = (naturalH > MAX_PREVIEW_H) and (MAX_PREVIEW_H / naturalH) or 1
+	-- Scale to fit both the vertical cap (MAX_PREVIEW_H) and the horizontal
+	-- cap (0.6 * totalW minus the card's inner padding). Without the
+	-- horizontal cap, naturally-wide content (e.g. raid count 40) either
+	-- pushed the card past its share of the row and spilled the summary
+	-- past the settings window's right edge, or — once previewW was clamped
+	-- to the 0.6 ceiling — the frames rendered wider than innerW and
+	-- visibly clipped on the right.
+	local ceil6 = math.max(1, math.floor(totalW * 0.6))
+	local maxInnerW = math.max(1, ceil6 - previewPad * 2)
+	local vScale = (naturalH > MAX_PREVIEW_H) and (MAX_PREVIEW_H / naturalH) or 1
+	local hScale = (naturalW > 0) and (maxInnerW / naturalW) or 1
+	local previewScale = math.min(vScale, hScale)
 	local scaledW = math.ceil(naturalW * previewScale)
 
-	local previewW = math.min(scaledW + previewPad * 2, math.floor(totalW * 0.6))
+	local previewW = scaledW + previewPad * 2
 	-- Floor just high enough for the longest common title ('Preview — Raid' etc.)
-	-- and the raid stepper row. Titles wider than this (e.g. 'Preview — Targettarget')
-	-- truncate with SetWordWrap(false) rather than forcing every preview card wider.
-	previewW = math.max(previewW, 112)
+	-- and the raid stepper row. Cap the floor at the 0.6 ceiling so very
+	-- narrow panels can't push the summary card off-window.
+	previewW = math.max(previewW, math.min(112, ceil6))
 	local summaryW = totalW - previewW - gap
 	return previewW, summaryW
 end

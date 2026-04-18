@@ -779,9 +779,10 @@ function FP.RebuildPreview()
 	local inset2 = PREVIEW_INSET * 2
 	local MAX_PREVIEW_H = 120
 	local cbExtra = getCastbarExtra(config)
-	local naturalH
+	local naturalH, naturalW
 	if(SOLO_FAKES[activeUnitType]) then
 		naturalH = config.height + cbExtra + inset2
+		naturalW = config.width
 	elseif(activeUnitType == 'raid' or GROUP_COUNTS[activeUnitType]) then
 		local count
 		if(activeUnitType == 'raid') then
@@ -789,20 +790,36 @@ function FP.RebuildPreview()
 		else
 			count = GROUP_COUNTS[activeUnitType]
 		end
-		local rows = math.min(count, config.unitsPerColumn)
+		local upc = config.unitsPerColumn or count
+		local cols = math.ceil(count / upc)
+		local rows = math.min(count, upc)
+		local isVertical = config.orientation == 'vertical'
 		naturalH = rows * config.height + (rows - 1) * config.spacing + cbExtra + inset2
+		if(isVertical) then
+			naturalW = cols * config.width + (cols - 1) * config.spacing
+		else
+			naturalW = rows * config.width + (rows - 1) * config.spacing
+		end
 	else
 		naturalH = config.height + cbExtra + inset2
+		naturalW = config.width
 	end
-
-	local previewScale = 1
-	if(naturalH > MAX_PREVIEW_H) then
-		previewScale = MAX_PREVIEW_H / naturalH
+	if(config.portrait) then
+		naturalW = naturalW + config.height + (C.Spacing.base or 4)
 	end
-	local viewH = math.ceil(naturalH * previewScale)
 
 	local outerW = activePreview:GetWidth()
 	local innerW = outerW - F.Widgets.CARD_PADDING * 2
+
+	-- Scale to fit BOTH the vertical cap and the card's actual inner width.
+	-- Mirroring ComputePinnedSplit ensures the scale here matches the scale
+	-- the predictor used when it sized the card, so frames never overhang
+	-- the right edge (regardless of count or window width).
+	local vScale = (naturalH > MAX_PREVIEW_H) and (MAX_PREVIEW_H / naturalH) or 1
+	local hScale = (naturalW > 0 and innerW > 0) and (innerW / naturalW) or 1
+	local previewScale = math.min(vScale, hScale)
+	local viewH = math.ceil(naturalH * previewScale)
+
 	viewport:SetScale(previewScale)
 	viewport:SetWidth(innerW / previewScale)
 	viewport:SetHeight(naturalH)
