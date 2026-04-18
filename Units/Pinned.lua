@@ -24,10 +24,10 @@ local function Style(self, unit)
 	self:RegisterForClicks('AnyUp')
 	self._framedUnitType = 'pinned'
 
-	local config = F.Units.Pinned.GetConfig()
+	local config = F.StyleBuilder.GetConfig('pinned')
 	if(config) then
 		F.Widgets.SetSize(self, config.width or 160, config.height or 40)
-		F.StyleBuilder.Apply(self, config, 'pinned')
+		F.StyleBuilder.Apply(self, unit, config, 'pinned')
 	else
 		F.Widgets.SetSize(self, 160, 40)
 	end
