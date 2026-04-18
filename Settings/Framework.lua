@@ -601,6 +601,15 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 	if(not Settings._mainFrame or not Settings._mainFrame:IsShown()) then return end
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
+	-- Redirect away from preset-specific panels that don't exist under the
+	-- new preset (pinned is absent in Solo). Rebuilding them would crash on
+	-- the first unitConfigs read.
+	if(activeId == 'pinned') then
+		local preset = Settings.GetEditingPreset()
+		if(not preset or not F.Config:Get('presets.' .. preset .. '.unitConfigs.pinned')) then
+			activeId = 'player'
+		end
+	end
 	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
 	else
