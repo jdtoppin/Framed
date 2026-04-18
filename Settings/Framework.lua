@@ -115,6 +115,11 @@ function Settings._getUnitTypeItems()
 	if(info and info.groupKey) then
 		items[#items + 1] = { text = info.groupLabel, value = info.groupKey }
 	end
+	-- Pinned appears as an additional group-tier unit type whenever the
+	-- active preset has an auras.pinned block (which Solo lacks).
+	if(presetName and F.Config and F.Config:Get('presets.' .. presetName .. '.auras.pinned')) then
+		items[#items + 1] = { text = 'Pinned Frames', value = 'pinned' }
+	end
 	return items
 end
 
