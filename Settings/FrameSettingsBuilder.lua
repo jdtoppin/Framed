@@ -159,10 +159,14 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 	local scaledW = math.ceil(naturalW * previewScale)
 
 	local previewW = scaledW + previewPad * 2
-	-- Floor just high enough for the longest common title ('Preview — Raid' etc.)
-	-- and the raid stepper row. Cap the floor at the 0.6 ceiling so very
-	-- narrow panels can't push the summary card off-window.
-	previewW = math.max(previewW, math.min(112, ceil6))
+	-- Floor the card at 40% of totalW (capped at the 60% ceiling) so narrow-content
+	-- units like boss/party don't collapse to content-width — the title + Focus Mode
+	-- toggle share the header row, and a ~112px floor truncated the title. Content
+	-- is still scaled by min(vScale, hScale) so the card is often wider than the
+	-- content; the viewport anchors content flush-left, leaving blank space on the
+	-- right rather than stretching or misaligning frames.
+	local widthFloor = math.min(math.floor(totalW * 0.4), ceil6)
+	previewW = math.max(previewW, widthFloor)
 	local summaryW = totalW - previewW - gap
 	return previewW, summaryW
 end
