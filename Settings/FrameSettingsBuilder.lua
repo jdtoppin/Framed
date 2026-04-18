@@ -874,7 +874,7 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	if(unitType == 'party') then
 		grid:AddCard('partyPets', 'Party Pets', F.SettingsCards.PartyPets, {})
 	end
-	if(unitType == 'pinned' and F.SettingsCards.Pinned) then
+	if(unitType == 'pinned') then
 		grid:AddCard('slotAssignments', 'Slot Assignments', F.SettingsCards.Pinned, {})
 	end
 
