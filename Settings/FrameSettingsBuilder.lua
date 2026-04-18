@@ -135,12 +135,10 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 	local scaledW = math.ceil(naturalW * previewScale)
 
 	local previewW = math.min(scaledW + previewPad * 2, math.floor(totalW * 0.6))
-	-- Floor just high enough for the title ('Preview — Raid') and the raid
-	-- stepper row to fit without truncating. 160 was too high: at low raid
-	-- counts (e.g. 5 frames, vertical orient → scaledW ≈ 80) it added
-	-- ~32px of blank space to the right of the frames and starved the
-	-- summary card of that width.
-	previewW = math.max(previewW, 128)
+	-- Floor just high enough for the longest common title ('Preview — Raid' etc.)
+	-- and the raid stepper row. Titles wider than this (e.g. 'Preview — Targettarget')
+	-- truncate with SetWordWrap(false) rather than forcing every preview card wider.
+	previewW = math.max(previewW, 112)
 	local summaryW = totalW - previewW - gap
 	return previewW, summaryW
 end
@@ -560,7 +558,10 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 
 	-- ── Pinned row: preview card (left) + summary card (right) ──
 	local pinnedGap = C.Spacing.tight
-	local PREVIEW_PAD = 24
+	-- Matches Widgets.CARD_PADDING * 2 so the preview card's outer width
+	-- equals its content width plus the symmetric inner insets — no
+	-- wasted blank space on the right of the frames.
+	local PREVIEW_PAD = 12
 	local previewW, summaryW = F.FrameSettingsBuilder.ComputePinnedSplit(width, pinnedGap, unitType, PREVIEW_PAD)
 
 	local previewCard = F.Settings.FramePreview.BuildPreviewCard(scroll, previewW, unitType)

@@ -874,14 +874,11 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
 	Widgets.CreateAccentBar(card, 'top')
 
-	-- Add extra right-edge padding so long titles (e.g. "Preview — Targettarget"
-	-- on narrow 120px cards) don't sit flush against the card edge. Affects the
-	-- viewport too, which is fine — the preview frame is centered/left-anchored
-	-- within it and can afford a few pixels.
-	local EXTRA_RIGHT_PAD = 6
+	-- Symmetric inner insets. Long titles truncate via SetWordWrap(false)
+	-- on the title FontString, so no extra right pad is needed.
 	inner:ClearAllPoints()
 	inner:SetPoint('TOPLEFT', card, 'TOPLEFT', Widgets.CARD_PADDING, -Widgets.CARD_PADDING)
-	inner:SetPoint('TOPRIGHT', card, 'TOPRIGHT', -(Widgets.CARD_PADDING + EXTRA_RIGHT_PAD), -Widgets.CARD_PADDING)
+	inner:SetPoint('TOPRIGHT', card, 'TOPRIGHT', -Widgets.CARD_PADDING, -Widgets.CARD_PADDING)
 
 	-- Header row
 	local title = Widgets.CreateFontString(inner, C.Font.sizeNormal, C.Colors.textActive)
@@ -986,7 +983,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	local TITLE_GAP = 12
 	local cyAfterTitle = cy
 	local function relayoutFocusAndRows(cardW)
-		local innerMeasuredW = cardW - Widgets.CARD_PADDING * 2 - EXTRA_RIGHT_PAD
+		local innerMeasuredW = cardW - Widgets.CARD_PADDING * 2
 		local titleW = title:GetStringWidth() or 0
 		local toggleW = focusToggle:GetWidth() or 0
 		-- Raid always keeps Focus Mode below the title. The stepper sits on
