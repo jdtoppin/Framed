@@ -104,12 +104,12 @@ local function buildVisualSettingsCard(parent, width)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local alphaSlider = Widgets.CreateSlider(inner, 'Overlay Alpha', widgetW, 0.0, 1.0, 0.05)
-	alphaSlider:SetValue(get('overlayAlpha') or 0.6)
+	alphaSlider:SetValue(get('overlayAlpha'))
 	alphaSlider:SetAfterValueChanged(function(v) set('overlayAlpha', v) end)
 	cy = placeWidget(alphaSlider, inner, cy, SLIDER_H)
 
 	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 12, 64, 1)
-	sizeSlider:SetValue(get('iconSize') or 32)
+	sizeSlider:SetValue(get('iconSize'))
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
@@ -191,9 +191,18 @@ F.Settings.RegisterPanel({
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
 			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 				grid:RebuildCards()
+				if(F.Settings._auraPreview) then
+					F.Settings.AuraPreview.Rebuild()
+				end
 			end, resizeKey .. '.complete')
-			grid:Layout(0, parentH, false)
-			content:SetHeight(grid:GetTotalHeight())
+			-- Catch up with any resize that happened while hidden
+			local curW = parent._explicitWidth  or parent:GetWidth()  or parentW
+			local curH = parent._explicitHeight or parent:GetHeight() or parentH
+			onResize(curW, curH)
+			grid:RebuildCards()
+			if(F.Settings._auraPreview) then
+				F.Settings.AuraPreview.Rebuild()
+			end
 		end)
 
 		scroll._ownedPreview = F.Settings._auraPreview

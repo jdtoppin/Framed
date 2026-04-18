@@ -49,8 +49,10 @@ luarocks --lua-version=5.1 install luacheck
 
 GitHub Actions runs the same check on pushes to `main` and on pull requests.
 
+## Third-Party Libraries
+
+Framed includes the following third-party libraries, each subject to their own license terms: oUF, LibStub, CallbackHandler, LibCustomGlow, LibSerialize, LibDeflate, LibSharedMedia, LibDataBroker, and LibDBIcon. See `Libs/` for details.
+
 ## License
 
 GPL v3. See [LICENSE](LICENSE) for details.
-
-oUF is licensed under MIT. See `Libs/oUF/LICENSE` for details.

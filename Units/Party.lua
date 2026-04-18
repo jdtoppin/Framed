@@ -41,10 +41,10 @@ local function PetStyle(self, unit)
 	self:SetScript('OnEnter', function(frame)
 		if(F.Config:Get('general.tooltipEnabled') == false) then return end
 		if(F.Config:Get('general.tooltipHideInCombat') and InCombatLockdown()) then return end
-		local mode = F.Config:Get('general.tooltipMode') or 'frame'
-		local anchor = F.Config:Get('general.tooltipAnchor') or 'RIGHT'
-		local offX = F.Config:Get('general.tooltipOffsetX') or 0
-		local offY = F.Config:Get('general.tooltipOffsetY') or 0
+		local mode = F.Config:Get('general.tooltipMode')
+		local anchor = F.Config:Get('general.tooltipAnchor')
+		local offX = F.Config:Get('general.tooltipOffsetX')
+		local offY = F.Config:Get('general.tooltipOffsetY')
 		if(mode == 'default') then
 			GameTooltip_SetDefaultAnchor(GameTooltip, frame)
 		elseif(mode == 'cursor') then
@@ -124,6 +124,30 @@ local function PetStyle(self, unit)
 	local moColor = F.Config:Get('general.mouseoverHighlightColor')
 	local moWidth = F.Config:Get('general.mouseoverHighlightWidth')
 	F.Elements.MouseoverHighlight.Setup(self, { color = moColor, thickness = moWidth })
+
+	-- Range fade — oUF's default uses UnitInParty(unit) for eligibility,
+	-- which returns false for pet tokens.  Override to check the owner
+	-- and hide entirely when the pet is cross-zone (UnitInRange returns
+	-- false,false for units not in the same instance).
+	F.Elements.Range.Setup(self, config.range)
+	self.Range.Override = function(frame, event)
+		local element = frame.Range
+		local u = frame.unit
+		if(not u) then return end
+		local ownerIndex = u:match('partypet(%d+)')
+		local owner = ownerIndex and ('party' .. ownerIndex)
+		local isEligible = owner and UnitIsConnected(owner) and UnitInParty(owner)
+		if(isEligible) then
+			local inRange, checkedRange = UnitInRange(u)
+			if(F.IsValueNonSecret(checkedRange) and not checkedRange) then
+				frame:SetAlpha(0)
+			else
+				frame:SetAlphaFromBoolean(inRange, element.insideAlpha, element.outsideAlpha)
+			end
+		else
+			frame:SetAlpha(element.outsideAlpha)
+		end
+	end
 
 	-- Store unit type for live config
 	self._framedUnitType = 'partypet'
@@ -221,9 +245,7 @@ function F.Units.Party.Spawn()
 
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('party')
-	local posX = config.position.x
-	local posY = config.position.y
-	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', posX, posY)
+	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', config.position.x, config.position.y)
 	Widgets.RegisterForUIScale(header)
 
 	F.Units.Party.header = header

@@ -221,16 +221,19 @@ local function Layout(grid, scrollOffset, viewHeight, animated)
 				if(grid._pinEnabled ~= false) then
 					addPinButton(entry, grid)
 				end
+				if(grid._onCardBuilt) then
+					grid._onCardBuilt(entry.id, entry)
+				end
 			end
 		end
+
+		entry._layoutY = cardTopY
 
 		if(entry.built and entry.card) then
 			local x = isFullWidth and 0 or shortestCol * (cardW + CARD_GAP)
 			local y = cardTopY
 
-			-- Store natural grid position
 			entry._layoutX = x
-			entry._layoutY = y
 
 			-- ── Sticky card: reparent to viewport when scrolled past ──
 			-- While sticky the card is parented to the scroll container

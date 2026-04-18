@@ -29,6 +29,9 @@ local function makeHelpers(unitType)
 		if(key ~= 'enabled' and F.EventBus) then
 			F.EventBus:Fire('CONFIG_CHANGED', 'presets.' .. presetName .. '.auras.' .. unitType .. '.missingBuffs')
 		end
+		if(key == 'enabled' and F.Settings.AuraPreview) then
+			F.Settings.AuraPreview.Rebuild()
+		end
 		F.Settings.UpdateAuraPreviewDimming('missingBuffs', nil)
 	end
 
@@ -73,7 +76,7 @@ local function buildOverviewCard(parent, width, get, set)
 	return card
 end
 
-local function buildDisplayCard(parent, width, get, set)
+local function buildLayoutCard(parent, width, get, set)
 	local card, inner, cy = Widgets.StartCard(parent, width, 0)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
@@ -95,12 +98,29 @@ local function buildDisplayCard(parent, width, get, set)
 	growDD:SetOnSelect(function(v) set('growDirection', v) end)
 	cy = placeWidget(growDD, inner, cy, DROPDOWN_H)
 
-	Widgets.EndCard(card, parent, cy)
-	return card
-end
+	-- Anchor picker
+	if(Widgets.CreateAnchorPicker) then
+		local anchor = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+		local picker = Widgets.CreateAnchorPicker(inner, widgetW, 50)
+		picker:SetAnchor(anchor[1] or 'CENTER', anchor[4] or 0, anchor[5] or 0)
+		picker:SetOnChanged(function(point, x, y)
+			local a = get('anchor') or { 'CENTER', nil, 'CENTER', 0, 0 }
+			a[1] = point
+			a[3] = point
+			a[4] = x
+			a[5] = y
+			set('anchor', a)
+		end)
+		cy = placeWidget(picker, inner, cy, picker._height or 91)
+	end
 
-local function buildPositionCard(parent, width, get, set)
-	local _, card = F.Settings.BuildPositionCard(parent, width, 0, get, set, { noHeading = true })
+	-- Frame level
+	local flSlider = Widgets.CreateSlider(inner, 'Frame Level', widgetW, 1, 50, 1)
+	flSlider:SetValue(get('frameLevel') or 5)
+	flSlider:SetAfterValueChanged(function(val) set('frameLevel', val) end)
+	cy = placeWidget(flSlider, inner, cy, SLIDER_H)
+
+	Widgets.EndCard(card, parent, cy)
 	return card
 end
 
@@ -139,12 +159,11 @@ F.Settings.RegisterPanel({
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(yOffset))
 
-		grid:AddCard('preview',  'Preview',          F.Settings.AuraPreview.BuildPreviewCard, {})
+		grid:AddCard('preview',  'Preview',     F.Settings.AuraPreview.BuildPreviewCard, {})
 		grid:SetSticky('preview')
-		grid:AddCard('overview', 'Overview',         buildOverviewCard, { get, set })
-		grid:AddCard('display',  'Display Settings', buildDisplayCard,  { get, set })
-		grid:AddCard('layout',   'Layout',           buildPositionCard, { get, set })
-		grid:AddCard('glow',     'Border Glow',      buildGlowCard,     { get, set })
+		grid:AddCard('overview', 'Overview',    buildOverviewCard, { get, set })
+		grid:AddCard('layout',   'Layout',      buildLayoutCard,   { get, set })
+		grid:AddCard('glow',     'Border Glow', buildGlowCard,     { get, set })
 
 		grid:Layout(0, parentH)
 		content:SetHeight(grid:GetTotalHeight())
@@ -185,9 +204,18 @@ F.Settings.RegisterPanel({
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
 			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 				grid:RebuildCards()
+				if(F.Settings._auraPreview) then
+					F.Settings.AuraPreview.Rebuild()
+				end
 			end, resizeKey .. '.complete')
-			grid:Layout(0, parentH, false)
-			content:SetHeight(grid:GetTotalHeight())
+			-- Catch up with any resize that happened while hidden
+			local curW = parent._explicitWidth  or parent:GetWidth()  or parentW
+			local curH = parent._explicitHeight or parent:GetHeight() or parentH
+			onResize(curW, curH)
+			grid:RebuildCards()
+			if(F.Settings._auraPreview) then
+				F.Settings.AuraPreview.Rebuild()
+			end
 		end)
 
 		scroll._ownedPreview = F.Settings._auraPreview

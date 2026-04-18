@@ -18,9 +18,7 @@ local DROPDOWN_H = 22
 local get, set
 
 -- ============================================================
--- Card builders
--- Each follows CardGrid builder signature:
---   function(parent, width, data, update, get, set, rebuildPanel)
+-- Card builders — function(parent, width) → card frame
 -- ============================================================
 
 local function placeWidget(widget, content, yOffset, height)
@@ -182,21 +180,60 @@ F.Settings.RegisterPanel({
 		-- Unit type dropdown + copy-to
 		yOffset = F.Settings.BuildAuraUnitTypeRow(content, width, yOffset, 'externals', 'externals')
 
-		-- ── CardGrid ─────────────────────────────────────────────
+		-- ── Pinned row: Preview | Overview ───────────────────────
+		local CARD_GAP      = C.Spacing.normal
+		local pinnedRowY    = yOffset
+		local previewCardW  = math.floor((width - CARD_GAP) * 0.40)
+		local overviewCardW = width - previewCardW - CARD_GAP
+
+		local previewCard = F.Settings.AuraPreview.BuildPreviewCard(content, previewCardW)
+		previewCard:ClearAllPoints()
+		Widgets.SetPoint(previewCard, 'TOPLEFT', content, 'TOPLEFT', 0, pinnedRowY)
+		local previewCardH     = previewCard:GetHeight()
+		local previewOrigLevel = previewCard:GetFrameLevel()
+
+		local overviewCard = buildOverviewCard(content, overviewCardW)
+		overviewCard:ClearAllPoints()
+		Widgets.SetPoint(overviewCard, 'TOPLEFT', content, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
+
+		local pinnedRowH = math.max(previewCardH, overviewCard:GetHeight())
+		previewCard:SetHeight(pinnedRowH)
+		overviewCard:SetHeight(pinnedRowH)
+		yOffset = pinnedRowY - pinnedRowH - C.Spacing.normal
+
+		-- ── CardGrid for settings cards ──────────────────────────
 		local grid = Widgets.CreateCardGrid(content, width)
 		grid:SetTopOffset(math.abs(yOffset))
 
-		grid:AddCard('preview',       'Preview',           F.Settings.AuraPreview.BuildPreviewCard, {})
-		grid:SetSticky('preview')
-		grid:AddCard('overview',      'Overview',          buildOverviewCard,      {})
-		grid:AddCard('display',       'Display',           buildDisplayCard,       {})
-		grid:AddCard('layout',        'Layout',            buildLayoutCard,        {})
-		grid:AddCard('durationFont',  'Duration',          buildDurationFontCard,  {})
-		grid:AddCard('stackFont',     'Stacks',            buildStackFontCard,     {})
+		grid:AddCard('display',      'Display',  buildDisplayCard,      {})
+		grid:AddCard('layout',       'Layout',   buildLayoutCard,       {})
+		grid:AddCard('durationFont', 'Duration', buildDurationFontCard, {})
+		grid:AddCard('stackFont',    'Stacks',   buildStackFontCard,    {})
 
 		grid:Layout(0, parentH)
 		content:SetHeight(grid:GetTotalHeight())
 		scroll:UpdateScrollRange()
+
+		-- ── Pin preview + overview above scroll ──────────────────
+		local scrim = CreateFrame('Frame', nil, scroll)
+		scrim:SetFrameLevel(previewOrigLevel + 49)
+		scrim:SetPoint('TOPLEFT', scroll, 'TOPLEFT', 0, 0)
+		scrim:SetPoint('TOPRIGHT', scroll, 'TOPRIGHT', 0, 0)
+		scrim:SetHeight(math.abs(pinnedRowY) + pinnedRowH + C.Spacing.normal)
+		local scrimBg = scrim:CreateTexture(nil, 'BACKGROUND')
+		scrimBg:SetAllPoints(scrim)
+		local bg = C.Colors.background
+		scrimBg:SetColorTexture(bg[1], bg[2], bg[3], 0.85)
+
+		previewCard:SetParent(scroll)
+		previewCard:SetFrameLevel(previewOrigLevel + 50)
+		previewCard:ClearAllPoints()
+		Widgets.SetPoint(previewCard, 'TOPLEFT', scroll, 'TOPLEFT', 0, pinnedRowY)
+
+		overviewCard:SetParent(scroll)
+		overviewCard:SetFrameLevel(previewOrigLevel + 50)
+		overviewCard:ClearAllPoints()
+		Widgets.SetPoint(overviewCard, 'TOPLEFT', scroll, 'TOPLEFT', previewCardW + CARD_GAP, pinnedRowY)
 
 		-- ── Scroll integration ───────────────────────────────────
 		local function onScroll()
@@ -211,17 +248,58 @@ F.Settings.RegisterPanel({
 		end)
 
 		-- ── Resize handling ──────────────────────────────────────
-		local resizeKey = 'Externals.resize'
+		local resizeKey        = 'Externals.resize'
+		local currentPreviewW  = previewCardW
+		local currentOverviewW = overviewCardW
+
 		local function onResize(newW)
-			local newWidth = newW - C.Spacing.normal * 2
+			local newWidth      = newW - C.Spacing.normal * 2
+			currentPreviewW     = math.floor((newWidth - CARD_GAP) * 0.40)
+			currentOverviewW    = newWidth - currentPreviewW - CARD_GAP
+
+			previewCard:SetWidth(currentPreviewW)
+			overviewCard:SetWidth(currentOverviewW)
+			overviewCard:ClearAllPoints()
+			Widgets.SetPoint(overviewCard, 'TOPLEFT', scroll, 'TOPLEFT', currentPreviewW + CARD_GAP, pinnedRowY)
+
+			local preview = F.Settings._auraPreview
+			if(preview) then
+				preview._maxWidth = currentPreviewW - Widgets.CARD_PADDING * 2
+			end
+
 			grid:SetWidth(newWidth)
 			content:SetHeight(grid:GetTotalHeight())
 		end
 
-		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
-		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
+		local function rebuildPinnedRow()
+			local oldOverview = overviewCard
+			overviewCard = buildOverviewCard(scroll, currentOverviewW)
+			overviewCard:SetFrameLevel(previewOrigLevel + 50)
+			overviewCard:ClearAllPoints()
+			Widgets.SetPoint(overviewCard, 'TOPLEFT', scroll, 'TOPLEFT', currentPreviewW + CARD_GAP, pinnedRowY)
+
+			pinnedRowH = math.max(previewCard:GetHeight(), overviewCard:GetHeight())
+			previewCard:SetHeight(pinnedRowH)
+			overviewCard:SetHeight(pinnedRowH)
+			scrim:SetHeight(math.abs(pinnedRowY) + pinnedRowH + C.Spacing.normal)
+			grid:SetTopOffset(math.abs(pinnedRowY) + pinnedRowH + C.Spacing.normal)
+
+			oldOverview:Hide()
+			oldOverview:SetParent(nil)
+		end
+
+		local function fullRebuild()
+			if(F.Settings._auraPreview) then
+				F.Settings.AuraPreview.Rebuild()
+			end
+			rebuildPinnedRow()
 			grid:RebuildCards()
-		end, resizeKey .. '.complete')
+			content:SetHeight(grid:GetTotalHeight())
+			scroll:UpdateScrollRange()
+		end
+
+		F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
+		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', fullRebuild, resizeKey .. '.complete')
 
 		-- ── Cleanup on hide, re-register on show ─────────────────
 		scroll:HookScript('OnHide', function()
@@ -232,11 +310,10 @@ F.Settings.RegisterPanel({
 
 		scroll:HookScript('OnShow', function()
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
-			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
-				grid:RebuildCards()
-			end, resizeKey .. '.complete')
-			grid:Layout(0, parentH, false)
-			content:SetHeight(grid:GetTotalHeight())
+			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', fullRebuild, resizeKey .. '.complete')
+			local curW = parent._explicitWidth or parent:GetWidth() or parentW
+			onResize(curW)
+			fullRebuild()
 		end)
 
 		scroll._ownedPreview = F.Settings._auraPreview

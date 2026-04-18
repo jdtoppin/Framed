@@ -68,9 +68,7 @@ function F.Units.Raid.Spawn()
 
 	-- Set visibility separately via the header mixin
 	header:SetVisibility('raid')
-	local posX = config.position.x
-	local posY = config.position.y
-	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', posX, posY)
+	header:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', config.position.x, config.position.y)
 	Widgets.RegisterForUIScale(header)
 
 	F.Units.Raid.header = header

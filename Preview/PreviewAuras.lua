@@ -8,6 +8,33 @@ local PA = F.PreviewAuras
 local PI = F.PreviewIndicators
 
 -- ============================================================
+-- Anchor derivation for Icons containers (mirrors Buffs.lua)
+-- ============================================================
+
+local POINT_V = {
+	TOPLEFT = 'TOP', TOP = 'TOP', TOPRIGHT = 'TOP',
+	LEFT = '', CENTER = '', RIGHT = '',
+	BOTTOMLEFT = 'BOTTOM', BOTTOM = 'BOTTOM', BOTTOMRIGHT = 'BOTTOM',
+}
+local POINT_H = {
+	TOPLEFT = 'LEFT', TOP = '', TOPRIGHT = 'RIGHT',
+	LEFT = 'LEFT', CENTER = '', RIGHT = 'RIGHT',
+	BOTTOMLEFT = 'LEFT', BOTTOM = '', BOTTOMRIGHT = 'RIGHT',
+}
+
+local function deriveContainerPoint(parentPoint, growDirection)
+	local v = POINT_V[parentPoint] or ''
+	local h = POINT_H[parentPoint] or ''
+	if(growDirection == 'RIGHT') then h = 'LEFT'
+	elseif(growDirection == 'LEFT') then h = 'RIGHT'
+	elseif(growDirection == 'DOWN') then v = 'TOP'
+	elseif(growDirection == 'UP') then v = 'BOTTOM'
+	end
+	local pt = v .. h
+	return (pt ~= '') and pt or 'CENTER'
+end
+
+-- ============================================================
 -- Aura group alpha (dim/highlight)
 -- ============================================================
 
@@ -76,6 +103,8 @@ local function BuildBuffIndicators(frame, buffsConfig, animated)
 				local max = math.min(indCfg.maxDisplayed or 3, 5)
 				local w = indCfg.iconWidth or 14
 				local h = indCfg.iconHeight or 14
+				local orientation = indCfg.orientation or 'RIGHT'
+				local derivedPt = deriveContainerPoint(relPt, orientation)
 				local isSquare = (indCfg.displayType == C.IconDisplay.COLORED_SQUARE)
 				for i = 1, max do
 					local elem
@@ -84,8 +113,8 @@ local function BuildBuffIndicators(frame, buffsConfig, animated)
 					else
 						elem = PI.CreateIcon(groupFrame, fakeIcons[((i-1) % #fakeIcons) + 1], w, h, indCfg, animated)
 					end
-					local dx, dy = PI.OrientOffset(indCfg.orientation or 'RIGHT', i, w, h, indCfg.spacingX, indCfg.spacingY)
-					elem:SetPoint(pt, frame, relPt, offX + dx, offY + dy)
+					local dx, dy = PI.OrientOffset(orientation, i, w, h, indCfg.spacingX, indCfg.spacingY)
+					elem:SetPoint(derivedPt, frame, relPt, offX + dx, offY + dy)
 					groupFrame._elements[#groupFrame._elements + 1] = elem
 				end
 
@@ -305,9 +334,29 @@ local function BuildSimpleIconGroup(frame, groupKey, cfg)
 	local fakeIcons = PI.GetFakeIcons(groupKey)
 
 	if(groupKey == 'missingBuffs') then
-		local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[1], size, 1, nil, { showCooldown = false, showDuration = false })
-		bi:SetPoint(pt, frame, relPt, offX, offY)
-		groupFrame._elements[1] = bi
+		local orient = cfg.growDirection or 'LEFT'
+		local spacing = cfg.spacing or 2
+		local count = math.min(#fakeIcons, 3)
+		for i = 1, count do
+			local bi = PI.CreateBorderIcon(groupFrame, fakeIcons[((i - 1) % #fakeIcons) + 1], size, 1, nil, { showCooldown = false, showDuration = false, showStacks = false })
+			local offset = (i - 1) * (size + spacing)
+			local dx, dy = 0, 0
+			if(orient == 'RIGHT') then     dx =  offset
+			elseif(orient == 'LEFT') then  dx = -offset
+			elseif(orient == 'DOWN') then  dy = -offset
+			elseif(orient == 'UP') then    dy =  offset
+			end
+			bi:SetPoint(pt, frame, pt, offX + dx, offY + dy)
+			groupFrame._elements[#groupFrame._elements + 1] = bi
+			if(cfg.glowType and cfg.glowType ~= 'None' and F.Indicators and F.Indicators.BorderGlow) then
+				local glow = F.Indicators.BorderGlow.Create(bi, {
+					borderGlowMode = 'Glow',
+					glowType = cfg.glowType,
+					glowColor = cfg.glowColor,
+				})
+				glow:Start()
+			end
+		end
 	else
 		local icon = PI.CreateIcon(groupFrame, fakeIcons[1], size, size, { showCooldown = false, durationMode = 'Never', showStacks = false })
 		icon:SetPoint(pt, frame, relPt, offX, offY)

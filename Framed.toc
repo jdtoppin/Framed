@@ -2,7 +2,7 @@
 ## Title: Framed
 ## Notes: Modern, customizable unit frames and raid frames
 ## Author: Moodibs
-## Version: 0.8.9-alpha
+## Version: 0.8.10-alpha
 ## X-Curse-Project-ID: 1513359
 ## SavedVariables: FramedDB, FramedBackupDB, FramedSnapshotsDB
 ## SavedVariablesPerCharacter: FramedCharDB
@@ -30,7 +30,6 @@ Core/Version.lua
 Core/ColorUtils.lua
 Media/Media.lua
 Core/SecretValues.lua
-Core/DispelCapability.lua
 Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
@@ -163,7 +162,6 @@ Preview/PreviewManager.lua
 
 # Settings
 Settings/Framework.lua
-Settings/CopyToDialog.lua
 Settings/MainFrame.lua
 Settings/Sidebar.lua
 Settings/FrameSettingsBuilder.lua
@@ -194,6 +192,7 @@ Settings/Builders/DebuffIndicatorCRUD.lua
 Settings/Builders/SharedCards.lua
 Settings/Builders/IndicatorCardBuilders.lua
 Settings/Builders/AuraPreview.lua
+Settings/Builders/FramePreview.lua
 Settings/Panels/Appearance.lua
 Settings/Panels/FramePresets.lua
 Settings/Panels/Backups.lua

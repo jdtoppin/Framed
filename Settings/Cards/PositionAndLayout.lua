@@ -179,7 +179,6 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		heightSlider:SetValue(Widgets.Round(newH))
 	end, evtTag .. '.resize')
 
-	-- ── Live sync from drag stop ─────────────────────────────
 	F.EventBus:Register('EDIT_MODE_DRAG_STOPPED', function(frameKey)
 		if(frameKey ~= unitType) then return end
 		local x = F.EditCache.Get(unitType, 'position.x')
@@ -188,7 +187,6 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		posYSlider:SetValue(Widgets.Round(y))
 	end, evtTag .. '.drag')
 
-	-- ── Live sync during drag ────────────────────────────────
 	F.EventBus:Register('EDIT_MODE_DRAGGING', function(frameKey, x, y)
 		if(frameKey ~= unitType) then return end
 		posXSlider:SetValue(x)

@@ -128,14 +128,14 @@ local function buildDisplayCard(parent, width)
 	local widgetW = width - Widgets.CARD_PADDING * 2
 
 	local sizeSlider = Widgets.CreateSlider(inner, 'Icon Size', widgetW, 8, 48, 1)
-	sizeSlider:SetValue(get('iconSize') or 16)
+	sizeSlider:SetValue(get('iconSize'))
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
 	local durCheck = Widgets.CreateCheckButton(inner, 'Show Duration', function(checked)
 		set('showDuration', checked)
 	end)
-	durCheck:SetChecked(get('showDuration') ~= false)
+	durCheck:SetChecked(get('showDuration'))
 	cy = placeWidget(durCheck, inner, cy, CHECK_H)
 
 	Widgets.EndCard(card, parent, cy)
@@ -223,9 +223,18 @@ F.Settings.RegisterPanel({
 			F.EventBus:Register('SETTINGS_RESIZED', onResize, resizeKey)
 			F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 				grid:RebuildCards()
+				if(F.Settings._auraPreview) then
+					F.Settings.AuraPreview.Rebuild()
+				end
 			end, resizeKey .. '.complete')
-			grid:Layout(0, parentH, false)
-			content:SetHeight(grid:GetTotalHeight())
+			-- Catch up with any resize that happened while hidden
+			local curW = parent._explicitWidth  or parent:GetWidth()  or parentW
+			local curH = parent._explicitHeight or parent:GetHeight() or parentH
+			onResize(curW, curH)
+			grid:RebuildCards()
+			if(F.Settings._auraPreview) then
+				F.Settings.AuraPreview.Rebuild()
+			end
 		end)
 
 		scroll._ownedPreview = F.Settings._auraPreview

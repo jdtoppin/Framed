@@ -158,8 +158,8 @@ local function Rebuild(element, config)
 	if(element._stopTimer) then element._stopTimer(element) end
 	if(element.icon) then element.icon:Hide() end
 
-	local iconSize = config.iconSize or 24
-	local point    = config.anchor or { 'CENTER', nil, 'CENTER', 0, 0 }
+	local iconSize = config.iconSize
+	local point    = config.anchor
 	element._spells = config.spells
 
 	if(element.icon) then

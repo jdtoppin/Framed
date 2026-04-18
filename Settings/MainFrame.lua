@@ -248,20 +248,14 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerUnitTypeDD, 'LEFT', Settings._headerPanelText, 'RIGHT', 4, 0)
 	Settings._headerUnitTypeDD:Hide()
 
-	-- ── Copy-to button next to the inline dropdown ──────────────
-	-- Visible only on the base aura page; hidden when drilled into
-	-- a specific indicator.
-	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy to...', 'widget', 80, 20)
-	Settings._headerCopyToBtn:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerCopyToBtn, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 8, 0)
-	Settings._headerCopyToBtn:Hide()
-
 	-- ── Drill-in breadcrumb suffix (e.g. "  >  Major Cooldowns") ──
 	-- Shown only while editing a specific indicator inside an aura panel.
 	Settings._headerIndicatorText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
 	Settings._headerIndicatorText:ClearAllPoints()
 	Widgets.SetPoint(Settings._headerIndicatorText, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 8, 0)
 	Settings._headerIndicatorText:SetText('')
+	Settings._headerIndicatorText:SetWordWrap(false)
+	Settings._headerIndicatorText:SetJustifyH('LEFT')
 	Settings._headerIndicatorText:Hide()
 
 	Settings._headerPresetText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.accent)
@@ -269,6 +263,21 @@ function Settings.CreateMainFrame()
 	Widgets.SetPoint(Settings._headerPresetText, 'RIGHT', titleCard, 'RIGHT', -C.Spacing.normal, 0)
 	Settings._headerPresetText:SetText('')
 	Settings._headerPresetText:Hide()
+
+	-- ── Copy-to control (label + dropdown + Copy button) ───────
+	-- Right-aligned stack that sits immediately left of _headerPresetText.
+	-- Visible only on aura panels that registered a configKey.
+	-- Framework.activateAuraHeaderControls populates the dropdown and
+	-- wires the button per panel.
+	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy To', 'accent', 64, 20)
+	Settings._headerCopyToBtn:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToBtn, 'RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)
+	Settings._headerCopyToBtn:Hide()
+
+	Settings._headerCopyToDD = Widgets.CreateDropdown(titleCard, 84)
+	Settings._headerCopyToDD:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerCopyToDD, 'RIGHT', Settings._headerCopyToBtn, 'LEFT', -C.Spacing.tight, 0)
+	Settings._headerCopyToDD:Hide()
 
 	-- Preview anchor (populated by AuraPreview when an aura panel is active)
 	Settings._headerPreviewAnchor = titleCard
@@ -327,6 +336,10 @@ function Settings.CreateMainFrame()
 				Settings._contentParent._explicitHeight = contentH
 				F.EventBus:Fire('SETTINGS_RESIZED', Settings._contentParent._explicitWidth, Settings._contentParent._explicitHeight)
 			end
+		end
+		-- Restore preview ref cleared by OnHide (SetActivePanel only runs on panel switch)
+		if(Settings._activePanelFrame and Settings._activePanelFrame._ownedPreview) then
+			Settings._auraPreview = Settings._activePanelFrame._ownedPreview
 		end
 	end)
 

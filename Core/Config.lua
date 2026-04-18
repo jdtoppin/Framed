@@ -34,6 +34,9 @@ local accountDefaults = {
 		pinnedPresetCards = {},
 		editModeGridSnap = true,
 		editModeAnimate = false,
+		settingsFocusMode = false,
+		settingsPos = nil,
+		settingsSize = nil,
 	},
 	minimap = { hide = false },
 	presets = {},       -- populated by Presets/Defaults.lua
@@ -53,6 +56,9 @@ local charDefaults = {
 	lastPanel = nil,
 	lastEditingPreset = nil,
 	lastEditingUnitType = nil,
+	settings = {
+		raidPreviewCount = 8,
+	},
 }
 
 local function applyRuntimeConfig()

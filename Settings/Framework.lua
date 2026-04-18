@@ -197,14 +197,19 @@ end
 --- Called by SetActivePanel after the panel's unit type has been
 --- normalized.
 local function activateAuraHeaderControls(info)
-	local dd    = Settings._headerUnitTypeDD
-	local copy  = Settings._headerCopyToBtn
-	local indic = Settings._headerIndicatorText
+	local dd        = Settings._headerUnitTypeDD
+	local copy      = Settings._headerCopyToBtn
+	local indic     = Settings._headerIndicatorText
+	local copyDD    = Settings._headerCopyToDD
 	if(not dd or not copy or not indic) then return end
 
 	if(not info or info.subSection ~= 'auras') then
 		if(dd.Close) then dd:Close() end
 		dd:Hide()
+		if(copyDD) then
+			if(copyDD.Close) then copyDD:Close() end
+			copyDD:Hide()
+		end
 		copy:Hide()
 		indic:Hide()
 		indic:SetText('')
@@ -231,19 +236,56 @@ local function activateAuraHeaderControls(info)
 	-- Copy-to: visible only when the panel registered a configKey.
 	local configKey = Settings._auraConfigKeys[info.id]
 	if(configKey) then
-		copy:SetOnClick(function()
-			Settings.ShowCopyToDialog(configKey, info.label or info.id, info.id)
-		end)
-		-- Disable when there's only one unit type to choose from.
-		if(#Settings._getUnitTypeItems() <= 1) then
-			copy:Disable()
-		else
-			copy:Enable()
+		-- Build target list = all unit types EXCEPT the current source.
+		local sourceUnit = Settings.GetEditingUnitType()
+		local targets = {}
+		for _, item in next, Settings._getUnitTypeItems() do
+			if(item.value ~= sourceUnit) then
+				targets[#targets + 1] = { text = item.text, value = item.value }
+			end
 		end
-		copy:Show()
+
+		if(#targets == 0) then
+			-- Only one unit type exists — nothing to copy to.
+			if(copyDD) then copyDD:Hide() end
+			copy:Hide()
+		else
+			if(copyDD) then
+				copyDD:SetItems(targets)
+				copyDD:SetValue(targets[1].value)
+				copyDD:Show()
+			end
+
+			copy:SetOnClick(function()
+				local target = copyDD:GetValue()
+				if(not target) then return end
+				if(Settings.CopyTo(configKey, target)) then
+					-- Invalidate + refresh so the active panel rebuilds
+					-- against the new config.
+					Settings._panelFrames[info.id] = nil
+					Settings.RefreshActivePanel()
+					-- Friendly chat confirmation (mirrors dialog output).
+					local targetLabel = target
+					for _, item in next, targets do
+						if(item.value == target) then targetLabel = item.text; break end
+					end
+					print('Framed: Copied ' .. (info.label or info.id) .. ' settings to ' .. targetLabel)
+				end
+			end)
+			copy:Enable()
+			copy:Show()
+		end
 	else
+		if(copyDD) then
+			if(copyDD.Close) then copyDD:Close() end
+			copyDD:Hide()
+		end
 		copy:Hide()
 	end
+
+	-- Constrain indicator text width so it truncates before right-side controls.
+	local rightAnchor = (copyDD and copy:IsShown()) and copyDD or Settings._headerPresetText
+	indic:SetPoint('RIGHT', rightAnchor, 'LEFT', -C.Spacing.normal, 0)
 
 	-- Reset drill-in state — SetActivePanel always lands on the base page.
 	indic:Hide()
@@ -374,6 +416,12 @@ function Settings.SetActivePanel(panelId)
 
 	Settings._activePanelFrame = Settings._panelFrames[panelId]
 	if(Settings._activePanelFrame) then
+		-- Clear stale preview pointer before Show.  OnShow for CardGrid
+		-- panels will set it to a fresh frame via BuildPreviewCard;
+		-- pinned-preview panels leave it nil so the sync below restores
+		-- from _ownedPreview instead of keeping the previous panel's ref.
+		Settings._auraPreview = nil
+
 		local SLIDE_OFFSET = 20
 		Settings._activePanelFrame:SetAlpha(0)
 		Settings._activePanelFrame:Show()
@@ -395,12 +443,19 @@ function Settings.SetActivePanel(panelId)
 			Settings._activePanelFrame:ScrollToTop()
 		end
 
-		-- Restore this panel's owned preview (if it has one) and re-render
+		-- Restore this panel's owned preview (if it has one) and re-render.
+		-- OnShow (triggered by Show above) may have rebuilt the preview via
+		-- RebuildCards → BuildPreviewCard, which sets _auraPreview to the
+		-- new frame.  In that case, sync _ownedPreview forward rather than
+		-- overwriting the fresh reference with the stale one.
 		if(Settings._activePanelFrame._ownedPreview) then
-			Settings._auraPreview = Settings._activePanelFrame._ownedPreview
+			if(Settings._auraPreview) then
+				Settings._activePanelFrame._ownedPreview = Settings._auraPreview
+			else
+				Settings._auraPreview = Settings._activePanelFrame._ownedPreview
+			end
 			Settings._activePreviewGroup = panelId
 			if(F.Settings.AuraPreview) then
-				-- Use the preview's stored unit type (matches "Configure for")
 				local unitType = Settings._auraPreview._unitType
 					or (Settings.GetEditingUnitType and Settings.GetEditingUnitType())
 					or 'player'
@@ -448,6 +503,11 @@ function Settings.SetActivePanel(panelId)
 	-- Show/hide and populate the inline unit dropdown + Copy-to button
 	activateAuraHeaderControls(info)
 
+	-- Restore drill-in breadcrumb if the panel re-entered with an active indicator
+	if(Settings._activePanelFrame and Settings._activePanelFrame._editingIndicatorName) then
+		Settings.UpdateAuraBreadcrumb(info.label or '', Settings._activePanelFrame._editingIndicatorName)
+	end
+
 	-- ── Show/hide aura sidebar buttons based on active panel ─
 	-- Defensives/Externals are hidden only while the Pet page is active.
 	F.EventBus:Fire('ACTIVE_PANEL_CHANGED', panelId)
@@ -468,22 +528,23 @@ function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 
 	local indic = Settings._headerIndicatorText
 	local copy  = Settings._headerCopyToBtn
+	local copyDD    = Settings._headerCopyToDD
 	if(indicatorName) then
 		if(indic) then
 			indic:SetText('|cff6688cc>|r  ' .. indicatorName)
 			indic:Show()
 		end
-		if(copy) then copy:Hide() end
 	else
 		if(indic) then
 			indic:SetText('')
 			indic:Hide()
 		end
 		-- Restore Copy-to only if this panel has a configKey registered.
-		if(copy) then
-			local activeId = Settings._activePanelId
-			local configKey = activeId and Settings._auraConfigKeys[activeId]
-			if(configKey) then copy:Show() end
+		local activeId = Settings._activePanelId
+		local configKey = activeId and Settings._auraConfigKeys[activeId]
+		if(configKey) then
+			if(copyDD) then copyDD:Show() end
+			if(copy) then copy:Show() end
 		end
 	end
 end
@@ -516,6 +577,15 @@ end, 'Settings.HeaderUnitTypeSync')
 -- Invalidate all preset-scoped panels so stale frames are rebuilt
 -- when the user navigates to them.
 F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+	-- Refresh header dropdown items unconditionally — during zone
+	-- transitions the main frame may not be :IsShown() yet, but the
+	-- items must be correct when it reappears.
+	local dd = Settings._headerUnitTypeDD
+	if(dd) then
+		dd:SetItems(buildHeaderUnitTypeItems())
+		dd:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
+	end
+
 	for _, p in next, registeredPanels do
 		if(p.section == 'PRESET_SCOPED' and Settings._panelFrames[p.id]) then
 			Settings._panelFrames[p.id] = nil
@@ -534,7 +604,6 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 end, 'Settings.PanelRefresh')
 
 --- Call the active panel's Refresh callback, if it has one.
---- Used by CopyToDialog after a copy operation completes.
 function Settings.RefreshActivePanel()
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
@@ -581,11 +650,11 @@ function Settings.Show()
 	if(not Settings._mainFrame) then
 		Settings.CreateMainFrame()
 	end
-	Settings._syncPresetIfContentChanged()
 	Widgets.FadeIn(Settings._mainFrame)
 	if(not Settings._sidebarBuilt) then
 		Settings.BuildSidebar()
 	end
+	Settings._syncPresetIfContentChanged()
 end
 
 --- Hide the settings window (fade out).

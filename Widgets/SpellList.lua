@@ -18,6 +18,7 @@ local ARROW_SIZE   = 12
 local ARROW_GAP    = 2
 local PAD_H        = 6   -- horizontal padding inside each row
 local SWATCH_SIZE  = 12  -- per-spell color swatch
+local ID_WIDTH     = 48
 
 -- Use a single arrow icon; flip via TexCoord for the other direction
 local ARROW_ICON = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
@@ -31,6 +32,16 @@ local function GetSpellData(spellID)
 		if(name) then return name, icon end
 	end
 	return nil, nil
+end
+
+local function TruncateText(fs, text, maxWidth)
+	fs:SetText(text)
+	if(fs:GetStringWidth() <= maxWidth) then return end
+	for i = #text, 1, -1 do
+		fs:SetText(text:sub(1, i) .. '..')
+		if(fs:GetStringWidth() <= maxWidth) then return end
+	end
+	fs:SetText('..')
 end
 
 -- Row pool helpers
@@ -85,17 +96,6 @@ local function CreateRow(parent)
 	icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
 	row._icon = icon
 
-	-- Spell name + ID on same line
-	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
-	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
-	nameFS:SetJustifyH('LEFT')
-	row._nameFS = nameFS
-
-	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
-	idFS:SetJustifyH('LEFT')
-	idFS:SetPoint('LEFT', nameFS, 'RIGHT', ICON_GAP, 0)
-	row._idFS = idFS
-
 	-- Right side controls (right to left): remove, down, up, [color swatch]
 
 	-- Remove button (Close icon)
@@ -128,6 +128,19 @@ local function CreateRow(parent)
 	upBtn:SetPoint('RIGHT', downBtn, 'LEFT', -ARROW_GAP, 0)
 	row._upBtn = upBtn
 
+	-- Spell name + ID on same line (left-to-right anchor chain)
+	local nameFS = Widgets.CreateFontString(row, C.Font.sizeNormal, C.Colors.textActive)
+	nameFS:SetJustifyH('LEFT')
+	nameFS:SetWordWrap(false)
+	nameFS:SetPoint('LEFT', iconFrame, 'RIGHT', ICON_GAP, 0)
+	row._nameFS = nameFS
+
+	local idFS = Widgets.CreateFontString(row, C.Font.sizeSmall, C.Colors.textSecondary)
+	idFS:SetJustifyH('LEFT')
+	idFS:SetWordWrap(false)
+	idFS:SetPoint('LEFT', nameFS, 'RIGHT', ICON_GAP, 0)
+	row._idFS = idFS
+
 	-- Hover highlight (accent color)
 	local highlight = row:CreateTexture(nil, 'BACKGROUND')
 	highlight:SetAllPoints(row)
@@ -139,8 +152,8 @@ local function CreateRow(parent)
 	row:EnableMouse(true)
 	row:SetScript('OnEnter', function(self)
 		self._highlight:Show()
-		if(Widgets.ShowTooltip and self._nameFS:IsTruncated()) then
-			Widgets.ShowTooltip(self, self._nameFS:GetText())
+		if(Widgets.ShowTooltip and self._spellID) then
+			Widgets.ShowTooltip(self, self._nameFS:GetText(), 'Spell ID: ' .. self._spellID)
 		end
 	end)
 	row:SetScript('OnLeave', function(self)
@@ -238,7 +251,8 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 			-- Populate spell data
 			local name, icon = GetSpellData(spellID)
 			row._nameFS:SetText(name or ('Spell ' .. spellID))
-			row._idFS:SetText('Spell ID: ' .. spellID)
+			row._idFS:SetText(tostring(spellID))
+			row._spellID = spellID
 
 			if(icon) then
 				row._icon:SetTexture(icon)
@@ -302,13 +316,17 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 				row._upBtn:SetPoint('RIGHT', row._downBtn, 'LEFT', -ARROW_GAP, 0)
 			end
 
-			-- Clamp name + ID width so they do not overlap controls
+			-- Truncate ID first (limited width), then name gets remaining space.
+			-- nameFS:SetWidth drives idFS position via the anchor chain.
 			local swatchUsed = showSwatch and (SWATCH_SIZE + PAD_H) or 0
 			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + swatchUsed
 			local usedLeft  = PAD_H + ICON_SIZE + ICON_GAP
-			local idWidth = row._idFS:GetStringWidth() + ICON_GAP
-			local availName = math.max(1, contentWidth - usedLeft - usedRight - idWidth)
-			row._nameFS:SetWidth(availName)
+			local totalAvail = math.max(1, contentWidth - usedLeft - usedRight)
+			TruncateText(row._idFS, tostring(spellID), ID_WIDTH)
+			local idW = row._idFS:GetStringWidth() + ICON_GAP
+			local nameAvail = math.max(1, totalAvail - idW)
+			TruncateText(row._nameFS, name or ('Spell ' .. spellID), nameAvail)
+			row._nameFS:SetWidth(nameAvail)
 
 			-- Wire remove button with confirmation
 			row._removeBtn:SetScript('OnClick', function()
