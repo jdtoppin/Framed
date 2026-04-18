@@ -145,9 +145,7 @@ F.Units.Pinned.UpdatePolling = updatePolling
 -- Config accessor
 -- ============================================================
 function F.Units.Pinned.GetConfig()
-	local presetName = F.PresetManager and F.PresetManager.GetActive()
-	if(not presetName) then return nil end
-	return F.Config:Get('presets.' .. presetName .. '.unitConfigs.pinned')
+	return F.StyleBuilder.GetConfig('pinned')
 end
 
 -- ============================================================

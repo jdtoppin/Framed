@@ -249,6 +249,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 
 	-- Frame position (x, y)
 	if(key == 'position.x' or key == 'position.y') then
+		if(unitType == 'pinned') then return end
 		if(suppressPositionUpdate) then return end
 		local config = F.StyleBuilder.GetConfig(unitType)
 		if(GROUP_TYPES[unitType]) then
@@ -270,6 +271,7 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 
 	-- Dimensions — resize frame, health wrapper, power wrapper
 	if(key == 'width' or key == 'height') then
+		if(unitType == 'pinned') then return end
 		local config = F.StyleBuilder.GetConfig(unitType)
 		debouncedApply('dimensions.' .. unitType, function()
 			local powerHeight = config.power.height
