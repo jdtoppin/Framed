@@ -210,6 +210,20 @@ function Layout.ApplySortConfig(unitType)
 		applyOrQueue(header, 'groupBy',       attrs.groupBy)
 	end
 
+	-- Force the secure template to re-enumerate the roster.
+	-- SetAttribute(key, currentValue) may not fire OnAttributeChanged at
+	-- the C level, so the attribute writes above can be complete no-ops for
+	-- index mode. The show* toggle guarantees a configureChildren pass.
+	if(not InCombatLockdown()) then
+		if(unitType == 'party') then
+			header:SetAttribute('showParty', false)
+			header:SetAttribute('showParty', true)
+		elseif(unitType == 'raid') then
+			header:SetAttribute('showRaid', false)
+			header:SetAttribute('showRaid', true)
+		end
+	end
+
 	-- Re-anchor party pets after the secure header resettles.
 	-- C_Timer.After(0, ...) defers one frame so SecureGroupHeader_Update
 	-- has finished reassigning unit attributes to its children.

@@ -54,9 +54,10 @@ end
 --- Return the current scroll range max (0 when content fits).
 --- Uses the outer container height rather than the anchored ScrollFrame
 --- height, because WoW may not have resolved anchor-based sizes yet.
+--- _viewportOffset: set by callers that push the viewport down (e.g. pinned rows).
 local function GetScrollMax(scroll)
 	local contentH = scroll._content:GetHeight()
-	local viewH    = scroll:GetHeight()
+	local viewH    = scroll:GetHeight() - (scroll._viewportOffset or 0)
 	return math.max(0, contentH - viewH)
 end
 
@@ -100,11 +101,14 @@ local function OnScrollActivity(scroll)
 		FadeScrollbar(scroll, 1, FADE_IN_DUR)
 	end
 
-	-- Schedule fade-out
+	-- While the user is hovering the panel or dragging the thumb, keep the
+	-- scrollbar visible — don't schedule fade-out. OnLeave / OnMouseUp will
+	-- schedule their own fade-out when interaction ends.
+	if(scroll._hovered or scroll._thumb._dragging) then return end
+
 	scroll._fadeOutTimer = C_Timer.NewTimer(FADE_OUT_DELAY, function()
 		scroll._fadeOutTimer = nil
-		-- Don't fade if thumb is being dragged
-		if(scroll._thumb._dragging) then return end
+		if(scroll._hovered or scroll._thumb._dragging) then return end
 		FadeScrollbar(scroll, 0, FADE_OUT_DUR)
 	end)
 end
@@ -151,7 +155,7 @@ end
 --- Auto-hides the scrollbar when the content fits within the view.
 function Widgets._ScrollFrame_UpdateThumb(scroll)
 	local contentH = scroll._content:GetHeight()
-	local viewH    = scroll._scrollFrame:GetHeight()
+	local viewH    = scroll:GetHeight() - (scroll._viewportOffset or 0)
 	local trackH   = scroll._scrollbar:GetHeight()
 
 	if(contentH <= viewH or viewH <= 0) then
@@ -319,12 +323,62 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 		ApplyScroll(scroll, current - delta * SCROLL_STEP)
 	end)
 
+	-- ── Hover reveals the scrollbar ────────────────────────────
+	-- Narrow invisible strip along the right edge (wider than the 5px
+	-- track so hover is easy to hit). Kept as a dedicated frame — not
+	-- enabling mouse on the scroll container itself — so the hover logic
+	-- never steals clicks from pinned cards or other content. Thumb
+	-- mirrors the same hover handlers so passing onto the thumb (which
+	-- sits above the zone and captures mouse) doesn't briefly drop
+	-- _hovered.
+	local HOVER_ZONE_W = 14
+	local hoverZone = CreateFrame('Frame', nil, scroll)
+	hoverZone:SetWidth(HOVER_ZONE_W)
+	hoverZone:SetPoint('TOPRIGHT',    scroll, 'TOPRIGHT',    0, 0)
+	hoverZone:SetPoint('BOTTOMRIGHT', scroll, 'BOTTOMRIGHT', 0, 0)
+	hoverZone:EnableMouse(true)
+	hoverZone:SetFrameLevel(track:GetFrameLevel() - 1)
+
+	local function onHoverEnter()
+		scroll._hovered = true
+		OnScrollActivity(scroll)
+	end
+	local function onHoverLeave()
+		scroll._hovered = false
+		if(scroll._thumb._dragging) then return end
+		if(scroll._fadeOutTimer) then
+			scroll._fadeOutTimer:Cancel()
+		end
+		scroll._fadeOutTimer = C_Timer.NewTimer(0.15, function()
+			scroll._fadeOutTimer = nil
+			if(scroll._hovered or scroll._thumb._dragging) then return end
+			FadeScrollbar(scroll, 0, FADE_OUT_DUR)
+		end)
+	end
+	hoverZone:SetScript('OnEnter', onHoverEnter)
+	hoverZone:SetScript('OnLeave', onHoverLeave)
+	thumb:HookScript('OnEnter', onHoverEnter)
+	thumb:HookScript('OnLeave', onHoverLeave)
+	scroll._hoverZone = hoverZone
+
 	-- ── Thumb dragging ─────────────────────────────────────────
 	thumb:EnableMouse(true)
 
 	thumb:SetScript('OnMouseDown', function(self, button)
 		if(button ~= 'LeftButton') then return end
 		self._dragging   = true
+		-- Cancel any in-flight fade-out animation so the thumb doesn't
+		-- disappear mid-drag. The fade-out *timer* is already guarded by
+		-- _dragging, but once FadeScrollbar has started animating alpha
+		-- down, nothing else halts it — so the thumb can vanish while the
+		-- user is holding it. Force alpha back to 1 here.
+		if(track._anim) then track._anim['scrollbarFade'] = nil end
+		track:SetAlpha(1)
+		self:SetAlpha(1)
+		if(scroll._fadeOutTimer) then
+			scroll._fadeOutTimer:Cancel()
+			scroll._fadeOutTimer = nil
+		end
 		local _, cursorY = GetCursorPosition()
 		local scale      = track:GetEffectiveScale()
 		self._dragStartCursorY = cursorY / scale

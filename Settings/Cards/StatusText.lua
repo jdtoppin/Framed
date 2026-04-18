@@ -46,32 +46,18 @@ function F.SettingsCards.StatusText(parent, width, unitType, getConfig, setConfi
 	shadowCheck:SetChecked(getConfig('statusText.shadow'))
 	cardY = B.PlaceWidget(shadowCheck, inner, cardY, B.CHECK_H)
 
-	-- Text position anchor
-	cardY = B.PlaceHeading(inner, 'Text Position', 4, cardY)
-	local anchorPicker = Widgets.CreateAnchorPicker(inner, widgetW)
-	anchorPicker:SetAnchor(getConfig('statusText.anchor'), 0, 0)
-	anchorPicker._xSlider:Hide()
-	anchorPicker._ySlider:Hide()
-	anchorPicker:SetOnChanged(function(point)
-		setConfig('statusText.anchor', point)
+	-- Vertical position on the health bar
+	cardY = B.PlaceHeading(inner, 'Position', 4, cardY)
+	local positionSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
+		{ text = 'Top',    value = 'top'    },
+		{ text = 'Center', value = 'center' },
+		{ text = 'Bottom', value = 'bottom' },
+	})
+	positionSwitch:SetValue(getConfig('statusText.position'))
+	positionSwitch:SetOnSelect(function(value)
+		setConfig('statusText.position', value)
 	end)
-	cardY = B.PlaceWidget(anchorPicker, inner, cardY, 56)
-
-	-- X / Y offsets
-	cardY = B.PlaceHeading(inner, 'Text Offsets', 4, cardY)
-	local offsetX = Widgets.CreateSlider(inner, 'X Offset', widgetW, -50, 50, 1)
-	offsetX:SetValue(getConfig('statusText.anchorX'))
-	offsetX:SetAfterValueChanged(function(value)
-		setConfig('statusText.anchorX', value)
-	end)
-	cardY = B.PlaceWidget(offsetX, inner, cardY, B.SLIDER_H)
-
-	local offsetY = Widgets.CreateSlider(inner, 'Y Offset', widgetW, -50, 50, 1)
-	offsetY:SetValue(getConfig('statusText.anchorY'))
-	offsetY:SetAfterValueChanged(function(value)
-		setConfig('statusText.anchorY', value)
-	end)
-	cardY = B.PlaceWidget(offsetY, inner, cardY, B.SLIDER_H)
+	cardY = B.PlaceWidget(positionSwitch, inner, cardY, B.SWITCH_H)
 
 	Widgets.EndCard(card, parent, cardY)
 	return card
