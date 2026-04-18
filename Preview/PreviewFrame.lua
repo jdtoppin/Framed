@@ -479,25 +479,6 @@ local function BuildCastbar(frame, config)
 end
 
 -- ============================================================
--- Highlights builder
--- ============================================================
-
-local function BuildHighlights(frame, config)
-	if(config.targetHighlight) then
-		local thColor = F.Config and F.Config:Get('general.targetHighlightColor')
-		local thWidth = F.Config and F.Config:Get('general.targetHighlightWidth') or 2
-
-		local hl = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
-		hl:SetPoint('TOPLEFT', frame, 'TOPLEFT', -thWidth, thWidth)
-		hl:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', thWidth, -thWidth)
-		local c = thColor or { 1, 1, 1, 0.8 }
-		hl:SetBackdrop({ edgeFile = [[Interface\BUTTONS\WHITE8x8]], edgeSize = thWidth })
-		hl:SetBackdropBorderColor(c[1], c[2], c[3], c[4] or 0.8)
-		frame._targetHighlight = hl
-	end
-end
-
--- ============================================================
 -- Portrait builder
 -- ============================================================
 
