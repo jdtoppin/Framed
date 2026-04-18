@@ -159,13 +159,19 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 	local scaledW = math.ceil(naturalW * previewScale)
 
 	local previewW = scaledW + previewPad * 2
-	-- Floor the card at 40% of totalW (capped at the 60% ceiling) so narrow-content
-	-- units like boss/party don't collapse to content-width — the title + Focus Mode
-	-- toggle share the header row, and a ~112px floor truncated the title. Content
-	-- is still scaled by min(vScale, hScale) so the card is often wider than the
-	-- content; the viewport anchors content flush-left, leaving blank space on the
-	-- right rather than stretching or misaligning frames.
-	local widthFloor = math.min(math.floor(totalW * 0.4), ceil6)
+	-- Raid auto-sizes with count (via the raidPreviewCount stepper), so keep its
+	-- old small floor — a larger floor would pin the card at a fixed width and
+	-- defeat the auto-size on count changes below ~30.
+	-- Other units have fixed counts and narrow content (boss/party width ~120–160),
+	-- so their card would otherwise collapse to a width too small for the title +
+	-- Focus Mode toggle on the header row. Floor them at 40% of totalW (capped at
+	-- the 60% ceiling) so titles fit without stretching content.
+	local widthFloor
+	if(unitType == 'raid') then
+		widthFloor = math.min(112, ceil6)
+	else
+		widthFloor = math.min(math.floor(totalW * 0.4), ceil6)
+	end
 	previewW = math.max(previewW, widthFloor)
 	local summaryW = totalW - previewW - gap
 	return previewW, summaryW
