@@ -33,7 +33,7 @@ local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
 -- Drink buff detection
 -- ============================================================
 
--- Known drink spell IDs (same list as Cell)
+-- Known drink spell IDs
 local drinkSpellIds = {
 	170906, -- Food & Drink
 	167152, -- Refreshment
