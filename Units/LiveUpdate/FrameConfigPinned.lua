@@ -7,8 +7,6 @@ if(not Shared) then return end
 local guardConfigChanged = Shared.guardConfigChanged
 local debouncedApply     = Shared.debouncedApply
 
-local MAX_SLOTS = 9
-
 local function onConfigChanged(path)
 	local unitType, key = guardConfigChanged(path)
 	if(unitType ~= 'pinned') then return end
@@ -27,19 +25,6 @@ local function onConfigChanged(path)
 	elseif(key and key:match('^slots')) then
 		F.Units.Pinned.Resolve()
 		F.Units.Pinned.Layout()
-	else
-		debouncedApply('pinned.style', function()
-			local config = F.StyleBuilder.GetConfig('pinned')
-			local frames = F.Units.Pinned.frames
-			if(not config or not frames) then return end
-			for i = 1, MAX_SLOTS do
-				local f = frames[i]
-				if(f) then
-					F.StyleBuilder.Apply(f, f.unit, config, 'pinned')
-					if(f.UpdateAllElements) then f:UpdateAllElements('RefreshStyle') end
-				end
-			end
-		end)
 	end
 end
 F.EventBus:Register('CONFIG_CHANGED', onConfigChanged, 'FrameConfigPinned.CC')

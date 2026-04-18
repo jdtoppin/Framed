@@ -30,7 +30,8 @@ local function applyFullConfig(frame, config)
 
 	local unitType = frame._framedUnitType
 	-- ── Position (solo frames only) ──────────────────────────
-	if(not GROUP_TYPES[unitType]) then
+	-- Pinned frames position via Layout() grid, not per-frame SetPoint.
+	if(not GROUP_TYPES[unitType] and unitType ~= 'pinned') then
 		repositionFrame(frame, config)
 	end
 
