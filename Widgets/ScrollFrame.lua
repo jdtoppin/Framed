@@ -324,30 +324,42 @@ function Widgets.CreateScrollFrame(parent, name, width, height)
 	end)
 
 	-- ── Hover reveals the scrollbar ────────────────────────────
-	-- Motion-only so clicks still reach the child widgets. Without this,
-	-- the scrollbar was only visible during active wheel-scroll, which
-	-- made it feel hidden most of the time.
-	if(scroll.SetMouseMotionEnabled) then
-		scroll:SetMouseMotionEnabled(true)
-	else
-		scroll:EnableMouse(true)
+	-- Narrow invisible strip along the right edge (wider than the 5px
+	-- track so hover is easy to hit). Kept as a dedicated frame — not
+	-- enabling mouse on the scroll container itself — so the hover logic
+	-- never steals clicks from pinned cards or other content. Thumb
+	-- mirrors the same hover handlers so passing onto the thumb (which
+	-- sits above the zone and captures mouse) doesn't briefly drop
+	-- _hovered.
+	local HOVER_ZONE_W = 14
+	local hoverZone = CreateFrame('Frame', nil, scroll)
+	hoverZone:SetWidth(HOVER_ZONE_W)
+	hoverZone:SetPoint('TOPRIGHT',    scroll, 'TOPRIGHT',    0, 0)
+	hoverZone:SetPoint('BOTTOMRIGHT', scroll, 'BOTTOMRIGHT', 0, 0)
+	hoverZone:EnableMouse(true)
+	hoverZone:SetFrameLevel(track:GetFrameLevel() - 1)
+
+	local function onHoverEnter()
+		scroll._hovered = true
+		OnScrollActivity(scroll)
 	end
-	scroll:SetScript('OnEnter', function(self)
-		self._hovered = true
-		OnScrollActivity(self)
-	end)
-	scroll:SetScript('OnLeave', function(self)
-		self._hovered = false
-		if(self._thumb and self._thumb._dragging) then return end
-		if(self._fadeOutTimer) then
-			self._fadeOutTimer:Cancel()
+	local function onHoverLeave()
+		scroll._hovered = false
+		if(scroll._thumb._dragging) then return end
+		if(scroll._fadeOutTimer) then
+			scroll._fadeOutTimer:Cancel()
 		end
-		self._fadeOutTimer = C_Timer.NewTimer(0.15, function()
-			self._fadeOutTimer = nil
-			if(self._hovered or self._thumb._dragging) then return end
-			FadeScrollbar(self, 0, FADE_OUT_DUR)
+		scroll._fadeOutTimer = C_Timer.NewTimer(0.15, function()
+			scroll._fadeOutTimer = nil
+			if(scroll._hovered or scroll._thumb._dragging) then return end
+			FadeScrollbar(scroll, 0, FADE_OUT_DUR)
 		end)
-	end)
+	end
+	hoverZone:SetScript('OnEnter', onHoverEnter)
+	hoverZone:SetScript('OnLeave', onHoverLeave)
+	thumb:HookScript('OnEnter', onHoverEnter)
+	thumb:HookScript('OnLeave', onHoverLeave)
+	scroll._hoverZone = hoverZone
 
 	-- ── Thumb dragging ─────────────────────────────────────────
 	thumb:EnableMouse(true)

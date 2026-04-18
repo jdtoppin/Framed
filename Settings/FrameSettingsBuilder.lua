@@ -1020,7 +1020,11 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		syncContentHeight()
 	end
 
-	scroll._scrollFrame:HookScript('OnMouseWheel', function()
+	-- OnVerticalScroll fires for *every* scroll change, including the thumb
+	-- drag path (which calls SetVerticalScroll directly, not OnMouseWheel).
+	-- Hooking here instead of OnMouseWheel makes lazy-loading work for both
+	-- input paths.
+	scroll._scrollFrame:HookScript('OnVerticalScroll', function()
 		C_Timer.After(0, onScroll)
 	end)
 
