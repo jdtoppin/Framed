@@ -412,25 +412,26 @@ function F.FrameSettingsBuilder.BuildSummaryCard(parent, width, unitType, getCon
 
 	card._rowByID = rowByID
 
+	local COL_GAP = C.Spacing.base
 	local function layoutRows(orderedIds, animate)
 		local curW = card:GetWidth()
 		local innerW = curW - pad * 2
 		local cols
-		if(innerW >= 380) then
+		if(innerW >= 340) then
 			cols = 3
-		elseif(innerW >= 200) then
+		elseif(innerW >= 180) then
 			cols = 2
 		else
 			cols = 1
 		end
-		local colW = math.floor((innerW - (cols - 1) * C.Spacing.tight) / cols)
+		local colW = math.floor((innerW - (cols - 1) * COL_GAP) / cols)
 
 		local idx = 0
 		local function placeRow(rf)
 			rf:SetWidth(colW)
 			local col = idx % cols
 			local row = math.floor(idx / cols)
-			local newX = pad + col * (colW + C.Spacing.tight)
+			local newX = pad + col * (colW + COL_GAP)
 			local newY = -pad - titleH + (-row * (SUMMARY_ROW_H + 2))
 
 			if(animate and rf._posX and (math.abs(rf._posX - newX) > 1 or math.abs(rf._posY - newY) > 1)) then
