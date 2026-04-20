@@ -212,8 +212,15 @@ local function normalizeSlotKeys(slots)
 	end
 end
 
+-- Read pinned config directly from the current preset (no cross-preset
+-- fallback). StyleBuilder.GetConfig('pinned') falls back to any base group
+-- preset so Style() can wire Health/Name elements at cold start under Solo —
+-- but that fallback would leak another preset's enabled/slots into Refresh
+-- and show pinned anchors on presets that don't have pinned configured.
 function F.Units.Pinned.GetConfig()
-	local config = F.StyleBuilder.GetConfig('pinned')
+	local presetName = F.AutoSwitch.GetCurrentPreset()
+	local _, presetData = F.AutoSwitch.ResolvePreset(presetName)
+	local config = presetData and presetData.unitConfigs and presetData.unitConfigs.pinned
 	if(config and config.slots) then
 		normalizeSlotKeys(config.slots)
 	end

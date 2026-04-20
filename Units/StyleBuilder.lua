@@ -54,6 +54,24 @@ function F.StyleBuilder.GetConfig(unitType)
 		end
 	end
 
+	-- Pinned has no canonical owner in PresetInfo (shared across Party/Raid/
+	-- Arena, none of them own it via groupKey). Style() still needs a valid
+	-- pinnedConfig as a template to wire Health/Name elements at Spawn time,
+	-- even when the active preset is Solo. Fall back to any base group preset
+	-- that has a pinned config. Visibility gating happens in Pinned.Refresh
+	-- via its own current-preset lookup, so this fallback won't accidentally
+	-- show pinned anchors under Solo.
+	if(unitType == 'pinned') then
+		for name, info in next, C.PresetInfo do
+			if(info.isBase and info.groupKey) then
+				local _, groupData = F.AutoSwitch.ResolvePreset(name)
+				if(groupData and groupData.unitConfigs and groupData.unitConfigs.pinned) then
+					return groupData.unitConfigs.pinned
+				end
+			end
+		end
+	end
+
 	return nil
 end
 
