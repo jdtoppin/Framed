@@ -13,22 +13,30 @@ local PANEL_WIDTH    = 380
 local PANEL_MIN_H    = 300
 local EDGE_MARGIN    = 16
 
-local panel       = nil
-local currentKey  = nil
-local currentSide = nil   -- 'RIGHT' or 'LEFT'
-local targetRef   = nil   -- reference to the frame the panel is anchored to
-local dragTicker  = nil   -- hidden frame for OnUpdate during drag
+local panel        = nil
+local shield       = nil
+local currentKey   = nil
+local currentPreset = nil  -- preset the panel was built against
+local currentSide  = nil   -- 'RIGHT' or 'LEFT'
+local targetRef    = nil   -- reference to the frame the panel is anchored to
+local dragTicker   = nil   -- hidden frame for OnUpdate during drag
 
 local function DestroyPanel()
 	if(dragTicker) then
 		dragTicker:SetScript('OnUpdate', nil)
 		dragTicker:Hide()
 	end
+	if(shield) then
+		shield:Hide()
+		shield:SetParent(EditMode._trashFrame)
+		shield = nil
+	end
 	if(panel) then
 		panel:Hide()
 		panel:SetParent(EditMode._trashFrame)
 		panel = nil
 		currentKey = nil
+		currentPreset = nil
 		currentSide = nil
 		targetRef = nil
 	end
@@ -78,6 +86,10 @@ local function AnchorPanelAbsolute(side)
 		local leftX = (targetRef:GetLeft() or 0) * ratio
 		panel:SetPoint('TOPRIGHT', UIParent, 'BOTTOMLEFT', leftX - EDGE_MARGIN, topY)
 	end
+	if(shield) then
+		shield:ClearAllPoints()
+		shield:SetAllPoints(panel)
+	end
 end
 
 --- Re-anchor the panel to the opposite side if needed.
@@ -95,16 +107,31 @@ local function BuildPanel(frameKey, targetFrame)
 	if(not overlay) then return end
 
 	currentKey = frameKey
+	currentPreset = F.Settings.GetEditingPreset()
 
-	-- Transparent container — the single card inside provides the visuals.
-	-- The panel exists only to size, anchor, and eat mouse clicks so the
-	-- bg click-catcher underneath doesn't deselect the frame.
+	-- Shield: SIBLING of the panel (child of overlay) at a strictly LOWER
+	-- frame level than the panel. Sized and anchored to match the panel so
+	-- it absorbs any click on the panel footprint that misses a widget.
+	-- Keeping shield and panel as siblings (not ancestor/descendant) avoids
+	-- any chance of the mouse-enabled shield shadowing its own descendant
+	-- widgets via WoW's hit-testing quirks.
+	shield = CreateFrame('Frame', nil, overlay)
+	shield:SetSize(PANEL_WIDTH, PANEL_MIN_H)
+	shield:SetFrameLevel(overlay:GetFrameLevel() + 79)
+	shield:EnableMouse(true)
+	-- Explicit no-op handler so the click is truly consumed — an
+	-- EnableMouse(true) frame with no script handler can still let events
+	-- fall through in some WoW contexts.
+	shield:SetScript('OnMouseDown', function() end)
+
+	-- Transparent container. Lives above the shield; its widget subtree
+	-- provides all visuals and hit-testing. Panel itself is NOT mouse-
+	-- enabled so it never competes with its own children for clicks.
 	panel = CreateFrame('Frame', nil, overlay)
 	panel:SetSize(PANEL_WIDTH, PANEL_MIN_H)
-	panel:SetFrameLevel(overlay:GetFrameLevel() + 30)
-	panel:SetFrameStrata('TOOLTIP')
+	panel:SetFrameLevel(overlay:GetFrameLevel() + 80)
 	panel:SetClampedToScreen(true)
-	panel:EnableMouse(true)
+	panel:EnableMouse(false)
 
 	-- Position relative to target frame (absolute anchor to UIParent so
 	-- slider-driven frame moves don't drag the panel along)
@@ -112,23 +139,11 @@ local function BuildPanel(frameKey, targetFrame)
 	currentSide = GetSmartSide(targetFrame)
 	AnchorPanelAbsolute(currentSide)
 
-	-- ── Resolve frame definition ────────────────────────────
-	local frameDef = nil
-	for _, def in next, EditMode.FRAME_KEYS do
-		if(def.key == frameKey) then
-			frameDef = def
-			break
-		end
-	end
-
-	-- ── Resolve unit type (group frames use their group key) ─
-	local unitType = frameKey
-	if(frameDef and frameDef.isGroup) then
-		local info = C.PresetInfo[F.Settings.GetEditingPreset()]
-		unitType = (info and info.groupKey) or frameKey
-	end
-
 	-- ── Render the Position & Layout card directly ──────────
+	-- Each frame key owns its own unitConfigs node, so the EditCache is
+	-- addressed by frameKey directly — do NOT remap to the preset's
+	-- groupKey, or Boss/Pinned/Party/Arena all alias to the same entry.
+	local unitType = frameKey
 	local widgetW = PANEL_WIDTH - C.Spacing.normal * 2
 	local getCfg = function(path) return F.EditCache.Get(unitType, path) end
 	local setCfg = function(path, value) F.EditCache.Set(unitType, path, value) end
@@ -138,8 +153,11 @@ local function BuildPanel(frameKey, targetFrame)
 	card:ClearAllPoints()
 	card:SetPoint('TOPLEFT', panel, 'TOPLEFT', C.Spacing.normal, -C.Spacing.normal)
 
-	-- Fit panel height to card
+	-- Fit panel height to card, then sync shield to the final rect
 	panel:SetHeight(card:GetHeight() + C.Spacing.normal * 2)
+	shield:SetHeight(panel:GetHeight())
+	shield:ClearAllPoints()
+	shield:SetAllPoints(panel)
 
 	Widgets.FadeIn(panel)
 end
@@ -178,14 +196,19 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 		return
 	end
 
-	-- Already showing for this frame — just update side, don't rebuild
-	if(panel and currentKey == frameKey) then
+	-- Already showing for this frame AND preset — just update side, don't
+	-- rebuild. If the preset changed (e.g. EDIT_MODE_PRESET_SWITCHED re-
+	-- selects the same frame key after a preset swap), fall through and
+	-- rebuild so the sliders/anchor/dropdowns read from the new preset's
+	-- config instead of the old preset's cached state.
+	if(panel and currentKey == frameKey and currentPreset == F.Settings.GetEditingPreset()) then
 		UpdatePanelSide()
 		return
 	end
 
-	-- If switching frames, animate out then build new
-	if(panel and currentKey ~= frameKey) then
+	-- If switching frames OR the editing preset changed, animate out then
+	-- build fresh so the rebuilt panel reads the new preset's config.
+	if(panel) then
 		Widgets.FadeOut(panel, C.Animation.durationFast, function()
 			BuildPanel(frameKey, targetFrame)
 		end)
