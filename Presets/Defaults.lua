@@ -277,7 +277,7 @@ local function bossConfig()
 	local c = baseUnitConfig()
 	c.width       = 160
 	c.height      = 30
-	c.position    = { x = 300, y = 100, anchor = 'CENTER' }
+	c.position    = { x = 1100, y = -280, anchor = 'TOPLEFT' }
 	c.spacing     = 4
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
@@ -351,7 +351,7 @@ local function arenaConfig()
 	local c = baseUnitConfig()
 	c.width       = 160
 	c.height      = 30
-	c.position    = { x = 300, y = 100, anchor = 'CENTER' }
+	c.position    = { x = 1100, y = -500, anchor = 'TOPLEFT' }
 	c.spacing     = 4
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'

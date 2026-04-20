@@ -233,7 +233,7 @@ local function showGroupPreview(frameKey)
 		colY = goDown and -(h + spacing) or (h + spacing)
 	end
 
-	-- Position anchor from config (TOPLEFT for party/raid, CENTER for arena/boss)
+	-- Position anchor from config (TOPLEFT for all real/pseudo groups)
 	local posAnchor = (config.position and config.position.anchor) or 'CENTER'
 	local baseX = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
 	local baseY = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
