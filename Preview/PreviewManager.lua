@@ -11,7 +11,6 @@ local PM = F.PreviewManager
 -- ============================================================
 
 local activeFrameKey = nil
-local activeDimGroup = nil  -- current aura group being highlighted (nil = all visible)
 local previewFrames = {}
 local previewContainer = nil
 
@@ -350,15 +349,6 @@ end
 -- Public API
 -- ============================================================
 
-local function applyDimState()
-	if(not activeDimGroup) then return end
-	for _, pf in next, previewFrames do
-		if(pf.SetAuraGroupAlpha) then
-			pf:SetAuraGroupAlpha(activeDimGroup)
-		end
-	end
-end
-
 function PM.ShowPreview(frameKey)
 	destroyPreviews()
 	activeFrameKey = frameKey
@@ -368,14 +358,10 @@ function PM.ShowPreview(frameKey)
 	else
 		showSoloPreview(frameKey)
 	end
-
-	-- Re-apply aura dimming after rebuild
-	applyDimState()
 end
 
 function PM.HidePreview()
 	destroyPreviews()
-	activeDimGroup = nil
 end
 
 function PM.IsAnimationEnabled()
@@ -430,23 +416,3 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	end
 end, 'PreviewManager.auraConfig')
 
--- Map inline panel IDs (lowercase) to aura group keys (camelCase/config keys)
-local PANEL_TO_GROUP = {
-	targetedspells = 'targetedSpells',
-	dispels        = 'dispellable',
-	missingbuffs   = 'missingBuffs',
-	privateauras   = 'privateAuras',
-	lossofcontrol  = 'lossOfControl',
-	crowdcontrol   = 'crowdControl',
-}
-
-F.EventBus:Register('EDIT_MODE_AURA_DIM', function(frameKey, activeGroupId)
-	if(frameKey ~= activeFrameKey) then return end
-	local groupKey = activeGroupId and (PANEL_TO_GROUP[activeGroupId] or activeGroupId) or nil
-	activeDimGroup = groupKey
-	for _, pf in next, previewFrames do
-		if(pf.SetAuraGroupAlpha) then
-			pf:SetAuraGroupAlpha(groupKey)
-		end
-	end
-end, 'PreviewManager.auraDim')
