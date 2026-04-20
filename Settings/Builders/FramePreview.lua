@@ -73,9 +73,10 @@ local showPets = false
 local petFrames = {}
 
 local GROUP_COUNTS = {
-	party = 5,
-	arena = 3,
-	boss  = 4,
+	party  = 5,
+	arena  = 3,
+	boss   = 4,
+	pinned = 9,
 }
 
 local function getFakeUnit(index)
@@ -96,14 +97,31 @@ local function getCastbarExtra(config)
 	return config.castbar.height + C.Spacing.base
 end
 
-local function CalculateGroupLayout(config, count)
+local function CalculateGroupLayout(config, count, unitType)
 	local w = config.width
 	local h = config.height + getCastbarExtra(config)
 	local spacing = config.spacing
+
+	local positions = {}
+
+	-- Pinned is a fixed-column, row-major grid (no orientation). Match
+	-- Units/Pinned.lua:Layout so the preview slot order mirrors the real frame.
+	if(unitType == 'pinned') then
+		local cols = math.max(1, math.min(config.columns, count))
+		for i = 0, count - 1 do
+			local col = i % cols
+			local row = math.floor(i / cols)
+			positions[i + 1] = {
+				x = col * (w + spacing),
+				y = -(row * (h + spacing)),
+			}
+		end
+		return positions
+	end
+
 	local upc = config.unitsPerColumn
 	local isVertical = config.orientation == 'vertical'
 
-	local positions = {}
 	for i = 0, count - 1 do
 		local col = math.floor(i / upc)
 		local row = i % upc
@@ -313,8 +331,16 @@ local function onConfigChanged(path)
 	local config = getUnitConfig(activeUnitType)
 	if(not config) then return end
 
-	if(STRUCTURAL_KEYS[key:match('^[^%.]+')]) then
+	local keyRoot = key:match('^[^%.]+')
+	if(STRUCTURAL_KEYS[keyRoot]) then
 		debouncedRebuild()
+	elseif(keyRoot == 'slots') then
+		-- Pinned 'slots' is an assignment map (which roster member lives in
+		-- which frame), not a visual property. The preview shows generic
+		-- placeholder units, so a slot change doesn't alter the preview —
+		-- skip UpdateFromConfig, which would otherwise destroy+rebuild every
+		-- preview frame's textures and flash them on screen.
+		return
 	else
 		for _, frame in next, previewFrames do
 			F.PreviewFrame.UpdateFromConfig(frame, config, nil, nil)
@@ -517,7 +543,7 @@ local function RenderGroupPreview(viewport, unitType, count)
 	end
 	sortedFakes = SortFakeUnits(sortedFakes, config)
 
-	local positions = CalculateGroupLayout(config, count)
+	local positions = CalculateGroupLayout(config, count, unitType)
 
 	-- Flush-left with title/toggle (no PREVIEW_INSET). Portrait still shifts
 	-- the frames right so the portrait box sits in the gutter.
@@ -589,19 +615,27 @@ local function RenderGroupPreview(viewport, unitType, count)
 	local config_w = config.width
 	local config_h = config.height
 	local spacing = config.spacing
-	local upc = config.unitsPerColumn
-	local isVertical = config.orientation == 'vertical'
-
-	local cols = math.ceil(count / upc)
-	local rows = math.min(count, upc)
 
 	local totalW, totalH
-	if(isVertical) then
-		totalW = cols * config_w + (cols - 1) * spacing
-		totalH = rows * config_h + (rows - 1) * spacing
+	if(unitType == 'pinned') then
+		local screenCols = math.max(1, math.min(config.columns, count))
+		local screenRows = math.ceil(count / screenCols)
+		totalW = screenCols * config_w + (screenCols - 1) * spacing
+		totalH = screenRows * config_h + (screenRows - 1) * spacing
 	else
-		totalW = rows * config_w + (rows - 1) * spacing
-		totalH = cols * config_h + (cols - 1) * spacing
+		local upc = config.unitsPerColumn
+		local isVertical = config.orientation == 'vertical'
+
+		local cols = math.ceil(count / upc)
+		local rows = math.min(count, upc)
+
+		if(isVertical) then
+			totalW = cols * config_w + (cols - 1) * spacing
+			totalH = rows * config_h + (rows - 1) * spacing
+		else
+			totalW = rows * config_w + (rows - 1) * spacing
+			totalH = cols * config_h + (cols - 1) * spacing
+		end
 	end
 
 	viewport:SetSize(math.max(totalW, 1), math.max(totalH, 1))
@@ -790,15 +824,22 @@ function FP.RebuildPreview()
 		else
 			count = GROUP_COUNTS[activeUnitType]
 		end
-		local upc = config.unitsPerColumn or count
-		local cols = math.ceil(count / upc)
-		local rows = math.min(count, upc)
-		local isVertical = config.orientation == 'vertical'
-		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
-		if(isVertical) then
-			naturalW = cols * config.width + (cols - 1) * config.spacing
+		if(activeUnitType == 'pinned') then
+			local screenCols = math.max(1, math.min(config.columns, count))
+			local screenRows = math.ceil(count / screenCols)
+			naturalH = screenRows * (config.height + cbExtra) + (screenRows - 1) * config.spacing + inset2
+			naturalW = screenCols * config.width + (screenCols - 1) * config.spacing
 		else
-			naturalW = rows * config.width + (rows - 1) * config.spacing
+			local upc = config.unitsPerColumn or count
+			local cols = math.ceil(count / upc)
+			local rows = math.min(count, upc)
+			local isVertical = config.orientation == 'vertical'
+			naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
+			if(isVertical) then
+				naturalW = cols * config.width + (cols - 1) * config.spacing
+			else
+				naturalW = rows * config.width + (rows - 1) * config.spacing
+			end
 		end
 	else
 		naturalH = config.height + cbExtra + inset2
@@ -994,6 +1035,24 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		petToggle:SetChecked(false)
 	end
 
+	-- Pinned master enable — pinned is the only unit type gated by
+	-- config.enabled (default off), so the toggle has to live somewhere. On
+	-- the preview card it sits adjacent to what it turns on; the Slot
+	-- Assignments card below is then meaningful instead of dead weight. The
+	-- live frame responds automatically via FrameConfigPinned's CONFIG_CHANGED
+	-- handler (keys: 'enabled' → Layout + Resolve).
+	local pinnedEnabledToggle
+	if(unitType == 'pinned') then
+		pinnedEnabledToggle = Widgets.CreateCheckButton(inner, 'Enable Pinned Frames', function(checked)
+			local presetName = F.Settings.GetEditingPreset()
+			if(not presetName) then return end
+			F.Config:Set('presets.' .. presetName .. '.unitConfigs.pinned.enabled', checked)
+			F.PresetManager.MarkCustomized(presetName)
+		end)
+		local config = getUnitConfig('pinned')
+		pinnedEnabledToggle:SetChecked(config and config.enabled == true)
+	end
+
 	-- Preview viewport (horizontal scroll for overflow) — TOPLEFT y is applied
 	-- by the relayout closure below so it shifts when Focus Mode reflows.
 	local viewport = CreateFrame('ScrollFrame', nil, inner)
@@ -1046,6 +1105,12 @@ function FP.BuildPreviewCard(parent, width, unitType)
 			cyNext = cyNext - 16
 		end
 
+		if(pinnedEnabledToggle) then
+			pinnedEnabledToggle:ClearAllPoints()
+			pinnedEnabledToggle:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cyNext)
+			cyNext = cyNext - 16
+		end
+
 		viewport:ClearAllPoints()
 		viewport:SetPoint('TOPLEFT', inner, 'TOPLEFT', 0, cyNext)
 		viewport:SetPoint('RIGHT', inner, 'RIGHT', 0, 0)
@@ -1073,7 +1138,13 @@ function FP.BuildPreviewCard(parent, width, unitType)
 		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
 	elseif(GROUP_COUNTS[unitType]) then
 		local count = GROUP_COUNTS[unitType]
-		local rows = math.min(count, config.unitsPerColumn)
+		local rows
+		if(unitType == 'pinned') then
+			local screenCols = math.max(1, math.min(config.columns, count))
+			rows = math.ceil(count / screenCols)
+		else
+			rows = math.min(count, config.unitsPerColumn)
+		end
 		naturalH = rows * (config.height + cbExtra) + (rows - 1) * config.spacing + inset2
 	else
 		naturalH = config.height + cbExtra + inset2

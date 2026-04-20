@@ -234,6 +234,14 @@ local function getGroupFrameLabel()
 	return info and info.groupLabel or nil
 end
 
+--- Pinned frames are per-preset. Solo omits `unitConfigs.pinned` entirely,
+--- so navigating to the Pinned panel under Solo would crash the HealthColor
+--- card on the first non-fallback read. Hide the button when absent.
+local function hasPinnedConfig()
+	local preset = Settings.GetEditingPreset()
+	return preset and F.Config and F.Config:Get('presets.' .. preset .. '.unitConfigs.pinned') ~= nil
+end
+
 -- ============================================================
 -- Sidebar Builder
 -- ============================================================
@@ -270,6 +278,7 @@ local function buildSidebarContent(sidebar, contentParent)
 
 	-- References for dynamic elements updated by EDITING_PRESET_CHANGED
 	local groupFrameBtn
+	local pinnedFrameBtn
 
 	-- Aura buttons that may be hidden when the Pet page is active
 	local hiddenAuraBtns = {}
@@ -402,6 +411,12 @@ local function buildSidebarContent(sidebar, contentParent)
 						else
 							btn:Hide()
 						end
+					end
+
+					-- Pinned frames button — per-preset (absent in Solo)
+					if(panel.id == 'pinned') then
+						pinnedFrameBtn = btn
+						if(hasPinnedConfig()) then btn:Show() else btn:Hide() end
 					end
 
 					-- Track aura panels that may be hidden per unit type
@@ -569,6 +584,7 @@ local function buildSidebarContent(sidebar, contentParent)
 
 	-- ── EDITING_PRESET_CHANGED listener ──────────────────────
 	F.EventBus:Register('EDITING_PRESET_CHANGED', function(presetName)
+		local changed = false
 		if(groupFrameBtn) then
 			local groupLabel = getGroupFrameLabel()
 			if(groupLabel) then
@@ -577,10 +593,21 @@ local function buildSidebarContent(sidebar, contentParent)
 			else
 				groupFrameBtn:Hide()
 			end
-			-- Recalc FRAMES container height since groupFrameBtn visibility changed
-			if(sidebar._framesContainer and sidebar._framesContainer._recalc) then
-				sidebar._framesContainer._recalc(true)
+			changed = true
+		end
+		if(pinnedFrameBtn) then
+			local shouldShow = hasPinnedConfig()
+			if(shouldShow and not pinnedFrameBtn:IsShown()) then
+				pinnedFrameBtn:Show()
+				changed = true
+			elseif(not shouldShow and pinnedFrameBtn:IsShown()) then
+				pinnedFrameBtn:Hide()
+				changed = true
 			end
+		end
+		-- Recalc FRAMES container height since button visibility changed
+		if(changed and sidebar._framesContainer and sidebar._framesContainer._recalc) then
+			sidebar._framesContainer._recalc(true)
 		end
 	end, 'Sidebar')
 

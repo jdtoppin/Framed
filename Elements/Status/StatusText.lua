@@ -33,7 +33,7 @@ local GRADIENT_TEXTURE = F.Media.GetTexture('GradientH')
 -- Drink buff detection
 -- ============================================================
 
--- Known drink spell IDs (same list as Cell)
+-- Known drink spell IDs
 local drinkSpellIds = {
 	170906, -- Food & Drink
 	167152, -- Refreshment
@@ -61,11 +61,20 @@ local function getDrinkNames()
 	return drinkNames
 end
 
+-- C_UnitAuras.GetAuraSlots rejects compound unit tokens (e.g. playertarget,
+-- party1target). Pinned frames can point at target chains via SetAttribute,
+-- so guard before calling.
+local function isCompoundUnit(unit)
+	if(not unit or unit == 'target' or unit == 'pet') then return false end
+	return unit:match('target$') ~= nil or unit:match('pet$') ~= nil
+end
+
 local function checkDrinking(unit)
 	-- Player-combat early-out: you can't drink in combat, and if the player
 	-- is in combat, party members are almost certainly too (so their aura
 	-- names will be secret anyway). Skip the scan entirely.
 	if(InCombatLockdown()) then return false end
+	if(isCompoundUnit(unit)) then return false end
 	local names = getDrinkNames()
 	if(not next(names)) then return false end
 	local slots = { C_UnitAuras.GetAuraSlots(unit, 'HELPFUL') }

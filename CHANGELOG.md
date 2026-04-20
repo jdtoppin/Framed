@@ -1,5 +1,11 @@
 # Framed Changelog
 
+## [Unreleased]
+
+- **Pinned Frames** — up to 9 standalone frames that track specific group members by name, following players across roster reshuffles. Supports Focus / Focus Target / name-target slots. Role-grouped class-colored assignment dropdown (Settings card, empty-slot placeholder click, and hover-gear icon on assigned pins). First-class aura configuration across all 10 aura sub-panels. Per-preset; absent in Solo
+- EditMode integration for Pinned Frames — drag to position (CENTER anchor convention matches the settings panel), click in edit mode to open the inline Pinned panel
+- Bridge `PLAYER_REGEN_ENABLED` through `EventBus` so combat-deferred listeners can register via `F.EventBus:Register` instead of maintaining their own frames
+
 ## v0.8.10-alpha
 
 - Add **Frame Preview Card** — every Frame settings panel (player/target/party/raid/boss/arena/pet/solo) now renders a live unit frame preview at the top of the panel using your current config, pinned next to a summary card that stays in view while the settings scroll

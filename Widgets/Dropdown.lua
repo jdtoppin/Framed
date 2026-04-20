@@ -569,6 +569,61 @@ OpenDropdownList = function(owner)
 end
 
 -- ============================================================
+-- OpenPopupMenu — chrome-free menu anchored to an arbitrary frame.
+-- Satisfies the OpenDropdownList owner contract without rendering
+-- a dropdown button. The caller gets a pure popup list that appears
+-- directly below the given anchor frame.
+-- ============================================================
+
+local popupOwner
+
+--- Open a popup menu anchored below `anchor`.
+--- @param anchor   Frame    Frame the menu appears beneath
+--- @param items    table    Dropdown items array
+--- @param value    any      Currently-selected value (for highlight)
+--- @param onSelect function  Receives (value, ownerFrame)
+function Widgets.OpenPopupMenu(anchor, items, value, onSelect)
+	if(not popupOwner) then
+		popupOwner = CreateFrame('Frame', nil, UIParent)
+		function popupOwner:_SelectItem(item)
+			self._value = item.value
+			if(self._onSelect) then
+				self._onSelect(item.value, self)
+			end
+		end
+		-- OpenDropdownList calls _onClose on the owner when the list closes.
+		-- Use it to release the anchor so its hover state can return to rest.
+		function popupOwner:_onClose()
+			local a = self._anchor
+			self._anchor = nil
+			if(a) then
+				a._menuOpen = nil
+				local onLeave = a:GetScript('OnLeave')
+				if(onLeave) then onLeave(a) end
+			end
+		end
+	end
+
+	popupOwner:SetParent(anchor:GetParent() or UIParent)
+	popupOwner:SetFrameStrata('DIALOG')
+	popupOwner:ClearAllPoints()
+	popupOwner:SetPoint('TOPLEFT',  anchor, 'TOPLEFT',  0, 0)
+	popupOwner:SetPoint('TOPRIGHT', anchor, 'TOPRIGHT', 0, 0)
+	popupOwner:SetHeight(anchor:GetHeight())
+
+	popupOwner._items    = items or {}
+	popupOwner._value    = value
+	popupOwner._onSelect = onSelect
+	popupOwner._anchor   = anchor
+
+	-- Flag the anchor so its own OnLeave can choose to stay visible while the
+	-- menu is open. The anchor's OnLeave opts in by checking `self._menuOpen`.
+	anchor._menuOpen = true
+
+	OpenDropdownList(popupOwner)
+end
+
+-- ============================================================
 -- CreateDropdown — standard dropdown widget
 -- ============================================================
 
