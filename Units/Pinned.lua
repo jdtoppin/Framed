@@ -494,8 +494,8 @@ function F.Units.Pinned.Layout(deferShow)
 	-- anchor:Show() deferred to the end of the function so positioning
 	-- and placeholder creation happen while the anchor is still hidden.
 
-	local count   = math.max(1, math.min(config.count   or 3, MAX_SLOTS))
-	local columns = math.max(1, math.min(config.columns or 3, count))
+	local count   = MAX_SLOTS
+	local columns = math.max(1, math.min(config.columns or 3, MAX_SLOTS))
 	local width   = config.width   or 160
 	local height  = config.height  or 40
 	local spacing = config.spacing or 2
@@ -708,7 +708,7 @@ function F.Units.Pinned.RefreshPlaceholder(slotIndex)
 	local frame = frames[slotIndex]
 	if(not frame) then return end
 
-	local count = math.max(1, math.min(config.count or 3, MAX_SLOTS))
+	local count = MAX_SLOTS
 	local width, height = config.width, config.height
 	local slot = (config.slots or {})[slotIndex]
 	local unitMissing = slot and (not frame.unit or not UnitExists(frame.unit))

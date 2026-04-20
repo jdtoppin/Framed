@@ -321,10 +321,8 @@ function F.SettingsCards.Pinned(parent, width, unitType, getConfig, setConfig)
 			Widgets.EndCard(card, parent, cardY)
 			return
 		end
-		local count = math.max(1, math.min(cfg.count or 3, MAX_SLOTS))
-
 		local y = cardY
-		for i = 1, count do
+		for i = 1, MAX_SLOTS do
 			local row = renderSlotRow(inner, i, y, innerW)
 			rows[i] = row
 			y = B.PlaceWidget(row, inner, y, ROW_H)
@@ -337,13 +335,10 @@ function F.SettingsCards.Pinned(parent, width, unitType, getConfig, setConfig)
 
 	F.EventBus:Register('CONFIG_CHANGED', function(path)
 		if(not path) then return end
-		-- count changes the number of rows, so a full rebuild is required.
-		if(path:match('unitConfigs%.pinned%.count$')) then
-			rebuild()
-		-- slot changes keep the same 9 rows — just refresh their dropdowns.
+		-- Slot changes keep the same 9 rows — just refresh their dropdowns.
 		-- Destroying and recreating every row on each assign/unassign caused
 		-- a visible texture flash across all 9 settings widgets.
-		elseif(path:match('unitConfigs%.pinned%.slots')) then
+		if(path:match('unitConfigs%.pinned%.slots')) then
 			for _, r in next, rows do
 				if(r._refresh) then r._refresh() end
 			end

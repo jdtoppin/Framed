@@ -137,7 +137,6 @@ end
 local function pinnedConfig()
 	local cfg = baseUnitConfig()
 	cfg.enabled     = false
-	cfg.count       = 9
 	cfg.columns     = 3
 	cfg.width       = 160
 	cfg.height      = 40
@@ -637,13 +636,6 @@ function F.PresetDefaults.EnsureDefaults()
 					if(savedUC[ut] and savedUC[ut].statusIcons) then
 						savedUC[ut].statusIcons.raidRole = false
 					end
-				end
-
-				-- Migrate pinned.count: old default was 3, new is 9. Bump any
-				-- save that still matches the old default so existing users
-				-- don't get stuck with 3 slots and no UI control to change it.
-				if(savedUC.pinned and savedUC.pinned.count == 3) then
-					savedUC.pinned.count = 9
 				end
 
 				-- Migrate pinned position CENTER→TOPLEFT. The edit-mode drag
