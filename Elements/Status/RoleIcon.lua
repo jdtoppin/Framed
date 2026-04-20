@@ -56,6 +56,24 @@ local function getConfiguredStyle()
 	return 2
 end
 
+--- Resolve the role to display for a unit.
+--- UnitGroupRolesAssigned returns the LFG-assigned role, which is the role
+--- the player queued as — it's sticky in follower dungeons and certain
+--- manually-formed groups and does not follow spec swaps. For the player
+--- unit specifically we can do better: GetSpecializationRole() reflects
+--- the current spec and updates synchronously with PLAYER_SPECIALIZATION_CHANGED.
+--- Other units have no queryable spec, so we fall back to the LFG role.
+local function resolveRole(unit)
+	if(unit == 'player') then
+		local specIndex = GetSpecialization()
+		local specRole = specIndex and GetSpecializationRole(specIndex)
+		if(specRole == 'TANK' or specRole == 'HEALER' or specRole == 'DAMAGER') then
+			return specRole
+		end
+	end
+	return UnitGroupRolesAssigned(unit)
+end
+
 --- Override for oUF's GroupRoleIndicator update.
 --- Sets the texture and tex coords based on the unit's assigned role.
 --- @param self Frame  The oUF unit frame
@@ -66,7 +84,7 @@ local function Override(self, event)
 		element:PreUpdate()
 	end
 
-	local role = UnitGroupRolesAssigned(self.unit)
+	local role = resolveRole(self.unit)
 	if(role == 'TANK' or role == 'HEALER' or role == 'DAMAGER') then
 		local style = getConfiguredStyle()
 		element:SetTexture(getRoleTexturePath(style))
