@@ -251,16 +251,18 @@ function F.Elements.Health.Setup(self, width, height, config)
 			self._textOverlay = textOverlay
 		end
 		local text = Widgets.CreateFontString(textOverlay, config.fontSize, C.Colors.textActive, config.outline, config.shadow)
+		-- Record the detached anchor values even when attachedToName is on,
+		-- so a later live toggle off can restore the text to its config
+		-- position without crashing on nil (_anchorX/_anchorY).
+		text._anchorPoint = config.textAnchor
+		text._anchorX     = config.textAnchorX
+		text._anchorY     = config.textAnchorY
 		if(config.attachedToName) then
 			-- Don't anchor here; StyleBuilder will anchor to Name text
 			health._attachedToName = true
 		else
 			local ap = config.textAnchor
 			text:SetPoint(ap, health._wrapper, ap, config.textAnchorX + 1, config.textAnchorY)
-			-- Store for live config updates
-			text._anchorPoint = ap
-			text._anchorX     = config.textAnchorX
-			text._anchorY     = config.textAnchorY
 		end
 		health.text = text
 	end
