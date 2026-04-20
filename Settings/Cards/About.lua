@@ -114,6 +114,24 @@ end
 -- BEGIN GENERATED CHANGELOG
 local CHANGELOG = {
 	{
+		version = 'v0.8.12-alpha',
+		entries = {
+			'**Pinned Frames in Edit Mode** — the drag catcher and selected preview now render the full 9-slot grid instead of a single fake frame, so moving pinned frames in edit mode reflects what you\'ll actually see in-game',
+			'Pinned anchor convention flipped to TOPLEFT to match boss/arena (drag math, catcher bounds, and live layout now agree); existing CENTER-anchored pinned saves are auto-migrated on load to the equivalent TOPLEFT offset so nothing visually shifts',
+			'Pinned geometry edits (width, height, columns, spacing) live-update without the grid flashing during resize, and Resize Anchor compensation keeps the pivot edge visually fixed instead of bouncing back on each slider tick',
+			'Pinned placeholder identity labels ("Pin 1" … "Pin 9") and slot name tags ("Click to assign", character name) now scale with `Name font size` (primary and primary−2, floor 8) — previously hardcoded text looked oversized at non-1.0 UI scales',
+			'Fix edit-mode first drag doing nothing visible — clicking-and-dragging immediately (without releasing first) now selects the frame so the preview appears as you drag',
+			'Fix group position sliders (party, raid, arena, boss) not moving the real frame during slider drag in edit mode — the handler only supported solo CENTER anchoring',
+			'Fix edit-mode preview not rebuilding when position/size sliders change — preview now tracks slider motion in real time via the EditCache',
+			'Fix inline edit panel sliders and dropdowns sometimes missing clicks — split into a sibling shield + panel so children hit-test uncontested; inline panel rebuilds on preset switch so sliders read the active preset\'s config',
+			'Fix boss and arena frames saving off-screen after a drag — they were written as TOPLEFT offsets but reapplied as CENTER offsets on reload/preset change. Now TOPLEFT end-to-end via a `PSEUDO_GROUPS` cascade path; existing saves self-heal because the stored values were already in TOPLEFT space',
+			'Narrow pinned settings card keeps a 2-column quick-nav summary (was collapsing to 1 column and pushing most rows below the fold); summary rows reflow mid-animation so labels no longer clip past the card edge while the card width tweens',
+			'Preset switches now redirect away from preset-specific panels (e.g. pinned under Solo) even while Settings is hidden, so reopening doesn\'t flash a stale panel',
+			'Inline edit panel stripped down to just Position & Layout — edit mode is strictly for positioning; all other settings live in the main Settings window with live previews',
+			'Internal cleanup: drop inert `config.count` from pinned (always capped at 9, no UI), consolidate pinned frame-scale handling onto a single anchor-level `RegisterForUIScale` (removes the per-frame gear counter-scale workaround), and rename a shadowed migration local to keep luacheck clean',
+		},
+	},
+	{
 		version = 'v0.8.11-alpha',
 		entries = {
 			'**Pinned Frames** — up to 9 standalone frames that track specific group members by name, following players across roster reshuffles. Supports Focus / Focus Target / name-target slots. Role-grouped class-colored assignment dropdown available from the Settings card, empty-slot placeholder click, and a hover-gear icon on assigned pins (out of combat). First-class aura configuration across all 10 aura sub-panels. Per-preset; absent in Solo',
@@ -125,33 +143,6 @@ local CHANGELOG = {
 			'Fix pinned gear icon rendering larger on resolved frames than on unresolved (placeholder) frames at non-1.0 UIParent scales — live-frame gears now counter-scale to match the placeholder gear\'s physical size',
 			'Fix `attempt to perform arithmetic on local \'x\' (a nil value)` crash in `FrameConfigText.lua` when toggling Health → Attach to name off. The Health element wasn\'t recording detached anchor values at setup when the text was created attached, so the live toggle had no coordinates to restore to',
 			'Internal cleanup: drop Cell references from in-code comments (licensing hygiene — Cell is ARR), remove the defensive `SettingsCards.Pinned` existence guard for idiom consistency, collapse empty stub branches in the pinned gear-icon path',
-		},
-	},
-	{
-		version = 'v0.8.10-alpha',
-		entries = {
-			'Add **Frame Preview Card** — every Frame settings panel (player/target/party/raid/boss/arena/pet/solo) now renders a live unit frame preview at the top of the panel using your current config, pinned next to a summary card that stays in view while the settings scroll',
-			'Raid preview card includes a 1–40 count stepper saved per character, so you can dial the preview to the group size you\'re actually tuning for',
-			'Party preview includes a pet toggle to preview pet frames alongside party members',
-			'**Focus Mode** — click a settings card (Health Color, Castbar, Auras, etc.) to spotlight the matching element in the preview; other elements dim to 20%. Your selection persists across `/reload`',
-			'Preview card and frames animate smoothly when you change count, toggle Focus Mode, or resize the settings window',
-			'Preview re-renders live as you edit config — structural changes (count, spacing) rebuild, cosmetic changes (colors, textures) just refresh',
-			'Migrate **Defensives** and **Externals** panels to the same pinned Preview | Overview layout for consistency with the Frame panels',
-			'Fix boss and arena previews where per-frame castbars overlapped the next frame instead of sitting cleanly below',
-			'Fix boss/party/arena preview card titles truncating — fixed-count unit cards now get enough width for the title and Focus Mode toggle; raid keeps its auto-sizing',
-			'Scrollbar UX: hover the right-edge strip to reveal the scrollbar (no more stolen clicks from mouse-motion detection), and dragging the thumb keeps it visible and fires lazy-load',
-			'**Buffs/Debuffs** panels: auto-select the first enabled indicator on open; add/delete indicators with a cleaner inline form (Plus/Tick icons)',
-			'**SpellList**: fix spell ID and name truncation, combine hover tooltip, tighten the ID column',
-			'**StatusText**: replace the dead anchor controls with a proper position switch',
-			'**Copy To**: move the control into the sub-header with a dropdown + direct-write button (the old standalone dialog is gone)',
-			'Fix party pet ghost frames when members joined the group; roster now refreshes properly',
-			'Guard party pet cross-zone check against secret values so it doesn\'t error in combat',
-			'Fix `RoleIcon` not refreshing on spec change, and fix style 2 to use the correct quadrant overrides',
-			'Revert a `PartyMemberFrame` state-visibility driver change that was breaking Blizzard\'s own frame cleanup',
-			'Fix `StyleBuilder` preset `groupKey` fallback accidentally applying to derived presets — now scoped to base presets only',
-			'Update summon-pending status text and color',
-			'Add third-party library attribution to the README and mirror it in the About card',
-			'Internal cleanup: drop dead code (`Core/DispelCapability.lua`, `Core/Version.Compare`, `CopyToDialog`), luacheck branch is clean',
 		},
 	},
 }

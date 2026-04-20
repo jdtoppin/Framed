@@ -188,16 +188,76 @@ end, 'ResizeHandles')
 
 -- Sync real frame when width/height/position changes via sliders
 F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
+	-- Pinned routes every edit-cache change through its own APIs:
+	-- position.x/y → ApplyPosition (anchor parents all slots)
+	-- anchorPoint / width / height / columns / spacing → Layout
+	-- (Layout's `if(f.unit) then f:Show() end` guard keeps unassigned
+	-- frames hidden, so we don't need Refresh's anchor:Hide/Show wrapper
+	-- — which itself produces a brief frames-gone flash on width changes.)
+	-- GetConfig overlays EditCache so Layout sees the live values.
+	if(frameKey == 'pinned') then
+		if(not F.Units.Pinned) then return end
+		local pinnedAnchor = F.Units.Pinned.anchor
+
+		if(configPath == 'position.x' or configPath == 'position.y') then
+			-- ApplyPosition alone — the anchor parents all 9 slots, so moving
+			-- the anchor is enough. Calling Layout here re-Shows unassigned
+			-- frames (Layout's unconditional f:Show) and they briefly render
+			-- their stale 'player' seed state before anything hides them.
+			F.Units.Pinned.ApplyPosition()
+			return
+		end
+		if(configPath == 'anchorPoint') then
+			-- Layout alone. Tokens unchanged, so Resolve would early-return
+			-- per slot anyway; skipping Refresh's anchor:Hide/Show wrapper
+			-- avoids a visible gap. Layout's f.unit guard keeps unassigned
+			-- frames hidden.
+			F.Units.Pinned.Layout()
+			return
+		end
+
+		local dimensionChange = (configPath == 'width' or configPath == 'height'
+			or configPath == 'columns' or configPath == 'spacing')
+		if(not dimensionChange) then return end
+
+		-- Snapshot bg size before Layout so we can compute delta for resize-
+		-- anchor compensation. Mirrors the party/raid groupResizeShift pattern:
+		-- grid bounds grow, but the chosen pivot corner/edge stays visually
+		-- fixed. Without this, bg always grows from TOPLEFT regardless of the
+		-- user's Resize Anchor setting.
+		local oldBgW = (pinnedAnchor and pinnedAnchor._width)  or (pinnedAnchor and pinnedAnchor:GetWidth())  or 0
+		local oldBgH = (pinnedAnchor and pinnedAnchor._height) or (pinnedAnchor and pinnedAnchor:GetHeight()) or 0
+
+		F.Units.Pinned.Layout()
+
+		local newBgW = (pinnedAnchor and pinnedAnchor._width)  or (pinnedAnchor and pinnedAnchor:GetWidth())  or 0
+		local newBgH = (pinnedAnchor and pinnedAnchor._height) or (pinnedAnchor and pinnedAnchor:GetHeight()) or 0
+		local dw = newBgW - oldBgW
+		local dh = newBgH - oldBgH
+		if(dw == 0 and dh == 0) then return end
+
+		local resizeAnchor = F.EditCache.Get('pinned', 'position.anchor') or 'TOPLEFT'
+		if(resizeAnchor == 'TOPLEFT') then return end
+
+		local Shared = F.LiveUpdate and F.LiveUpdate.FrameConfigShared
+		if(not Shared or not Shared.groupResizeShift) then return end
+
+		local dx, dy = Shared.groupResizeShift('TOPLEFT', resizeAnchor, dw, dh)
+		if(dx == 0 and dy == 0) then return end
+
+		local curX = F.EditCache.Get('pinned', 'position.x') or 0
+		local curY = F.EditCache.Get('pinned', 'position.y') or 0
+		F.EditCache.Set('pinned', 'position.x', Widgets.Round(curX + dx))
+		F.EditCache.Set('pinned', 'position.y', Widgets.Round(curY + dy))
+		return
+	end
+
 	local isSize = (configPath == 'width' or configPath == 'height')
 	local isPos = (configPath == 'position.x' or configPath == 'position.y')
 	if(not isSize and not isPos) then return end
 
 	for _, def in next, EditMode.FRAME_KEYS do
 		if(def.key == frameKey) then
-			-- Skip group frames for position — headers use their own anchor
-			-- (TOPLEFT) and aren't directly dragged in edit mode
-			if(def.isGroup and isPos) then break end
-
 			local frame = def.getter()
 			if(not frame) then break end
 
@@ -217,15 +277,25 @@ F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, v
 				local scaleRatio = fScale / uiScale
 				local uiW = UIParent:GetWidth()
 				local uiH = UIParent:GetHeight()
-				local halfFW = w / 2 * scaleRatio
-				local halfFH = h / 2 * scaleRatio
-				local uiHalfW = uiW / 2
-				local uiHalfH = uiH / 2
-				x = math.max(-(uiHalfW - halfFW) / scaleRatio, math.min((uiHalfW - halfFW) / scaleRatio, x))
-				y = math.max(-(uiHalfH - halfFH) / scaleRatio, math.min((uiHalfH - halfFH) / scaleRatio, y))
 
+				-- Group frames use TOPLEFT anchor (matching LiveUpdate and
+				-- edit-mode drag), solo frames use CENTER.
 				frame:ClearAllPoints()
-				Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+				if(def.isGroup) then
+					local maxX = (uiW - w * scaleRatio) / scaleRatio
+					local minY = -(uiH - h * scaleRatio) / scaleRatio
+					x = math.max(0, math.min(maxX, x))
+					y = math.min(0, math.max(minY, y))
+					Widgets.SetPoint(frame, 'TOPLEFT', UIParent, 'TOPLEFT', x, y)
+				else
+					local halfFW = w / 2 * scaleRatio
+					local halfFH = h / 2 * scaleRatio
+					local uiHalfW = uiW / 2
+					local uiHalfH = uiH / 2
+					x = math.max(-(uiHalfW - halfFW) / scaleRatio, math.min((uiHalfW - halfFW) / scaleRatio, x))
+					y = math.max(-(uiHalfH - halfFH) / scaleRatio, math.min((uiHalfH - halfFH) / scaleRatio, y))
+					Widgets.SetPoint(frame, 'CENTER', UIParent, 'CENTER', x, y)
+				end
 			end
 			break
 		end

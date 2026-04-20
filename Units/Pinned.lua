@@ -224,7 +224,51 @@ function F.Units.Pinned.GetConfig()
 	if(config and config.slots) then
 		normalizeSlotKeys(config.slots)
 	end
+
+	-- Overlay EditCache during edit mode so live-edit values (width, height,
+	-- spacing, columns, anchorPoint, position.x/y) flow through Layout /
+	-- ApplyPosition immediately. Commit flushes these to the real config.
+	-- Shallow-copy so we never mutate the source table.
+	if(config and F.EditCache and F.EditCache.IsActive()) then
+		local edits = F.EditCache.GetEditsForFrame('pinned')
+		if(edits) then
+			local overlay = {}
+			for k, v in next, config do overlay[k] = v end
+			for path, value in next, edits do
+				local head, rest = path:match('^([^.]+)%.(.+)$')
+				if(head and rest) then
+					local sub = {}
+					if(type(overlay[head]) == 'table') then
+						for sk, sv in next, overlay[head] do sub[sk] = sv end
+					end
+					sub[rest] = value
+					overlay[head] = sub
+				else
+					overlay[path] = value
+				end
+			end
+			return overlay
+		end
+	end
+
 	return config
+end
+
+-- ============================================================
+-- Label font sizes
+-- Placeholder + SlotIdentity labels derive from config.name.fontSize so
+-- they track the user's name-text setting instead of hardcoded constants.
+-- Primary = identity text shown when a unit is missing (matches name).
+-- Secondary = "Click to assign" hint + SlotIdentity tag above live frames
+-- (subordinate to the name).
+-- ============================================================
+local LABEL_SECONDARY_FLOOR = 8
+local function labelFontSizes()
+	local config = F.StyleBuilder.GetConfig('pinned')
+	local primary = (config and config.name and config.name.fontSize) or F.Constants.Font.sizeNormal
+	local secondary = primary - 2
+	if(secondary < LABEL_SECONDARY_FLOOR) then secondary = LABEL_SECONDARY_FLOOR end
+	return primary, secondary
 end
 
 -- ============================================================
@@ -247,7 +291,8 @@ local function Style(self, unit)
 	end
 
 	if(not self.SlotIdentity) then
-		local fs = F.Widgets.CreateFontString(self, F.Constants.Font.sizeSmall, F.Constants.Colors.textSecondary)
+		local _, secondary = labelFontSizes()
+		local fs = F.Widgets.CreateFontString(self, secondary, F.Constants.Colors.textSecondary)
 		-- Two horizontal anchors bound width to the frame so long labels
 		-- (e.g. "Some Long Name's Target") truncate with an ellipsis instead
 		-- of overflowing past the frame edges.
@@ -288,18 +333,10 @@ local function Style(self, unit)
 
 		self.ReassignGear = gear
 	end
-
-	F.Widgets.RegisterForUIScale(self)
-
-	-- RegisterForUIScale just applied SetScale(desiredScale / uiParentScale)
-	-- to self. The gear is parented to self and inherits that scale-up, which
-	-- makes it render noticeably larger than placeholder gears (parented to
-	-- the unscaled anchor). Counter-scale the gear to cancel out self's scale
-	-- so both live and placeholder gears render at the same physical size.
-	local selfScale = self:GetScale() or 1
-	if(self.ReassignGear and selfScale > 0) then
-		self.ReassignGear:SetScale(1 / selfScale)
-	end
+	-- UI scale lives on the anchor (see F.Units.Pinned.Spawn), not on
+	-- individual frames — matches party/raid headers. Keeps edit-mode
+	-- catchers (which read anchor:GetEffectiveScale) sized to the same
+	-- visual bounds as the live frames.
 end
 
 -- ============================================================
@@ -309,9 +346,14 @@ function F.Units.Pinned.ApplyPosition()
 	local anchor = F.Units.Pinned.anchor
 	if(not anchor) then return end
 	local config = F.Units.Pinned.GetConfig()
-	local pos = (config and config.position) or { x = 0, y = 0, anchor = 'CENTER' }
+	local pos = (config and config.position) or { x = 0, y = 0 }
+	-- Fixed TOPLEFT→TOPLEFT anchoring to match other group frames
+	-- (party/raid) and the edit-mode drag path, which saves x/y as
+	-- TOPLEFT offsets. position.anchor is resize-preference metadata
+	-- only — it influences how width/height changes shift the grid,
+	-- not the grid's base placement.
 	anchor:ClearAllPoints()
-	anchor:SetPoint(pos.anchor or 'CENTER', UIParent, pos.anchor or 'CENTER', pos.x or 0, pos.y or 0)
+	anchor:SetPoint('TOPLEFT', UIParent, 'TOPLEFT', pos.x or 0, pos.y or 0)
 end
 
 -- ============================================================
@@ -362,7 +404,8 @@ local function createPlaceholder(parent, slotIndex)
 	plus:SetPoint('CENTER', ph, 'CENTER', 0, 4)
 	plus:SetText('+')
 
-	local identity = F.Widgets.CreateFontString(ph, F.Constants.Font.sizeNormal, F.Constants.Colors.textPrimary)
+	local primary, secondary = labelFontSizes()
+	local identity = F.Widgets.CreateFontString(ph, primary, F.Constants.Colors.textPrimary)
 	-- Bound to placeholder width so long identity strings ("Some Long
 	-- Name's Target") truncate with an ellipsis instead of spilling past
 	-- the placeholder edges.
@@ -372,7 +415,7 @@ local function createPlaceholder(parent, slotIndex)
 	identity:SetJustifyH('CENTER')
 	identity:Hide()
 
-	local hint = F.Widgets.CreateFontString(ph, F.Constants.Font.sizeSmall, F.Constants.Colors.textSecondary)
+	local hint = F.Widgets.CreateFontString(ph, secondary, F.Constants.Colors.textSecondary)
 	hint:SetPoint('BOTTOM', ph, 'BOTTOM', 0, 4)
 	hint:SetAlpha(0.7)
 	hint:SetText('Click to assign')
@@ -491,14 +534,28 @@ function F.Units.Pinned.Layout(deferShow)
 		anchor:Hide()
 		return
 	end
+
 	-- anchor:Show() deferred to the end of the function so positioning
 	-- and placeholder creation happen while the anchor is still hidden.
 
-	local count   = math.max(1, math.min(config.count   or 3, MAX_SLOTS))
-	local columns = math.max(1, math.min(config.columns or 3, count))
+	local count   = MAX_SLOTS
+	local columns = math.max(1, math.min(config.columns or 3, MAX_SLOTS))
 	local width   = config.width   or 160
 	local height  = config.height  or 40
 	local spacing = config.spacing or 2
+
+	-- Growth direction follows config.anchorPoint — matches party/raid's
+	-- "Anchor Point" dropdown semantics (4 corners). Slot 1 sits at that
+	-- corner of the anchor frame; remaining slots grow inward. position.anchor
+	-- is independent resize-pivot metadata and never affects layout.
+	local anchorPoint = config.anchorPoint or 'TOPLEFT'
+	local growLeft = (anchorPoint == 'TOPRIGHT' or anchorPoint == 'BOTTOMRIGHT')
+	local growUp   = (anchorPoint == 'BOTTOMLEFT' or anchorPoint == 'BOTTOMRIGHT')
+	local slotCorner = anchorPoint
+
+	local powerHeight   = (config.power and config.power.height) or 0
+	local healthHeight  = height - powerHeight
+	local powerPosition = (config.power and config.power.position) or 'bottom'
 
 	for i = 1, MAX_SLOTS do
 		local f = frames[i]
@@ -506,19 +563,46 @@ function F.Units.Pinned.Layout(deferShow)
 			if(i <= count) then
 				local row = math.ceil(i / columns) - 1
 				local col = ((i - 1) % columns)
+				local xOff = col * (width + spacing)
+				local yOff = row * (height + spacing)
+				if(growLeft)     then xOff = -xOff end
+				if(not growUp)   then yOff = -yOff end
 				f:ClearAllPoints()
-				f:SetPoint('TOPLEFT', anchor, 'TOPLEFT',
-					col * (width + spacing),
-					-(row * (height + spacing)))
+				f:SetPoint(slotCorner, anchor, slotCorner, xOff, yOff)
 				F.Widgets.SetSize(f, width, height)
-				-- The outer frame was originally pixel-snapped at the pre-scale
-				-- effective scale. Inner wrappers (health/power) captured that
-				-- snap too and were never re-run, so on non-1.0 UI scales they
-				-- render ~1px wider than the frame and spill past the dark bg.
-				-- Re-snap them at the current (post-SetScale) effective scale.
-				if(f.Health and f.Health._wrapper) then F.Widgets.ReSize(f.Health._wrapper) end
-				if(f.Power  and f.Power._wrapper)  then F.Widgets.ReSize(f.Power._wrapper)  end
-				f:Show()
+
+				-- Inner wrappers (health/power) were sized at Style time and
+				-- never re-sized on width/height changes — only ReSize-snapped
+				-- at their pre-change stored dimensions. That left the health
+				-- bar stale whenever the user resized the frame. Mirror the
+				-- party/raid preset-change pattern: explicit SetSize + re-anchor
+				-- so the bars track the outer frame on every layout pass.
+				if(f.Health and f.Health._wrapper) then
+					F.Widgets.SetSize(f.Health._wrapper, width, healthHeight)
+				end
+				if(f.Power and f.Power._wrapper) then
+					F.Widgets.SetSize(f.Power._wrapper, width, powerHeight)
+					f.Power._wrapper:ClearAllPoints()
+					f.Health._wrapper:ClearAllPoints()
+					if(powerPosition == 'top') then
+						f.Power._wrapper:SetPoint('TOPLEFT', f, 'TOPLEFT', 0, 0)
+						f.Health._wrapper:SetPoint('TOPLEFT', f, 'TOPLEFT', 0, -powerHeight)
+					else
+						f.Health._wrapper:SetPoint('TOPLEFT', f, 'TOPLEFT', 0, 0)
+						f.Power._wrapper:SetPoint('TOPLEFT', f.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+					end
+					if(f.Power.SetSharedEdge) then
+						f.Power:SetSharedEdge(powerPosition)
+					end
+				end
+
+				-- Only show frames that have a unit assigned. Unassigned slots
+				-- (f.unit == nil) stay hidden because Resolve already hid them;
+				-- re-showing here would flash their stale oUF 'player' seed
+				-- state whenever Layout runs for a mid-session resize. Cold-
+				-- start / enable-toggle paths go through Refresh, which runs
+				-- Resolve after Layout to set unit + visibility correctly.
+				if(f.unit) then f:Show() end
 			else
 				f:Hide()
 			end
@@ -700,6 +784,42 @@ end
 
 --- Re-evaluate placeholder visibility/mode for a single slot. Called from
 --- ApplySlot (assignment change) and from the poll loop (target appeared or
+--- Refresh placeholder + SlotIdentity fonts after name.fontSize changes.
+--- Walks live frames and placeholders, reapplying primary/secondary sizes.
+function F.Units.Pinned.ApplyLabelFonts()
+	local primary, secondary = labelFontSizes()
+	local fontPath = F.Media.GetActiveFont()
+	local frames = F.Units.Pinned.frames
+	if(frames) then
+		for i = 1, MAX_SLOTS do
+			local f = frames[i]
+			if(f and f.SlotIdentity) then
+				local _, _, flags = f.SlotIdentity:GetFont()
+				f.SlotIdentity:SetFont(fontPath, secondary, flags or '')
+				f.SlotIdentity._fontSize = secondary
+			end
+		end
+	end
+	local phs = F.Units.Pinned.placeholders
+	if(phs) then
+		for i = 1, MAX_SLOTS do
+			local ph = phs[i]
+			if(ph) then
+				if(ph._identityText) then
+					local _, _, flags = ph._identityText:GetFont()
+					ph._identityText:SetFont(fontPath, primary, flags or '')
+					ph._identityText._fontSize = primary
+				end
+				if(ph._hintText) then
+					local _, _, flags = ph._hintText:GetFont()
+					ph._hintText:SetFont(fontPath, secondary, flags or '')
+					ph._hintText._fontSize = secondary
+				end
+			end
+		end
+	end
+end
+
 --- disappeared for a nametarget/focustarget slot).
 function F.Units.Pinned.RefreshPlaceholder(slotIndex)
 	local config = F.Units.Pinned.GetConfig()
@@ -708,7 +828,7 @@ function F.Units.Pinned.RefreshPlaceholder(slotIndex)
 	local frame = frames[slotIndex]
 	if(not frame) then return end
 
-	local count = math.max(1, math.min(config.count or 3, MAX_SLOTS))
+	local count = MAX_SLOTS
 	local width, height = config.width, config.height
 	local slot = (config.slots or {})[slotIndex]
 	local unitMissing = slot and (not frame.unit or not UnitExists(frame.unit))
@@ -825,6 +945,13 @@ function F.Units.Pinned.Spawn()
 	-- spawn and Resolve setting unit=nil on unassigned slots.
 	anchor:Hide()
 	F.Widgets.SetSize(anchor, 1, 1)
+	-- UI scale lives on the anchor, not on individual frames. Mirrors
+	-- party/raid (Widgets.RegisterForUIScale on the header) so the
+	-- anchor's effective scale matches what users see — which means
+	-- edit-mode catchers (reading anchor:GetEffectiveScale) match the
+	-- live-frame bounds, and placeholders parented to the anchor scale
+	-- in lockstep with their live counterparts.
+	F.Widgets.RegisterForUIScale(anchor)
 	F.Units.Pinned.anchor = anchor
 	F.Units.Pinned.ApplyPosition()
 

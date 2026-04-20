@@ -190,6 +190,16 @@ local function CreateCatcher(def, overlay)
 	end)
 
 	catcher:SetScript('OnDragStart', function(self)
+		-- Select the frame first so PreviewManager builds its preview before
+		-- the catcher goes invisible. Without this, a first-drag (click+drag
+		-- without any prior click-release) shows nothing moving — the catcher
+		-- hides itself via ApplySelectedVisuals, but no preview exists to take
+		-- its place and the real frame is occluded by the dim overlay. Select
+		-- happens on OnClick (click-release) and OnDragStop, neither of which
+		-- fires before the first OnUpdate of a first-drag.
+		if(EditMode.GetSelectedFrameKey() ~= self._frameKey) then
+			EditMode.SetSelectedFrameKey(self._frameKey)
+		end
 		-- Switch to selected visuals during drag
 		ApplySelectedVisuals(self)
 

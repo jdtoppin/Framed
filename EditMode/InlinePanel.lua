@@ -14,57 +14,29 @@ local PANEL_MIN_H    = 300
 local EDGE_MARGIN    = 16
 
 local panel        = nil
+local shield       = nil
 local currentKey   = nil
-local contentFrame = nil
-local activePanelId = nil  -- 'frame' or an aura group id
+local currentPreset = nil  -- preset the panel was built against
 local currentSide  = nil   -- 'RIGHT' or 'LEFT'
 local targetRef    = nil   -- reference to the frame the panel is anchored to
 local dragTicker   = nil   -- hidden frame for OnUpdate during drag
-
---- All aura group panels in display order.
-local AURA_GROUPS = {
-	{ id = 'buffs',          label = 'Buffs' },
-	{ id = 'debuffs',        label = 'Debuffs' },
-	{ id = 'externals',      label = 'Externals' },
-	{ id = 'defensives',     label = 'Defensives' },
-	{ id = 'targetedspells', label = 'Targeted Spells' },
-	{ id = 'dispels',        label = 'Dispels' },
-	{ id = 'missingbuffs',   label = 'Missing Buffs' },
-	{ id = 'privateauras',   label = 'Private Auras' },
-	{ id = 'lossofcontrol',  label = 'Loss of Control' },
-	{ id = 'crowdcontrol',   label = 'Crowd Control' },
-}
-
---- Find a registered panel's create function by its id.
---- @param panelId string
---- @return function|nil create
-local function GetPanelCreate(panelId)
-	for _, p in next, F.Settings._panels do
-		if(p.id == panelId) then
-			return p.create
-		end
-	end
-	return nil
-end
-
---- Dim all aura elements on a frame except the active group.
---- @param frameKey string  The selected frame key
---- @param activeGroup string|nil  The active aura group id, or nil to restore all
-local function DimNonActiveAuras(frameKey, activeGroup)
-	F.EventBus:Fire('EDIT_MODE_AURA_DIM', frameKey, activeGroup)
-end
 
 local function DestroyPanel()
 	if(dragTicker) then
 		dragTicker:SetScript('OnUpdate', nil)
 		dragTicker:Hide()
 	end
+	if(shield) then
+		shield:Hide()
+		shield:SetParent(EditMode._trashFrame)
+		shield = nil
+	end
 	if(panel) then
 		panel:Hide()
 		panel:SetParent(EditMode._trashFrame)
 		panel = nil
-		contentFrame = nil
 		currentKey = nil
+		currentPreset = nil
 		currentSide = nil
 		targetRef = nil
 	end
@@ -114,6 +86,10 @@ local function AnchorPanelAbsolute(side)
 		local leftX = (targetRef:GetLeft() or 0) * ratio
 		panel:SetPoint('TOPRIGHT', UIParent, 'BOTTOMLEFT', leftX - EDGE_MARGIN, topY)
 	end
+	if(shield) then
+		shield:ClearAllPoints()
+		shield:SetAllPoints(panel)
+	end
 end
 
 --- Re-anchor the panel to the opposite side if needed.
@@ -131,13 +107,31 @@ local function BuildPanel(frameKey, targetFrame)
 	if(not overlay) then return end
 
 	currentKey = frameKey
+	currentPreset = F.Settings.GetEditingPreset()
 
-	-- Create panel frame
-	panel = Widgets.CreateBorderedFrame(overlay, PANEL_WIDTH, PANEL_MIN_H, C.Colors.panel, C.Colors.border)
-	panel:SetFrameLevel(overlay:GetFrameLevel() + 30)
-	panel:SetFrameStrata('TOOLTIP')
+	-- Shield: SIBLING of the panel (child of overlay) at a strictly LOWER
+	-- frame level than the panel. Sized and anchored to match the panel so
+	-- it absorbs any click on the panel footprint that misses a widget.
+	-- Keeping shield and panel as siblings (not ancestor/descendant) avoids
+	-- any chance of the mouse-enabled shield shadowing its own descendant
+	-- widgets via WoW's hit-testing quirks.
+	shield = CreateFrame('Frame', nil, overlay)
+	shield:SetSize(PANEL_WIDTH, PANEL_MIN_H)
+	shield:SetFrameLevel(overlay:GetFrameLevel() + 79)
+	shield:EnableMouse(true)
+	-- Explicit no-op handler so the click is truly consumed — an
+	-- EnableMouse(true) frame with no script handler can still let events
+	-- fall through in some WoW contexts.
+	shield:SetScript('OnMouseDown', function() end)
+
+	-- Transparent container. Lives above the shield; its widget subtree
+	-- provides all visuals and hit-testing. Panel itself is NOT mouse-
+	-- enabled so it never competes with its own children for clicks.
+	panel = CreateFrame('Frame', nil, overlay)
+	panel:SetSize(PANEL_WIDTH, PANEL_MIN_H)
+	panel:SetFrameLevel(overlay:GetFrameLevel() + 80)
 	panel:SetClampedToScreen(true)
-	panel:EnableMouse(true)  -- consume clicks so they don't deselect via overlay
+	panel:EnableMouse(false)
 
 	-- Position relative to target frame (absolute anchor to UIParent so
 	-- slider-driven frame moves don't drag the panel along)
@@ -145,109 +139,26 @@ local function BuildPanel(frameKey, targetFrame)
 	currentSide = GetSmartSide(targetFrame)
 	AnchorPanelAbsolute(currentSide)
 
-	-- ── Resolve frame definition ────────────────────────────
-	local frameDef = nil
-	for _, def in next, EditMode.FRAME_KEYS do
-		if(def.key == frameKey) then
-			frameDef = def
-			break
-		end
-	end
+	-- ── Render the Position & Layout card directly ──────────
+	-- Each frame key owns its own unitConfigs node, so the EditCache is
+	-- addressed by frameKey directly — do NOT remap to the preset's
+	-- groupKey, or Boss/Pinned/Party/Arena all alias to the same entry.
+	local unitType = frameKey
+	local widgetW = PANEL_WIDTH - C.Spacing.normal * 2
+	local getCfg = function(path) return F.EditCache.Get(unitType, path) end
+	local setCfg = function(path, value) F.EditCache.Set(unitType, path, value) end
+	local onResize = function() end  -- Preview auto-updates via EDIT_CACHE_VALUE_CHANGED
 
-	local frameLabel = frameDef and frameDef.label or frameKey
+	local card = F.SettingsCards.PositionAndLayout(panel, widgetW, unitType, getCfg, setCfg, onResize)
+	card:ClearAllPoints()
+	card:SetPoint('TOPLEFT', panel, 'TOPLEFT', C.Spacing.normal, -C.Spacing.normal)
 
-	-- ── Panel selector dropdown ─────────────────────────────
-	-- First item = frame settings, rest = aura groups
-	local ddItems = {
-		{ text = frameLabel .. ' Settings', value = 'frame' },
-	}
-	for _, group in next, AURA_GROUPS do
-		ddItems[#ddItems + 1] = { text = group.label, value = group.id }
-	end
+	-- Fit panel height to card, then sync shield to the final rect
+	panel:SetHeight(card:GetHeight() + C.Spacing.normal * 2)
+	shield:SetHeight(panel:GetHeight())
+	shield:ClearAllPoints()
+	shield:SetAllPoints(panel)
 
-	local panelDD = Widgets.CreateDropdown(panel, PANEL_WIDTH - C.Spacing.normal * 2)
-	panelDD:SetItems(ddItems)
-	panelDD:ClearAllPoints()
-	panelDD:SetPoint('TOP', panel, 'TOP', 0, -C.Spacing.tight)
-
-	-- ── Content area ────────────────────────────────────────
-	local ddHeight = panelDD.GetHeight and panelDD:GetHeight() or 24
-	contentFrame = CreateFrame('Frame', nil, panel)
-	contentFrame:SetPoint('TOPLEFT', panelDD, 'BOTTOMLEFT', 0, -C.Spacing.tight)
-	contentFrame:SetPoint('BOTTOMRIGHT', panel, 'BOTTOMRIGHT', 0, 0)
-	contentFrame._explicitWidth = PANEL_WIDTH
-	contentFrame._explicitHeight = PANEL_MIN_H - ddHeight - C.Spacing.tight * 2
-
-	-- ── Clear content helper ────────────────────────────────
-	local function ClearContent()
-		for _, child in next, { contentFrame:GetChildren() } do
-			child:Hide()
-			child:SetParent(EditMode._trashFrame)
-		end
-	end
-
-	-- ── Show frame settings ─────────────────────────────────
-	local function ShowFrameSettings()
-		activePanelId = 'frame'
-		DimNonActiveAuras(currentKey, nil)
-		ClearContent()
-
-		local unitType = frameKey
-		if(frameDef and frameDef.isGroup) then
-			local info = C.PresetInfo[F.Settings.GetEditingPreset()]
-			unitType = (info and info.groupKey) or frameKey
-		end
-
-		local scrollPanel = F.FrameSettingsBuilder.Create(contentFrame, unitType)
-		scrollPanel:SetAllPoints(contentFrame)
-		scrollPanel:Show()
-	end
-
-	-- ── Show aura group settings ────────────────────────────
-	local function ShowAuraGroup(groupId)
-		activePanelId = groupId
-		ClearContent()
-
-		local createFn = GetPanelCreate(groupId)
-		if(not createFn) then
-			local noPanel = Widgets.CreateFontString(contentFrame, C.Font.sizeNormal, C.Colors.textSecondary)
-			noPanel:SetPoint('CENTER', contentFrame, 'CENTER', 0, 0)
-			noPanel:SetText('Panel not available')
-			DimNonActiveAuras(currentKey, groupId)
-			return
-		end
-
-		local auraPanel = createFn(contentFrame)
-		if(auraPanel) then
-			auraPanel:ClearAllPoints()
-			auraPanel:SetAllPoints(contentFrame)
-			auraPanel._width = nil
-			auraPanel._height = nil
-			auraPanel:Show()
-		end
-
-		DimNonActiveAuras(currentKey, groupId)
-	end
-
-	-- ── Dropdown selection handler ──────────────────────────
-	panelDD:SetOnSelect(function(value)
-		if(value == 'frame') then
-			ShowFrameSettings()
-		else
-			ShowAuraGroup(value)
-		end
-	end)
-
-	-- Default: restore previous selection or frame settings
-	local defaultPanel = activePanelId or 'frame'
-	panelDD:SetValue(defaultPanel)
-	if(defaultPanel == 'frame') then
-		ShowFrameSettings()
-	else
-		ShowAuraGroup(defaultPanel)
-	end
-
-	-- Slide in animation
 	Widgets.FadeIn(panel)
 end
 
@@ -285,14 +196,19 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 		return
 	end
 
-	-- Already showing for this frame — just update side, don't rebuild
-	if(panel and currentKey == frameKey) then
+	-- Already showing for this frame AND preset — just update side, don't
+	-- rebuild. If the preset changed (e.g. EDIT_MODE_PRESET_SWITCHED re-
+	-- selects the same frame key after a preset swap), fall through and
+	-- rebuild so the sliders/anchor/dropdowns read from the new preset's
+	-- config instead of the old preset's cached state.
+	if(panel and currentKey == frameKey and currentPreset == F.Settings.GetEditingPreset()) then
 		UpdatePanelSide()
 		return
 	end
 
-	-- If switching frames, animate out then build new
-	if(panel and currentKey ~= frameKey) then
+	-- If switching frames OR the editing preset changed, animate out then
+	-- build fresh so the rebuilt panel reads the new preset's config.
+	if(panel) then
 		Widgets.FadeOut(panel, C.Animation.durationFast, function()
 			BuildPanel(frameKey, targetFrame)
 		end)
@@ -324,10 +240,5 @@ F.EventBus:Register('EDIT_MODE_DRAG_STOPPED', function(frameKey)
 end, 'InlinePanel.dragStop')
 
 F.EventBus:Register('EDIT_MODE_EXITED', function()
-	-- Restore aura visibility
-	if(currentKey) then
-		DimNonActiveAuras(currentKey, nil)
-	end
-	activePanelId = nil
 	DestroyPanel()
 end, 'InlinePanel')

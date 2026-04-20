@@ -5,8 +5,10 @@ local Widgets = F.Widgets
 local Shared = F.LiveUpdate.FrameConfigShared
 local ForEachFrame    = Shared.ForEachFrame
 local GROUP_TYPES     = Shared.GROUP_TYPES
+local PSEUDO_GROUPS   = Shared.PSEUDO_GROUPS
 local getGroupHeader  = Shared.getGroupHeader
 local repositionFrame = Shared.repositionFrame
+local cascadePseudoGroup = Shared.cascadePseudoGroup
 local resizeShift     = Shared.resizeShift
 local groupResizeShift = Shared.groupResizeShift
 local applyOrQueue     = Shared.applyOrQueue
@@ -261,6 +263,8 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				header:ClearAllPoints()
 				Widgets.SetPoint(header, 'TOPLEFT', UIParent, 'TOPLEFT', x, y)
 			end
+		elseif(PSEUDO_GROUPS[unitType]) then
+			cascadePseudoGroup(unitType, config)
 		else
 			ForEachFrame(unitType, function(frame)
 				repositionFrame(frame, config)
@@ -345,6 +349,35 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 						end
 					end)
 				end
+			elseif(PSEUDO_GROUPS[unitType]) then
+				ForEachFrame(unitType, function(frame)
+					Widgets.SetSize(frame, config.width, config.height)
+					if(frame.Health and frame.Health._wrapper) then
+						Widgets.SetSize(frame.Health._wrapper, config.width, healthHeight)
+					end
+					if(frame.Power and frame.Power._wrapper) then
+						Widgets.SetSize(frame.Power._wrapper, config.width, powerHeight)
+						local pos = config.power.position
+						frame.Power._wrapper:ClearAllPoints()
+						frame.Health._wrapper:ClearAllPoints()
+						if(pos == 'top') then
+							frame.Power._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+							frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, -powerHeight)
+						else
+							frame.Health._wrapper:SetPoint('TOPLEFT', frame, 'TOPLEFT', 0, 0)
+							frame.Power._wrapper:SetPoint('TOPLEFT', frame.Health._wrapper, 'BOTTOMLEFT', 0, 0)
+						end
+						if(frame.Power.SetSharedEdge) then
+							frame.Power:SetSharedEdge(pos)
+						end
+					end
+					local cbCfg = config.castbar
+					if(cbCfg and frame.Castbar and frame.Castbar._wrapper and cbCfg.sizeMode ~= 'detached') then
+						Widgets.SetSize(frame.Castbar._wrapper, config.width, cbCfg.height)
+					end
+				end)
+				-- Re-cascade since frame height affects vertical offsets
+				cascadePseudoGroup(unitType, config)
 			else
 				local anchor = config.position.anchor
 				ForEachFrame(unitType, function(frame)
@@ -404,6 +437,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 
 	-- Group layout: spacing, orientation, anchorPoint
 	if(key == 'spacing' or key == 'orientation' or key == 'anchorPoint') then
+		if(PSEUDO_GROUPS[unitType]) then
+			if(key == 'anchorPoint') then return end
+			local config = F.StyleBuilder.GetConfig(unitType)
+			cascadePseudoGroup(unitType, config)
+			return
+		end
 		if(not GROUP_TYPES[unitType]) then return end
 		local header = getGroupHeader(unitType)
 		if(not header) then return end

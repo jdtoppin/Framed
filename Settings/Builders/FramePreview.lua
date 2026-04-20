@@ -757,7 +757,13 @@ end
 -- Public: animate pinned row widths (preview card + its viewport, summary card).
 function FP.AnimatePinnedWidths(previewCard, summaryCard, targetPreviewW, targetSummaryW, onFrame)
 	AnimatePreviewWidth(previewCard, previewCard._viewport, targetPreviewW, onFrame)
-	AnimateSimpleWidth(summaryCard, targetSummaryW)
+	AnimateSimpleWidth(summaryCard, targetSummaryW, function()
+		-- Keep row widths in sync with the tweening card so LEFT/RIGHT-
+		-- anchored labels truncate rather than clipping past the card.
+		if(summaryCard.ResizeRowsToWidth) then
+			summaryCard:ResizeRowsToWidth()
+		end
+	end)
 end
 
 -- Lightweight height refresh used when Focus Mode reflows between rows. The

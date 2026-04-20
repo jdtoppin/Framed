@@ -8,8 +8,10 @@ local Shared = F.LiveUpdate.FrameConfigShared
 local ForEachFrame = Shared.ForEachFrame
 local STATUS_ELEMENT_MAP = Shared.STATUS_ELEMENT_MAP
 local GROUP_TYPES = Shared.GROUP_TYPES
+local PSEUDO_GROUPS = Shared.PSEUDO_GROUPS
 local getGroupHeader = Shared.getGroupHeader
 local repositionFrame = Shared.repositionFrame
+local cascadePseudoGroup = Shared.cascadePseudoGroup
 local applyOrQueue = Shared.applyOrQueue
 local applyGroupLayoutToHeader = Shared.applyGroupLayoutToHeader
 
@@ -31,7 +33,8 @@ local function applyFullConfig(frame, config)
 	local unitType = frame._framedUnitType
 	-- ── Position (solo frames only) ──────────────────────────
 	-- Pinned frames position via Layout() grid, not per-frame SetPoint.
-	if(not GROUP_TYPES[unitType] and unitType ~= 'pinned') then
+	-- Pseudo-groups (boss/arena) cascade together after the per-frame loop.
+	if(not GROUP_TYPES[unitType] and not PSEUDO_GROUPS[unitType] and unitType ~= 'pinned') then
 		repositionFrame(frame, config)
 	end
 
@@ -505,6 +508,14 @@ F.EventBus:Register('PRESET_CHANGED', function(presetName)
 				applyOrQueue(header, 'initial-width', config.width)
 				applyOrQueue(header, 'initial-height', config.height)
 			end
+		end
+	end
+
+	-- Re-cascade pseudo-groups (boss/arena) from new preset's position + spacing
+	for pseudoType in next, PSEUDO_GROUPS do
+		local config = F.StyleBuilder.GetConfig(pseudoType)
+		if(config) then
+			cascadePseudoGroup(pseudoType, config)
 		end
 	end
 

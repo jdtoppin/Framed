@@ -6,7 +6,7 @@ local B = F.FrameSettingsBuilder
 F.SettingsCards = F.SettingsCards or {}
 
 
-local GROUP_TYPES = { party = true, raid = true, arena = true }
+local GROUP_TYPES = { party = true, raid = true, arena = true, pinned = true }
 
 function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, setConfig, onResize)
 	local card, inner, cardY = Widgets.StartCard(parent, width, 0)
@@ -62,17 +62,20 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		end)
 		cardY = B.PlaceWidget(spacingSlider, inner, cardY, B.SLIDER_H)
 
-		-- Orientation switch
-		cardY = B.PlaceHeading(inner, 'Orientation', 4, cardY)
-		local orientSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
-			{ text = 'Vertical',   value = 'vertical' },
-			{ text = 'Horizontal', value = 'horizontal' },
-		})
-		orientSwitch:SetValue(getConfig('orientation'))
-		orientSwitch:SetOnSelect(function(value)
-			setConfig('orientation', value)
-		end)
-		cardY = B.PlaceWidget(orientSwitch, inner, cardY, B.SWITCH_H)
+		-- Orientation switch — pinned is a fixed-column row-major grid,
+		-- so it has no orientation choice.
+		if(unitType ~= 'pinned') then
+			cardY = B.PlaceHeading(inner, 'Orientation', 4, cardY)
+			local orientSwitch = Widgets.CreateSwitch(inner, widgetW, B.SWITCH_H, {
+				{ text = 'Vertical',   value = 'vertical' },
+				{ text = 'Horizontal', value = 'horizontal' },
+			})
+			orientSwitch:SetValue(getConfig('orientation'))
+			orientSwitch:SetOnSelect(function(value)
+				setConfig('orientation', value)
+			end)
+			cardY = B.PlaceWidget(orientSwitch, inner, cardY, B.SWITCH_H)
+		end
 
 		-- Raid preview count slider (edit mode only)
 		if(unitType == 'raid' and F.EditCache and F.EditCache.IsActive()) then
