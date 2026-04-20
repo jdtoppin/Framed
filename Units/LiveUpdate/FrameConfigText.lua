@@ -71,6 +71,12 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 			if(not frame.Health) then return end
 			frame.Health._attachedToName = attached
 
+			-- Refresh the Name FontString's width constraint: attach-to-name
+			-- mode needs a content-sized Name so the Health text anchor and
+			-- centering shift work; detached mode needs a bounded width so
+			-- long names ellipsize.
+			if(frame._updateNameWidth) then frame._updateNameWidth() end
+
 			-- Create text if it doesn't exist yet (only when showText is also on)
 			if(attached and hc.showText and not frame.Health.text) then
 				local textOverlay = frame._textOverlay
@@ -97,10 +103,17 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 				frame.Health.text:Show()
 				frame.Health._lastAttachShift = nil
 			else
-				local ap = frame.Health.text._anchorPoint
+				-- Read from live config rather than stashed fields on the
+				-- FontString: earlier text-creation paths may have produced
+				-- FontStrings without _anchorPoint/X/Y set, which crashed on
+				-- x + 1. The config is the source of truth.
+				local ap = hc.textAnchor
 				local anchor = frame.Health._wrapper or frame.Health
-				local x = frame.Health.text._anchorX
-				local y = frame.Health.text._anchorY
+				local x = hc.textAnchorX
+				local y = hc.textAnchorY
+				frame.Health.text._anchorPoint = ap
+				frame.Health.text._anchorX     = x
+				frame.Health.text._anchorY     = y
 				frame.Health.text:SetPoint(ap, anchor, ap, x + 1, y)
 				-- If showText is off and we're detaching, hide the text
 				if(not hc.showText) then

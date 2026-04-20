@@ -558,12 +558,18 @@ local function RenderGroupPreview(viewport, unitType, count)
 	-- removed, so this is defensive).
 	FadeOutExtras(count)
 
+	-- Pinned preview animates health like the solo previews so the loss color
+	-- behind the fill shows through drain/refill cycles. Other group types
+	-- (raid/party/boss/arena) stay static — dozens of bars all drumming at
+	-- once is distracting and obscures small config differences.
+	local animateHealth = (unitType == 'pinned') or nil
+
 	for i = 1, count do
 		local fakeUnit = sortedFakes[i]
 		local frame = previewFrames[i]
 		local isNew = (frame == nil)
 		if(isNew) then
-			frame = AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil, nil, unitType)
+			frame = AcquireFrame(viewport) or F.PreviewFrame.Create(viewport, config, fakeUnit, nil, nil, animateHealth, unitType)
 			-- Pool-acquired frames carry stale _lastX/_lastY from wherever
 			-- they lived before release. Wipe so the slot-identity logic
 			-- below treats this as a fresh placement (snap + fade-in), not
@@ -575,7 +581,7 @@ local function RenderGroupPreview(viewport, unitType, count)
 		frame._unitType = unitType
 		frame._fakeUnit = fakeUnit
 		if(frame._config) then
-			F.PreviewFrame.UpdateFromConfig(frame, config, nil, false, unitType)
+			F.PreviewFrame.UpdateFromConfig(frame, config, nil, animateHealth or false, unitType)
 		end
 
 		local pos = positions[i]

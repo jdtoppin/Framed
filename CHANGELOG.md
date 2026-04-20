@@ -2,9 +2,17 @@
 
 ## [Unreleased]
 
-- **Pinned Frames** — up to 9 standalone frames that track specific group members by name, following players across roster reshuffles. Supports Focus / Focus Target / name-target slots. Role-grouped class-colored assignment dropdown (Settings card, empty-slot placeholder click, and hover-gear icon on assigned pins). First-class aura configuration across all 10 aura sub-panels. Per-preset; absent in Solo
-- EditMode integration for Pinned Frames — drag to position (CENTER anchor convention matches the settings panel), click in edit mode to open the inline Pinned panel
-- Bridge `PLAYER_REGEN_ENABLED` through `EventBus` so combat-deferred listeners can register via `F.EventBus:Register` instead of maintaining their own frames
+## v0.8.11-alpha
+
+- **Pinned Frames** — up to 9 standalone frames that track specific group members by name, following players across roster reshuffles. Supports Focus / Focus Target / name-target slots. Role-grouped class-colored assignment dropdown available from the Settings card, empty-slot placeholder click, and a hover-gear icon on assigned pins (out of combat). First-class aura configuration across all 10 aura sub-panels. Per-preset; absent in Solo
+- Pinned Frames Settings panel with master enable toggle in the preview card, inline slot assignment, and live-update routing so edits apply without `/reload`
+- EditMode integration for Pinned Frames — drag to position (CENTER anchor convention matches the settings panel), click in edit mode to open the inline Pinned panel, hide from the sidebar when the active preset has no `pinnedConfig`
+- Empty-slot placeholders render a dimmed identity label (Pin 1 … Pin 9) and become clickable targets for assignment; placeholder mouse-handling is gated so hidden gear icons don't swallow clicks
+- **FramePreview** now renders the pinned grid alongside the other unit types, and uses `statusText.position` consistently instead of stale anchor keys that caused name tags to drift in the preview
+- Bridge `PLAYER_REGEN_ENABLED` through `EventBus` so combat-flush listeners can register via `F.EventBus:Register` instead of maintaining their own event frames
+- Fix pinned gear icon rendering larger on resolved frames than on unresolved (placeholder) frames at non-1.0 UIParent scales — live-frame gears now counter-scale to match the placeholder gear's physical size
+- Fix `attempt to perform arithmetic on local 'x' (a nil value)` crash in `FrameConfigText.lua` when toggling Health → Attach to name off. The Health element wasn't recording detached anchor values at setup when the text was created attached, so the live toggle had no coordinates to restore to
+- Internal cleanup: drop Cell references from in-code comments (licensing hygiene — Cell is ARR), remove the defensive `SettingsCards.Pinned` existence guard for idiom consistency, collapse empty stub branches in the pinned gear-icon path
 
 ## v0.8.10-alpha
 
