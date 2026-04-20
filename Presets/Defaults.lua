@@ -148,6 +148,9 @@ local function pinnedConfig()
 	-- + spacing=2) centered on screen — visually equivalent to CENTER (0,0).
 	cfg.position    = { x = -242, y = 62, anchor = 'TOPLEFT' }
 	cfg.anchorPoint = 'TOPLEFT'
+	-- Flag for EnsureDefaults: signals this pinned config is already in
+	-- TOPLEFT-relative coordinates so the one-shot anchor migration skips it.
+	cfg._anchorMigrated = true
 	return cfg
 end
 
@@ -638,22 +641,52 @@ function F.PresetDefaults.EnsureDefaults()
 					end
 				end
 
-				-- Migrate pinned position CENTER→TOPLEFT. The edit-mode drag
-				-- path saves TOPLEFT offsets; switching defaults to TOPLEFT
-				-- means older CENTER coords would render the grid in the wrong
-				-- place. Convert once so the grid stays at the same visual
-				-- screen position as before.
+				-- One-shot migration: convert pre-0.8 pinned coords (which used
+				-- position.anchor as the real SetPoint anchor) into TOPLEFT
+				-- space. ApplyPosition now always anchors TOPLEFT→TOPLEFT; the
+				-- anchor field is resize-preference metadata only. Gated by
+				-- _anchorMigrated so re-selecting a non-TOPLEFT anchor via
+				-- edit mode doesn't re-apply the offset math on next reload.
+				--
+				-- Legacy SetPoint: frame.A at UIParent.A + (x, y). In TOPLEFT
+				-- space: x' = x + (UIParent A offset from TL) - (frame A
+				-- offset from TL), and similarly for y'. All offsets use
+				-- WoW SetPoint coordinates (+x right, +y up).
 				if(savedUC.pinned and savedUC.pinned.position
-					and savedUC.pinned.position.anchor == 'CENTER') then
-					local p      = savedUC.pinned
-					local cols   = p.columns or 3
-					local rows   = math.ceil(9 / cols)
-					local gridW  = cols * (p.width  or 160) + (cols - 1) * (p.spacing or 2)
-					local gridH  = rows * (p.height or 40)  + (rows - 1) * (p.spacing or 2)
-					p.position.x      = (p.position.x or 0) - gridW / 2
-					p.position.y      = (p.position.y or 0) + gridH / 2
+					and not savedUC.pinned._anchorMigrated
+					and savedUC.pinned.position.anchor
+					and savedUC.pinned.position.anchor ~= 'TOPLEFT') then
+					local p    = savedUC.pinned
+					local cols = p.columns or 3
+					local rows = math.ceil(9 / cols)
+					local W    = cols * (p.width  or 160) + (cols - 1) * (p.spacing or 2)
+					local H    = rows * (p.height or 40)  + (rows - 1) * (p.spacing or 2)
+					local UW   = UIParent:GetWidth()
+					local UH   = UIParent:GetHeight()
+					local A    = p.position.anchor
+
+					local ux, uy = 0, 0
+					if(A == 'TOP' or A == 'CENTER' or A == 'BOTTOM') then ux = UW / 2 end
+					if(A == 'TOPRIGHT' or A == 'RIGHT' or A == 'BOTTOMRIGHT') then ux = UW end
+					if(A == 'LEFT' or A == 'CENTER' or A == 'RIGHT') then uy = -UH / 2 end
+					if(A == 'BOTTOMLEFT' or A == 'BOTTOM' or A == 'BOTTOMRIGHT') then uy = -UH end
+
+					local fx, fy = 0, 0
+					if(A == 'TOP' or A == 'CENTER' or A == 'BOTTOM') then fx = W / 2 end
+					if(A == 'TOPRIGHT' or A == 'RIGHT' or A == 'BOTTOMRIGHT') then fx = W end
+					if(A == 'LEFT' or A == 'CENTER' or A == 'RIGHT') then fy = -H / 2 end
+					if(A == 'BOTTOMLEFT' or A == 'BOTTOM' or A == 'BOTTOMRIGHT') then fy = -H end
+
+					p.position.x      = (p.position.x or 0) + ux - fx
+					p.position.y      = (p.position.y or 0) + uy - fy
 					p.position.anchor = 'TOPLEFT'
 					p.anchorPoint     = 'TOPLEFT'
+				end
+				-- Stamp the flag on every pinned config (migrated or already
+				-- TOPLEFT) so this migration never runs again. New configs
+				-- from Defaults also satisfy the flag via DeepMerge backfill.
+				if(savedUC.pinned) then
+					savedUC.pinned._anchorMigrated = true
 				end
 
 				-- Strip pinned from Solo. An earlier default incorrectly seeded
