@@ -94,9 +94,10 @@ local function passesCastByFilter(sourceUnit, castBy)
 
 	local sourceIsSafe = F.IsValueNonSecret(sourceUnit)
 	if(not sourceIsSafe) then
-		-- Secret sourceUnit: cannot determine caster, degrade gracefully
-		-- Show for 'anyone' (already handled above), hide for 'me'/'others'
-		return false
+		-- Secret sourceUnit: caster unknowable, so 'me' and 'others' both
+		-- match. Over-matching is strictly better than silent-hiding — the
+		-- aura appears in both panels and the user can disambiguate.
+		return true
 	end
 
 	if(castBy == 'me') then
