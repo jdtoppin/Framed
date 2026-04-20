@@ -283,6 +283,16 @@ local function Style(self, unit)
 	end
 
 	F.Widgets.RegisterForUIScale(self)
+
+	-- RegisterForUIScale just applied SetScale(desiredScale / uiParentScale)
+	-- to self. The gear is parented to self and inherits that scale-up, which
+	-- makes it render noticeably larger than placeholder gears (parented to
+	-- the unscaled anchor). Counter-scale the gear to cancel out self's scale
+	-- so both live and placeholder gears render at the same physical size.
+	local selfScale = self:GetScale() or 1
+	if(self.ReassignGear and selfScale > 0) then
+		self.ReassignGear:SetScale(1 / selfScale)
+	end
 end
 
 -- ============================================================
