@@ -32,6 +32,8 @@ eventFrame:RegisterEvent('UNIT_TARGET')
 eventFrame:RegisterEvent('GROUP_ROSTER_UPDATE')
 eventFrame:RegisterEvent('ARENA_OPPONENT_UPDATE')
 eventFrame:RegisterEvent('INSTANCE_ENCOUNTER_ENGAGE_UNIT')
+eventFrame:RegisterEvent('ENCOUNTER_START')
+eventFrame:RegisterEvent('ENCOUNTER_END')
 eventFrame:RegisterEvent('NAME_PLATE_UNIT_ADDED')
 eventFrame:RegisterEvent('NAME_PLATE_UNIT_REMOVED')
 
@@ -67,6 +69,13 @@ eventFrame:SetScript('OnEvent', function(_, event, arg1)
 	elseif(event == 'INSTANCE_ENCOUNTER_ENGAGE_UNIT') then
 		for i = 1, 8 do
 			bump('boss' .. i)
+		end
+	elseif(event == 'ENCOUNTER_START' or event == 'ENCOUNTER_END') then
+		-- 12.0.5 re-randomizes aura instance IDs on encounter boundaries.
+		-- Bump every tracked unit so the next read refreshes from the
+		-- game's aura list instead of trusting pre-boundary IDs.
+		for unit in next, generation do
+			bump(unit)
 		end
 	elseif(event == 'NAME_PLATE_UNIT_ADDED' or event == 'NAME_PLATE_UNIT_REMOVED') then
 		bump(arg1)
