@@ -54,6 +54,24 @@ function F.StyleBuilder.GetConfig(unitType)
 		end
 	end
 
+	-- Pinned has no canonical owner in PresetInfo (shared across Party/Raid/
+	-- Arena, none of them own it via groupKey). Style() still needs a valid
+	-- pinnedConfig as a template to wire Health/Name elements at Spawn time,
+	-- even when the active preset is Solo. Fall back to any base group preset
+	-- that has a pinned config. Visibility gating happens in Pinned.Refresh
+	-- via its own current-preset lookup, so this fallback won't accidentally
+	-- show pinned anchors under Solo.
+	if(unitType == 'pinned') then
+		for name, info in next, C.PresetInfo do
+			if(info.isBase and info.groupKey) then
+				local _, groupData = F.AutoSwitch.ResolvePreset(name)
+				if(groupData and groupData.unitConfigs and groupData.unitConfigs.pinned) then
+					return groupData.unitConfigs.pinned
+				end
+			end
+		end
+	end
+
 	return nil
 end
 
@@ -156,11 +174,15 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- 2. Dark background texture
 	-- --------------------------------------------------------
 
+	-- SetColorTexture synthesizes a solid-color quad on the GPU with no
+	-- texture file load. SetTexture([[Interface\BUTTONS\WHITE8x8]]) +
+	-- SetVertexColor has a first-paint window where the white texture is
+	-- visible before the vertex color is applied — seen as a white flash
+	-- on all 9 pinned slots when the feature is first enabled.
 	local bg = self:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(self)
-	bg:SetTexture([[Interface\BUTTONS\WHITE8x8]])
 	local bgC = C.Colors.background
-	bg:SetVertexColor(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
+	bg:SetColorTexture(bgC[1], bgC[2], bgC[3], bgC[4] or 1)
 
 	-- --------------------------------------------------------
 	-- 3. Calculate health / power bar heights

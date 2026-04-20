@@ -115,6 +115,11 @@ function Settings._getUnitTypeItems()
 	if(info and info.groupKey) then
 		items[#items + 1] = { text = info.groupLabel, value = info.groupKey }
 	end
+	-- Pinned appears as an additional group-tier unit type whenever the
+	-- active preset has an auras.pinned block (which Solo lacks).
+	if(presetName and F.Config and F.Config:Get('presets.' .. presetName .. '.auras.pinned')) then
+		items[#items + 1] = { text = 'Pinned Frames', value = 'pinned' }
+	end
 	return items
 end
 
@@ -596,6 +601,15 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 	if(not Settings._mainFrame or not Settings._mainFrame:IsShown()) then return end
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
+	-- Redirect away from preset-specific panels that don't exist under the
+	-- new preset (pinned is absent in Solo). Rebuilding them would crash on
+	-- the first unitConfigs read.
+	if(activeId == 'pinned') then
+		local preset = Settings.GetEditingPreset()
+		if(not preset or not F.Config:Get('presets.' .. preset .. '.unitConfigs.pinned')) then
+			activeId = 'player'
+		end
+	end
 	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
 	else

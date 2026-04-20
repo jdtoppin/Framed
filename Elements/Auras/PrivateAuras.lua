@@ -24,6 +24,9 @@ local DISPEL_TYPE_SUPPORTED =
 --- @param element table  The FramedPrivateAuras element
 --- @param unit string    Unit token
 local function RegisterAnchors(element, unit)
+	-- Pinned frames may be spawned without a unit (empty slot).
+	-- AddPrivateAuraAnchor throws on a nil unitToken.
+	if(not unit) then return end
 	local iconSize = element._iconSize
 	for idx = 1, #element._pool do
 		local slot = element._pool[idx]

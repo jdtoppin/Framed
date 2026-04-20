@@ -132,6 +132,21 @@ local function baseUnitConfig()
 	}
 end
 
+-- Pinned frames: shared style across up to 9 slots, per-slot name-tracking.
+-- Opt-in by default (enabled = false). Solo preset omits this block entirely.
+local function pinnedConfig()
+	local cfg = baseUnitConfig()
+	cfg.enabled  = false
+	cfg.count    = 9
+	cfg.columns  = 3
+	cfg.width    = 160
+	cfg.height   = 40
+	cfg.spacing  = 2
+	cfg.slots    = {}  -- keys 1..9; nil = unassigned
+	cfg.position = { x = 0, y = 0, anchor = 'CENTER' }
+	return cfg
+end
+
 local function defaultCastbar(frameWidth)
 	return {
 		height         = 16,
@@ -398,6 +413,7 @@ local function soloUnitAuras()
 		focus        = A.Solo(14, 6),
 		pet          = A.Minimal(),
 		boss         = A.Boss(),
+		pinned       = A.Minimal(),
 	}
 end
 
@@ -419,13 +435,15 @@ function F.PresetDefaults.GetAll()
 			focus        = focusConfig(),
 			pet          = petConfig(),
 			boss         = bossConfig(),
+			pinned       = pinnedConfig(),
 		},
 		auras = soloUnitAuras(),
 	}
 
 	-- Party
 	local partyAuras = soloUnitAuras()
-	partyAuras.party = A.Group(PARTY_AURA_SIZES)
+	partyAuras.party   = A.Group(PARTY_AURA_SIZES)
+	partyAuras.pinned  = A.Group(PARTY_AURA_SIZES)
 
 	presets['Party'] = {
 		isBase    = true,
@@ -441,8 +459,9 @@ function F.PresetDefaults.GetAll()
 				p.height = 18
 				return p
 			end)(),
-			boss  = bossConfig(),
-			party = partyConfig(),
+			boss   = bossConfig(),
+			party  = partyConfig(),
+			pinned = pinnedConfig(),
 		},
 		partyPets = {
 			enabled            = true,
@@ -469,7 +488,8 @@ function F.PresetDefaults.GetAll()
 
 	-- Raid
 	local raidAuras = soloUnitAuras()
-	raidAuras.raid = A.Group(RAID_AURA_SIZES)
+	raidAuras.raid   = A.Group(RAID_AURA_SIZES)
+	raidAuras.pinned = A.Group(RAID_AURA_SIZES)
 
 	presets['Raid'] = {
 		isBase    = true,
@@ -482,6 +502,7 @@ function F.PresetDefaults.GetAll()
 			pet          = petConfig(),
 			boss         = bossConfig(),
 			raid         = raidConfig(),
+			pinned       = pinnedConfig(),
 		},
 		auras = raidAuras,
 	}
@@ -495,7 +516,8 @@ function F.PresetDefaults.GetAll()
 		end
 		return a
 	end)()
-	arenaAuras.arena = A.Arena()
+	arenaAuras.arena   = A.Arena()
+	arenaAuras.pinned  = A.Group(PARTY_AURA_SIZES)
 
 	presets['Arena'] = {
 		isBase    = true,
@@ -517,6 +539,7 @@ function F.PresetDefaults.GetAll()
 			boss         = bossConfig(),
 			party        = partyConfig(),
 			arena        = arenaConfig(),
+			pinned       = pinnedConfig(),
 		},
 		auras = arenaAuras,
 	}
@@ -608,6 +631,13 @@ function F.PresetDefaults.EnsureDefaults()
 					if(savedUC[ut] and savedUC[ut].statusIcons) then
 						savedUC[ut].statusIcons.raidRole = false
 					end
+				end
+
+				-- Migrate pinned.count: old default was 3, new is 9. Bump any
+				-- save that still matches the old default so existing users
+				-- don't get stuck with 3 slots and no UI control to change it.
+				if(savedUC.pinned and savedUC.pinned.count == 3) then
+					savedUC.pinned.count = 9
 				end
 
 				-- General backfill: deep-merge any missing keys from defaults

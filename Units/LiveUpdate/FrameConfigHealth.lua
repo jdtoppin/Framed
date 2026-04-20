@@ -209,20 +209,19 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	end
 
 	-- Damage absorb (shields) toggle
+	-- Don't nil h.DamageAbsorb — oUF only registers UNIT_ABSORB_AMOUNT_CHANGED
+	-- during Enable if DamageAbsorb is set, so nilling post-Enable breaks the
+	-- event wiring permanently. Setup always assigns it; toggle only shows/hides.
 	if(key == 'health.damageAbsorb') then
 		local config = F.StyleBuilder.GetConfig(unitType)
 		local enabled = config.health and config.health.damageAbsorb
 		ForEachFrame(unitType, function(frame)
 			local h = frame.Health
-			if(not h) then return end
+			if(not h or not h._damageAbsorbBar) then return end
 			if(enabled) then
-				if(h._damageAbsorbBar) then
-					h.DamageAbsorb = h._damageAbsorbBar
-					h._damageAbsorbBar:Show()
-				end
+				h._damageAbsorbBar:Show()
 			else
-				h.DamageAbsorb = nil
-				if(h._damageAbsorbBar) then h._damageAbsorbBar:Hide() end
+				h._damageAbsorbBar:Hide()
 			end
 			h:ForceUpdate()
 		end)

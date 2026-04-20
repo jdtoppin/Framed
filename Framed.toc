@@ -119,6 +119,7 @@ Units/Party.lua
 Units/Raid.lua
 Units/Boss.lua
 Units/Arena.lua
+Units/Pinned.lua
 Units/LiveUpdate/FrameConfigShared.lua
 Units/LiveUpdate/FrameConfigLayout.lua
 Units/LiveUpdate/FrameConfigElements.lua
@@ -126,6 +127,7 @@ Units/LiveUpdate/FrameConfigHealth.lua
 Units/LiveUpdate/FrameConfigText.lua
 Units/LiveUpdate/FrameConfigPreset.lua
 Units/LiveUpdate/FrameConfigPets.lua
+Units/LiveUpdate/FrameConfigPinned.lua
 Units/LiveUpdate/AuraConfig.lua
 
 # Click Casting
@@ -179,6 +181,7 @@ Settings/Cards/StatusIcons.lua
 Settings/Cards/PartyPets.lua
 Settings/Cards/About.lua
 Settings/Cards/Backups.lua
+Settings/Cards/Pinned.lua
 Settings/Cards/Appearance/Theme.lua
 Settings/Cards/Appearance/UIScale.lua
 Settings/Cards/Appearance/TargetHighlight.lua
@@ -203,6 +206,7 @@ Settings/Panels/TargetOfTarget.lua
 Settings/Panels/Focus.lua
 Settings/Panels/Pet.lua
 Settings/Panels/Boss.lua
+Settings/Panels/Pinned.lua
 Settings/Panels/PartyFrames.lua
 Settings/Panels/Buffs.lua
 Settings/Panels/Debuffs.lua

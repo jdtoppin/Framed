@@ -8,7 +8,6 @@ F.Elements.MouseoverHighlight = {}
 -- ============================================================
 -- Enable / Disable
 -- OnEnter / OnLeave are the sole mechanism — no event polling.
--- Cell uses the same approach: direct Show/Hide, no events.
 -- ============================================================
 
 local function Enable(self, unit)

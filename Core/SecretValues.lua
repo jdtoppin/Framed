@@ -5,7 +5,6 @@ local F = Framed
 -- Secret Value Utilities
 -- Central location for all secret value checks.
 -- Every file uses these — never bare issecretvalue().
--- Based on feedback from Cell PR #462/#463 code reviews.
 -- ============================================================
 
 --- Check if a value is non-secret and safe for Lua-level operations.

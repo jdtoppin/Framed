@@ -278,7 +278,7 @@ function F.Indicators.Icon.Create(parent, size, config)
 
 	-- 1. Border via backdrop bg. The bgFile masks overlapping content
 	--    when icons use negative spacing. Content inset by 1 physical pixel
-	--    so the black bg shows as a border (matching how Cell handles block indicators).
+	--    so the black bg shows as a border.
 	local scale = parent:GetEffectiveScale()
 	local pf = 768.0 / select(2, GetPhysicalScreenSize())
 	local P = pf / scale  -- 1 physical pixel for both edge and content inset
