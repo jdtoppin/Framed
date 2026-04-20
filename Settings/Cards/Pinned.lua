@@ -52,13 +52,20 @@ local function scanRoster()
 	return roster
 end
 
-local function assignedNamesSet(slots, excludeIndex)
+-- Collect the exact dropdown values already assigned to other slots so only
+-- the matching row is hidden — the NAME row and its TARGET sibling are
+-- independent selections and must not block each other.
+local function assignedValuesSet(slots, excludeIndex)
 	local set = {}
 	for i = 1, MAX_SLOTS do
 		if(i ~= excludeIndex) then
 			local s = slots and slots[i]
-			if(s and (s.type == 'name' or s.type == 'nametarget') and s.value) then
-				set[s.value] = true
+			if(s and s.value) then
+				if(s.type == 'name') then
+					set['NAME:' .. s.value] = true
+				elseif(s.type == 'nametarget') then
+					set['TARGET:' .. s.value] = true
+				end
 			end
 		end
 	end
@@ -97,7 +104,7 @@ end
 -- ============================================================
 
 local function buildItems(slotIndex, slots)
-	local blocked = assignedNamesSet(slots, slotIndex)
+	local blocked = assignedValuesSet(slots, slotIndex)
 	local items = {}
 
 	-- Unit references
@@ -122,17 +129,23 @@ local function buildItems(slotIndex, slots)
 				_decorateRow = headerDecorator,
 			}
 			for _, p in next, bucket do
-				if(p.name and not blocked[p.name]) then
-					items[#items + 1] = {
-						text  = p.name,
-						value = 'NAME:' .. p.name,
-						_decorateRow = classColorDecorator(p.class, false),
-					}
-					items[#items + 1] = {
-						text  = p.name .. "'s Target",
-						value = 'TARGET:' .. p.name,
-						_decorateRow = classColorDecorator(p.class, true),
-					}
+				if(p.name) then
+					local nameValue   = 'NAME:' .. p.name
+					local targetValue = 'TARGET:' .. p.name
+					if(not blocked[nameValue]) then
+						items[#items + 1] = {
+							text  = p.name,
+							value = nameValue,
+							_decorateRow = classColorDecorator(p.class, false),
+						}
+					end
+					if(not blocked[targetValue]) then
+						items[#items + 1] = {
+							text  = p.name .. "'s Target",
+							value = targetValue,
+							_decorateRow = classColorDecorator(p.class, true),
+						}
+					end
 				end
 			end
 		end
@@ -149,13 +162,17 @@ end
 -- Value <-> slot conversion
 -- ============================================================
 
+-- Return nil for an empty slot so the dropdown treats it as "no value selected"
+-- instead of matching the '(Unassign)' row at the bottom of the list — that
+-- match would trigger the scroll-to-selected logic and open the list already
+-- scrolled past the Unit References / Focus rows at the top.
 local function slotToValue(slot)
-	if(not slot) then return 'UNASSIGN' end
+	if(not slot) then return nil end
 	if(slot.type == 'unit' and slot.value == 'focus')       then return 'FOCUS' end
 	if(slot.type == 'unit' and slot.value == 'focustarget') then return 'FOCUSTARGET' end
 	if(slot.type == 'name')                                 then return 'NAME:' .. slot.value end
 	if(slot.type == 'nametarget')                           then return 'TARGET:' .. slot.value end
-	return 'UNASSIGN'
+	return nil
 end
 
 local function valueToSlot(value)
@@ -173,15 +190,49 @@ end
 -- Preset-scoped read/write
 -- ============================================================
 
+-- Normalize any legacy string-keyed entries ('1' → 1). Config:Set paths are
+-- dot-split into string keys, so earlier builds that wrote slots.<i> through
+-- Config:Set left the entries under string keys; readers use numeric keys
+-- throughout so those writes were invisible until normalized.
+local function normalizeSlotKeys(slots)
+	if(type(slots) ~= 'table') then return slots end
+	for k, v in next, slots do
+		if(type(k) == 'string') then
+			local n = tonumber(k)
+			if(n and slots[n] == nil) then
+				slots[n] = v
+			end
+			slots[k] = nil
+		end
+	end
+	return slots
+end
+
 local function readSlotsFor(presetName)
 	if(not presetName) then return nil end
 	local cfg = F.Config:Get('presets.' .. presetName .. '.unitConfigs.pinned')
-	return cfg and cfg.slots
+	return cfg and normalizeSlotKeys(cfg.slots)
 end
 
 local function writeSlot(presetName, slotIndex, value)
 	if(not presetName) then return end
-	F.Config:Set('presets.' .. presetName .. '.unitConfigs.pinned.slots.' .. slotIndex, valueToSlot(value))
+	local basePath = 'presets.' .. presetName .. '.unitConfigs.pinned.slots'
+	local slots    = F.Config:Get(basePath)
+	if(type(slots) ~= 'table') then
+		F.Config:Set(basePath, {})
+		slots = F.Config:Get(basePath)
+	end
+	normalizeSlotKeys(slots)
+
+	local newSlot = valueToSlot(value)
+	local oldSlot = slots[slotIndex]
+	slots[slotIndex] = newSlot
+
+	-- Mutating the table directly bypasses Config:Set's dot-path expansion,
+	-- which would otherwise coerce the slot index to a string key.
+	local path = basePath .. '.' .. slotIndex
+	F.EventBus:Fire('CONFIG_CHANGED', path, newSlot, oldSlot)
+	F.EventBus:Fire('CONFIG_CHANGED:presets', path, newSlot, oldSlot)
 	F.PresetManager.MarkCustomized(presetName)
 end
 
@@ -190,8 +241,6 @@ end
 -- Called from the gear icon on assigned slots and the placeholder
 -- on empty slots. Binds to the currently-active preset.
 -- ============================================================
-
-local detachedDropdown
 
 function F.Units.Pinned.OpenAssignmentMenu(slotIndex, anchorFrame)
 	if(InCombatLockdown()) then
@@ -202,24 +251,11 @@ function F.Units.Pinned.OpenAssignmentMenu(slotIndex, anchorFrame)
 	local presetName = F.AutoSwitch.GetCurrentPreset()
 	if(not presetName) then return end
 
-	if(not detachedDropdown) then
-		detachedDropdown = Widgets.CreateDropdown(UIParent, 200)
-		detachedDropdown:SetFrameStrata('DIALOG')
-	end
-
-	detachedDropdown:ClearAllPoints()
-	detachedDropdown:SetPoint('TOP', anchorFrame, 'BOTTOM', 0, -2)
-
 	local slots = readSlotsFor(presetName) or {}
-	detachedDropdown:SetItems(buildItems(slotIndex, slots))
-	detachedDropdown:SetValue(slotToValue(slots[slotIndex]))
-	detachedDropdown:SetOnSelect(function(value)
+	Widgets.OpenPopupMenu(anchorFrame, buildItems(slotIndex, slots), slotToValue(slots[slotIndex]), function(value)
 		if(isHeaderValue(value)) then return end
 		writeSlot(presetName, slotIndex, value)
 	end)
-
-	detachedDropdown:Show()
-	if(detachedDropdown.Open) then detachedDropdown:Open() end
 end
 
 -- ============================================================
@@ -245,7 +281,15 @@ local function renderSlotRow(parent, slotIndex, cardY, width)
 		local presetName = F.Settings.GetEditingPreset()
 		local slots = readSlotsFor(presetName) or {}
 		dd:SetItems(buildItems(slotIndex, slots))
-		dd:SetValue(slotToValue(slots[slotIndex]))
+		local value = slotToValue(slots[slotIndex])
+		dd:SetValue(value)
+		-- Empty slots send nil (to avoid auto-scrolling to the '(Unassign)' row);
+		-- paint a muted placeholder on the button so the user still sees state.
+		if(value == nil) then
+			dd._label:SetText('(Unassign)')
+			local ts = C.Colors.textSecondary
+			dd._label:SetTextColor(ts[1], ts[2], ts[3], ts[4] or 1)
+		end
 	end
 
 	dd:SetOnSelect(function(value)
@@ -293,8 +337,16 @@ function F.SettingsCards.Pinned(parent, width, unitType, getConfig, setConfig)
 
 	F.EventBus:Register('CONFIG_CHANGED', function(path)
 		if(not path) then return end
-		if(path:match('unitConfigs%.pinned%.count$') or path:match('unitConfigs%.pinned%.slots')) then
+		-- count changes the number of rows, so a full rebuild is required.
+		if(path:match('unitConfigs%.pinned%.count$')) then
 			rebuild()
+		-- slot changes keep the same 9 rows — just refresh their dropdowns.
+		-- Destroying and recreating every row on each assign/unassign caused
+		-- a visible texture flash across all 9 settings widgets.
+		elseif(path:match('unitConfigs%.pinned%.slots')) then
+			for _, r in next, rows do
+				if(r._refresh) then r._refresh() end
+			end
 		end
 	end, 'PinnedCard.CC')
 

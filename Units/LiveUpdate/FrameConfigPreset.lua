@@ -236,7 +236,9 @@ local function applyFullConfig(frame, config)
 			if(h._overDamageAbsorbIndicator) then h._overDamageAbsorbIndicator:Hide() end
 		end
 
-		h:ForceUpdate()
+		-- Pinned slots without an assigned unit have frame.unit = nil; the
+		-- element updaters read UnitHealth/UnitPower which error on nil.
+		if(frame.unit) then h:ForceUpdate() end
 	end
 
 	-- ── Power element ────────────────────────────────────────
@@ -274,7 +276,7 @@ local function applyFullConfig(frame, config)
 			p.text._anchorY = pc.textAnchorY
 		end
 
-		p:ForceUpdate()
+		if(frame.unit) then p:ForceUpdate() end
 	end
 
 	-- ── Name element ────────────────────────────────────────
@@ -343,7 +345,7 @@ local function applyFullConfig(frame, config)
 	-- and re-trigger Health so the centering code repositions Name.
 	if(frame.Health and frame.Health._attachedToName and frame.Name) then
 		frame.Health._lastAttachShift = nil
-		if(frame.Health.ForceUpdate) then
+		if(frame.unit and frame.Health.ForceUpdate) then
 			frame.Health:ForceUpdate()
 		end
 	end
@@ -394,7 +396,7 @@ local function applyFullConfig(frame, config)
 			frame:EnableElement('Portrait')
 		end
 		frame.Portrait:Show()
-		if(frame.Portrait.ForceUpdate) then frame.Portrait:ForceUpdate() end
+		if(frame.unit and frame.Portrait.ForceUpdate) then frame.Portrait:ForceUpdate() end
 	else
 		if(frame.Portrait) then
 			frame:DisableElement('Portrait')

@@ -91,6 +91,23 @@ function F.Elements.Name.Setup(self, config)
 	nameText._anchorX     = anchor[4] or 0
 	nameText._anchorY     = anchor[5] or 0
 
+	-- Native C-level auto-ellipsis on overflow. Our Lua-side TruncateUTF8
+	-- in ApplyNameUpdate runs inside a HookScript('OnAttributeChanged'),
+	-- which fires BEFORE oUF's [name] tag writes the new unit's name —
+	-- it truncates stale text that the tag then overwrites with an
+	-- untruncated long name (visibly spilling past the frame, especially
+	-- on narrow pinned frames). SetWordWrap(false) + a bounded width makes
+	-- the renderer append '...' on every SetText regardless of caller.
+	nameText:SetWordWrap(false)
+	local function updateNameWidth()
+		local w = self:GetWidth() or 0
+		if(w > 8) then
+			nameText:SetWidth(w - 8)
+		end
+	end
+	updateNameWidth()
+	self:HookScript('OnSizeChanged', updateNameWidth)
+
 	-- --------------------------------------------------------
 	-- Apply initial color for non-class modes
 	-- (class color is applied in PostUpdate after unit is known)

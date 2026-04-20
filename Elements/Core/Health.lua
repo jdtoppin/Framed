@@ -449,10 +449,14 @@ function F.Elements.Health.Setup(self, width, height, config)
 	-- health bar boundary.
 	-- --------------------------------------------------------
 
-	local needsPrediction = config.healPrediction or config.damageAbsorb
-		or config.healAbsorb or config.overAbsorb
-
-	if(needsPrediction) then
+	-- Prediction sub-widgets are always created so live toggles can show/hide
+	-- without rebuilding the Health element. oUF's Enable only registers
+	-- UNIT_ABSORB_AMOUNT_CHANGED / UNIT_HEAL_ABSORB_AMOUNT_CHANGED if the
+	-- corresponding .DamageAbsorb / .HealAbsorb is set at Enable time;
+	-- creating bars later and wiring them at toggle time leaves those events
+	-- unregistered. Always-create + always-assign + Show/Hide is the only
+	-- reliable pattern.
+	do
 		local healthBarTexture = health:GetStatusBarTexture()
 		health._healBarTexRef = healthBarTexture
 		local predWidth = width - 2
@@ -484,8 +488,11 @@ function F.Elements.Health.Setup(self, width, height, config)
 			end
 		end
 
-		-- Always create absorb bars so live toggles can show/hide them
-		local dc = config.damageAbsorbColor
+		-- Always create absorb bars so live toggles can show/hide them.
+		-- Fallbacks mirror baseUnitConfig defaults — needed for callers
+		-- (e.g. Party.lua pet frames) that pass a stripped healthCfg.
+		local dc = config.damageAbsorbColor or { 1, 1, 1, 0.6 }
+		local STRIPE_TILE = 64
 		local absorbBar = CreateFrame('StatusBar', nil, health)
 		absorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
 		absorbBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
@@ -493,15 +500,30 @@ function F.Elements.Health.Setup(self, width, height, config)
 		absorbBar:SetAllPoints(health)
 		absorbBar:SetReverseFill(true)
 
-		-- Stripe overlay — a plain Texture with SetHorizTile/SetVertTile.
-		-- Unlike StatusBar textures, plain Texture tiling uses actual
-		-- rendered pixel size, so stripes stay consistent at any width.
-		local stripeOverlay = absorbBar:CreateTexture(nil, 'OVERLAY')
-		stripeOverlay:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		-- Stripe rendered via a fixed-size overlay inside a clip frame:
+		-- the clip tracks the absorb fill (so the stripe is revealed only
+		-- where the shield exists), but the stripe texture itself has
+		-- stable full-bar geometry, so its SetTexCoord tile count is a
+		-- plain number. Computing tile count from the dynamic fill texture
+		-- would read a secret-tainted width in combat.
+		local stripeClip = CreateFrame('Frame', nil, absorbBar)
+		stripeClip:SetAllPoints(absorbBar:GetStatusBarTexture())
+		stripeClip:SetClipsChildren(true)
+		stripeClip:SetFrameLevel(absorbBar:GetFrameLevel())
+
+		local stripeHost = CreateFrame('Frame', nil, stripeClip)
+		stripeHost:SetAllPoints(absorbBar)
+
+		local stripeOverlay = stripeHost:CreateTexture(nil, 'OVERLAY')
+		stripeOverlay:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]], 'REPEAT', 'REPEAT')
 		stripeOverlay:SetVertexColor(dc[1], dc[2], dc[3], dc[4])
-		stripeOverlay:SetHorizTile(true)
-		stripeOverlay:SetVertTile(true)
-		stripeOverlay:SetAllPoints(absorbBar:GetStatusBarTexture())
+		stripeOverlay:SetAllPoints(stripeHost)
+		local function updateDamageStripeCoords()
+			local w, h = absorbBar:GetSize()
+			stripeOverlay:SetTexCoord(0, w / STRIPE_TILE, 0, h / STRIPE_TILE)
+		end
+		absorbBar:HookScript('OnSizeChanged', updateDamageStripeCoords)
+		updateDamageStripeCoords()
 		health._damageAbsorbBar = absorbBar
 
 		local overAbsorbFrame = CreateFrame('Frame', nil, health._wrapper)
@@ -518,15 +540,18 @@ function F.Elements.Health.Setup(self, width, height, config)
 		overAbsorb:SetPoint('BOTTOMRIGHT', health, 'BOTTOMRIGHT')
 		health._overDamageAbsorbIndicator = overAbsorb
 
-		if(config.damageAbsorb) then
-			health.DamageAbsorb = absorbBar
-			health.OverDamageAbsorbIndicator = overAbsorb
-		else
+		-- Always assign DamageAbsorb / OverDamageAbsorbIndicator so oUF's Enable
+		-- registers UNIT_ABSORB_AMOUNT_CHANGED. Toggling off would nil these
+		-- after Enable has already skipped that registration, so shields cast
+		-- after a live enable would never refresh.
+		health.DamageAbsorb = absorbBar
+		health.OverDamageAbsorbIndicator = overAbsorb
+		if(not config.damageAbsorb) then
 			absorbBar:Hide()
 			overAbsorb:Hide()
 		end
 
-		local hac = config.healAbsorbColor
+		local hac = config.healAbsorbColor or { 0.7, 0.1, 0.1, 0.5 }
 		local healAbsorbBar = CreateFrame('StatusBar', nil, health)
 		healAbsorbBar:SetFrameLevel(health:GetFrameLevel() + 2)
 		healAbsorbBar:SetStatusBarTexture([[Interface\BUTTONS\WHITE8x8]])
@@ -534,12 +559,24 @@ function F.Elements.Health.Setup(self, width, height, config)
 		healAbsorbBar:SetReverseFill(true)
 		healAbsorbBar:SetAllPoints(health)
 
-		local healStripeOverlay = healAbsorbBar:CreateTexture(nil, 'OVERLAY')
-		healStripeOverlay:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]])
+		local healStripeClip = CreateFrame('Frame', nil, healAbsorbBar)
+		healStripeClip:SetAllPoints(healAbsorbBar:GetStatusBarTexture())
+		healStripeClip:SetClipsChildren(true)
+		healStripeClip:SetFrameLevel(healAbsorbBar:GetFrameLevel())
+
+		local healStripeHost = CreateFrame('Frame', nil, healStripeClip)
+		healStripeHost:SetAllPoints(healAbsorbBar)
+
+		local healStripeOverlay = healStripeHost:CreateTexture(nil, 'OVERLAY')
+		healStripeOverlay:SetTexture([[Interface\AddOns\Framed\Media\Textures\Stripe]], 'REPEAT', 'REPEAT')
 		healStripeOverlay:SetVertexColor(hac[1], hac[2], hac[3], hac[4])
-		healStripeOverlay:SetHorizTile(true)
-		healStripeOverlay:SetVertTile(true)
-		healStripeOverlay:SetAllPoints(healAbsorbBar:GetStatusBarTexture())
+		healStripeOverlay:SetAllPoints(healStripeHost)
+		local function updateHealStripeCoords()
+			local w, h = healAbsorbBar:GetSize()
+			healStripeOverlay:SetTexCoord(0, w / STRIPE_TILE, 0, h / STRIPE_TILE)
+		end
+		healAbsorbBar:HookScript('OnSizeChanged', updateHealStripeCoords)
+		updateHealStripeCoords()
 		health._healAbsorbBar = healAbsorbBar
 
 		local overHealAbsorb = (self._iconOverlay or health._wrapper):CreateTexture(nil, 'OVERLAY')

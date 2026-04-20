@@ -8,6 +8,14 @@ local GetAuraDataBySlot = C_UnitAuras and C_UnitAuras.GetAuraDataBySlot
 local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID
 local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID
 
+-- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
+-- are rejected by C_UnitAuras.GetAuraSlots. Pinned target-chain slots can
+-- produce these tokens — skip aura queries for them rather than erroring.
+local function isCompoundUnit(unit)
+	if(not unit or unit == 'target' or unit == 'pet') then return false end
+	return unit:match('target$') ~= nil or unit:match('pet$') ~= nil
+end
+
 local function isHelpfulAura(unit, aura)
 	if(not aura or not aura.auraInstanceID) then return false end
 
@@ -121,6 +129,7 @@ function AuraState:FullRefresh(unit)
 	self:MarkHarmfulDirty()
 
 	if(not unit or not GetAuraSlots or not GetAuraDataBySlot) then return end
+	if(isCompoundUnit(unit)) then return end
 
 	local helpfulResults = { GetAuraSlots(unit, 'HELPFUL') }
 	for i = 2, #helpfulResults do

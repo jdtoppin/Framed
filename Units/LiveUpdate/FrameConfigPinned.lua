@@ -18,19 +18,25 @@ local function onConfigChanged(path)
 		end)
 	elseif(key == 'enabled' or key == 'count' or key == 'columns'
 	    or key == 'width' or key == 'height' or key == 'spacing') then
-		debouncedApply('pinned.layout', function()
-			F.Units.Pinned.Layout()
-			F.Units.Pinned.Resolve()
-		end)
+		-- Refresh = Hide → Layout → Resolve → Show atomic. Keeps the 9
+		-- frames invisible through the whole transition so the user
+		-- never sees them briefly render with their stale 'player' seed
+		-- state before Resolve clears the unit on unassigned slots.
+		debouncedApply('pinned.layout', F.Units.Pinned.Refresh)
 	elseif(key and key:match('^slots')) then
-		F.Units.Pinned.Resolve()
-		F.Units.Pinned.Layout()
+		-- Single-slot path: `slots.N` or `slots.N.<field>`. Only touch frame N
+		-- so the other eight don't re-anchor (which flashed their backdrops).
+		local slotIndex = tonumber(key:match('^slots%.(%d+)'))
+		if(slotIndex) then
+			F.Units.Pinned.ApplySlot(slotIndex)
+		else
+			F.Units.Pinned.Refresh()
+		end
 	end
 end
 F.EventBus:Register('CONFIG_CHANGED', onConfigChanged, 'FrameConfigPinned.CC')
 
 F.EventBus:Register('PRESET_CHANGED', function()
 	F.Units.Pinned.ApplyPosition()
-	F.Units.Pinned.Layout()
-	F.Units.Pinned.Resolve()
+	F.Units.Pinned.Refresh()
 end, 'FrameConfigPinned.PresetChanged')

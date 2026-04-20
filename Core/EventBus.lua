@@ -95,6 +95,7 @@ local BRIDGED_WOW_EVENTS = {
 	'GROUP_ROSTER_UPDATE',
 	'PLAYER_ROLES_ASSIGNED',
 	'PLAYER_REGEN_ENABLED',
+	'PLAYER_REGEN_DISABLED',
 }
 
 local bridgeFrame = CreateFrame('Frame')

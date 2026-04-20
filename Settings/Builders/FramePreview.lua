@@ -331,8 +331,16 @@ local function onConfigChanged(path)
 	local config = getUnitConfig(activeUnitType)
 	if(not config) then return end
 
-	if(STRUCTURAL_KEYS[key:match('^[^%.]+')]) then
+	local keyRoot = key:match('^[^%.]+')
+	if(STRUCTURAL_KEYS[keyRoot]) then
 		debouncedRebuild()
+	elseif(keyRoot == 'slots') then
+		-- Pinned 'slots' is an assignment map (which roster member lives in
+		-- which frame), not a visual property. The preview shows generic
+		-- placeholder units, so a slot change doesn't alter the preview —
+		-- skip UpdateFromConfig, which would otherwise destroy+rebuild every
+		-- preview frame's textures and flash them on screen.
+		return
 	else
 		for _, frame in next, previewFrames do
 			F.PreviewFrame.UpdateFromConfig(frame, config, nil, nil)
