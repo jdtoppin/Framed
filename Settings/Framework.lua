@@ -596,14 +596,13 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 			Settings._panelFrames[p.id] = nil
 		end
 	end
-	-- Only rebuild if settings is visible — entering edit mode hides settings
-	-- first, so rebuilding a stale panel would reference a missing unit type
-	if(not Settings._mainFrame or not Settings._mainFrame:IsShown()) then return end
+	if(not Settings._mainFrame) then return end
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
 	-- Redirect away from preset-specific panels that don't exist under the
-	-- new preset (pinned is absent in Solo). Rebuilding them would crash on
-	-- the first unitConfigs read.
+	-- new preset (pinned is absent in Solo). Must run even while settings
+	-- is hidden so that Toggle()'s pre-FadeIn sync doesn't leave a stale
+	-- pinned panel active when the user reopens under Solo.
 	if(activeId == 'pinned') then
 		local preset = Settings.GetEditingPreset()
 		if(not preset or not F.Config:Get('presets.' .. preset .. '.unitConfigs.pinned')) then

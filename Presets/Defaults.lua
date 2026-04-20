@@ -136,14 +136,21 @@ end
 -- Opt-in by default (enabled = false). Solo preset omits this block entirely.
 local function pinnedConfig()
 	local cfg = baseUnitConfig()
-	cfg.enabled  = false
-	cfg.count    = 9
-	cfg.columns  = 3
-	cfg.width    = 160
-	cfg.height   = 40
-	cfg.spacing  = 2
-	cfg.slots    = {}  -- keys 1..9; nil = unassigned
-	cfg.position = { x = 0, y = 0, anchor = 'CENTER' }
+	cfg.enabled     = false
+	cfg.columns     = 3
+	cfg.width       = 160
+	cfg.height      = 40
+	cfg.spacing     = 2
+	cfg.slots       = {}  -- keys 1..9; nil = unassigned
+	-- Pinned anchors TOPLEFT so edit-mode drag math (which saves TOPLEFT offsets)
+	-- and the multi-frame catcher/preview stay consistent with boss/arena.
+	-- (-242, 62) is the TOPLEFT coord of the 484×124 default grid (3×3 × 160×40
+	-- + spacing=2) centered on screen — visually equivalent to CENTER (0,0).
+	cfg.position    = { x = -242, y = 62, anchor = 'TOPLEFT' }
+	cfg.anchorPoint = 'TOPLEFT'
+	-- Flag for EnsureDefaults: signals this pinned config is already in
+	-- TOPLEFT-relative coordinates so the one-shot anchor migration skips it.
+	cfg._anchorMigrated = true
 	return cfg
 end
 
@@ -277,7 +284,7 @@ local function bossConfig()
 	local c = baseUnitConfig()
 	c.width       = 160
 	c.height      = 30
-	c.position    = { x = 300, y = 100, anchor = 'CENTER' }
+	c.position    = { x = 1100, y = -280, anchor = 'TOPLEFT' }
 	c.spacing     = 4
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
@@ -351,7 +358,7 @@ local function arenaConfig()
 	local c = baseUnitConfig()
 	c.width       = 160
 	c.height      = 30
-	c.position    = { x = 300, y = 100, anchor = 'CENTER' }
+	c.position    = { x = 1100, y = -500, anchor = 'TOPLEFT' }
 	c.spacing     = 4
 	c.orientation = 'vertical'
 	c.anchorPoint = 'TOPLEFT'
@@ -634,11 +641,52 @@ function F.PresetDefaults.EnsureDefaults()
 					end
 				end
 
-				-- Migrate pinned.count: old default was 3, new is 9. Bump any
-				-- save that still matches the old default so existing users
-				-- don't get stuck with 3 slots and no UI control to change it.
-				if(savedUC.pinned and savedUC.pinned.count == 3) then
-					savedUC.pinned.count = 9
+				-- One-shot migration: convert pre-0.8 pinned coords (which used
+				-- position.anchor as the real SetPoint anchor) into TOPLEFT
+				-- space. ApplyPosition now always anchors TOPLEFT→TOPLEFT; the
+				-- anchor field is resize-preference metadata only. Gated by
+				-- _anchorMigrated so re-selecting a non-TOPLEFT anchor via
+				-- edit mode doesn't re-apply the offset math on next reload.
+				--
+				-- Legacy SetPoint: frame.A at UIParent.A + (x, y). In TOPLEFT
+				-- space: x' = x + (UIParent A offset from TL) - (frame A
+				-- offset from TL), and similarly for y'. All offsets use
+				-- WoW SetPoint coordinates (+x right, +y up).
+				if(savedUC.pinned and savedUC.pinned.position
+					and not savedUC.pinned._anchorMigrated
+					and savedUC.pinned.position.anchor
+					and savedUC.pinned.position.anchor ~= 'TOPLEFT') then
+					local p    = savedUC.pinned
+					local cols = p.columns or 3
+					local rows = math.ceil(9 / cols)
+					local W    = cols * (p.width  or 160) + (cols - 1) * (p.spacing or 2)
+					local H    = rows * (p.height or 40)  + (rows - 1) * (p.spacing or 2)
+					local UW   = UIParent:GetWidth()
+					local UH   = UIParent:GetHeight()
+					local anch = p.position.anchor
+
+					local ux, uy = 0, 0
+					if(anch == 'TOP' or anch == 'CENTER' or anch == 'BOTTOM') then ux = UW / 2 end
+					if(anch == 'TOPRIGHT' or anch == 'RIGHT' or anch == 'BOTTOMRIGHT') then ux = UW end
+					if(anch == 'LEFT' or anch == 'CENTER' or anch == 'RIGHT') then uy = -UH / 2 end
+					if(anch == 'BOTTOMLEFT' or anch == 'BOTTOM' or anch == 'BOTTOMRIGHT') then uy = -UH end
+
+					local fx, fy = 0, 0
+					if(anch == 'TOP' or anch == 'CENTER' or anch == 'BOTTOM') then fx = W / 2 end
+					if(anch == 'TOPRIGHT' or anch == 'RIGHT' or anch == 'BOTTOMRIGHT') then fx = W end
+					if(anch == 'LEFT' or anch == 'CENTER' or anch == 'RIGHT') then fy = -H / 2 end
+					if(anch == 'BOTTOMLEFT' or anch == 'BOTTOM' or anch == 'BOTTOMRIGHT') then fy = -H end
+
+					p.position.x      = (p.position.x or 0) + ux - fx
+					p.position.y      = (p.position.y or 0) + uy - fy
+					p.position.anchor = 'TOPLEFT'
+					p.anchorPoint     = 'TOPLEFT'
+				end
+				-- Stamp the flag on every pinned config (migrated or already
+				-- TOPLEFT) so this migration never runs again. New configs
+				-- from Defaults also satisfy the flag via DeepMerge backfill.
+				if(savedUC.pinned) then
+					savedUC.pinned._anchorMigrated = true
 				end
 
 				-- Strip pinned from Solo. An earlier default incorrectly seeded

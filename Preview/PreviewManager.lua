@@ -11,7 +11,6 @@ local PM = F.PreviewManager
 -- ============================================================
 
 local activeFrameKey = nil
-local activeDimGroup = nil  -- current aura group being highlighted (nil = all visible)
 local previewFrames = {}
 local previewContainer = nil
 
@@ -29,18 +28,20 @@ local SOLO_FAKES = {
 	pet          = function() return { name = 'Pet',           class = 'HUNTER',   healthPct = 1.0, powerPct = 1.0 } end,
 }
 
-local GROUP_TYPES = { party = true, raid = true, arena = true, boss = true }
+local GROUP_TYPES = { party = true, raid = true, arena = true, boss = true, pinned = true }
 
 local GROUP_FRAME_COUNTS = {
-	party = 5,
-	raid  = 20,
-	arena = 3,
-	boss  = 4,
+	party  = 5,
+	raid   = 20,
+	arena  = 3,
+	boss   = 4,
+	pinned = 9,
 }
 
 local GROUP_FAKES = nil  -- Lazy-init from Preview.GetFakeUnits
 
 local UNITS_PER_COLUMN = 5
+local PINNED_MAX_SLOTS = 9
 
 function PM.GetGroupPreviewCount(frameKey)
 	return GROUP_FRAME_COUNTS[frameKey]
@@ -72,8 +73,16 @@ function PM.GetGroupBounds(config, frameKey)
 	local w = config.width
 	local h = config.height
 	local spacing = config.spacing
-	local isVertical = (config.orientation == 'vertical')
 
+	-- Pinned uses a row-major grid wrapping at config.columns (user-settable),
+	-- not the UNITS_PER_COLUMN=5 column-flow used by party/raid/boss/arena.
+	if(frameKey == 'pinned') then
+		local cols = config.columns
+		local rows = math.ceil(PINNED_MAX_SLOTS / cols)
+		return cols * w + (cols - 1) * spacing, rows * h + (rows - 1) * spacing
+	end
+
+	local isVertical = (config.orientation == 'vertical')
 	local cols = math.ceil(count / UNITS_PER_COLUMN)
 	local rows = math.min(count, UNITS_PER_COLUMN)
 
@@ -189,12 +198,65 @@ end
 -- Group preview
 -- ============================================================
 
+-- Pinned has a row-major grid (wraps at config.columns) and none of the
+-- party/raid concerns (role sort, party-pet, orientation, anchorPoint growth
+-- direction). Kept as its own code path so the shared showGroupPreview below
+-- stays focused on header-backed groups.
+local function showPinnedPreview(container, config, realFrame, auraConfig)
+	if(not GROUP_FAKES) then
+		GROUP_FAKES = F.Preview.GetFakeUnits(5)
+	end
+
+	local cols    = config.columns
+	local w       = config.width
+	local h       = config.height
+	local spacing = config.spacing
+
+	local posAnchor = (config.position and config.position.anchor) or 'TOPLEFT'
+	local baseX = EditCache.Get('pinned', 'position.x') or (config.position and config.position.x) or 0
+	local baseY = EditCache.Get('pinned', 'position.y') or (config.position and config.position.y) or 0
+
+	for i = 1, PINNED_MAX_SLOTS do
+		local row = math.floor((i - 1) / cols)
+		local col = (i - 1) % cols
+		local offX =  col * (w + spacing)
+		local offY = -row * (h + spacing)
+
+		local fakeUnit = GROUP_FAKES[((i - 1) % #GROUP_FAKES) + 1]
+		local unit = {
+			name      = fakeUnit.name .. (i > #GROUP_FAKES and (' ' .. i) or ''),
+			class     = fakeUnit.class,
+			role      = fakeUnit.role,
+			healthPct = math.max(0.1, (fakeUnit.healthPct or 0.8) - (i * 0.03)),
+			powerPct  = fakeUnit.powerPct or 0.5,
+		}
+
+		local pf = F.PreviewFrame.Create(container, config, unit, realFrame, auraConfig)
+		if(realFrame) then
+			pf:SetPoint('TOPLEFT', realFrame, 'TOPLEFT', offX, offY)
+		else
+			pf:SetPoint('TOPLEFT', UIParent, posAnchor, baseX + offX, baseY + offY)
+		end
+		previewFrames[i] = pf
+		pf:Show()
+	end
+end
+
 local function showGroupPreview(frameKey)
 	local container = getPreviewContainer()
 	if(not container) then return end
 
 	local config = getUnitConfig(frameKey)
 	if(not config) then return end
+
+	-- Look up real frame for scale sync (needed by every path)
+	local realFrame = getRealFrame(frameKey)
+	local auraConfig = getAuraConfig(frameKey)
+
+	if(frameKey == 'pinned') then
+		showPinnedPreview(container, config, realFrame, auraConfig)
+		return
+	end
 
 	if(not GROUP_FAKES) then
 		GROUP_FAKES = F.Preview.GetFakeUnits(5)
@@ -234,14 +296,10 @@ local function showGroupPreview(frameKey)
 		colY = goDown and -(h + spacing) or (h + spacing)
 	end
 
-	-- Position anchor from config (TOPLEFT for party/raid, CENTER for arena/boss)
+	-- Position anchor from config (TOPLEFT for all real/pseudo groups)
 	local posAnchor = (config.position and config.position.anchor) or 'CENTER'
 	local baseX = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
 	local baseY = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
-
-	-- Look up real header frame for scale sync
-	local realFrame = getRealFrame(frameKey)
-	local auraConfig = getAuraConfig(frameKey)
 
 	-- Build full unit list first (so we can bucket by role if needed)
 	local units = {}
@@ -350,15 +408,6 @@ end
 -- Public API
 -- ============================================================
 
-local function applyDimState()
-	if(not activeDimGroup) then return end
-	for _, pf in next, previewFrames do
-		if(pf.SetAuraGroupAlpha) then
-			pf:SetAuraGroupAlpha(activeDimGroup)
-		end
-	end
-end
-
 function PM.ShowPreview(frameKey)
 	destroyPreviews()
 	activeFrameKey = frameKey
@@ -368,14 +417,10 @@ function PM.ShowPreview(frameKey)
 	else
 		showSoloPreview(frameKey)
 	end
-
-	-- Re-apply aura dimming after rebuild
-	applyDimState()
 end
 
 function PM.HidePreview()
 	destroyPreviews()
-	activeDimGroup = nil
 end
 
 function PM.IsAnimationEnabled()
@@ -412,11 +457,11 @@ F.EventBus:Register('EDIT_MODE_EXITED', function()
 	end
 end, 'PreviewManager.exited')
 
--- Live update from EditCache (skip position/size — they don't affect preview)
+-- Live update from EditCache. getUnitConfig() merges EditCache over saved
+-- config, so rebuilding here picks up width/height/position changes from
+-- the inline panel sliders.
 F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
 	if(frameKey ~= activeFrameKey) then return end
-	if(configPath == 'position.x' or configPath == 'position.y'
-		or configPath == 'width' or configPath == 'height') then return end
 	PM.ShowPreview(activeFrameKey)
 end, 'PreviewManager.cacheChanged')
 
@@ -430,23 +475,3 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 	end
 end, 'PreviewManager.auraConfig')
 
--- Map inline panel IDs (lowercase) to aura group keys (camelCase/config keys)
-local PANEL_TO_GROUP = {
-	targetedspells = 'targetedSpells',
-	dispels        = 'dispellable',
-	missingbuffs   = 'missingBuffs',
-	privateauras   = 'privateAuras',
-	lossofcontrol  = 'lossOfControl',
-	crowdcontrol   = 'crowdControl',
-}
-
-F.EventBus:Register('EDIT_MODE_AURA_DIM', function(frameKey, activeGroupId)
-	if(frameKey ~= activeFrameKey) then return end
-	local groupKey = activeGroupId and (PANEL_TO_GROUP[activeGroupId] or activeGroupId) or nil
-	activeDimGroup = groupKey
-	for _, pf in next, previewFrames do
-		if(pf.SetAuraGroupAlpha) then
-			pf:SetAuraGroupAlpha(groupKey)
-		end
-	end
-end, 'PreviewManager.auraDim')

@@ -175,6 +175,26 @@ function F.FrameSettingsBuilder.ComputePinnedSplit(totalW, gap, unitType, previe
 	end
 	previewW = math.max(previewW, widthFloor)
 	local summaryW = totalW - previewW - gap
+
+	-- Force the summary to stay 2-col-capable on narrow totals. The summary's
+	-- column count is discrete (innerW >= SUMMARY_2COL_MIN_INNER → 2 cols, else
+	-- 1 col), and a 1-col summary hides most rows below the fold. The preview,
+	-- by contrast, scales continuously via SetScale(innerW / naturalW), so
+	-- stealing width from it just shrinks the preview frames — exactly the
+	-- trade-off we want. PREVIEW_HARD_MIN keeps the preview card's border /
+	-- title legible; below it, we'd rather the summary fall back to 1 col than
+	-- render a preview too small to read.
+	local SUMMARY_2COL_MIN = F.FrameSettingsBuilder.SUMMARY_2COL_MIN_INNER
+		+ F.FrameSettingsBuilder.SUMMARY_CARD_PAD * 2
+	local PREVIEW_HARD_MIN = 80
+	if(summaryW < SUMMARY_2COL_MIN) then
+		local targetSummary = math.min(SUMMARY_2COL_MIN, totalW - PREVIEW_HARD_MIN - gap)
+		if(targetSummary > summaryW) then
+			summaryW = targetSummary
+			previewW = totalW - summaryW - gap
+		end
+	end
+
 	return previewW, summaryW
 end
 
@@ -184,6 +204,14 @@ end
 
 local SUMMARY_ROW_H = 16
 local ICON_SIZE = 12
+local SUMMARY_CARD_PAD = 10
+-- innerW threshold for 2-col layout in BuildSummaryCard's layoutRows.
+-- Exported so ComputePinnedSplit can guarantee the summary always gets
+-- enough width to render at least 2 columns.
+local SUMMARY_2COL_MIN_INNER = 180
+
+F.FrameSettingsBuilder.SUMMARY_CARD_PAD        = SUMMARY_CARD_PAD
+F.FrameSettingsBuilder.SUMMARY_2COL_MIN_INNER  = SUMMARY_2COL_MIN_INNER
 
 local GROUP_ICON_TYPES = { party = true, raid = true, arena = true, pinned = true }
 
@@ -311,13 +339,19 @@ function F.FrameSettingsBuilder.BuildSummaryCard(parent, width, unitType, getCon
 	card:SetWidth(width)
 	Widgets.CreateAccentBar(card, 'top')
 
-	local pad = 10
-	local titleText = Widgets.CreateFontString(card, C.Font.sizeNormal, C.Colors.textActive)
-	titleText:SetPoint('TOPLEFT', card, 'TOPLEFT', pad, -pad)
-	titleText:SetText('Quick Navigation')
-
+	local pad = SUMMARY_CARD_PAD
 	local badgeText = Widgets.CreateFontString(card, C.Font.sizeSmall, C.Colors.textSecondary)
 	badgeText:SetPoint('TOPRIGHT', card, 'TOPRIGHT', -pad, -pad - 1)
+
+	-- Title shares the header row with the badge. Bound its right edge to
+	-- the badge's left so the title ellipsis-truncates when the card is
+	-- narrow instead of overlapping the "N of M enabled" count.
+	local titleText = Widgets.CreateFontString(card, C.Font.sizeNormal, C.Colors.textActive)
+	titleText:SetPoint('TOPLEFT', card, 'TOPLEFT', pad, -pad)
+	titleText:SetPoint('RIGHT', badgeText, 'LEFT', -C.Spacing.base, 0)
+	titleText:SetJustifyH('LEFT')
+	titleText:SetWordWrap(false)
+	titleText:SetText('Quick Navigation')
 
 	local titleH = C.Font.sizeNormal + 6
 
@@ -457,7 +491,7 @@ function F.FrameSettingsBuilder.BuildSummaryCard(parent, width, unitType, getCon
 		local cols
 		if(innerW >= 340) then
 			cols = 3
-		elseif(innerW >= 180) then
+		elseif(innerW >= SUMMARY_2COL_MIN_INNER) then
 			cols = 2
 		else
 			cols = 1
@@ -508,10 +542,22 @@ function F.FrameSettingsBuilder.BuildSummaryCard(parent, width, unitType, getCon
 		card:SetHeight(h)
 	end
 
+	local lastOrderedIds = cardIdOrder
 	layoutRows(cardIdOrder, false)
 
 	function card:Reorder(orderedIds)
+		lastOrderedIds = orderedIds
 		layoutRows(orderedIds, true)
+	end
+
+	-- Re-place rows against the card's *current* width without triggering
+	-- the reorder animation. Used as the per-frame callback while the
+	-- pinned split tweens the summary card narrower — otherwise
+	-- rf:SetWidth() stays pinned at the pre-tween colW and row contents
+	-- (the labels are LEFT/RIGHT-anchored, so truncation depends on the
+	-- row width tracking the card).
+	function card:ResizeRowsToWidth()
+		layoutRows(lastOrderedIds, false)
 	end
 
 	function card:Refresh()

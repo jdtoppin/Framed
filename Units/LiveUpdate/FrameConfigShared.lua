@@ -99,6 +99,14 @@ Shared.GROUP_TYPES = {
 	worldraid    = true,
 }
 
+-- Pseudo-groups: multiple individual frames with no SecureGroupHeader.
+-- Positioned as TOPLEFT cascade from a base offset (like the drag system
+-- saves), distinct from solo frames (CENTER) and real groups (header).
+Shared.PSEUDO_GROUPS = {
+	boss  = true,
+	arena = true,
+}
+
 -- ============================================================
 -- Group header lookup
 -- ============================================================
@@ -110,6 +118,40 @@ function Shared.getGroupHeader(unitType)
 		return F.Units.Raid and F.Units.Raid.header
 	end
 	return nil
+end
+
+--- Return the ordered list of frames for a pseudo-group.
+function Shared.getPseudoGroupFrames(unitType)
+	if(unitType == 'boss') then
+		return F.Units.Boss and F.Units.Boss.frames
+	elseif(unitType == 'arena') then
+		return F.Units.Arena and F.Units.Arena.frames
+	end
+	return nil
+end
+
+--- Re-anchor all frames of a pseudo-group (boss/arena) at UIParent TOPLEFT
+--- with a per-frame cascade derived from orientation + spacing + size.
+--- Mirrors the TOPLEFT semantics that the edit-mode drag system saves.
+function Shared.cascadePseudoGroup(unitType, config)
+	local frames = Shared.getPseudoGroupFrames(unitType)
+	if(not frames) then return end
+	local baseX   = config.position.x
+	local baseY   = config.position.y
+	local spacing = config.spacing or 0
+	local orient  = config.orientation or 'vertical'
+	for i, frame in next, frames do
+		local offX, offY
+		if(orient == 'vertical') then
+			offX = baseX
+			offY = baseY - (i - 1) * (config.height + spacing)
+		else
+			offX = baseX + (i - 1) * (config.width + spacing)
+			offY = baseY
+		end
+		frame:ClearAllPoints()
+		Widgets.SetPoint(frame, 'TOPLEFT', UIParent, 'TOPLEFT', offX, offY)
+	end
 end
 
 -- ============================================================

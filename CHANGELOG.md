@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## v0.8.12-alpha
+
+- **Pinned Frames in Edit Mode** — the drag catcher and selected preview now render the full 9-slot grid instead of a single fake frame, so moving pinned frames in edit mode reflects what you'll actually see in-game
+- Pinned anchor convention flipped to TOPLEFT to match boss/arena (drag math, catcher bounds, and live layout now agree); existing CENTER-anchored pinned saves are auto-migrated on load to the equivalent TOPLEFT offset so nothing visually shifts
+- Pinned geometry edits (width, height, columns, spacing) live-update without the grid flashing during resize, and Resize Anchor compensation keeps the pivot edge visually fixed instead of bouncing back on each slider tick
+- Pinned placeholder identity labels ("Pin 1" … "Pin 9") and slot name tags ("Click to assign", character name) now scale with `Name font size` (primary and primary−2, floor 8) — previously hardcoded text looked oversized at non-1.0 UI scales
+- Fix edit-mode first drag doing nothing visible — clicking-and-dragging immediately (without releasing first) now selects the frame so the preview appears as you drag
+- Fix group position sliders (party, raid, arena, boss) not moving the real frame during slider drag in edit mode — the handler only supported solo CENTER anchoring
+- Fix edit-mode preview not rebuilding when position/size sliders change — preview now tracks slider motion in real time via the EditCache
+- Fix inline edit panel sliders and dropdowns sometimes missing clicks — split into a sibling shield + panel so children hit-test uncontested; inline panel rebuilds on preset switch so sliders read the active preset's config
+- Fix boss and arena frames saving off-screen after a drag — they were written as TOPLEFT offsets but reapplied as CENTER offsets on reload/preset change. Now TOPLEFT end-to-end via a `PSEUDO_GROUPS` cascade path; existing saves self-heal because the stored values were already in TOPLEFT space
+- Narrow pinned settings card keeps a 2-column quick-nav summary (was collapsing to 1 column and pushing most rows below the fold); summary rows reflow mid-animation so labels no longer clip past the card edge while the card width tweens
+- Preset switches now redirect away from preset-specific panels (e.g. pinned under Solo) even while Settings is hidden, so reopening doesn't flash a stale panel
+- Inline edit panel stripped down to just Position & Layout — edit mode is strictly for positioning; all other settings live in the main Settings window with live previews
+- Internal cleanup: drop inert `config.count` from pinned (always capped at 9, no UI), consolidate pinned frame-scale handling onto a single anchor-level `RegisterForUIScale` (removes the per-frame gear counter-scale workaround), and rename a shadowed migration local to keep luacheck clean
+
 ## v0.8.11-alpha
 
 - **Pinned Frames** — up to 9 standalone frames that track specific group members by name, following players across roster reshuffles. Supports Focus / Focus Target / name-target slots. Role-grouped class-colored assignment dropdown available from the Settings card, empty-slot placeholder click, and a hover-gear icon on assigned pins (out of combat). First-class aura configuration across all 10 aura sub-panels. Per-preset; absent in Solo
