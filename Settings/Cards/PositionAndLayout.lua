@@ -193,6 +193,18 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		posYSlider:SetValue(y)
 	end, evtTag .. '.dragging')
 
+	-- EditMode hides Settings on entry (killing our listeners via OnHide)
+	-- and reshows it on exit — so edit-mode commits land in config while
+	-- our sliders are inert. Re-sync on show or the user's next nudge
+	-- writes (stale + delta) and snaps the frame back near pre-edit.
+	card:HookScript('OnShow', function()
+		widthSlider:SetValue(getConfig('width'))
+		heightSlider:SetValue(getConfig('height'))
+		anchorPicker:SetAnchor(getConfig('position.anchor'), 0, 0)
+		posXSlider:SetValue(getConfig('position.x'))
+		posYSlider:SetValue(getConfig('position.y'))
+	end)
+
 	-- Unregister when card is destroyed
 	card:HookScript('OnHide', function()
 		F.EventBus:Unregister('EDIT_MODE_FRAME_RESIZED', evtTag .. '.resize')
