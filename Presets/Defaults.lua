@@ -413,7 +413,6 @@ local function soloUnitAuras()
 		focus        = A.Solo(14, 6),
 		pet          = A.Minimal(),
 		boss         = A.Boss(),
-		pinned       = A.Minimal(),
 	}
 end
 
@@ -425,6 +424,9 @@ function F.PresetDefaults.GetAll()
 	local presets = {}
 
 	-- Solo
+	-- Note: no `pinned` block — pinned frames are a group-only feature. The
+	-- sidebar / EditMode / Spawn paths gate on the presence of unitConfigs.pinned,
+	-- so omitting it here hides pinned entirely while Solo is the editing preset.
 	presets['Solo'] = {
 		isBase    = true,
 		positions = {},
@@ -435,7 +437,6 @@ function F.PresetDefaults.GetAll()
 			focus        = focusConfig(),
 			pet          = petConfig(),
 			boss         = bossConfig(),
-			pinned       = pinnedConfig(),
 		},
 		auras = soloUnitAuras(),
 	}
@@ -638,6 +639,13 @@ function F.PresetDefaults.EnsureDefaults()
 				-- don't get stuck with 3 slots and no UI control to change it.
 				if(savedUC.pinned and savedUC.pinned.count == 3) then
 					savedUC.pinned.count = 9
+				end
+
+				-- Strip pinned from Solo. An earlier default incorrectly seeded
+				-- Solo with a pinnedConfig, which made the sidebar / EditMode
+				-- treat Solo as pinned-capable. Pinned is a group-only feature.
+				if(name == 'Solo') then
+					savedUC.pinned = nil
 				end
 
 				-- General backfill: deep-merge any missing keys from defaults

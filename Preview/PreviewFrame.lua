@@ -711,21 +711,31 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig, animated)
 				end
 			end
 
+			-- Multi-slot previews (pinned) desync: each slot picks a random
+			-- starting step and a small duration jitter so the 9 frames drift
+			-- apart instead of drumming in lockstep. Single-frame previews
+			-- (player/target/etc.) keep the deterministic cycle so the card
+			-- always opens at full health.
+			local jitter = (frame._unitType == 'pinned')
+			local startIdx = jitter and math.random(1, #STEPS) or 1
+			local durScale = jitter and (0.8 + math.random() * 0.5) or 1
+
 			local runStep
 			runStep = function(bar, idx)
 				if(not bar:IsShown()) then return end
 				local step = STEPS[idx]
 				if(not step) then runStep(bar, 1); return end
+				local dur = step.dur * durScale
 
 				if(step.from == step.to or not config.health.smooth) then
 					-- Hold, or instant snap + hold for the same duration
 					setBarTo(step.to)
-					Widgets.StartAnimation(bar, 'healthStep', 0, 1, step.dur,
+					Widgets.StartAnimation(bar, 'healthStep', 0, 1, dur,
 						function() end,
 						function(f) runStep(f, idx + 1) end)
 				else
 					-- Smooth transition with ease-out
-					Widgets.StartAnimation(bar, 'healthStep', 0, 1, step.dur,
+					Widgets.StartAnimation(bar, 'healthStep', 0, 1, dur,
 						function(f, t)
 							local inv = 1 - t
 							local eased = 1 - inv * inv * inv
@@ -734,7 +744,7 @@ local function BuildAllElements(frame, config, fakeUnit, auraConfig, animated)
 						function(f) runStep(f, idx + 1) end)
 				end
 			end
-			runStep(healthBar, 1)
+			runStep(healthBar, startIdx)
 		else
 			frame._healthBar:SetValue(fakeUnit.healthPct)
 			if(frame._healthText) then

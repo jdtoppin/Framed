@@ -98,13 +98,25 @@ function F.Elements.Name.Setup(self, config)
 	-- untruncated long name (visibly spilling past the frame, especially
 	-- on narrow pinned frames). SetWordWrap(false) + a bounded width makes
 	-- the renderer append '...' on every SetText regardless of caller.
+	--
+	-- Bounded width is skipped in attach-to-name mode: StyleBuilder anchors
+	-- Health.text to Name's RIGHT edge and Health.PostUpdate shifts the
+	-- pair left to center them. A fixed-width Name FontString with default
+	-- JustifyH='CENTER' renders as a wide box with the name parked in the
+	-- middle, which puts the Health text at the far-right frame edge and
+	-- defeats the centering shift. SetWidth(0) releases the constraint so
+	-- the FontString tracks its text content width.
 	nameText:SetWordWrap(false)
 	local function updateNameWidth()
 		local w = self:GetWidth() or 0
-		if(w > 8) then
+		if(w <= 8) then return end
+		if(self.Health and self.Health._attachedToName) then
+			nameText:SetWidth(0)
+		else
 			nameText:SetWidth(w - 8)
 		end
 	end
+	self._updateNameWidth = updateNameWidth
 	updateNameWidth()
 	self:HookScript('OnSizeChanged', updateNameWidth)
 
