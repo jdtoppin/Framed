@@ -861,11 +861,165 @@ function F.Units.Pinned.OpenAssignmentMenu(slotIndex)
 end
 
 -- ============================================================
+-- Group fingerprint & clear-on-leave
+--
+-- Pinned slots scope to "this group, right now" — wipe them across
+-- all presets when the user leaves/disbands. Persist across pulls
+-- (nothing clears while in-group) and across DC/relog if the current
+-- group shares at least one member with the stored fingerprint.
+-- ============================================================
+
+-- Fingerprint by character name, not GUID. When a party member is in a
+-- vehicle (mount, skyriding dragon, combat vehicle), UnitGUID(token)
+-- returns the vehicle GUID — which has a spawn-instance suffix that
+-- changes every session. UnitName(token) resolves through the vehicle
+-- to the player's actual name, matching how Pinned stores slot identity
+-- (findUnitForName / fullUnitName) and staying stable across relog.
+local function collectGroupNames()
+	local names = {}
+	local inGroup = false
+	-- rosterReady = "unit tokens actually resolve right now." At login and
+	-- on some zone transitions, IsInRaid()/IsInGroup() return true before
+	-- the client has populated raidN/partyN data. Reconciling against
+	-- that empty roster looks like "totally different group" and nukes
+	-- the pins. Caller must bail when inGroup && !rosterReady.
+	local rosterReady = true
+	if(IsInRaid()) then
+		inGroup = true
+		local count = GetNumGroupMembers()
+		if(count <= 0) then rosterReady = false end
+		for i = 1, count do
+			local name = fullUnitName('raid' .. i)
+			if(name) then
+				names[name] = true
+			else
+				rosterReady = false
+			end
+		end
+	elseif(IsInGroup()) then
+		inGroup = true
+		local count = GetNumGroupMembers() - 1
+		if(count < 0) then count = 0 end
+		-- party1..partyN are the *other* members; the player themselves
+		-- is 'player' in party groups. We deliberately don't include the
+		-- player's own name in the fingerprint because it never changes
+		-- and would force overlap=true on every comparison, defeating
+		-- the "different group entirely" detection path.
+		for i = 1, count do
+			local name = fullUnitName('party' .. i)
+			if(name) then
+				names[name] = true
+			else
+				rosterReady = false
+			end
+		end
+		if(count == 0) then
+			-- Solo-invite one-player "party" — IsInGroup is momentarily true
+			-- while WoW processes the invite. Treat as not-yet-ready so we
+			-- don't overwrite the stored fingerprint with nothing.
+			rosterReady = false
+		end
+	end
+	return names, inGroup, rosterReady
+end
+
+local function nameOverlap(a, b)
+	if(not a or not b) then return false end
+	for name in next, a do
+		if(b[name]) then return true end
+	end
+	return false
+end
+
+local function clearAllPinnedSlots()
+	local presets = F.Config and F.Config:Get('presets')
+	if(not presets) then return end
+	local didClear = false
+	for presetName, preset in next, presets do
+		local pinned = preset.unitConfigs and preset.unitConfigs.pinned
+		if(pinned and pinned.slots and next(pinned.slots)) then
+			pinned.slots = {}
+			didClear = true
+			if(F.PresetManager and F.PresetManager.MarkCustomized) then
+				F.PresetManager.MarkCustomized(presetName)
+			end
+		end
+	end
+	if(didClear and F.Units.Pinned.Refresh) then
+		F.Units.Pinned.Refresh()
+	end
+end
+
+local function reconcileGroupMembership()
+	if(not FramedCharDB) then return end
+	FramedCharDB.pinnedGroup = FramedCharDB.pinnedGroup or { names = {}, inGroup = false }
+	local stored = FramedCharDB.pinnedGroup
+	-- Migrate legacy GUID-based fingerprints. Vehicle/NPC GUIDs include
+	-- session-scoped spawn suffixes, so the old fingerprint could never
+	-- overlap across relog — drop it AND the inGroup flag, so the next
+	-- reconcile seeds a fresh names fingerprint instead of comparing
+	-- zero stored names against a full current roster and falsely
+	-- clearing under "no name overlap".
+	if(stored.guids) then
+		stored.guids   = nil
+		stored.names   = {}
+		stored.inGroup = false
+	end
+	stored.names = stored.names or {}
+
+	local currentNames, currentInGroup, rosterReady = collectGroupNames()
+
+	-- Roster data hasn't arrived from the server yet (common on the first
+	-- GROUP_ROSTER_UPDATE after login). Bail — another GRU will fire once
+	-- member names resolve, and we'll reconcile then. Importantly don't
+	-- update stored.names here: a partial roster would masquerade as "a
+	-- different group" on the next tick and trigger a false clear.
+	if(currentInGroup and not rosterReady) then
+		return
+	end
+
+	local shouldClear = false
+
+	-- In-group → not-in-group: user left, got kicked, or group disbanded.
+	-- Covers both live transitions and the "logged out in group, logged
+	-- back in solo" case (fingerprint says was-grouped, current says not).
+	if(stored.inGroup and not currentInGroup) then
+		shouldClear = true
+	-- Both sides grouped but zero member overlap: a different group
+	-- entirely. Rare mid-session; on relog means the old group disbanded
+	-- and the user joined a brand-new one before the addon ran.
+	elseif(stored.inGroup and currentInGroup and not nameOverlap(stored.names, currentNames)) then
+		shouldClear = true
+	end
+
+	if(shouldClear) then
+		clearAllPinnedSlots()
+	end
+
+	stored.names   = currentNames
+	stored.inGroup = currentInGroup
+end
+
+-- ============================================================
 -- Event registration
 -- ============================================================
 F.EventBus:Register('GROUP_ROSTER_UPDATE', function()
+	reconcileGroupMembership()
 	F.Units.Pinned.Resolve()
 end, 'Pinned.Resolve')
+
+-- We deliberately do NOT hook PLAYER_ENTERING_WORLD. At login, IsInGroup()
+-- can briefly return false before the client has finished syncing group
+-- state with the server — reconciling against that lie would see
+-- "stored.inGroup=true but currentInGroup=false" and wrongly clear pins
+-- seconds before GROUP_ROSTER_UPDATE arrives with the truth. GRU is the
+-- only event that fires when the client actually knows group state.
+--
+-- Edge case: user logs out in a group, the group disbands during logout,
+-- user logs back in solo. GRU may not fire (nothing to report). Stored
+-- state stays stale but pins aren't visible on solo presets anyway; the
+-- next time they join any group, GRU fires and the overlap check clears
+-- correctly. Eventual consistency beats aggressive clearing at login.
 
 local function refreshAllPlaceholders()
 	for i = 1, MAX_SLOTS do

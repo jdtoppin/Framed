@@ -292,6 +292,36 @@ SlashCmdList['FRAMED'] = function(msg)
 		F.Config:PrintDebug()
 	elseif(cmd == 'events') then
 		F.EventBus:PrintDebug()
+	elseif(cmd == 'pinstate') then
+		local stored = FramedCharDB and FramedCharDB.pinnedGroup
+		print('|cff00ccff[Framed/pin]|r stored state:')
+		if(not stored) then
+			print('  (pinnedGroup key missing from FramedCharDB)')
+		else
+			print('  inGroup = ' .. tostring(stored.inGroup))
+			local n = 0
+			for name in next, (stored.names or {}) do
+				n = n + 1
+				print('  name[' .. n .. '] = ' .. tostring(name))
+			end
+			if(n == 0) then print('  (no names stored)') end
+		end
+		print('|cff00ccff[Framed/pin]|r live state:')
+		print('  IsInGroup = ' .. tostring(IsInGroup()))
+		print('  IsInRaid = ' .. tostring(IsInRaid()))
+		print('  GetNumGroupMembers = ' .. tostring(GetNumGroupMembers()))
+		print('|cff00ccff[Framed/pin]|r saved pinned slots:')
+		local presets = F.Config and F.Config:Get('presets')
+		if(presets) then
+			for presetName, preset in next, presets do
+				local pinned = preset.unitConfigs and preset.unitConfigs.pinned
+				if(pinned and pinned.slots) then
+					local count = 0
+					for _ in next, pinned.slots do count = count + 1 end
+					print('  ' .. presetName .. ': ' .. count .. ' slot(s)')
+				end
+			end
+		end
 	elseif(cmd == 'edit') then
 		if(F.EditMode.IsActive()) then
 			F.EditMode.RequestCancel()
