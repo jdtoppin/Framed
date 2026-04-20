@@ -663,19 +663,19 @@ function F.PresetDefaults.EnsureDefaults()
 					local H    = rows * (p.height or 40)  + (rows - 1) * (p.spacing or 2)
 					local UW   = UIParent:GetWidth()
 					local UH   = UIParent:GetHeight()
-					local A    = p.position.anchor
+					local anch = p.position.anchor
 
 					local ux, uy = 0, 0
-					if(A == 'TOP' or A == 'CENTER' or A == 'BOTTOM') then ux = UW / 2 end
-					if(A == 'TOPRIGHT' or A == 'RIGHT' or A == 'BOTTOMRIGHT') then ux = UW end
-					if(A == 'LEFT' or A == 'CENTER' or A == 'RIGHT') then uy = -UH / 2 end
-					if(A == 'BOTTOMLEFT' or A == 'BOTTOM' or A == 'BOTTOMRIGHT') then uy = -UH end
+					if(anch == 'TOP' or anch == 'CENTER' or anch == 'BOTTOM') then ux = UW / 2 end
+					if(anch == 'TOPRIGHT' or anch == 'RIGHT' or anch == 'BOTTOMRIGHT') then ux = UW end
+					if(anch == 'LEFT' or anch == 'CENTER' or anch == 'RIGHT') then uy = -UH / 2 end
+					if(anch == 'BOTTOMLEFT' or anch == 'BOTTOM' or anch == 'BOTTOMRIGHT') then uy = -UH end
 
 					local fx, fy = 0, 0
-					if(A == 'TOP' or A == 'CENTER' or A == 'BOTTOM') then fx = W / 2 end
-					if(A == 'TOPRIGHT' or A == 'RIGHT' or A == 'BOTTOMRIGHT') then fx = W end
-					if(A == 'LEFT' or A == 'CENTER' or A == 'RIGHT') then fy = -H / 2 end
-					if(A == 'BOTTOMLEFT' or A == 'BOTTOM' or A == 'BOTTOMRIGHT') then fy = -H end
+					if(anch == 'TOP' or anch == 'CENTER' or anch == 'BOTTOM') then fx = W / 2 end
+					if(anch == 'TOPRIGHT' or anch == 'RIGHT' or anch == 'BOTTOMRIGHT') then fx = W end
+					if(anch == 'LEFT' or anch == 'CENTER' or anch == 'RIGHT') then fy = -H / 2 end
+					if(anch == 'BOTTOMLEFT' or anch == 'BOTTOM' or anch == 'BOTTOMRIGHT') then fy = -H end
 
 					p.position.x      = (p.position.x or 0) + ux - fx
 					p.position.y      = (p.position.y or 0) + uy - fy
