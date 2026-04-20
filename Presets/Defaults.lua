@@ -136,14 +136,19 @@ end
 -- Opt-in by default (enabled = false). Solo preset omits this block entirely.
 local function pinnedConfig()
 	local cfg = baseUnitConfig()
-	cfg.enabled  = false
-	cfg.count    = 9
-	cfg.columns  = 3
-	cfg.width    = 160
-	cfg.height   = 40
-	cfg.spacing  = 2
-	cfg.slots    = {}  -- keys 1..9; nil = unassigned
-	cfg.position = { x = 0, y = 0, anchor = 'CENTER' }
+	cfg.enabled     = false
+	cfg.count       = 9
+	cfg.columns     = 3
+	cfg.width       = 160
+	cfg.height      = 40
+	cfg.spacing     = 2
+	cfg.slots       = {}  -- keys 1..9; nil = unassigned
+	-- Pinned anchors TOPLEFT so edit-mode drag math (which saves TOPLEFT offsets)
+	-- and the multi-frame catcher/preview stay consistent with boss/arena.
+	-- (-242, 62) is the TOPLEFT coord of the 484×124 default grid (3×3 × 160×40
+	-- + spacing=2) centered on screen — visually equivalent to CENTER (0,0).
+	cfg.position    = { x = -242, y = 62, anchor = 'TOPLEFT' }
+	cfg.anchorPoint = 'TOPLEFT'
 	return cfg
 end
 
@@ -639,6 +644,24 @@ function F.PresetDefaults.EnsureDefaults()
 				-- don't get stuck with 3 slots and no UI control to change it.
 				if(savedUC.pinned and savedUC.pinned.count == 3) then
 					savedUC.pinned.count = 9
+				end
+
+				-- Migrate pinned position CENTER→TOPLEFT. The edit-mode drag
+				-- path saves TOPLEFT offsets; switching defaults to TOPLEFT
+				-- means older CENTER coords would render the grid in the wrong
+				-- place. Convert once so the grid stays at the same visual
+				-- screen position as before.
+				if(savedUC.pinned and savedUC.pinned.position
+					and savedUC.pinned.position.anchor == 'CENTER') then
+					local p      = savedUC.pinned
+					local cols   = p.columns or 3
+					local rows   = math.ceil(9 / cols)
+					local gridW  = cols * (p.width  or 160) + (cols - 1) * (p.spacing or 2)
+					local gridH  = rows * (p.height or 40)  + (rows - 1) * (p.spacing or 2)
+					p.position.x      = (p.position.x or 0) - gridW / 2
+					p.position.y      = (p.position.y or 0) + gridH / 2
+					p.position.anchor = 'TOPLEFT'
+					p.anchorPoint     = 'TOPLEFT'
 				end
 
 				-- Strip pinned from Solo. An earlier default incorrectly seeded

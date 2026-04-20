@@ -28,18 +28,20 @@ local SOLO_FAKES = {
 	pet          = function() return { name = 'Pet',           class = 'HUNTER',   healthPct = 1.0, powerPct = 1.0 } end,
 }
 
-local GROUP_TYPES = { party = true, raid = true, arena = true, boss = true }
+local GROUP_TYPES = { party = true, raid = true, arena = true, boss = true, pinned = true }
 
 local GROUP_FRAME_COUNTS = {
-	party = 5,
-	raid  = 20,
-	arena = 3,
-	boss  = 4,
+	party  = 5,
+	raid   = 20,
+	arena  = 3,
+	boss   = 4,
+	pinned = 9,
 }
 
 local GROUP_FAKES = nil  -- Lazy-init from Preview.GetFakeUnits
 
 local UNITS_PER_COLUMN = 5
+local PINNED_MAX_SLOTS = 9
 
 function PM.GetGroupPreviewCount(frameKey)
 	return GROUP_FRAME_COUNTS[frameKey]
@@ -71,8 +73,16 @@ function PM.GetGroupBounds(config, frameKey)
 	local w = config.width
 	local h = config.height
 	local spacing = config.spacing
-	local isVertical = (config.orientation == 'vertical')
 
+	-- Pinned uses a row-major grid wrapping at config.columns (user-settable),
+	-- not the UNITS_PER_COLUMN=5 column-flow used by party/raid/boss/arena.
+	if(frameKey == 'pinned') then
+		local cols = config.columns
+		local rows = math.ceil(PINNED_MAX_SLOTS / cols)
+		return cols * w + (cols - 1) * spacing, rows * h + (rows - 1) * spacing
+	end
+
+	local isVertical = (config.orientation == 'vertical')
 	local cols = math.ceil(count / UNITS_PER_COLUMN)
 	local rows = math.min(count, UNITS_PER_COLUMN)
 
@@ -188,12 +198,65 @@ end
 -- Group preview
 -- ============================================================
 
+-- Pinned has a row-major grid (wraps at config.columns) and none of the
+-- party/raid concerns (role sort, party-pet, orientation, anchorPoint growth
+-- direction). Kept as its own code path so the shared showGroupPreview below
+-- stays focused on header-backed groups.
+local function showPinnedPreview(container, config, realFrame, auraConfig)
+	if(not GROUP_FAKES) then
+		GROUP_FAKES = F.Preview.GetFakeUnits(5)
+	end
+
+	local cols    = config.columns
+	local w       = config.width
+	local h       = config.height
+	local spacing = config.spacing
+
+	local posAnchor = (config.position and config.position.anchor) or 'TOPLEFT'
+	local baseX = EditCache.Get('pinned', 'position.x') or (config.position and config.position.x) or 0
+	local baseY = EditCache.Get('pinned', 'position.y') or (config.position and config.position.y) or 0
+
+	for i = 1, PINNED_MAX_SLOTS do
+		local row = math.floor((i - 1) / cols)
+		local col = (i - 1) % cols
+		local offX =  col * (w + spacing)
+		local offY = -row * (h + spacing)
+
+		local fakeUnit = GROUP_FAKES[((i - 1) % #GROUP_FAKES) + 1]
+		local unit = {
+			name      = fakeUnit.name .. (i > #GROUP_FAKES and (' ' .. i) or ''),
+			class     = fakeUnit.class,
+			role      = fakeUnit.role,
+			healthPct = math.max(0.1, (fakeUnit.healthPct or 0.8) - (i * 0.03)),
+			powerPct  = fakeUnit.powerPct or 0.5,
+		}
+
+		local pf = F.PreviewFrame.Create(container, config, unit, realFrame, auraConfig)
+		if(realFrame) then
+			pf:SetPoint('TOPLEFT', realFrame, 'TOPLEFT', offX, offY)
+		else
+			pf:SetPoint('TOPLEFT', UIParent, posAnchor, baseX + offX, baseY + offY)
+		end
+		previewFrames[i] = pf
+		pf:Show()
+	end
+end
+
 local function showGroupPreview(frameKey)
 	local container = getPreviewContainer()
 	if(not container) then return end
 
 	local config = getUnitConfig(frameKey)
 	if(not config) then return end
+
+	-- Look up real frame for scale sync (needed by every path)
+	local realFrame = getRealFrame(frameKey)
+	local auraConfig = getAuraConfig(frameKey)
+
+	if(frameKey == 'pinned') then
+		showPinnedPreview(container, config, realFrame, auraConfig)
+		return
+	end
 
 	if(not GROUP_FAKES) then
 		GROUP_FAKES = F.Preview.GetFakeUnits(5)
@@ -237,10 +300,6 @@ local function showGroupPreview(frameKey)
 	local posAnchor = (config.position and config.position.anchor) or 'CENTER'
 	local baseX = EditCache.Get(frameKey, 'position.x') or (config.position and config.position.x) or 0
 	local baseY = EditCache.Get(frameKey, 'position.y') or (config.position and config.position.y) or 0
-
-	-- Look up real header frame for scale sync
-	local realFrame = getRealFrame(frameKey)
-	local auraConfig = getAuraConfig(frameKey)
 
 	-- Build full unit list first (so we can bucket by role if needed)
 	local units = {}
