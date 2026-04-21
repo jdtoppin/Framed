@@ -5,10 +5,14 @@ F.Indicators = F.Indicators or {}
 
 -- ============================================================
 -- Shared ticker for Icon color progression + threshold visibility
--- One OnUpdate for ALL active icons, throttled to 0.5s
+-- One OnUpdate for ALL active icons, throttled to TICKER_INTERVAL
 -- ============================================================
 
-local TICKER_INTERVAL = 0.5
+-- 1.0s keeps color/threshold updates smooth enough for timers of a few
+-- seconds or more while halving the per-tick cost vs. the previous
+-- 0.5s. Bracket-curve threshold crossings incur at most one tick of
+-- latency (~1s) before countdown numbers show/hide.
+local TICKER_INTERVAL = 1.0
 
 local tickerFrame = CreateFrame('Frame')
 local activeIcons = {}  -- set: icon = true
@@ -30,13 +34,18 @@ tickerFrame:SetScript('OnUpdate', function(self, elapsed)
 			end
 		end
 
-		-- Threshold visibility
+		-- Threshold visibility — bracket curve returns alpha 1 (show)
+		-- or 0 (hide). Cache the last-applied hide state and skip the
+		-- C-level setter between crossings; only the eval is unavoidable.
 		if(icon._thresholdCurve and icon._durationObj and icon._cooldown) then
 			local vis = icon._durationObj:EvaluateRemainingPercent(icon._thresholdCurve)
-			-- Bracket curve returns alpha 1 (show) or 0 (hide)
 			local _, _, _, a = vis:GetRGBA()
 			if(F.IsValueNonSecret(a)) then
-				icon._cooldown:SetHideCountdownNumbers(a <= 0.5)
+				local hide = a <= 0.5
+				if(icon._lastThresholdHide ~= hide) then
+					icon._cooldown:SetHideCountdownNumbers(hide)
+					icon._lastThresholdHide = hide
+				end
 			end
 		end
 	end
@@ -65,4 +74,7 @@ function F.Indicators.IconTicker_Unregister(icon)
 			tickerFrame:Hide()
 		end
 	end
+	-- Drop the threshold-hide cache so the next active session starts
+	-- fresh and the first evaluation asserts state unconditionally.
+	icon._lastThresholdHide = nil
 end

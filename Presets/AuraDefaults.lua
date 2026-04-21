@@ -96,7 +96,7 @@ end
 -- Solo units: buffs + debuffs + defensives/externals (disabled by default)
 function F.AuraDefaults.Solo(debuffSize, debuffMax)
 	return {
-		buffs = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = debuffConfig(debuffSize or 14, debuffMax or 6),
 		externals = {
 			enabled        = false,
@@ -197,7 +197,7 @@ end
 -- Minimal auras for simple units (targettarget, pet)
 function F.AuraDefaults.Minimal()
 	return {
-		buffs = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = debuffConfig(14, 3),
 		externals = {
 			enabled        = false,
@@ -313,7 +313,6 @@ function F.AuraDefaults.Group(sizes)
 	return {
 		buffs = {
 			enabled = true,
-			buffFilterMode = 'raidCombat',
 			indicators = { ['My Buffs'] = defaultBuffIndicator() },
 		},
 		debuffs = {
@@ -434,7 +433,7 @@ end
 -- Arena enemy auras — debuffs + dispellable (from old arenaEnemyBase)
 function F.AuraDefaults.Arena()
 	return {
-		buffs = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = {
 			enabled    = true,
 			indicators = {
@@ -542,7 +541,7 @@ end
 -- Boss auras — buffs + debuffs with raid indicator
 function F.AuraDefaults.Boss()
 	return {
-		buffs = { enabled = true, buffFilterMode = 'raidCombat', indicators = { ['My Buffs'] = defaultBuffIndicator() } },
+		buffs = { enabled = true, indicators = { ['My Buffs'] = defaultBuffIndicator() } },
 		debuffs = {
 			enabled    = true,
 			indicators = {

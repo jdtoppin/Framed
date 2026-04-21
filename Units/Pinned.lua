@@ -652,6 +652,8 @@ function F.Units.Pinned.Layout(deferShow)
 	end
 end
 
+local pendingRefresh = false
+
 --- Convenience wrapper: Hide → Layout → Resolve → Show, atomic from the
 --- user's perspective. Used by every call site that needs both a layout
 --- refresh AND unit resolution (enable toggle, count/width changes,
@@ -660,6 +662,16 @@ end
 function F.Units.Pinned.Refresh()
 	local anchor = F.Units.Pinned.anchor
 	if(not anchor) then return end
+	-- anchor:Hide() cascades to oUF unit-frame children, which are protected
+	-- by the secure unit-template driver. Hiding a protected frame in combat
+	-- triggers ADDON_ACTION_BLOCKED. Defer and let PLAYER_REGEN_ENABLED
+	-- replay the refresh once lockdown lifts. A pending Refresh subsumes a
+	-- pending Resolve — no need to also flag pendingResolve here.
+	if(InCombatLockdown()) then
+		pendingRefresh = true
+		return
+	end
+	pendingRefresh = false
 	anchor:Hide()
 	F.Units.Pinned.Layout(true)
 	F.Units.Pinned.Resolve()
@@ -1174,7 +1186,11 @@ local function setAllSlotIdentities(visible)
 end
 
 F.EventBus:Register('PLAYER_REGEN_ENABLED', function()
-	if(pendingResolve) then
+	-- Refresh subsumes Resolve (Hide → Layout → Resolve → Show), so run it
+	-- first and skip the standalone Resolve to avoid double work.
+	if(pendingRefresh) then
+		F.Units.Pinned.Refresh()
+	elseif(pendingResolve) then
 		F.Units.Pinned.Resolve()
 	end
 	-- Empty placeholders and SlotIdentity labels were suppressed in combat.

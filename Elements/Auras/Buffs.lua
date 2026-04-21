@@ -63,10 +63,22 @@ local function defaultGrowForAnchor(parentPoint)
 	return 'RIGHT'
 end
 
-local BUFF_FILTER_MAP = {
-	all         = 'HELPFUL',
-	raidCombat  = 'HELPFUL|RAID_IN_COMBAT',
-}
+-- Derive the element's aura-query filter from its indicator set.
+--
+-- Only a spell list widens the query to HELPFUL. The list itself is an
+-- allowlist — so broadening doesn't leak noise onto the indicator, and
+-- tracked IDs become visible regardless of Blizzard's RAID_IN_COMBAT
+-- curation. Every other configuration (trackAll, any castBy) keeps
+-- HELPFUL|RAID_IN_COMBAT so world/cosmetic/consumable buffs stay
+-- filtered out by Blizzard before reaching the indicator.
+local function computeBuffFilter(indicatorConfigs)
+	for _, ind in next, indicatorConfigs do
+		if(ind.enabled ~= false and ind.spells and #ind.spells > 0) then
+			return 'HELPFUL'
+		end
+	end
+	return 'HELPFUL|RAID_IN_COMBAT'
+end
 
 -- Reusable containers — wiped each Update to avoid per-call allocation.
 -- Stores auraData references directly (no copy tables).
@@ -94,9 +106,10 @@ local function passesCastByFilter(sourceUnit, castBy)
 
 	local sourceIsSafe = F.IsValueNonSecret(sourceUnit)
 	if(not sourceIsSafe) then
-		-- Secret sourceUnit: cannot determine caster, degrade gracefully
-		-- Show for 'anyone' (already handled above), hide for 'me'/'others'
-		return false
+		-- Secret sourceUnit: caster unknowable, so 'me' and 'others' both
+		-- match. Over-matching is strictly better than silent-hiding — the
+		-- aura appears in both panels and the user can disambiguate.
+		return true
 	end
 
 	if(castBy == 'me') then
@@ -136,8 +149,6 @@ local function Update(self, event, unit, updateInfo)
 		matchedPool[idx] = false
 	end
 
-	-- Build filter string from config
-	local buffFilter = BUFF_FILTER_MAP[element._buffFilterMode]
 	local auraState = self.FramedAuraState
 	if(auraState) then
 		if(event == 'UNIT_AURA') then
@@ -146,7 +157,8 @@ local function Update(self, event, unit, updateInfo)
 			auraState:EnsureInitialized(unit)
 		end
 	end
-	local auras = auraState and auraState:GetHelpful(buffFilter) or F.AuraCache.GetUnitAuras(unit, buffFilter)
+	local filter = element._buffFilter
+	local auras = auraState and auraState:GetHelpful(filter) or F.AuraCache.GetUnitAuras(unit, filter)
 	for _, auraData in next, auras do
 		local spellId = auraData.spellId
 		if(F.IsValueNonSecret(spellId)) then
@@ -539,7 +551,7 @@ local function Rebuild(element, config)
 	element._indicators           = {}
 	element._spellLookup          = {}
 	element._hasTrackAll          = {}
-	element._buffFilterMode = config.buffFilterMode
+	element._buffFilter           = computeBuffFilter(config.indicators)
 
 	local indicators = config.indicators
 	for name, indConfig in next, indicators do
@@ -684,7 +696,7 @@ function F.Elements.Buffs.Setup(self, config)
 		_indicators           = indicators,
 		_spellLookup          = spellLookup,
 		_hasTrackAll          = hasTrackAll,
-		_buffFilterMode = config.buffFilterMode,
+		_buffFilter           = computeBuffFilter(config.indicators),
 	}
 
 	container.Rebuild = Rebuild
