@@ -320,8 +320,12 @@ function F.AuraState.Create(owner)
 		_helpfulById = {},
 		_helpfulViews = {},
 		_helpfulMatches = {},
+		_helpfulClassifiedById = {},
+		_helpfulClassifiedView = { dirty = true, list = {} },
 		_harmfulById = {},
 		_harmfulViews = {},
 		_harmfulMatches = {},
+		_harmfulClassifiedById = {},
+		_harmfulClassifiedView = { dirty = true, list = {} },
 	}, AuraState)
 end
