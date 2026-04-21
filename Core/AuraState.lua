@@ -334,6 +334,48 @@ function AuraState:GetHarmful(filter)
 	return view.list
 end
 
+function AuraState:GetHelpfulClassified()
+	local view = self._helpfulClassifiedView
+	if(not view.dirty) then
+		return view.list
+	end
+
+	view.dirty = false
+	wipe(view.list)
+
+	for id, aura in next, self._helpfulById do
+		local entry = self._helpfulClassifiedById[id]
+		if(not entry) then
+			entry = classify(self._unit, aura, true)
+			self._helpfulClassifiedById[id] = entry
+		end
+		view.list[#view.list + 1] = entry
+	end
+
+	return view.list
+end
+
+function AuraState:GetHarmfulClassified()
+	local view = self._harmfulClassifiedView
+	if(not view.dirty) then
+		return view.list
+	end
+
+	view.dirty = false
+	wipe(view.list)
+
+	for id, aura in next, self._harmfulById do
+		local entry = self._harmfulClassifiedById[id]
+		if(not entry) then
+			entry = classify(self._unit, aura, false)
+			self._harmfulClassifiedById[id] = entry
+		end
+		view.list[#view.list + 1] = entry
+	end
+
+	return view.list
+end
+
 function F.AuraState.Create(owner)
 	return setmetatable({
 		_owner = owner,
