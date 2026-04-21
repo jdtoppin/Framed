@@ -288,7 +288,9 @@ function F.CastTracker:GetCastsOnUnit(unit)
 		if(castInfo.endTime > now) then
 			-- Use UnitIsUnit for matching: unit tokens can differ for the same
 			-- character (e.g. 'player' vs 'raid5'), so string equality fails.
-			if(castInfo.targetUnit and UnitIsUnit(castInfo.targetUnit, unit)) then
+			-- `unit` may be a compound token on pinned frames; 12.0.5 can
+			-- return nil for those, so route through the secret-safe wrapper.
+			if(castInfo.targetUnit and SafeUnitIsUnit(castInfo.targetUnit, unit)) then
 				result[#result + 1] = castInfo
 			end
 		else

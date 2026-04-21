@@ -18,8 +18,21 @@ local function Update(self, event, unit)
 	local frameUnit = self.unit
 	if(not frameUnit) then return end
 
+	-- 12.0.5 tightens UnitIsUnit on compound tokens (e.g. 'party2target')
+	-- — can return nil rather than resolving. Without a guard, the
+	-- non-secret check below early-returns and leaves the highlight in a
+	-- stale state. Hide conservatively instead.
+	if(frameUnit ~= 'target' and frameUnit ~= 'pet'
+		and (frameUnit:match('target$') or frameUnit:match('pet$'))) then
+		element:Hide()
+		return
+	end
+
 	local isTarget = UnitIsUnit(frameUnit, 'target')
-	if(not F.IsValueNonSecret(isTarget)) then return end
+	if(not F.IsValueNonSecret(isTarget)) then
+		element:Hide()
+		return
+	end
 
 	if(isTarget) then
 		element:Show()

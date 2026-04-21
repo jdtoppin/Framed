@@ -114,6 +114,17 @@ end
 -- BEGIN GENERATED CHANGELOG
 local CHANGELOG = {
 	{
+		version = 'v0.8.13-alpha',
+		entries = {
+			'**12.0.5 readiness** — fix Buffs `castBy = \'me\'` / `\'others\'` silently filtering to empty when Blizzard marks `sourceUnit` secret in combat (#113); the indicator now falls back to `isFromPlayerOrPlayerPet` when the source is unreachable',
+			'Guard `UnitIsUnit` call sites against compound-token nil returns so 12.0.5\'s stricter token handling doesn\'t error (#122)',
+			'Invalidate the aura cache on encounter boundaries so boss-aura changes don\'t stick across pulls (#123)',
+			'Halve `IconTicker` per-frame cost and skip redundant threshold setters on aura icons (#114)',
+			'Fix `ADDON_ACTION_BLOCKED` on `FramedPinnedAnchor:Hide` when a roster update arrives mid-combat — Pinned `Refresh()` now defers to `PLAYER_REGEN_ENABLED` if combat is locked down (mirrors the existing `pendingResolve` pattern)',
+			'Buffs aura filter is now derived from the indicator set instead of a separate `buffFilterMode` config key — any indicator with a spell list widens the query to `HELPFUL` so specific tracked spells (e.g. follower Rejuvenation) can surface; otherwise stays on `HELPFUL|RAID_IN_COMBAT` to keep trivial raid buffs out. The vestigial `buffFilterMode` key (never had UI) is dropped and migrated out of existing saves',
+		},
+	},
+	{
 		version = 'v0.8.12-alpha',
 		entries = {
 			'**Pinned Frames in Edit Mode** — the drag catcher and selected preview now render the full 9-slot grid instead of a single fake frame, so moving pinned frames in edit mode reflects what you\'ll actually see in-game',
@@ -129,20 +140,6 @@ local CHANGELOG = {
 			'Preset switches now redirect away from preset-specific panels (e.g. pinned under Solo) even while Settings is hidden, so reopening doesn\'t flash a stale panel',
 			'Inline edit panel stripped down to just Position & Layout — edit mode is strictly for positioning; all other settings live in the main Settings window with live previews',
 			'Internal cleanup: drop inert `config.count` from pinned (always capped at 9, no UI), consolidate pinned frame-scale handling onto a single anchor-level `RegisterForUIScale` (removes the per-frame gear counter-scale workaround), and rename a shadowed migration local to keep luacheck clean',
-		},
-	},
-	{
-		version = 'v0.8.11-alpha',
-		entries = {
-			'**Pinned Frames** — up to 9 standalone frames that track specific group members by name, following players across roster reshuffles. Supports Focus / Focus Target / name-target slots. Role-grouped class-colored assignment dropdown available from the Settings card, empty-slot placeholder click, and a hover-gear icon on assigned pins (out of combat). First-class aura configuration across all 10 aura sub-panels. Per-preset; absent in Solo',
-			'Pinned Frames Settings panel with master enable toggle in the preview card, inline slot assignment, and live-update routing so edits apply without `/reload`',
-			'EditMode integration for Pinned Frames — drag to position (CENTER anchor convention matches the settings panel), click in edit mode to open the inline Pinned panel, hide from the sidebar when the active preset has no `pinnedConfig`',
-			'Empty-slot placeholders render a dimmed identity label (Pin 1 … Pin 9) and become clickable targets for assignment; placeholder mouse-handling is gated so hidden gear icons don\'t swallow clicks',
-			'**FramePreview** now renders the pinned grid alongside the other unit types, and uses `statusText.position` consistently instead of stale anchor keys that caused name tags to drift in the preview',
-			'Bridge `PLAYER_REGEN_ENABLED` through `EventBus` so combat-flush listeners can register via `F.EventBus:Register` instead of maintaining their own event frames',
-			'Fix pinned gear icon rendering larger on resolved frames than on unresolved (placeholder) frames at non-1.0 UIParent scales — live-frame gears now counter-scale to match the placeholder gear\'s physical size',
-			'Fix `attempt to perform arithmetic on local \'x\' (a nil value)` crash in `FrameConfigText.lua` when toggling Health → Attach to name off. The Health element wasn\'t recording detached anchor values at setup when the text was created attached, so the live toggle had no coordinates to restore to',
-			'Internal cleanup: drop Cell references from in-code comments (licensing hygiene — Cell is ARR), remove the defensive `SettingsCards.Pinned` existence guard for idiom consistency, collapse empty stub branches in the pinned gear-icon path',
 		},
 	},
 }

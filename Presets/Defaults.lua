@@ -719,16 +719,12 @@ function F.PresetDefaults.EnsureDefaults()
 					if(auraSet.buffs and auraSet.buffs.indicators and auraSet.buffs.enabled == nil) then
 						auraSet.buffs.enabled = true
 					end
-					-- Migrate hideUnimportantBuffs → buffFilterMode
+					-- Drop legacy buff-filter fields. Framed now always queries
+					-- HELPFUL; client-side castBy + spellID filtering replaces
+					-- the Blizzard RAID_IN_COMBAT allowlist.
 					if(auraSet.buffs) then
-						if(not auraSet.buffs.buffFilterMode) then
-							if(unitType == 'party' or unitType == 'raid') then
-								auraSet.buffs.buffFilterMode = (auraSet.buffs.hideUnimportantBuffs ~= false) and 'raidCombat' or 'all'
-							else
-								auraSet.buffs.buffFilterMode = 'raidCombat'
-							end
-						end
 						auraSet.buffs.hideUnimportantBuffs = nil
+						auraSet.buffs.buffFilterMode = nil
 					end
 					-- Migrate onlyDispellableByMe → filterMode
 					if(auraSet.debuffs and not auraSet.debuffs.filterMode) then
