@@ -37,7 +37,7 @@ The fix: classify once on the shared per-frame AuraState, expose flags, let elem
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Classification timing | Write-path (UNIT_AURA events), not lazy | Amortizes cost across all readers; read path stays allocation-free |
+| Classification timing | Write-path invalidate, read-path materialize (lazy) | First reader per generation pays classify cost; subsequent readers hit the cached wrapper; hidden frames / disabled elements pay zero |
 | Ship scope (A1) | Helpful + harmful together | Catches cross-element collisions up front; avoids two migrations |
 | Wrapper shape | `{ aura, flags }` per entry | `aura` stays a live ref; `flags` is a stable-shape boolean table |
 | Tier structure | 2 tiers (passthrough + C probe) | Originally 3 tiers; revised to drop `AuraIsBigDefensive` in favor of probe |
@@ -188,6 +188,8 @@ function AuraState:GetClassifiedByInstanceID(instanceID) end
 
 All three run through the existing `EnsureInitialized(self._unit)` generation gate — same semantics as `GetHelpful` / `GetHarmful`.
 
+`GetClassifiedByInstanceID` is the single-entry accessor for elements that hold a spellID-to-instanceID map or process `updateInfo.updatedAuraInstanceIDs` payloads directly. **Primary planned consumer: B3 Buffs (#139)** per-indicator resolution path — the migrated Buffs element resolves indicator-tracked spells to their current wrapper entry in O(1) rather than scanning the full classified array. **B6 StatusText (#142)** is a secondary candidate if its migrated Drinking/Food detection switches from array-scan to delta-payload processing. The API ships in A1 so B-series wiring exists when those migrations land; final call sites are fixed at B-series issue refinement.
+
 Unlike `GetHelpful(filter)` which takes a filter string, the classified APIs return all helpful/harmful auras with flags populated. Filter-like narrowing is done by the caller via flag reads: `if(entry.flags.isExternalDefensive)`.
 
 ### Internal state
@@ -236,6 +238,8 @@ end
 ```
 
 The existing `IsAuraFilteredOutByInstanceID` local at AuraState.lua:9 is reused — no re-capture.
+
+`classify()` is called exclusively from the view-rebuild path (`GetHelpfulClassified` / `GetHarmfulClassified`). It is never invoked from `FullRefresh` or `ApplyUpdateInfo` — those only nil invalidated entries and mark views dirty. This keeps the write path cheap and defers classify cost to first-reader-per-generation.
 
 ### Element consumption pattern (post-migration)
 
@@ -294,6 +298,7 @@ AuraState: target  (gen 47)
 - `entry.aura` is always a non-nil `AuraData` reference.
 - `entry.flags` is always a non-nil table with **all 9 flag keys present and boolean**.
 - Consumers may rely on `if(entry.flags.isX) then` without defensive nil-checks.
+- Array order from `GetHelpfulClassified` / `GetHarmfulClassified` is **undefined** — underlying store is a hash keyed by `auraInstanceID`, iterated with `next`. Matches existing `GetHelpful` / `GetHarmful` semantics. Callers that need stable render order must sort after fetch.
 
 If classification produces a wrapper entry violating these invariants, that's an AuraState bug — not something elements paper over.
 
@@ -530,6 +535,7 @@ C1 is the closing verification pass. Deliverable: a documented report (no code c
    - Target dummy solo (minimal churn).
    - 5-man M+ dungeon (moderate churn).
    - Raid boss encounter (peak churn).
+   - **Reproducibility:** specific dungeon/boss/affix combos are named in the C1 GitHub issue body at execution time and reused verbatim across S0/S1/S2. Comparing 0.448ms on one boss to 0.22ms on a different boss is noise, not signal.
 3. **Metrics per snapshot per scenario:**
    - `GetAddOnCPUUsage('Framed')` delta over window.
    - UNIT_AURA handler cost per event (profiler or `debugprofilestop`).
@@ -550,10 +556,12 @@ Cell (0.231ms) and Dander (0.075ms) are context only, not gates. Closing the gap
 Each B-issue is its own commit behind main, enabling single-commit revert without touching siblings:
 
 1. `git revert` the B-issue's commit.
-2. A1 + unmigrated B-issues stay in place (flags keep being computed without a reader — no harm).
+2. A1 + other B-issues stay in place; reverted element falls back to its pre-migration path against the legacy `_helpfulById` / `_harmfulById` stores.
 3. Patch-level version bump per `feedback_release_workflow`.
 
 A1 itself is rollback-safe: new APIs + debug slash only. Reverting A1 is a non-event unless a B-issue already consumes it, which the per-element gate should prevent.
+
+**Mid-migration stability invariant.** Migrated and unmigrated elements coexist on the same AuraState instance without interference. Legacy stores (`_helpfulById`, `_harmfulById`, `_helpfulMatches`, `_harmfulMatches`) remain populated throughout and after the B-series. Unmigrated elements continue reading via `GetHelpful(filter)` / `GetHarmful(filter)`; migrated elements read via classified APIs. Both paths see identical underlying `AuraData` references and the same UNIT_AURA invalidations via the generation-bump mechanism. The B-series can pause at any element boundary without destabilizing the addon.
 
 ### Explicitly deferred
 
