@@ -8,6 +8,31 @@ local GetAuraDataBySlot = C_UnitAuras and C_UnitAuras.GetAuraDataBySlot
 local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID
 local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID
 
+-- Classify a single aura into a wrapper entry { aura, flags }.
+-- Tier 1 flags are structural passthroughs from AuraData (never secret).
+-- Tier 2 flags use C_UnitAuras filter probes (secret-safe C API).
+local function classify(unit, aura, isHelpful)
+	local id = aura.auraInstanceID
+	local prefix = isHelpful and 'HELPFUL' or 'HARMFUL'
+
+	local flags = {
+		isHelpful         = aura.isHelpful         or false,
+		isHarmful         = aura.isHarmful         or false,
+		isRaid            = aura.isRaid            or false,
+		isBossAura        = aura.isBossAura        or false,
+		isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false,
+	}
+
+	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|EXTERNAL_DEFENSIVE') == false
+	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|IMPORTANT')          == false
+	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|PLAYER')             == false
+	flags.isBigDefensive      = isHelpful
+	                            and IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|BIG_DEFENSIVE') == false
+	                            or false
+
+	return { aura = aura, flags = flags }
+end
+
 -- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
 -- are rejected by C_UnitAuras.GetAuraSlots. Pinned target-chain slots can
 -- produce these tokens — skip aura queries for them rather than erroring.
