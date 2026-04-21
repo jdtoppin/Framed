@@ -174,8 +174,12 @@ function AuraState:FullRefresh(unit)
 	wipe(self._harmfulById)
 	self:ResetHelpfulMatches()
 	self:ResetHarmfulMatches()
+	self:ResetHelpfulClassified()
+	self:ResetHarmfulClassified()
 	self:MarkHelpfulDirty()
 	self:MarkHarmfulDirty()
+	self:MarkHelpfulClassifiedDirty()
+	self:MarkHarmfulClassifiedDirty()
 
 	if(not unit or not GetAuraSlots or not GetAuraDataBySlot) then return end
 	if(isCompoundUnit(unit)) then return end
@@ -236,11 +240,13 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 			if(aura and aura.auraInstanceID and isHelpfulAura(unit, aura)) then
 				self._helpfulById[aura.auraInstanceID] = aura
 				self:InvalidateHelpfulMatch(aura.auraInstanceID)
+				self:InvalidateHelpfulClassified(aura.auraInstanceID)
 				helpfulChanged = true
 			end
 			if(aura and aura.auraInstanceID and isHarmfulAura(unit, aura)) then
 				self._harmfulById[aura.auraInstanceID] = aura
 				self:InvalidateHarmfulMatch(aura.auraInstanceID)
+				self:InvalidateHarmfulClassified(aura.auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -252,20 +258,24 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 			if(aura and aura.auraInstanceID and isHelpfulAura(unit, aura)) then
 				self._helpfulById[auraInstanceID] = aura
 				self:InvalidateHelpfulMatch(auraInstanceID)
+				self:InvalidateHelpfulClassified(auraInstanceID)
 				helpfulChanged = true
 			elseif(self._helpfulById[auraInstanceID]) then
 				self._helpfulById[auraInstanceID] = nil
 				self:InvalidateHelpfulMatch(auraInstanceID)
+				self:InvalidateHelpfulClassified(auraInstanceID)
 				helpfulChanged = true
 			end
 
 			if(aura and aura.auraInstanceID and isHarmfulAura(unit, aura)) then
 				self._harmfulById[auraInstanceID] = aura
 				self:InvalidateHarmfulMatch(auraInstanceID)
+				self:InvalidateHarmfulClassified(auraInstanceID)
 				harmfulChanged = true
 			elseif(self._harmfulById[auraInstanceID]) then
 				self._harmfulById[auraInstanceID] = nil
 				self:InvalidateHarmfulMatch(auraInstanceID)
+				self:InvalidateHarmfulClassified(auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -276,11 +286,13 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 			if(self._helpfulById[auraInstanceID]) then
 				self._helpfulById[auraInstanceID] = nil
 				self:InvalidateHelpfulMatch(auraInstanceID)
+				self:InvalidateHelpfulClassified(auraInstanceID)
 				helpfulChanged = true
 			end
 			if(self._harmfulById[auraInstanceID]) then
 				self._harmfulById[auraInstanceID] = nil
 				self:InvalidateHarmfulMatch(auraInstanceID)
+				self:InvalidateHarmfulClassified(auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -288,9 +300,11 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 
 	if(helpfulChanged) then
 		self:MarkHelpfulDirty()
+		self:MarkHelpfulClassifiedDirty()
 	end
 	if(harmfulChanged) then
 		self:MarkHarmfulDirty()
+		self:MarkHarmfulClassifiedDirty()
 	end
 end
 
