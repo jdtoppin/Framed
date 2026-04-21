@@ -376,6 +376,34 @@ function AuraState:GetHarmfulClassified()
 	return view.list
 end
 
+function AuraState:GetClassifiedByInstanceID(auraInstanceID)
+	local entry = self._helpfulClassifiedById[auraInstanceID]
+	if(entry) then
+		return entry
+	end
+
+	local aura = self._helpfulById[auraInstanceID]
+	if(aura) then
+		entry = classify(self._unit, aura, true)
+		self._helpfulClassifiedById[auraInstanceID] = entry
+		return entry
+	end
+
+	entry = self._harmfulClassifiedById[auraInstanceID]
+	if(entry) then
+		return entry
+	end
+
+	aura = self._harmfulById[auraInstanceID]
+	if(aura) then
+		entry = classify(self._unit, aura, false)
+		self._harmfulClassifiedById[auraInstanceID] = entry
+		return entry
+	end
+
+	return nil
+end
+
 function F.AuraState.Create(owner)
 	return setmetatable({
 		_owner = owner,
