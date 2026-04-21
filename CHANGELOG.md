@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## v0.8.13-alpha
+
+- **12.0.5 readiness** — fix Buffs `castBy = 'me'` / `'others'` silently filtering to empty when Blizzard marks `sourceUnit` secret in combat (#113); the indicator now falls back to `isFromPlayerOrPlayerPet` when the source is unreachable
+- Guard `UnitIsUnit` call sites against compound-token nil returns so 12.0.5's stricter token handling doesn't error (#122)
+- Invalidate the aura cache on encounter boundaries so boss-aura changes don't stick across pulls (#123)
+- Halve `IconTicker` per-frame cost and skip redundant threshold setters on aura icons (#114)
+- Fix `ADDON_ACTION_BLOCKED` on `FramedPinnedAnchor:Hide` when a roster update arrives mid-combat — Pinned `Refresh()` now defers to `PLAYER_REGEN_ENABLED` if combat is locked down (mirrors the existing `pendingResolve` pattern)
+- Buffs aura filter is now derived from the indicator set instead of a separate `buffFilterMode` config key — any indicator with a spell list widens the query to `HELPFUL` so specific tracked spells (e.g. follower Rejuvenation) can surface; otherwise stays on `HELPFUL|RAID_IN_COMBAT` to keep trivial raid buffs out. The vestigial `buffFilterMode` key (never had UI) is dropped and migrated out of existing saves
+
 ## v0.8.12-alpha
 
 - **Pinned Frames in Edit Mode** — the drag catcher and selected preview now render the full 9-slot grid instead of a single fake frame, so moving pinned frames in edit mode reflects what you'll actually see in-game
