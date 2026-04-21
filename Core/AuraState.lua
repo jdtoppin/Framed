@@ -100,6 +100,30 @@ function AuraState:MarkHarmfulDirty()
 	end
 end
 
+function AuraState:ResetHelpfulClassified()
+	wipe(self._helpfulClassifiedById)
+end
+
+function AuraState:ResetHarmfulClassified()
+	wipe(self._harmfulClassifiedById)
+end
+
+function AuraState:InvalidateHelpfulClassified(auraInstanceID)
+	self._helpfulClassifiedById[auraInstanceID] = nil
+end
+
+function AuraState:InvalidateHarmfulClassified(auraInstanceID)
+	self._harmfulClassifiedById[auraInstanceID] = nil
+end
+
+function AuraState:MarkHelpfulClassifiedDirty()
+	self._helpfulClassifiedView.dirty = true
+end
+
+function AuraState:MarkHarmfulClassifiedDirty()
+	self._harmfulClassifiedView.dirty = true
+end
+
 function AuraState:EnsureHelpfulView(filter)
 	local view = self._helpfulViews[filter]
 	if(not view) then
