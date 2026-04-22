@@ -1,31 +1,56 @@
 local _, Framed = ...
 local F = Framed
 
+-- Classified entries ({ aura, flags } wrappers) are pooled per-instance.
+-- Consumers must not stash entry or entry.flags across UNIT_AURA — pool
+-- reuse silently refills the wrapper with a different aura, producing
+-- ghost-aura bugs that no guardrail in AuraState can catch.
+-- Audit completed 2026-04-22 (Externals / Defensives / Debuffs / Buffs /
+-- MissingBuffs): all consumers destructure fields inline within their
+-- iteration loops and do not persist entry references.
+
 F.AuraState = {}
+
+-- Weak-keyed registry so diagnostics (/framed memusage, /framed pools)
+-- can walk live instances without preventing GC of frames whose
+-- AuraState becomes unreferenced (e.g., preset hot-swap drops old
+-- oUF frames).
+F.AuraState._instances = setmetatable({}, { __mode = 'k' })
 
 local GetAuraSlots = C_UnitAuras and C_UnitAuras.GetAuraSlots
 local GetAuraDataBySlot = C_UnitAuras and C_UnitAuras.GetAuraDataBySlot
 local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID
 local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID
 
--- Classify a single aura into a wrapper entry { aura, flags }.
+-- Acquire a classified entry from the per-instance pool (or allocate
+-- fresh if the pool is empty) and fill its flag fields for `aura`.
+--
 -- Tier 1 flags are structural AuraData booleans. Per Blizzard's 12.0.x
 -- changes, isHelpful / isHarmful / isRaid / isNameplateOnly /
 -- isFromPlayerOrPlayerPet are non-secret. isBossAura remains secret on
 -- encounter auras and must be guarded with F.IsValueNonSecret to avoid
 -- tainted boolean tests.
 -- Tier 2 flags use C_UnitAuras filter probes (secret-safe C API).
-local function classify(unit, aura, isHelpful)
+local function acquireClassified(pool, unit, aura, isHelpful)
 	local id = aura.auraInstanceID
 	local prefix = isHelpful and 'HELPFUL' or 'HARMFUL'
 
-	local flags = {
-		isHelpful         = aura.isHelpful         or false,
-		isHarmful         = aura.isHarmful         or false,
-		isRaid            = aura.isRaid            or false,
-		isBossAura        = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false,
-		isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false,
-	}
+	local entry = pool[#pool]
+	if(entry) then
+		pool[#pool] = nil
+		wipe(entry.flags)
+	else
+		entry = { flags = {} }
+	end
+
+	entry.aura = aura
+
+	local flags = entry.flags
+	flags.isHelpful         = aura.isHelpful         or false
+	flags.isHarmful         = aura.isHarmful         or false
+	flags.isRaid            = aura.isRaid            or false
+	flags.isBossAura        = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false
+	flags.isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false
 
 	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|EXTERNAL_DEFENSIVE') == false
 	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|IMPORTANT')          == false
@@ -38,7 +63,17 @@ local function classify(unit, aura, isHelpful)
 	                            or false
 	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|RAID_IN_COMBAT') == false
 
-	return { aura = aura, flags = flags }
+	return entry
+end
+
+-- Return a classified entry to the pool. Nils the aura reference so
+-- the underlying AuraData can be GC'd even while the wrapper sits in
+-- the free list; flags contents are left stale until the next acquire
+-- wipes them (lazy — avoids paying wipe cost on entries that never
+-- get reused before session end).
+local function releaseClassified(pool, entry)
+	entry.aura = nil
+	pool[#pool + 1] = entry
 end
 
 -- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
@@ -109,19 +144,33 @@ function AuraState:MarkHarmfulDirty()
 end
 
 function AuraState:ResetHelpfulClassified()
+	for _, entry in next, self._helpfulClassifiedById do
+		releaseClassified(self._classifiedFreeList, entry)
+	end
 	wipe(self._helpfulClassifiedById)
 end
 
 function AuraState:ResetHarmfulClassified()
+	for _, entry in next, self._harmfulClassifiedById do
+		releaseClassified(self._classifiedFreeList, entry)
+	end
 	wipe(self._harmfulClassifiedById)
 end
 
 function AuraState:InvalidateHelpfulClassified(auraInstanceID)
-	self._helpfulClassifiedById[auraInstanceID] = nil
+	local entry = self._helpfulClassifiedById[auraInstanceID]
+	if(entry) then
+		releaseClassified(self._classifiedFreeList, entry)
+		self._helpfulClassifiedById[auraInstanceID] = nil
+	end
 end
 
 function AuraState:InvalidateHarmfulClassified(auraInstanceID)
-	self._harmfulClassifiedById[auraInstanceID] = nil
+	local entry = self._harmfulClassifiedById[auraInstanceID]
+	if(entry) then
+		releaseClassified(self._classifiedFreeList, entry)
+		self._harmfulClassifiedById[auraInstanceID] = nil
+	end
 end
 
 function AuraState:MarkHelpfulClassifiedDirty()
@@ -392,7 +441,7 @@ function AuraState:GetHelpfulClassified()
 	for id, aura in next, self._helpfulById do
 		local entry = self._helpfulClassifiedById[id]
 		if(not entry) then
-			entry = classify(self._unit, aura, true)
+			entry = acquireClassified(self._classifiedFreeList, self._unit, aura, true)
 			self._helpfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
@@ -413,7 +462,7 @@ function AuraState:GetHarmfulClassified()
 	for id, aura in next, self._harmfulById do
 		local entry = self._harmfulClassifiedById[id]
 		if(not entry) then
-			entry = classify(self._unit, aura, false)
+			entry = acquireClassified(self._classifiedFreeList, self._unit, aura, false)
 			self._harmfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
@@ -430,7 +479,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	local aura = self._helpfulById[auraInstanceID]
 	if(aura) then
-		entry = classify(self._unit, aura, true)
+		entry = acquireClassified(self._classifiedFreeList, self._unit, aura, true)
 		self._helpfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
@@ -442,7 +491,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	aura = self._harmfulById[auraInstanceID]
 	if(aura) then
-		entry = classify(self._unit, aura, false)
+		entry = acquireClassified(self._classifiedFreeList, self._unit, aura, false)
 		self._harmfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
@@ -454,7 +503,7 @@ end
 F.AuraState._mt = AuraState
 
 function F.AuraState.Create(owner)
-	return setmetatable({
+	local inst = setmetatable({
 		_owner = owner,
 		_unit = nil,
 		_initialized = false,
@@ -471,5 +520,8 @@ function F.AuraState.Create(owner)
 		_harmfulMatches = {},
 		_harmfulClassifiedById = {},
 		_harmfulClassifiedView = { dirty = true, list = {} },
+		_classifiedFreeList = {},
 	}, AuraState)
+	F.AuraState._instances[inst] = true
+	return inst
 end

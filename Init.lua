@@ -499,6 +499,16 @@ SlashCmdList['FRAMED'] = function(msg)
 		for i = 1, math.min(10, #rows) do
 			print(('  %2d. %-32s  %7.1f MB'):format(i, rows[i].name, rows[i].kb / 1024))
 		end
+
+		-- Classified entry pool aggregate across all live AuraState instances.
+		local totalPooled = 0
+		local instanceCount = 0
+		for instance in next, F.AuraState._instances do
+			instanceCount = instanceCount + 1
+			totalPooled = totalPooled + #instance._classifiedFreeList
+		end
+		print(('|cff00ccff[Framed/mem]|r aurastate pool: %d entries across %d instances'):format(
+			totalPooled, instanceCount))
 	elseif(cmd == 'casttracker') then
 		if(arg1 == 'off' or arg1 == 'disable') then
 			F.CastTracker:Disable()
@@ -508,6 +518,32 @@ SlashCmdList['FRAMED'] = function(msg)
 			print('|cff00ccff Framed|r cast tracker enabled')
 		else
 			print('|cff00ccff Framed|r casttracker: use "on" or "off"')
+		end
+	elseif(cmd == 'pools') then
+		local rows = {}
+		for instance in next, F.AuraState._instances do
+			local owner = instance._owner
+			local ownerName = owner and owner.GetName and owner:GetName() or '<anon>'
+			local row = {
+				name = ownerName,
+				unit = instance._unit or '?',
+				pooled = #instance._classifiedFreeList,
+				helpful = 0,
+				harmful = 0,
+			}
+			for _ in next, instance._helpfulClassifiedById do
+				row.helpful = row.helpful + 1
+			end
+			for _ in next, instance._harmfulClassifiedById do
+				row.harmful = row.harmful + 1
+			end
+			rows[#rows + 1] = row
+		end
+		table.sort(rows, function(a, b) return a.pooled > b.pooled end)
+		print('|cff00ccff Framed|r classified pool per instance:')
+		print(('  %-32s %-12s %6s %6s %6s'):format('frame', 'unit', 'pooled', 'live+', 'live-'))
+		for _, r in next, rows do
+			print(('  %-32s %-12s %6d %6d %6d'):format(r.name, r.unit, r.pooled, r.helpful, r.harmful))
 		end
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
@@ -523,6 +559,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed aurastate [unit] — Dump classified aura flags (default: target)')
 		print('  /framed memdiag [seconds] — Measure aura-path allocation churn (default 10s, max 30s; stops GC for the window)')
 		print('  /framed memusage [raw] — Framed + total memory snapshot (default forces GC; "raw" skips it)')
+		print('  /framed pools — Dump per-instance classified pool sizes (for #144 diagnostics)')
 		print('  /framed casttracker on|off — Toggle CastTracker (for memdiag A/B testing)')
 	else
 		-- Default: open settings
