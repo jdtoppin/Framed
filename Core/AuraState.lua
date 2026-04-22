@@ -22,24 +22,35 @@ local GetAuraDataBySlot = C_UnitAuras and C_UnitAuras.GetAuraDataBySlot
 local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID
 local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID
 
--- Classify a single aura into a wrapper entry { aura, flags }.
+-- Acquire a classified entry from the per-instance pool (or allocate
+-- fresh if the pool is empty) and fill its flag fields for `aura`.
+--
 -- Tier 1 flags are structural AuraData booleans. Per Blizzard's 12.0.x
 -- changes, isHelpful / isHarmful / isRaid / isNameplateOnly /
 -- isFromPlayerOrPlayerPet are non-secret. isBossAura remains secret on
 -- encounter auras and must be guarded with F.IsValueNonSecret to avoid
 -- tainted boolean tests.
 -- Tier 2 flags use C_UnitAuras filter probes (secret-safe C API).
-local function classify(unit, aura, isHelpful)
+local function acquireClassified(pool, unit, aura, isHelpful)
 	local id = aura.auraInstanceID
 	local prefix = isHelpful and 'HELPFUL' or 'HARMFUL'
 
-	local flags = {
-		isHelpful         = aura.isHelpful         or false,
-		isHarmful         = aura.isHarmful         or false,
-		isRaid            = aura.isRaid            or false,
-		isBossAura        = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false,
-		isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false,
-	}
+	local entry = pool[#pool]
+	if(entry) then
+		pool[#pool] = nil
+		wipe(entry.flags)
+	else
+		entry = { flags = {} }
+	end
+
+	entry.aura = aura
+
+	local flags = entry.flags
+	flags.isHelpful         = aura.isHelpful         or false
+	flags.isHarmful         = aura.isHarmful         or false
+	flags.isRaid            = aura.isRaid            or false
+	flags.isBossAura        = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false
+	flags.isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false
 
 	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|EXTERNAL_DEFENSIVE') == false
 	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|IMPORTANT')          == false
@@ -52,7 +63,7 @@ local function classify(unit, aura, isHelpful)
 	                            or false
 	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|RAID_IN_COMBAT') == false
 
-	return { aura = aura, flags = flags }
+	return entry
 end
 
 -- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
@@ -406,7 +417,7 @@ function AuraState:GetHelpfulClassified()
 	for id, aura in next, self._helpfulById do
 		local entry = self._helpfulClassifiedById[id]
 		if(not entry) then
-			entry = classify(self._unit, aura, true)
+			entry = acquireClassified(self._classifiedFreeList, self._unit, aura, true)
 			self._helpfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
@@ -427,7 +438,7 @@ function AuraState:GetHarmfulClassified()
 	for id, aura in next, self._harmfulById do
 		local entry = self._harmfulClassifiedById[id]
 		if(not entry) then
-			entry = classify(self._unit, aura, false)
+			entry = acquireClassified(self._classifiedFreeList, self._unit, aura, false)
 			self._harmfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
@@ -444,7 +455,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	local aura = self._helpfulById[auraInstanceID]
 	if(aura) then
-		entry = classify(self._unit, aura, true)
+		entry = acquireClassified(self._classifiedFreeList, self._unit, aura, true)
 		self._helpfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
@@ -456,7 +467,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	aura = self._harmfulById[auraInstanceID]
 	if(aura) then
-		entry = classify(self._unit, aura, false)
+		entry = acquireClassified(self._classifiedFreeList, self._unit, aura, false)
 		self._harmfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
