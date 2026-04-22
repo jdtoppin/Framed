@@ -380,8 +380,12 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 		F.Elements.MissingBuffs.Setup(self, missingBuffsConfig)
 	end
 
+	-- TargetedSpells runtime-gated off — Blizzard 12.0.x secret-tainting
+	-- leaves cast source/target unreliable. Config keys left in place so
+	-- SavedVariables remain stable until a full removal PR lands.
+	local TARGETED_SPELLS_ENABLED = false
 	local targetedSpellsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'targetedSpells')
-	if(targetedSpellsConfig and targetedSpellsConfig.enabled and F.Elements.TargetedSpells) then
+	if(TARGETED_SPELLS_ENABLED and targetedSpellsConfig and targetedSpellsConfig.enabled and F.Elements.TargetedSpells) then
 		F.Elements.TargetedSpells.Setup(self, targetedSpellsConfig)
 	end
 

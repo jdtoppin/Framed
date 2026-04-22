@@ -103,14 +103,17 @@ local function ensureCached(spellId)
 end
 
 --- Check whether a buff matching targetSpellId exists in the pre-fetched
---- aura list. Avoids any table creation — just iterates the API result
---- and compares spellId/name directly.
---- @param rawAuras table  Result of C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+--- aura list. Accepts either AuraState classified entries ({ aura, flags })
+--- or raw auraData objects — the fallback path still feeds raw auras when
+--- AuraState is unavailable. `item.aura or item` keeps both shapes working
+--- without a call-site branch.
+--- @param auras table  Classified entries or raw auraData objects
 --- @param targetSpellId number
 --- @return boolean
-local function auraListHasBuff(rawAuras, targetSpellId)
+local function auraListHasBuff(auras, targetSpellId)
 	local targetName = ensureCached(targetSpellId)
-	for _, auraData in next, rawAuras do
+	for _, item in next, auras do
+		local auraData = item.aura or item
 		local sid = auraData.spellId
 		if(F.IsValueNonSecret(sid) and sid == targetSpellId) then return true end
 		if(targetName) then
@@ -192,7 +195,8 @@ local function Update(self, event, unit, updateInfo)
 			auraState:EnsureInitialized(unit)
 		end
 	end
-	local rawAuras = auraState and auraState:GetHelpful('HELPFUL') or C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	local auras = auraState and auraState:GetHelpfulClassified()
+		or C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
 
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
@@ -203,7 +207,7 @@ local function Update(self, event, unit, updateInfo)
 		if(isNpc and providingClass ~= playerClass) then
 			slot.bi:Hide()
 			if(slot.glow:IsActive()) then slot.glow:Stop() end
-		elseif(providingClass and groupClasses[providingClass] and not auraListHasBuff(rawAuras, spellId)) then
+		elseif(providingClass and groupClasses[providingClass] and not auraListHasBuff(auras, spellId)) then
 			-- Missing buff from a class in the group — show and reposition
 			slot.bi.icon:SetTexture(iconCache[spellId])
 			slot.bi:ClearAllPoints()
