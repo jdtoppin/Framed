@@ -257,9 +257,9 @@ function AuraState:FullRefresh(unit)
 	if(not unit or not GetAuraSlots or not GetAuraDataBySlot) then return end
 	if(isCompoundUnit(unit)) then return end
 
-	local helpfulResults = { GetAuraSlots(unit, 'HELPFUL') }
-	for i = 2, #helpfulResults do
-		local aura = GetAuraDataBySlot(unit, helpfulResults[i])
+	local nHelpful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HELPFUL'))
+	for i = 2, nHelpful do
+		local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
 		if(aura and aura.auraInstanceID) then
 			self._helpfulById[aura.auraInstanceID] = aura
 		end
