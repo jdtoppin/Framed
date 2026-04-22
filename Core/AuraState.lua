@@ -265,9 +265,9 @@ function AuraState:FullRefresh(unit)
 		end
 	end
 
-	local harmfulResults = { GetAuraSlots(unit, 'HARMFUL') }
-	for i = 2, #harmfulResults do
-		local aura = GetAuraDataBySlot(unit, harmfulResults[i])
+	local nHarmful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HARMFUL'))
+	for i = 2, nHarmful do
+		local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
 		if(aura and aura.auraInstanceID) then
 			self._harmfulById[aura.auraInstanceID] = aura
 		end
