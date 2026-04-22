@@ -11,6 +11,12 @@ local F = Framed
 
 F.AuraState = {}
 
+-- Weak-keyed registry so diagnostics (/framed memusage, /framed pools)
+-- can walk live instances without preventing GC of frames whose
+-- AuraState becomes unreferenced (e.g., preset hot-swap drops old
+-- oUF frames).
+F.AuraState._instances = setmetatable({}, { __mode = 'k' })
+
 local GetAuraSlots = C_UnitAuras and C_UnitAuras.GetAuraSlots
 local GetAuraDataBySlot = C_UnitAuras and C_UnitAuras.GetAuraDataBySlot
 local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID
@@ -462,7 +468,7 @@ end
 F.AuraState._mt = AuraState
 
 function F.AuraState.Create(owner)
-	return setmetatable({
+	local inst = setmetatable({
 		_owner = owner,
 		_unit = nil,
 		_initialized = false,
@@ -479,5 +485,8 @@ function F.AuraState.Create(owner)
 		_harmfulMatches = {},
 		_harmfulClassifiedById = {},
 		_harmfulClassifiedView = { dirty = true, list = {} },
+		_classifiedFreeList = {},
 	}, AuraState)
+	F.AuraState._instances[inst] = true
+	return inst
 end
