@@ -36,9 +36,7 @@ local function classify(unit, aura, isHelpful)
 	flags.isRaidDispellable   = not isHelpful
 	                            and IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|RAID_PLAYER_DISPELLABLE') == false
 	                            or false
-	flags.isRaidInCombat      = not isHelpful
-	                            and IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|RAID_IN_COMBAT') == false
-	                            or false
+	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|RAID_IN_COMBAT') == false
 
 	return { aura = aura, flags = flags }
 end
