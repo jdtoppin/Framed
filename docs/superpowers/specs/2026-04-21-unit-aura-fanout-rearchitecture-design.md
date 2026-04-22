@@ -1,7 +1,7 @@
 # UNIT_AURA Fan-Out Rearchitecture Design Spec
 
 **Date:** 2026-04-21
-**Issue:** #115 (parent); #136 (A1), #137-#142 (B1-B6), #143 (C1)
+**Issue:** #115 (parent); #136 (A1), #137-#141 (B1-B5), #143 (C1). #142 (B6 StatusText) dropped from scope — see below.
 **Status:** Approved
 
 ## Summary
@@ -12,7 +12,7 @@ Today's aura elements fall into two classes:
 
 - **Classification-heavy** (Externals, Defensives) — call `IsAuraFilteredOutByInstanceID` directly in their Update paths, up to 5 probes per aura per UNIT_AURA in Externals.
 - **Spell-set-driven** (Buffs, Debuffs, MissingBuffs) — don't do classification themselves, but would benefit from pre-computed flags to simplify `castBy='me'` decisions and dispel-color handling.
-- **Text/status** (StatusText) — registers its own UNIT_AURA handler for Drinking/Food detection; consolidation reduces total UNIT_AURA fan-out count.
+- ~~**Text/status** (StatusText) — registers its own UNIT_AURA handler for Drinking/Food detection.~~ Out of scope: StatusText's aura scan is spellID-name-based (no flag reads) and short-circuits via `InCombatLockdown()` before running, so it contributes zero cost to the combat window this work targets. See "Non-goals for A1" and the B6 drop rationale below.
 
 After this rearchitecture: four probes per aura per classification write, shared across all elements on the same frame (via the existing per-frame `self.FramedAuraState` instance). Target: ≈50% reduction from baseline.
 
@@ -43,11 +43,11 @@ The fix: classify once on the shared per-frame AuraState, expose flags, let elem
 | Tier structure | 2 tiers (passthrough + C probe) | Originally 3 tiers; revised to drop `AuraIsBigDefensive` in favor of probe |
 | Update-path behavior | Always re-classify | Correctness > microperf at UNIT_AURA rate |
 | B-series pacing | Per-element gate | Each element migrates independently; smoke test + merge between |
-| B-series order | B6 → B1 → B2 → B4 → B5 → B3 | Simplest first (smoke); Buffs last (size + #113 retirement) |
+| B-series order | B2 → B1 → B4 → B5 → B3 | B2 is simplest flag consumer (smoke-test); Buffs last (size + #113 retirement). B6 StatusText dropped — see below. |
 | Buffs castBy model | `flags.isPlayerCast` exclusively | Retires #113 over-match workaround silently |
 | Debug surface | `/framed aurastate <unit>` slash | Permanent shipping feature; matches `/framed events` / `/framed config` pattern |
 | Flag-table pooling | Deferred (unpooled in A1) | Prior attempt caused cross-addon taint; conservative retry is a separate issue |
-| Spec structure | Single comprehensive spec | A1 + B1-B6 + C1 share enough design surface to document once |
+| Spec structure | Single comprehensive spec | A1 + B1-B5 + C1 share enough design surface to document once |
 
 ## Prior Work and Dependencies
 
@@ -125,7 +125,7 @@ self._helpfulClassifiedById[instanceID] = {
 
 `isBigDefensive` is always `false` for harmful auras (the `HELPFUL|BIG_DEFENSIVE` filter has no harmful analog). The flag is present on every wrapper for shape stability.
 
-Existing `self._helpfulById` / `self._harmfulById` stores stay untouched during the migration. Each B-issue migrates one element's read path; writes to both stores happen in parallel. After B6 ships, a follow-up collapses the two stores.
+Existing `self._helpfulById` / `self._harmfulById` stores stay untouched during the migration. Each B-issue migrates one element's read path; writes to both stores happen in parallel. After the B-series ships, a follow-up collapses the two stores.
 
 ### Flag lifecycle tiers
 
@@ -158,8 +158,8 @@ AuraState's existing `ensureFresh(unit)` gate catches all three categories.
 ### Non-goals for A1
 
 - No pooling of `flags` tables. (Deferred issue.)
-- No collapse of `_helpfulById` + `_helpfulClassifiedById`. (Follow-up after B6.)
-- No removal of `_helpfulMatches` filter memoization — some filters (e.g., `RAID_IN_COMBAT`) stay in use via `GetHelpful(filter)` post-B6.
+- No collapse of `_helpfulById` + `_helpfulClassifiedById`. (Follow-up after the B-series.)
+- No removal of `_helpfulMatches` filter memoization — some filters (e.g., `RAID_IN_COMBAT`) stay in use via `GetHelpful(filter)` post-B-series.
 - No changes to existing `GetHelpful(filter)` / `GetHarmful(filter)` shape or behavior.
 - No mutation of `AuraData` references.
 - No new event registrations.
@@ -188,7 +188,7 @@ function AuraState:GetClassifiedByInstanceID(instanceID) end
 
 All three run through the existing `EnsureInitialized(self._unit)` generation gate — same semantics as `GetHelpful` / `GetHarmful`.
 
-`GetClassifiedByInstanceID` is the single-entry accessor for elements that hold a spellID-to-instanceID map or process `updateInfo.updatedAuraInstanceIDs` payloads directly. **Primary planned consumer: B3 Buffs (#139)** per-indicator resolution path — the migrated Buffs element resolves indicator-tracked spells to their current wrapper entry in O(1) rather than scanning the full classified array. **B6 StatusText (#142)** is a secondary candidate if its migrated Drinking/Food detection switches from array-scan to delta-payload processing. The API ships in A1 so B-series wiring exists when those migrations land; final call sites are fixed at B-series issue refinement.
+`GetClassifiedByInstanceID` is the single-entry accessor for elements that hold a spellID-to-instanceID map or process `updateInfo.updatedAuraInstanceIDs` payloads directly. **Primary planned consumer: B3 Buffs (#139)** per-indicator resolution path — the migrated Buffs element resolves indicator-tracked spells to their current wrapper entry in O(1) rather than scanning the full classified array. The API ships in A1 so B-series wiring exists when that migration lands; final call sites are fixed at B-series issue refinement.
 
 Unlike `GetHelpful(filter)` which takes a filter string, the classified APIs return all helpful/harmful auras with flags populated. Filter-like narrowing is done by the caller via flag reads: `if(entry.flags.isExternalDefensive)`.
 
@@ -485,7 +485,7 @@ Enter a raid boss encounter mid-auras. On `ENCOUNTER_START`, generation bumps (e
 
 ### B-series acceptance (generic template)
 
-Each of #137-#142 follows:
+Each of #137-#141 follows:
 
 1. **Pre-migration snapshot.** Screenshot the element in 3-4 representative scenarios.
 2. **Migrate** to read `entry.flags.*` or the classified slice instead of element-side probes / separate `GetHelpful(filter)` calls.
@@ -498,12 +498,13 @@ Each of #137-#142 follows:
 
 | Issue | Element | Migration focus | Must-test scenarios |
 |-------|---------|-----------------|---------------------|
-| #142 B6 (first) | `Elements/Status/StatusText.lua` | Event-handler consolidation: consume classified helpful slice for Drinking/Food detection | Drinking food buff appears with correct text/color/timer; no regression in summon-pending, disconnect, AFK, dead, ghost states |
+| #138 B2 (first) | `Elements/Auras/Defensives.lua` | Single BIG_DEFENSIVE probe becomes `flags.isBigDefensive` read + `flags.isPlayerCast` for border-color distinction | Self Divine Shield; Ice Block; Cooldown Aggressive; player-cast border color distinction preserved |
 | #137 B1 | `Elements/Auras/Externals.lua` | Replace 5-probe classification chain with flag reads | Self PWS; external Ironbark; external BoP; IMPORTANT-only non-defensive helpful (still appears); RAID fallback for secret-spellID auras in combat (still hides Rejuvenation out of combat) |
-| #138 B2 | `Elements/Auras/Defensives.lua` | Single BIG_DEFENSIVE probe becomes `flags.isBigDefensive` read | Self Divine Shield; Ice Block; Cooldown Aggressive; player-cast border color distinction preserved |
 | #140 B4 | `Elements/Auras/Debuffs.lua` | Consume classified harmful slice (A1 already includes harmful per Q1) | Dispel-type colorization; boss/role debuff priority; `castBy` filter for harmful |
 | #141 B5 | `Elements/Auras/MissingBuffs.lua` | Consistency migration (spellID-driven, no classification needed) | Missing raid buff surfaces; cast it + confirm it clears |
 | #139 B3 (last) | `Elements/Auras/Buffs.lua` | `castBy='me'` uses `flags.isPlayerCast` (retires #113 over-match fallback); preserve `computeBuffFilter` and per-indicator spellID lookups | `castBy='me'` / `'others'` / `'all'` in combat + out of combat, with indicators with/without spell lists; no regression on border colors, stacks, ordering |
+
+**B6 #142 StatusText dropped from scope.** StatusText registers UNIT_AURA for Drinking/Food detection, but its `checkDrinking` scan short-circuits on `InCombatLockdown()` (StatusText.lua:76) before touching auras. The combat window this work targets is exactly when StatusText doesn't run. Separately, its scan is spellID-name-based (matches `aura.name` against the Food & Drink spell list) — it reads zero of the 9 classification flags, so routing it through `GetHelpfulClassified()` would make it pay the classify() cost for data it discards. Migration to `GetHelpful('HELPFUL')` (existing API) is a valid standalone cleanup but doesn't belong in the classification series. #142 closed as not-needed.
 
 ### B3 Buffs: #113 retirement
 
@@ -530,7 +531,7 @@ C1 is the closing verification pass. Deliverable: a documented report (no code c
 1. **Three profiler snapshots under identical conditions:**
    - S0: pre-A1 baseline (from memory: 0.448ms avg).
    - S1: post-A1, pre-B-series (classification writing, no element reading flags yet).
-   - S2: post-B6 (all elements migrated).
+   - S2: post-B3 (all in-scope elements migrated; B3 Buffs is the last B-issue).
 2. **Three scenarios, 60 seconds each:**
    - Target dummy solo (minimal churn).
    - 5-man M+ dungeon (moderate churn).
@@ -540,7 +541,7 @@ C1 is the closing verification pass. Deliverable: a documented report (no code c
    - `GetAddOnCPUUsage('Framed')` delta over window.
    - UNIT_AURA handler cost per event (profiler or `debugprofilestop`).
    - GC pressure (`collectgarbage('count')` delta over window).
-4. **Visual regression set:** screenshots of 8-12 representative element states, pre-A1 vs post-B6. Archived in the C1 GitHub issue as attachments.
+4. **Visual regression set:** screenshots of 8-12 representative element states, pre-A1 vs post-B3. Archived in the C1 GitHub issue as attachments.
 
 **Success bar:**
 
@@ -576,17 +577,15 @@ A1 itself is rollback-safe: new APIs + debug slash only. Reverting A1 is a non-e
 
 ```
 [#123 stale --> close]
+[#142 B6 StatusText dropped from scope]
 
 A1 (#136 AuraState classify)
   |
   v
-B6 (#142 StatusText) [smoke-test migration]
+B2 (#138 Defensives) [smoke-test migration — smallest flag consumer]
   |
   v
 B1 (#137 Externals)
-  |
-  v
-B2 (#138 Defensives)
   |
   v
 B4 (#140 Debuffs)
@@ -603,15 +602,14 @@ C1 (#143 Benchmark + VR)
 
 ### Locked execution order
 
-1. **Pre-work:** Close #123 as already-implemented.
+1. **Pre-work:** Close #123 as already-implemented; close #142 B6 as out-of-scope (StatusText combat-gated, reads no flags).
 2. **A1 #136** — AuraState classification + debug slash.
-3. **B6 #142** — StatusText (smallest element; validates `entry.flags.*` pattern).
+3. **B2 #138** — Defensives (smallest flag consumer; validates `entry.flags.*` pattern as smoke-test).
 4. **B1 #137** — Externals (highest C-API savings).
-5. **B2 #138** — Defensives (shares logic with Externals).
-6. **B4 #140** — Debuffs (independent of healing-oriented elements).
-7. **B5 #141** — MissingBuffs (complements Buffs, lighter).
-8. **B3 #139** — Buffs (largest; widest user-visible surface; #113 retirement).
-9. **C1 #143** — Benchmark + visual regression.
+5. **B4 #140** — Debuffs (independent of healing-oriented elements).
+6. **B5 #141** — MissingBuffs (complements Buffs, lighter).
+7. **B3 #139** — Buffs (largest; widest user-visible surface; #113 retirement).
+8. **C1 #143** — Benchmark + visual regression.
 
 ### Branch and release discipline
 
@@ -628,7 +626,7 @@ File as new GitHub issues when A1 ships:
 
 - **Flag-table pooling revisit** — conservative retry with bool-typed, wipe-on-release, internal-only pool.
 - **Store consolidation** — collapse `_helpfulById` + `_helpfulClassifiedById` into single classified store. Requires verifying no remaining caller needs raw AuraData without the flag wrapper.
-- **Partial `_helpfulMatches` cleanup** — the four filters that move to flags (`EXTERNAL_DEFENSIVE`, `IMPORTANT`, `PLAYER`, `BIG_DEFENSIVE`) can be stripped from the per-filter memoization path. Filters that stay in use post-B6 (e.g., `RAID_IN_COMBAT` for Buffs' `computeBuffFilter`, `RAID` for Debuffs' raid-filtered path) keep their memoization.
+- **Partial `_helpfulMatches` cleanup** — the four filters that move to flags (`EXTERNAL_DEFENSIVE`, `IMPORTANT`, `PLAYER`, `BIG_DEFENSIVE`) can be stripped from the per-filter memoization path. Filters that stay in use post-B-series (e.g., `RAID_IN_COMBAT` for Buffs' `computeBuffFilter`, `RAID` for Debuffs' raid-filtered path) keep their memoization.
 - **Cache coverage gap analysis** — document structural reasons Framed can't easily match Dander's 0.075ms.
 
 ## Files Touched
@@ -643,16 +641,17 @@ File as new GitHub issues when A1 ships:
   - Write-path additions in `FullRefresh`, `ApplyUpdateInfo` (wipe classified store / invalidate per-ID entries alongside existing filter-match invalidation).
 - `Init.lua` — new `/framed aurastate` case in slash dispatcher.
 
-### B-series (#137 - #142)
+### B-series (#137 - #141)
 
 Each migrates one element's read path:
 
-- `Elements/Status/StatusText.lua` (B6 #142) — event-handler consolidation
+- `Elements/Auras/Defensives.lua` (B2 #138) — single-probe → flag read (smoke-test)
 - `Elements/Auras/Externals.lua` (B1 #137) — probe chain → flag reads
-- `Elements/Auras/Defensives.lua` (B2 #138) — single-probe → flag read
 - `Elements/Auras/Debuffs.lua` (B4 #140) — consume classified harmful slice
 - `Elements/Auras/MissingBuffs.lua` (B5 #141) — consistency migration
 - `Elements/Auras/Buffs.lua` (B3 #139) — castBy via `isPlayerCast`
+
+`Elements/Status/StatusText.lua` (B6 #142) is intentionally omitted — see "B6 dropped" in the per-element scope section above.
 
 ### C1 (#143)
 
@@ -661,7 +660,7 @@ No code changes. Report attached to the GitHub issue.
 ## References
 
 - Parent issue: #115
-- Sub-issues: #136, #137, #138, #139, #140, #141, #142, #143
+- Sub-issues: #136, #137, #138, #139, #140, #141, #143 (#142 closed as out-of-scope)
 - Stale dependency to close: #123
 - Prior art in-repo: `Core/AuraCache.lua` (Aura Cache Design spec, 2026-04-10), `Core/AuraState.lua`
 - Source of truth for filter strings: `/tmp/wow-ui-source/Interface/AddOns/Blizzard_FrameXMLUtil/AuraUtil.lua:158-174`
