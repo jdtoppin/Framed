@@ -450,6 +450,9 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 	return nil
 end
 
+-- Exposed for diagnostics (e.g. Core/MemDiag.lua monkey-patches methods here).
+F.AuraState._mt = AuraState
+
 function F.AuraState.Create(owner)
 	return setmetatable({
 		_owner = owner,

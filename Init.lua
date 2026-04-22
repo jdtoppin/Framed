@@ -450,6 +450,65 @@ SlashCmdList['FRAMED'] = function(msg)
 
 		dumpList('HELPFUL', state:GetHelpfulClassified())
 		dumpList('HARMFUL', state:GetHarmfulClassified())
+	elseif(cmd == 'memdiag') then
+		local seconds = tonumber(arg1:match('^(%d+)')) or 10
+		F.MemDiag.Start(seconds)
+	elseif(cmd == 'memusage') then
+		-- `raw` suffix skips the forced GC (see live allocated state);
+		-- default forces a collect so we see post-GC live footprint.
+		local forceGC = (arg1 ~= 'raw')
+		if(forceGC) then collectgarbage('collect') end
+
+		UpdateAddOnMemoryUsage()
+		local totalKB = collectgarbage('count')
+		local framedKB = GetAddOnMemoryUsage('Framed')
+
+		-- Track delta from the previous call for yoyo amplitude sampling.
+		local prev = F._lastMemSnapshot
+		F._lastMemSnapshot = { total = totalKB, framed = framedKB, t = GetTime() }
+
+		local mode = forceGC and 'post-GC' or 'raw'
+		print(('|cff00ccff[Framed/mem]|r (%s) Framed: %.1f MB  |  total: %.1f MB  |  share: %.1f%%'):format(
+			mode,
+			framedKB / 1024,
+			totalKB / 1024,
+			totalKB > 0 and (framedKB / totalKB * 100) or 0))
+
+		if(prev) then
+			local dt = GetTime() - prev.t
+			print(('  delta since last sample (%.1fs ago):  Framed %+.1f MB  |  total %+.1f MB'):format(
+				dt,
+				(framedKB - prev.framed) / 1024,
+				(totalKB - prev.total) / 1024))
+		end
+
+		-- Top 10 addons by memory
+		local rows = {}
+		for i = 1, C_AddOns.GetNumAddOns() do
+			local name = C_AddOns.GetAddOnInfo(i)
+			local loaded = C_AddOns.IsAddOnLoaded(i)
+			if(loaded) then
+				local kb = GetAddOnMemoryUsage(name)
+				if(kb and kb > 0) then
+					rows[#rows + 1] = { name = name, kb = kb }
+				end
+			end
+		end
+		table.sort(rows, function(a, b) return a.kb > b.kb end)
+		print('|cff00ccff[Framed/mem]|r top 10 addons by memory:')
+		for i = 1, math.min(10, #rows) do
+			print(('  %2d. %-32s  %7.1f MB'):format(i, rows[i].name, rows[i].kb / 1024))
+		end
+	elseif(cmd == 'casttracker') then
+		if(arg1 == 'off' or arg1 == 'disable') then
+			F.CastTracker:Disable()
+			print('|cff00ccff Framed|r cast tracker disabled')
+		elseif(arg1 == 'on' or arg1 == 'enable') then
+			F.CastTracker:Enable()
+			print('|cff00ccff Framed|r cast tracker enabled')
+		else
+			print('|cff00ccff Framed|r casttracker: use "on" or "off"')
+		end
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
 		print('  /framed — Open settings')
@@ -462,6 +521,9 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed debugicons — Debug indicator element state')
 		print('  /framed testimport — Generate a synthetic-diff import string for testing backfill')
 		print('  /framed aurastate [unit] — Dump classified aura flags (default: target)')
+		print('  /framed memdiag [seconds] — Measure aura-path allocation churn (default 10s, max 30s; stops GC for the window)')
+		print('  /framed memusage [raw] — Framed + total memory snapshot (default forces GC; "raw" skips it)')
+		print('  /framed casttracker on|off — Toggle CastTracker (for memdiag A/B testing)')
 	else
 		-- Default: open settings
 		if(F.Settings and F.Settings.Toggle) then
