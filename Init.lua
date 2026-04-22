@@ -499,6 +499,16 @@ SlashCmdList['FRAMED'] = function(msg)
 		for i = 1, math.min(10, #rows) do
 			print(('  %2d. %-32s  %7.1f MB'):format(i, rows[i].name, rows[i].kb / 1024))
 		end
+
+		-- Classified entry pool aggregate across all live AuraState instances.
+		local totalPooled = 0
+		local instanceCount = 0
+		for instance in next, F.AuraState._instances do
+			instanceCount = instanceCount + 1
+			totalPooled = totalPooled + #instance._classifiedFreeList
+		end
+		print(('|cff00ccff[Framed/mem]|r aurastate pool: %d entries across %d instances'):format(
+			totalPooled, instanceCount))
 	elseif(cmd == 'casttracker') then
 		if(arg1 == 'off' or arg1 == 'disable') then
 			F.CastTracker:Disable()
