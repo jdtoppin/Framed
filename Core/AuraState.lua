@@ -9,7 +9,11 @@ local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAur
 local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID
 
 -- Classify a single aura into a wrapper entry { aura, flags }.
--- Tier 1 flags are structural passthroughs from AuraData (never secret).
+-- Tier 1 flags are structural AuraData booleans. Per Blizzard's 12.0.x
+-- changes, isHelpful / isHarmful / isRaid / isNameplateOnly /
+-- isFromPlayerOrPlayerPet are non-secret. isBossAura remains secret on
+-- encounter auras and must be guarded with F.IsValueNonSecret to avoid
+-- tainted boolean tests.
 -- Tier 2 flags use C_UnitAuras filter probes (secret-safe C API).
 local function classify(unit, aura, isHelpful)
 	local id = aura.auraInstanceID
@@ -19,7 +23,7 @@ local function classify(unit, aura, isHelpful)
 		isHelpful         = aura.isHelpful         or false,
 		isHarmful         = aura.isHarmful         or false,
 		isRaid            = aura.isRaid            or false,
-		isBossAura        = aura.isBossAura        or false,
+		isBossAura        = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false,
 		isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false,
 	}
 

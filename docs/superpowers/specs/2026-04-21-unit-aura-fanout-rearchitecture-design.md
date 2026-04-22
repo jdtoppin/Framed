@@ -131,8 +131,11 @@ Existing `self._helpfulById` / `self._harmfulById` stores stay untouched during 
 
 | Tier | Flags | Source | Secret-safe |
 |------|-------|--------|-------------|
-| 1 (passthrough) | `isHelpful`, `isHarmful`, `isRaid`, `isBossAura`, `isFromPlayerOrPet` | `AuraData` structural booleans | Always |
+| 1a (passthrough) | `isHelpful`, `isHarmful`, `isRaid`, `isFromPlayerOrPet` | `AuraData` structural booleans | Always — de-secret'd by Blizzard in 12.0.x |
+| 1b (guarded passthrough) | `isBossAura` | `AuraData` boolean via `F.IsValueNonSecret()` guard | Graceful degrade — secret resolves to `false` |
 | 2 (C probe) | `isExternalDefensive`, `isImportant`, `isPlayerCast`, `isBigDefensive` | `C_UnitAuras.IsAuraFilteredOutByInstanceID(unit, id, filter)` | Always (C-level API) |
+
+**Why `isBossAura` needs the guard:** per Blizzard's 12.0.x API changes, `isHelpful` / `isHarmful` / `isRaid` / `isNameplateOnly` / `isFromPlayerOrPlayerPet` are no longer secret on aura data tables. `isBossAura` remains secret on encounter auras — a bare `or false` on a secret boolean taints the enclosing function. The guard is the minimum defensive read.
 
 **Originally proposed a third tier** (spellID-keyed cache for `isBigDefensive` via `C_UnitAuras.AuraIsBigDefensive`). Dropped because (a) `spellId` is typically secret in combat, and `AuraIsBigDefensive` is not documented to accept secret scalars; (b) the probe alternative is already proven by current Externals.lua. Two tiers keeps single-path and avoids feature-detection branching.
 
@@ -214,13 +217,16 @@ local function classify(unit, aura, isHelpful)
     local id = aura.auraInstanceID
     local prefix = isHelpful and 'HELPFUL' or 'HARMFUL'
 
-    -- Tier 1: structural passthrough (always safe, never secret)
+    -- Tier 1a: derived from caller's filter (never reads a secret field).
+    -- Tier 1b: AuraData booleans guarded with F.IsValueNonSecret — these
+    -- fields can be secret per-aura (e.g. isBossAura on encounter auras),
+    -- so a bare `or false` would taint the classify call. Secret -> false.
     local flags = {
-        isHelpful         = aura.isHelpful or false,
-        isHarmful         = aura.isHarmful or false,
-        isRaid            = aura.isRaid or false,
-        isBossAura        = aura.isBossAura or false,
-        isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false,
+        isHelpful         = isHelpful,
+        isHarmful         = not isHelpful,
+        isRaid            = F.IsValueNonSecret(aura.isRaid)                 and aura.isRaid                 or false,
+        isBossAura        = F.IsValueNonSecret(aura.isBossAura)             and aura.isBossAura             or false,
+        isFromPlayerOrPet = F.IsValueNonSecret(aura.isFromPlayerOrPlayerPet) and aura.isFromPlayerOrPlayerPet or false,
     }
 
     -- Tier 2: instance-ID filter probes.
@@ -392,15 +398,18 @@ No cold-start branch leaks to callers.
 
 ### Secret-value invariants
 
-A1 is single-path. The same `classify()` runs for every aura regardless of which fields are secret. No `F.IsValueNonSecret()` branches anywhere in the classification layer.
+A1 is single-path. The same `classify()` runs for every aura; `F.IsValueNonSecret()` appears on exactly one field read (`aura.isBossAura`). No conditional branches change *what* is classified based on secret-ness — the guard is a graceful-degrade wrapper on a single field read.
 
 Why this works cleanly:
 
-- **Tier 1 passthrough:** structural booleans on `AuraData` (`isHelpful`, `isHarmful`, `isRaid`, `isBossAura`, `isFromPlayerOrPlayerPet`) are never secret, regardless of whether other fields on the same AuraData are secret.
-- **Tier 2 probes:** `IsAuraFilteredOutByInstanceID` is explicitly secret-safe per the CLAUDE.md "Secret Values" section.
+- **Tier 1a (passthrough):** `isHelpful`, `isHarmful`, `isRaid`, `isFromPlayerOrPet` are no longer secret per [Patch 12.0.5 API changes](https://warcraft.wiki.gg/wiki/Patch_12.0.5/API_changes): *"The isHelpful, isHarmful, isRaid, isNameplateOnly, and isFromPlayerOrPlayerPet fields on AuraData are no longer secret."* Bare `aura.field or false` is safe.
+- **Tier 1b (guarded passthrough):** `isBossAura` remains secret on encounter auras. Read via `F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false`. Secret values resolve to `false`. This is *graceful degradation*, not a split path: a boss-aura still renders; it just won't surface `flags.isBossAura=true` while its field is tainted. No Framed consumer currently reads this flag in a way that breaks on a `false` result.
+- **Tier 2 probes:** `IsAuraFilteredOutByInstanceID` is explicitly secret-safe per the CLAUDE.md "Secret Values" section — pass-through by C API.
 - **`entry.aura`** is a live ref — it carries whatever secret-ness the aura has. Downstream consumers handle via existing `F.IsValueNonSecret()` + secret-safe C-level rendering, exactly as they do today against raw `GetHelpful` results.
 
-The classification layer sits strictly upstream of any secret-value read. The "never split secret/non-secret paths" CLAUDE.md rule is upheld.
+**Why we can't skip the `isBossAura` guard:** empirically (AuraState crash 2026-04-21, error log locals) a single `AuraData` can carry `isHelpful=true` / `isRaid=false` (both non-secret per 12.0.5) alongside `isBossAura=<secret>`. A bare `or false` on the secret field taints the enclosing function. The guard is the minimum defensive read.
+
+The classification layer sits strictly upstream of any secret-value *comparison* or *arithmetic*. The "never split secret/non-secret paths" CLAUDE.md rule is upheld — there is one `classify()` path for every aura on every frame.
 
 ### C API return normalization
 
