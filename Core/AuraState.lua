@@ -1,6 +1,14 @@
 local _, Framed = ...
 local F = Framed
 
+-- Classified entries ({ aura, flags } wrappers) are pooled per-instance.
+-- Consumers must not stash entry or entry.flags across UNIT_AURA — pool
+-- reuse silently refills the wrapper with a different aura, producing
+-- ghost-aura bugs that no guardrail in AuraState can catch.
+-- Audit completed 2026-04-22 (Externals / Defensives / Debuffs / Buffs /
+-- MissingBuffs): all consumers destructure fields inline within their
+-- iteration loops and do not persist entry references.
+
 F.AuraState = {}
 
 local GetAuraSlots = C_UnitAuras and C_UnitAuras.GetAuraSlots
