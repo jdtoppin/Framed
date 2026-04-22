@@ -418,6 +418,38 @@ SlashCmdList['FRAMED'] = function(msg)
 			return
 		end
 		showTestImportPopup(encoded)
+	elseif(cmd == 'aurastate') then
+		local unit = arg1:match('^(%S+)') or 'target'
+		if(not UnitExists(unit)) then
+			print('|cff00ccff Framed|r aurastate: unit "' .. unit .. '" does not exist')
+			return
+		end
+
+		local state = F.AuraState.Create(nil)
+		state:FullRefresh(unit)
+
+		local function formatFlags(flags)
+			local active = {}
+			for k, v in next, flags do
+				if(v) then active[#active + 1] = k end
+			end
+			if(#active == 0) then return '(none)' end
+			table.sort(active)
+			return table.concat(active, ' ')
+		end
+
+		local function dumpList(label, list)
+			print('|cff00ccff Framed|r aurastate ' .. unit .. ' — ' .. label .. ' (' .. #list .. ')')
+			for _, entry in next, list do
+				local id = entry.aura.auraInstanceID
+				local name = F.IsValueNonSecret(entry.aura.name) and entry.aura.name or '<secret>'
+				local spellId = F.IsValueNonSecret(entry.aura.spellId) and tostring(entry.aura.spellId) or '?'
+				print('  [' .. id .. '] ' .. name .. ' (spellId=' .. spellId .. ') ' .. formatFlags(entry.flags))
+			end
+		end
+
+		dumpList('HELPFUL', state:GetHelpfulClassified())
+		dumpList('HARMFUL', state:GetHarmfulClassified())
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
 		print('  /framed — Open settings')
@@ -429,6 +461,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed restore — Restore the most recent reset backup from the Backups panel')
 		print('  /framed debugicons — Debug indicator element state')
 		print('  /framed testimport — Generate a synthetic-diff import string for testing backfill')
+		print('  /framed aurastate [unit] — Dump classified aura flags (default: target)')
 	else
 		-- Default: open settings
 		if(F.Settings and F.Settings.Toggle) then

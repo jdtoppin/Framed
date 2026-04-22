@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## v0.8.14-alpha
+
+- **12.0.5 compatibility** — fix `bad argument #2 to '?' (Current Field: [isContainer])` error on unit frame spawn; 12.0.5 added a required `isContainer` field to `C_UnitAuras.AddPrivateAuraAnchor`'s args table
+- Add `/framed aurastate [unit]` debug slash — dumps the classified aura flag breakdown for a unit (defaults to target), showing which of `external-defensive`, `important`, `player-cast`, `big-defensive`, `raid`, `boss`, `from-player-or-pet` apply to each aura. Useful for verifying classification correctness as #115's B-series migrations land
+- Internal: AuraState now exposes shared per-frame classification (`GetHelpfulClassified` / `GetHarmfulClassified` / `GetClassifiedByInstanceID`) with write-path invalidation wired through `FullRefresh` and `ApplyUpdateInfo`. No element yet consumes the new API — infrastructure only in this patch, element migrations follow in subsequent releases (#115 B1-B6)
+
 ## v0.8.13-alpha
 
 - **12.0.5 readiness** — fix Buffs `castBy = 'me'` / `'others'` silently filtering to empty when Blizzard marks `sourceUnit` secret in combat (#113); the indicator now falls back to `isFromPlayerOrPlayerPet` when the source is unreachable

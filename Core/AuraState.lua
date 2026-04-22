@@ -8,6 +8,31 @@ local GetAuraDataBySlot = C_UnitAuras and C_UnitAuras.GetAuraDataBySlot
 local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID
 local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID
 
+-- Classify a single aura into a wrapper entry { aura, flags }.
+-- Tier 1 flags are structural passthroughs from AuraData (never secret).
+-- Tier 2 flags use C_UnitAuras filter probes (secret-safe C API).
+local function classify(unit, aura, isHelpful)
+	local id = aura.auraInstanceID
+	local prefix = isHelpful and 'HELPFUL' or 'HARMFUL'
+
+	local flags = {
+		isHelpful         = aura.isHelpful         or false,
+		isHarmful         = aura.isHarmful         or false,
+		isRaid            = aura.isRaid            or false,
+		isBossAura        = aura.isBossAura        or false,
+		isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false,
+	}
+
+	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|EXTERNAL_DEFENSIVE') == false
+	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|IMPORTANT')          == false
+	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|PLAYER')             == false
+	flags.isBigDefensive      = isHelpful
+	                            and IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|BIG_DEFENSIVE') == false
+	                            or false
+
+	return { aura = aura, flags = flags }
+end
+
 -- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
 -- are rejected by C_UnitAuras.GetAuraSlots. Pinned target-chain slots can
 -- produce these tokens — skip aura queries for them rather than erroring.
@@ -75,6 +100,30 @@ function AuraState:MarkHarmfulDirty()
 	end
 end
 
+function AuraState:ResetHelpfulClassified()
+	wipe(self._helpfulClassifiedById)
+end
+
+function AuraState:ResetHarmfulClassified()
+	wipe(self._harmfulClassifiedById)
+end
+
+function AuraState:InvalidateHelpfulClassified(auraInstanceID)
+	self._helpfulClassifiedById[auraInstanceID] = nil
+end
+
+function AuraState:InvalidateHarmfulClassified(auraInstanceID)
+	self._harmfulClassifiedById[auraInstanceID] = nil
+end
+
+function AuraState:MarkHelpfulClassifiedDirty()
+	self._helpfulClassifiedView.dirty = true
+end
+
+function AuraState:MarkHarmfulClassifiedDirty()
+	self._harmfulClassifiedView.dirty = true
+end
+
 function AuraState:EnsureHelpfulView(filter)
 	local view = self._helpfulViews[filter]
 	if(not view) then
@@ -125,8 +174,12 @@ function AuraState:FullRefresh(unit)
 	wipe(self._harmfulById)
 	self:ResetHelpfulMatches()
 	self:ResetHarmfulMatches()
+	self:ResetHelpfulClassified()
+	self:ResetHarmfulClassified()
 	self:MarkHelpfulDirty()
 	self:MarkHarmfulDirty()
+	self:MarkHelpfulClassifiedDirty()
+	self:MarkHarmfulClassifiedDirty()
 
 	if(not unit or not GetAuraSlots or not GetAuraDataBySlot) then return end
 	if(isCompoundUnit(unit)) then return end
@@ -187,11 +240,13 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 			if(aura and aura.auraInstanceID and isHelpfulAura(unit, aura)) then
 				self._helpfulById[aura.auraInstanceID] = aura
 				self:InvalidateHelpfulMatch(aura.auraInstanceID)
+				self:InvalidateHelpfulClassified(aura.auraInstanceID)
 				helpfulChanged = true
 			end
 			if(aura and aura.auraInstanceID and isHarmfulAura(unit, aura)) then
 				self._harmfulById[aura.auraInstanceID] = aura
 				self:InvalidateHarmfulMatch(aura.auraInstanceID)
+				self:InvalidateHarmfulClassified(aura.auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -203,20 +258,24 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 			if(aura and aura.auraInstanceID and isHelpfulAura(unit, aura)) then
 				self._helpfulById[auraInstanceID] = aura
 				self:InvalidateHelpfulMatch(auraInstanceID)
+				self:InvalidateHelpfulClassified(auraInstanceID)
 				helpfulChanged = true
 			elseif(self._helpfulById[auraInstanceID]) then
 				self._helpfulById[auraInstanceID] = nil
 				self:InvalidateHelpfulMatch(auraInstanceID)
+				self:InvalidateHelpfulClassified(auraInstanceID)
 				helpfulChanged = true
 			end
 
 			if(aura and aura.auraInstanceID and isHarmfulAura(unit, aura)) then
 				self._harmfulById[auraInstanceID] = aura
 				self:InvalidateHarmfulMatch(auraInstanceID)
+				self:InvalidateHarmfulClassified(auraInstanceID)
 				harmfulChanged = true
 			elseif(self._harmfulById[auraInstanceID]) then
 				self._harmfulById[auraInstanceID] = nil
 				self:InvalidateHarmfulMatch(auraInstanceID)
+				self:InvalidateHarmfulClassified(auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -227,11 +286,13 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 			if(self._helpfulById[auraInstanceID]) then
 				self._helpfulById[auraInstanceID] = nil
 				self:InvalidateHelpfulMatch(auraInstanceID)
+				self:InvalidateHelpfulClassified(auraInstanceID)
 				helpfulChanged = true
 			end
 			if(self._harmfulById[auraInstanceID]) then
 				self._harmfulById[auraInstanceID] = nil
 				self:InvalidateHarmfulMatch(auraInstanceID)
+				self:InvalidateHarmfulClassified(auraInstanceID)
 				harmfulChanged = true
 			end
 		end
@@ -239,9 +300,11 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 
 	if(helpfulChanged) then
 		self:MarkHelpfulDirty()
+		self:MarkHelpfulClassifiedDirty()
 	end
 	if(harmfulChanged) then
 		self:MarkHarmfulDirty()
+		self:MarkHarmfulClassifiedDirty()
 	end
 end
 
@@ -309,6 +372,76 @@ function AuraState:GetHarmful(filter)
 	return view.list
 end
 
+function AuraState:GetHelpfulClassified()
+	local view = self._helpfulClassifiedView
+	if(not view.dirty) then
+		return view.list
+	end
+
+	view.dirty = false
+	wipe(view.list)
+
+	for id, aura in next, self._helpfulById do
+		local entry = self._helpfulClassifiedById[id]
+		if(not entry) then
+			entry = classify(self._unit, aura, true)
+			self._helpfulClassifiedById[id] = entry
+		end
+		view.list[#view.list + 1] = entry
+	end
+
+	return view.list
+end
+
+function AuraState:GetHarmfulClassified()
+	local view = self._harmfulClassifiedView
+	if(not view.dirty) then
+		return view.list
+	end
+
+	view.dirty = false
+	wipe(view.list)
+
+	for id, aura in next, self._harmfulById do
+		local entry = self._harmfulClassifiedById[id]
+		if(not entry) then
+			entry = classify(self._unit, aura, false)
+			self._harmfulClassifiedById[id] = entry
+		end
+		view.list[#view.list + 1] = entry
+	end
+
+	return view.list
+end
+
+function AuraState:GetClassifiedByInstanceID(auraInstanceID)
+	local entry = self._helpfulClassifiedById[auraInstanceID]
+	if(entry) then
+		return entry
+	end
+
+	local aura = self._helpfulById[auraInstanceID]
+	if(aura) then
+		entry = classify(self._unit, aura, true)
+		self._helpfulClassifiedById[auraInstanceID] = entry
+		return entry
+	end
+
+	entry = self._harmfulClassifiedById[auraInstanceID]
+	if(entry) then
+		return entry
+	end
+
+	aura = self._harmfulById[auraInstanceID]
+	if(aura) then
+		entry = classify(self._unit, aura, false)
+		self._harmfulClassifiedById[auraInstanceID] = entry
+		return entry
+	end
+
+	return nil
+end
+
 function F.AuraState.Create(owner)
 	return setmetatable({
 		_owner = owner,
@@ -320,8 +453,12 @@ function F.AuraState.Create(owner)
 		_helpfulById = {},
 		_helpfulViews = {},
 		_helpfulMatches = {},
+		_helpfulClassifiedById = {},
+		_helpfulClassifiedView = { dirty = true, list = {} },
 		_harmfulById = {},
 		_harmfulViews = {},
 		_harmfulMatches = {},
+		_harmfulClassifiedById = {},
+		_harmfulClassifiedView = { dirty = true, list = {} },
 	}, AuraState)
 end
