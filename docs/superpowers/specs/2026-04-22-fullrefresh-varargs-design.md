@@ -8,7 +8,7 @@
 
 Eliminate per-`FullRefresh` varargs-pack allocation in `AuraState` by reusing per-instance scratch tables. This targets item 3 from the #155 ranked fix list (deferred from #144 to keep the classified-entry-pool PR's MemDiag attribution clean).
 
-Baseline measurement (pre-#160 memdiag, 30 s LFR window): `AuraState:FullRefresh` allocated ~66 MB across the window — the single largest contributor to the UNIT_AURA bucket and the dominant source of Framed's share of the LFR memory yoyo. The two `{ GetAuraSlots(unit, 'HELPFUL') }` / `{ GetAuraSlots(unit, 'HARMFUL') }` varargs packs at `Core/AuraState.lua:244` and `:252` are the full cost — every FullRefresh call allocates and discards two tables holding the continuation token plus up to ~40 integer slot IDs.
+Baseline measurement (pre-#160 memdiag, 30 s LFR window): `AuraState:FullRefresh` allocated ~66 MB across the window — the single largest contributor to the UNIT_AURA bucket. MemDiag's attribution is per-Lua-function, not per-expression, so the 66 MB figure covers *everything* inside `FullRefresh` including the AuraData tables returned by `GetAuraDataBySlot` (Blizzard-owned, one per slot). The two `{ GetAuraSlots(unit, 'HELPFUL') }` / `{ GetAuraSlots(unit, 'HARMFUL') }` varargs packs at `Core/AuraState.lua:244` and `:252` are **a known avoidable allocation inside the highest-cost FullRefresh path** — we eliminate what we can own and re-measure; residual allocation belongs to follow-up work.
 
 ## Non-Goals
 
@@ -43,7 +43,7 @@ for i = 2, #harmfulResults do
 end
 ```
 
-The `{ ... }` varargs-pack idiom creates a fresh table per call. Two packs per `FullRefresh`, one per unit that fires UNIT_AURA; across 53 tracked units in a 20-man LFR pull this is the dominant allocation source.
+The `{ ... }` varargs-pack idiom creates a fresh table per call. Two packs per `FullRefresh`, one per unit that fires UNIT_AURA; across 53 tracked units in a 20-man LFR pull this is a meaningful — and entirely avoidable — allocation source.
 
 ### Why not a module-shared scratch table
 
@@ -51,16 +51,17 @@ The 0.7.20 classified-wrapper pool revert (`7f21fb4` → `9d3cc54`) failed speci
 
 ## Design
 
-### Data — per-instance scratch fields
+### Data — per-instance scratch field
 
-Add two fields to `F.AuraState.Create`, parallel to the `_classifiedFreeList` field added in #144:
+Add one field to `F.AuraState.Create`, parallel to the `_classifiedFreeList` field added in #144:
 
 ```lua
-_helpfulSlots = {},
-_harmfulSlots = {},
+_slotsScratch = {},
 ```
 
-Bounded size: ≤40 auras/unit × ~20 B/slot ≈ ~800 B per scratch × 2 × 53 instances ≈ ~85 KB peak retained. The tradeoff is ~85 KB of persistent memory in exchange for eliminating ~66 MB of allocation churn per 30 s window — three orders of magnitude. No growth bound needed; size is capped by game physics (aura count per unit).
+One scratch is enough because the HELPFUL and HARMFUL passes in `FullRefresh` are strictly sequential — the HELPFUL loop finishes reading `_slotsScratch` before the HARMFUL pass overwrites it. No concurrent access, no re-entry (verified in Risk Analysis below).
+
+Bounded size: ≤40 auras/unit × ~20 B/slot ≈ ~800 B per scratch × 53 instances ≈ ~42 KB peak retained. The tradeoff is ~42 KB of persistent memory in exchange for eliminating the two per-FullRefresh varargs packs. Size is capped by game physics (aura count per unit).
 
 ### Helper — `fillSlots`
 
@@ -71,18 +72,21 @@ Module-local function in `Core/AuraState.lua`:
 -- which callers use as the iteration bound (position 1 is the continuation
 -- token; real slot IDs start at index 2).
 local function fillSlots(tbl, ...)
-    wipe(tbl)
     local n = select('#', ...)
     for i = 1, n do
         tbl[i] = select(i, ...)
+    end
+    for i = n + 1, #tbl do
+        tbl[i] = nil
     end
     return n
 end
 ```
 
-- The leading `wipe` is defensive: clears stale entries from a previous `FullRefresh` where the aura count was higher. Iteration uses the returned `n`, not `#tbl`, so the wipe is insurance against future code that might use length-operator ambiguity.
+- The fill loop overwrites `tbl[1..n]` in place. The second loop nils the tail (`n+1..#tbl`) if a prior call stored more entries than this one. Since the fill loop keeps the array contiguous, `#tbl` is a well-defined sequence length each call — no hole-ambiguity.
+- We tail-clear rather than full-wipe because the table is bounded and `n` is already known; walking the whole table every call is wasted work.
 - `select(i, ...)` in a loop is formally O(N²) but N ≤ 40 → ≤1,600 internal operations → single-digit microseconds per call. Not worth optimizing.
-- Returns count `n` so callers use it as the iteration bound.
+- Returns count `n` so callers use it as the iteration bound (not `#tbl`).
 
 ### Call-site rewrite
 
@@ -99,16 +103,24 @@ for i = 2, #helpfulResults do
 end
 
 -- after
-local nHelpful = fillSlots(self._helpfulSlots, GetAuraSlots(unit, 'HELPFUL'))
+local nHelpful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HELPFUL'))
 for i = 2, nHelpful do
-    local aura = GetAuraDataBySlot(unit, self._helpfulSlots[i])
+    local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
     if(aura and aura.auraInstanceID) then
         self._helpfulById[aura.auraInstanceID] = aura
     end
 end
+
+local nHarmful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HARMFUL'))
+for i = 2, nHarmful do
+    local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
+    if(aura and aura.auraInstanceID) then
+        self._harmfulById[aura.auraInstanceID] = aura
+    end
+end
 ```
 
-Symmetric for `HARMFUL`. No behavioral change — same iteration bounds, same data flow, just no allocation.
+The HARMFUL `fillSlots` call can safely overwrite `_slotsScratch` because the HELPFUL loop has fully completed its reads before the HARMFUL pass begins. No behavioral change — same iteration bounds, same data flow, just no allocation.
 
 ### Scope
 
@@ -122,7 +134,7 @@ None added. The change is small, the measurement approach is already in place fr
 
 **Re-entry.** `GetAuraSlots` and `GetAuraDataBySlot` are pure C getters with no Lua callbacks. `FullRefresh` cannot recursively call itself or another `FullRefresh` on the same instance during its execution. Per-instance scratch eliminates cross-instance re-entry concerns regardless — even if some future code path triggered re-entry on a *different* instance, each instance has its own scratch.
 
-**Hole semantics.** The leading `wipe` before fill guarantees no stale indices. We iterate using the returned `n` (not `#tbl`), so Lua's length-operator ambiguity on tables with holes is irrelevant even without the wipe.
+**Hole semantics.** `fillSlots` always writes `tbl[1..n]` contiguously and tail-clears `tbl[n+1..prev_n]` to nil, so the table remains a proper sequence every call. `#tbl` is well-defined across calls, and callers iterate using the returned `n` (not `#tbl`), which is the definitive bound regardless.
 
 **Secret values.** `GetAuraSlots` returns integer slot IDs — non-secret. `GetAuraDataBySlot` is where secrets enter the system, and that call path is unchanged by this PR. No new secret-value handling required.
 
@@ -132,9 +144,9 @@ None added. The change is small, the measurement approach is already in place fr
 
 Parallels #144's validation approach:
 
-- **MemDiag A/B.** Pre-change `/framed memdiag 30` in LFR; post-change `/framed memdiag 30` in comparable LFR. Expected: `AuraState:FullRefresh` bytes-per-call collapses from ~31 KB/call to near-zero; `event:UNIT_AURA` bucket total drops by a comparable amount; total `collectgarbage('count')` delta over the 30 s window drops materially toward the non-Framed baseline.
-- **Ghost-aura stress.** Target-swap, let buffs expire, re-target — verify no stale aura state carried across refreshes. Scratch tables are overwritten every call plus defensively wiped, so this should be a no-op check.
-- **Zero-aura unit.** Point target at a dummy with no auras, confirm no Lua errors. `select('#', ...) = 1` (just the continuation token), loop at `for i = 2, 1` runs zero times, wipe clears any residual.
+- **MemDiag A/B.** Pre-change `/framed memdiag 30` in LFR; post-change `/framed memdiag 30` in comparable LFR. Expected: `AuraState:FullRefresh` bytes-per-call drops measurably (by whatever share of its allocation belongs to the two varargs packs; residual allocation from `GetAuraDataBySlot` return tables is expected and out of scope); `event:UNIT_AURA` bucket total drops by a proportional amount; total `collectgarbage('count')` delta over the 30 s window trends toward the non-Framed baseline. Direction is the criterion — magnitude is informational.
+- **Ghost-aura stress.** Target-swap, let buffs expire, re-target — verify no stale aura state carried across refreshes. `_slotsScratch` is overwritten-and-tail-cleared each call, so this should be a no-op check.
+- **Zero-aura unit.** Point target at a dummy with no auras, confirm no Lua errors. The invariant we rely on (not the exact return shape of `GetAuraSlots`): for any `n ≤ 1`, the iteration `for i = 2, n` in `FullRefresh` runs zero times, and `fillSlots` tail-clears any residual slots from prior calls. No assumption baked in about whether the no-aura case returns just a continuation token, returns nothing, or some other shape.
 - **Regression replay.** Reload with WeakAuras/MPlusQOL/AbilityTimeline loaded, combat entry/exit, target chains. Zero `BugSack` errors. No `attempt to compare number with nil` or nil-text errors from external addons.
 
 Merge criteria: MemDiag A/B shows the expected collapse, zero regression errors across the replay, ghost-aura and zero-aura checks pass.
