@@ -36,6 +36,7 @@ Core/Config.lua
 Core/CastTracker.lua
 Core/AuraCache.lua
 Core/AuraState.lua
+Core/MemDiag.lua
 Core/Backups.lua
 
 # Widgets

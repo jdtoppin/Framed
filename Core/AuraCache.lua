@@ -25,6 +25,8 @@ end
 -- don't fire UNIT_AURA on their own, but the unit token now points at a
 -- different entity — any cached data for that token is stale.
 local eventFrame = CreateFrame('Frame')
+-- Exposed for diagnostics (Core/MemDiag.lua hooks OnEvent here).
+F.AuraCache._eventFrame = eventFrame
 eventFrame:RegisterEvent('UNIT_AURA')
 eventFrame:RegisterEvent('PLAYER_TARGET_CHANGED')
 eventFrame:RegisterEvent('PLAYER_FOCUS_CHANGED')
