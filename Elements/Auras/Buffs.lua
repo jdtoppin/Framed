@@ -157,42 +157,26 @@ local function Update(self, event, unit, updateInfo)
 			auraState:EnsureInitialized(unit)
 		end
 	end
+
 	local filter = element._buffFilter
-	local auras = auraState and auraState:GetHelpful(filter) or F.AuraCache.GetUnitAuras(unit, filter)
-	for _, auraData in next, auras do
+
+	-- Per-aura matcher shared between classified and fallback paths.
+	-- Captures unit / indicators / spellLookup / hasTrackAll via closure.
+	local function matchAura(auraData)
 		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId)) then
-			local sourceUnit = auraData.sourceUnit
-			local annotated = false
+		if(not F.IsValueNonSecret(spellId)) then return end
 
-			-- Check spell-specific indicators
-			local indicatorIndices = spellLookup[spellId]
-			if(indicatorIndices) then
-				for _, idx in next, indicatorIndices do
-					local ind = indicators[idx]
-					if(passesCastByFilter(sourceUnit, ind._castBy)) then
-						-- Annotate auraData with renderer-expected field names
-						-- (non-conflicting keys: auraData has no .stacks/.dispelType/.unit)
-						if(not annotated) then
-							auraData.unit      = unit
-							auraData.stacks    = auraData.applications
-							auraData.dispelType = auraData.dispelName
-							annotated = true
-						end
-						if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
-							local list = iconsAurasPool[idx]
-							list[#list + 1] = auraData
-						elseif(not matchedPool[idx]) then
-							matchedPool[idx] = auraData
-						end
-					end
-				end
-			end
+		local sourceUnit = auraData.sourceUnit
+		local annotated = false
 
-			-- Check track-all indicators (empty spells list)
-			for _, idx in next, hasTrackAll do
+		-- Check spell-specific indicators
+		local indicatorIndices = spellLookup[spellId]
+		if(indicatorIndices) then
+			for _, idx in next, indicatorIndices do
 				local ind = indicators[idx]
 				if(passesCastByFilter(sourceUnit, ind._castBy)) then
+					-- Annotate auraData with renderer-expected field names
+					-- (non-conflicting keys: auraData has no .stacks/.dispelType/.unit)
 					if(not annotated) then
 						auraData.unit      = unit
 						auraData.stacks    = auraData.applications
@@ -207,6 +191,49 @@ local function Update(self, event, unit, updateInfo)
 					end
 				end
 			end
+		end
+
+		-- Check track-all indicators (empty spells list)
+		for _, idx in next, hasTrackAll do
+			local ind = indicators[idx]
+			if(passesCastByFilter(sourceUnit, ind._castBy)) then
+				if(not annotated) then
+					auraData.unit      = unit
+					auraData.stacks    = auraData.applications
+					auraData.dispelType = auraData.dispelName
+					annotated = true
+				end
+				if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
+					local list = iconsAurasPool[idx]
+					list[#list + 1] = auraData
+				elseif(not matchedPool[idx]) then
+					matchedPool[idx] = auraData
+				end
+			end
+		end
+	end
+
+	local classified = auraState and auraState:GetHelpfulClassified()
+
+	if(classified) then
+		-- Classified path returns ALL helpful auras. When computeBuffFilter
+		-- resolved to HELPFUL|RAID_IN_COMBAT (no spell list among indicators),
+		-- gate each entry on flags.isRaidInCombat client-side so cosmetic /
+		-- consumable / world buffs stay filtered out — matching what the
+		-- server-side filter would have done.
+		local narrowFilter = filter == 'HELPFUL|RAID_IN_COMBAT'
+
+		for _, entry in next, classified do
+			if(not narrowFilter or entry.flags.isRaidInCombat) then
+				matchAura(entry.aura)
+			end
+		end
+	else
+		-- Vestigial no-AuraState fallback. Every aura-tracking frame creates
+		-- AuraState via the idempotent Setup guard — preserved to match the
+		-- element-level pattern used across Auras/.
+		for _, auraData in next, F.AuraCache.GetUnitAuras(unit, filter) do
+			matchAura(auraData)
 		end
 	end
 
