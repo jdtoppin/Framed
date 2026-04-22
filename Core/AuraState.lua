@@ -66,6 +66,16 @@ local function acquireClassified(pool, unit, aura, isHelpful)
 	return entry
 end
 
+-- Return a classified entry to the pool. Nils the aura reference so
+-- the underlying AuraData can be GC'd even while the wrapper sits in
+-- the free list; flags contents are left stale until the next acquire
+-- wipes them (lazy — avoids paying wipe cost on entries that never
+-- get reused before session end).
+local function releaseClassified(pool, entry)
+	entry.aura = nil
+	pool[#pool + 1] = entry
+end
+
 -- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
 -- are rejected by C_UnitAuras.GetAuraSlots. Pinned target-chain slots can
 -- produce these tokens — skip aura queries for them rather than erroring.
@@ -134,19 +144,33 @@ function AuraState:MarkHarmfulDirty()
 end
 
 function AuraState:ResetHelpfulClassified()
+	for _, entry in next, self._helpfulClassifiedById do
+		releaseClassified(self._classifiedFreeList, entry)
+	end
 	wipe(self._helpfulClassifiedById)
 end
 
 function AuraState:ResetHarmfulClassified()
+	for _, entry in next, self._harmfulClassifiedById do
+		releaseClassified(self._classifiedFreeList, entry)
+	end
 	wipe(self._harmfulClassifiedById)
 end
 
 function AuraState:InvalidateHelpfulClassified(auraInstanceID)
-	self._helpfulClassifiedById[auraInstanceID] = nil
+	local entry = self._helpfulClassifiedById[auraInstanceID]
+	if(entry) then
+		releaseClassified(self._classifiedFreeList, entry)
+		self._helpfulClassifiedById[auraInstanceID] = nil
+	end
 end
 
 function AuraState:InvalidateHarmfulClassified(auraInstanceID)
-	self._harmfulClassifiedById[auraInstanceID] = nil
+	local entry = self._harmfulClassifiedById[auraInstanceID]
+	if(entry) then
+		releaseClassified(self._classifiedFreeList, entry)
+		self._harmfulClassifiedById[auraInstanceID] = nil
+	end
 end
 
 function AuraState:MarkHelpfulClassifiedDirty()
