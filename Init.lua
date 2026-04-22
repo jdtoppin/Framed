@@ -38,10 +38,10 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		-- Start auto-switching (detects content type and activates preset)
 		F.AutoSwitch.Check()
 
-		-- Enable cast tracker for targeted spells
-		if(F.CastTracker) then
-			F.CastTracker:Enable()
-		end
+		-- Cast tracker is gated off alongside TargetedSpells
+		-- (see Units/StyleBuilder.lua TARGETED_SPELLS_ENABLED).
+		-- Re-enable here if the feature is restored.
+		-- if(F.CastTracker) then F.CastTracker:Enable() end
 
 		-- Minimap icon via LibDataBroker + LibDBIcon
 		local LDB = LibStub('LibDataBroker-1.1')
