@@ -39,6 +39,7 @@ local function RegisterAnchors(element, unit)
 			parent               = slot.frame,
 			showCountdownFrame   = true,
 			showCountdownNumbers = true,
+			isContainer          = false,
 			iconInfo             = {
 				iconWidth   = iconSize,
 				iconHeight  = iconSize,
