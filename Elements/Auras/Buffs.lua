@@ -167,7 +167,6 @@ local function Update(self, event, unit, updateInfo)
 		if(not F.IsValueNonSecret(spellId)) then return end
 
 		local sourceUnit = auraData.sourceUnit
-		local annotated = false
 
 		-- Check spell-specific indicators
 		local indicatorIndices = spellLookup[spellId]
@@ -175,14 +174,6 @@ local function Update(self, event, unit, updateInfo)
 			for _, idx in next, indicatorIndices do
 				local ind = indicators[idx]
 				if(passesCastByFilter(sourceUnit, ind._castBy)) then
-					-- Annotate auraData with renderer-expected field names
-					-- (non-conflicting keys: auraData has no .stacks/.dispelType/.unit)
-					if(not annotated) then
-						auraData.unit      = unit
-						auraData.stacks    = auraData.applications
-						auraData.dispelType = auraData.dispelName
-						annotated = true
-					end
 					if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
 						local list = iconsAurasPool[idx]
 						list[#list + 1] = auraData
@@ -197,12 +188,6 @@ local function Update(self, event, unit, updateInfo)
 		for _, idx in next, hasTrackAll do
 			local ind = indicators[idx]
 			if(passesCastByFilter(sourceUnit, ind._castBy)) then
-				if(not annotated) then
-					auraData.unit      = unit
-					auraData.stacks    = auraData.applications
-					auraData.dispelType = auraData.dispelName
-					annotated = true
-				end
 				if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
 					local list = iconsAurasPool[idx]
 					list[#list + 1] = auraData
