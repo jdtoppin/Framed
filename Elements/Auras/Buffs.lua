@@ -261,14 +261,13 @@ local function Update(self, event, unit, updateInfo)
 			local aura = matchedPool[idx]
 			if(aura) then
 				renderer:SetSpell(
-					aura.unit,
+					unit,
 					aura.auraInstanceID,
 					aura.spellId,
 					aura.icon,
 					aura.duration,
 					aura.expirationTime,
-					aura.stacks,
-					aura.dispelType
+					aura.applications
 				)
 			else
 				renderer:Clear()
