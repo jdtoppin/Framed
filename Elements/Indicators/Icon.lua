@@ -26,8 +26,7 @@ local IconMethods = {}
 --- @param duration number Duration in seconds (may be a secret value)
 --- @param expirationTime number Expiration GetTime() value (may be a secret value)
 --- @param stacks number Stack count
---- @param dispelType string|nil Dispel/debuff type ('Magic', 'Curse', etc.)
-function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks, dispelType)
+function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks)
 	-- Texture
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE) then
 		-- Per-spell color first, then base indicator color

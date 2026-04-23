@@ -13,8 +13,9 @@ F.Indicators.Icons = {}
 local IconsMethods = {}
 
 --- Fill icons from the pool with aura data and lay them out.
---- @param auraList table Array of { spellID, icon, duration, expirationTime, stacks, dispelType }
-function IconsMethods:SetIcons(auraList)
+--- @param unit string Unit token passed through to Icon:SetSpell for GetAuraDuration lookup
+--- @param auraList table Array of { auraInstanceID, spellId, icon, duration, expirationTime, applications }
+function IconsMethods:SetIcons(unit, auraList)
 	local cfg = self._config
 	local container = self._frame
 	local count = math.min(#auraList, cfg.maxIcons)
@@ -71,14 +72,13 @@ function IconsMethods:SetIcons(auraList)
 		end
 
 		icon:SetSpell(
-			aura.unit,
+			unit,
 			aura.auraInstanceID,
 			aura.spellId,
 			aura.icon,
 			aura.duration,
 			aura.expirationTime,
-			aura.stacks,
-			aura.dispelType
+			aura.applications
 		)
 		icon:Show()
 
