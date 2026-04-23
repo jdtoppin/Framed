@@ -242,7 +242,7 @@ end
 function AuraState:FullRefresh(unit)
 	self._unit = unit
 	self._initialized = true
-	self._gen = F.AuraCache.GetGeneration(unit)
+	self._gen = F.AuraCache.GetIdentityGeneration(unit)
 	wipe(self._helpfulById)
 	wipe(self._harmfulById)
 	self:ResetHelpfulMatches()
@@ -275,10 +275,14 @@ function AuraState:FullRefresh(unit)
 end
 
 function AuraState:EnsureInitialized(unit)
-	-- Compare generation from AuraCache, not the token string — the token
-	-- (e.g. 'target') stays identical on retarget even when it now points
-	-- at a different entity. AuraCache bumps generation on reassignment.
-	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
+	-- Identity generation catches enumerated reassignment events (incl.
+	-- UNIT_PET) and encounter-boundary auraInstanceID re-randomization.
+	-- Can't use UnitGUID as a belt here — it returns secret-value strings
+	-- on pet/nameplate tokens during tainted execution, which would taint
+	-- the comparison. Per CLAUDE.md, no secret/non-secret path splits.
+	if(not self._initialized
+		or self._unit ~= unit
+		or self._gen  ~= F.AuraCache.GetIdentityGeneration(unit)) then
 		self:FullRefresh(unit)
 	end
 end
@@ -295,7 +299,12 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 		return
 	end
 
-	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
+	-- Identity-stale detection: same as EnsureInitialized. Without this,
+	-- a UNIT_AURA racing an un-dispatched reassignment would apply a delta
+	-- against _helpfulById keyed by auraInstanceIDs from a different entity.
+	if(not self._initialized
+		or self._unit ~= unit
+		or self._gen  ~= F.AuraCache.GetIdentityGeneration(unit)) then
 		self._lastUpdateInfo = updateInfo
 		self._lastUpdateUnit = unit
 		self:FullRefresh(unit)

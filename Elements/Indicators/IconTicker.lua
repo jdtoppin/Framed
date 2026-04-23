@@ -20,6 +20,8 @@ local activeCount = 0
 
 tickerFrame:Hide()  -- starts hidden; shown when first icon registers
 
+F.Indicators.IconTicker_Frame = tickerFrame
+
 tickerFrame:SetScript('OnUpdate', function(self, elapsed)
 	self._elapsed = (self._elapsed or 0) + elapsed
 	if(self._elapsed < TICKER_INTERVAL) then return end

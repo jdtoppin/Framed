@@ -1,0 +1,29 @@
+#!/bin/sh
+# Framed pre-commit hook — runs luacheck on staged Lua files.
+#
+# Install via: tools/install-hooks.sh
+# Source of truth lives at tools/hooks/pre-commit; .git/hooks/pre-commit
+# is a symlink to it so edits here take effect immediately.
+
+set -eu
+
+repo_root=$(git rev-parse --show-toplevel)
+cd "$repo_root"
+
+# Newline-delimited: POSIX command substitution strips NULs from `-z`
+# output, which would collapse filenames into one. Filenames in this
+# repo don't contain newlines, so newline-delimiting is safe.
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.lua' ':!Libs/**')
+
+if [ -z "$staged" ]; then
+	exit 0
+fi
+
+if ! command -v luacheck >/dev/null 2>&1; then
+	echo "pre-commit: luacheck not found — skipping lint check."
+	echo "pre-commit: install via 'brew install luacheck' or 'luarocks install luacheck'."
+	exit 0
+fi
+
+# tr newline→NUL keeps xargs -0 portable across GNU and BSD (BSD has no -d).
+printf '%s' "$staged" | tr '\n' '\0' | xargs -0 luacheck --config .luacheckrc
