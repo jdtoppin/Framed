@@ -25,16 +25,18 @@ local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFiltered
 -- Acquire a classified entry from the per-instance pool (or allocate
 -- fresh if the pool is empty) and fill its flag fields for `aura`.
 --
+-- Split into polarity-specific variants (#173): each branch probes
+-- only the filter flags that semantically apply to its polarity, and
+-- explicitly zeroes the inapplicable ones so `entry.flags` has a
+-- uniform shape regardless of helpful/harmful origin.
+--
 -- Tier 1 flags are structural AuraData booleans. Per Blizzard's 12.0.x
 -- changes, isHelpful / isHarmful / isRaid / isNameplateOnly /
 -- isFromPlayerOrPlayerPet are non-secret. isBossAura remains secret on
 -- encounter auras and must be guarded with F.IsValueNonSecret to avoid
 -- tainted boolean tests.
 -- Tier 2 flags use C_UnitAuras filter probes (secret-safe C API).
-local function acquireClassified(pool, unit, aura, isHelpful)
-	local id = aura.auraInstanceID
-	local prefix = isHelpful and 'HELPFUL' or 'HARMFUL'
-
+local function acquireStructural(pool, aura)
 	local entry = pool[#pool]
 	if(entry) then
 		pool[#pool] = nil
@@ -52,16 +54,36 @@ local function acquireClassified(pool, unit, aura, isHelpful)
 	flags.isBossAura        = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false
 	flags.isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false
 
-	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|EXTERNAL_DEFENSIVE') == false
-	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|IMPORTANT')          == false
-	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|PLAYER')             == false
-	flags.isBigDefensive      = isHelpful
-	                            and IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|BIG_DEFENSIVE') == false
-	                            or false
-	flags.isRaidDispellable   = not isHelpful
-	                            and IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|RAID_PLAYER_DISPELLABLE') == false
-	                            or false
-	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|RAID_IN_COMBAT') == false
+	return entry, flags, aura.auraInstanceID
+end
+
+-- EXTERNAL_DEFENSIVE and BIG_DEFENSIVE are curated helpful-only filters
+-- (ExternalDefensivesFrame.lua pairs EXTERNAL_DEFENSIVE with HELPFUL;
+-- BIG_DEFENSIVE is a spell whitelist of defensive cooldowns, all buffs).
+local function acquireHelpful(pool, unit, aura)
+	local entry, flags, id = acquireStructural(pool, aura)
+
+	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|EXTERNAL_DEFENSIVE') == false
+	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|IMPORTANT')          == false
+	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|PLAYER')             == false
+	flags.isBigDefensive      = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|BIG_DEFENSIVE')      == false
+	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|RAID_IN_COMBAT')     == false
+	flags.isRaidDispellable   = false
+
+	return entry
+end
+
+-- RAID_PLAYER_DISPELLABLE is harmful-only (Blizzard: "Auras with a dispel
+-- type the player can dispel" — dispelling applies to debuffs).
+local function acquireHarmful(pool, unit, aura)
+	local entry, flags, id = acquireStructural(pool, aura)
+
+	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|IMPORTANT')               == false
+	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|PLAYER')                  == false
+	flags.isRaidDispellable   = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|RAID_PLAYER_DISPELLABLE') == false
+	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|RAID_IN_COMBAT')          == false
+	flags.isExternalDefensive = false
+	flags.isBigDefensive      = false
 
 	return entry
 end
@@ -466,7 +488,7 @@ function AuraState:GetHelpfulClassified()
 	for id, aura in next, self._helpfulById do
 		local entry = self._helpfulClassifiedById[id]
 		if(not entry) then
-			entry = acquireClassified(self._classifiedFreeList, self._unit, aura, true)
+			entry = acquireHelpful(self._classifiedFreeList, self._unit, aura)
 			self._helpfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
@@ -487,7 +509,7 @@ function AuraState:GetHarmfulClassified()
 	for id, aura in next, self._harmfulById do
 		local entry = self._harmfulClassifiedById[id]
 		if(not entry) then
-			entry = acquireClassified(self._classifiedFreeList, self._unit, aura, false)
+			entry = acquireHarmful(self._classifiedFreeList, self._unit, aura)
 			self._harmfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
@@ -504,7 +526,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	local aura = self._helpfulById[auraInstanceID]
 	if(aura) then
-		entry = acquireClassified(self._classifiedFreeList, self._unit, aura, true)
+		entry = acquireHelpful(self._classifiedFreeList, self._unit, aura)
 		self._helpfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
@@ -516,7 +538,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	aura = self._harmfulById[auraInstanceID]
 	if(aura) then
-		entry = acquireClassified(self._classifiedFreeList, self._unit, aura, false)
+		entry = acquireHarmful(self._classifiedFreeList, self._unit, aura)
 		self._harmfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
