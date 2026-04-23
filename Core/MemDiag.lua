@@ -40,6 +40,38 @@ local function instrument(key, fn)
 	end
 end
 
+--- In-situ probe API for element modules that want per-expression
+--- attribution inside their own hot-path functions. Enter() returns a
+--- token (or nil when MemDiag is inactive); Leave() uses that token to
+--- record the bytes-allocated delta against `key`. Both are no-ops when
+--- the window is closed, so probes compiled into element code impose
+--- only a per-call branch + function-call cost in normal operation.
+function F.MemDiag.Enter()
+	if(not F.MemDiag._active) then return nil end
+	return collectgarbage('count')
+end
+
+function F.MemDiag.Leave(key, before)
+	if(not before) then return end
+	if(not F.MemDiag._active) then return end
+	local c = ensureCounter(key)
+	c.calls = c.calls + 1
+	c.kb    = c.kb + (collectgarbage('count') - before)
+end
+
+-- Element containers that expose an indicator list on an oUF frame.
+-- Walked by patchIndicatorMethods so renderer SetIcons/SetSpell calls
+-- get attributed per-frame. PrivateAuras is included speculatively —
+-- the walk no-ops on frames that don't carry the element.
+local ELEMENT_NAMES = {
+	'FramedBuffs',
+	'FramedDebuffs',
+	'FramedExternals',
+	'FramedDefensives',
+	'FramedMissingBuffs',
+	'FramedPrivateAuras',
+}
+
 local function patchAuraCache()
 	local orig = F.AuraCache.GetUnitAuras
 	F.MemDiag._originals.GetUnitAuras = orig
@@ -212,6 +244,52 @@ local function patchStandaloneFrames()
 	hookUpdate(F.Status and F.Status.LossOfControl_Ticker, 'LossOfControl')
 end
 
+--- Wrap SetIcons on ICONS-type renderers and SetSpell on ICON-type
+--- renderers across every oUF frame's aura-element indicator list.
+--- Methods are copied per-instance by the factory (see Elements/Indicators/*.lua
+--- tail `for k, v in next, Methods do icon[k] = v end`), so we patch each
+--- instance individually and save originals keyed by renderer reference.
+--- Scope-limited to SetIcons + SetSpell for this measurement pass — expand
+--- if residual cost in other renderer methods warrants it.
+local function patchIndicatorMethods()
+	local oUF = F.oUF
+	if(not oUF or not oUF.objects) then return end
+	local C = F.Constants
+	if(not C or not C.IndicatorType) then return end
+
+	F.MemDiag._originals.indicatorMethods = {}
+
+	local function wrapMethod(renderer, name, label)
+		local orig = renderer[name]
+		if(not orig) then return end
+		local saved = F.MemDiag._originals.indicatorMethods[renderer]
+		if(not saved) then
+			saved = {}
+			F.MemDiag._originals.indicatorMethods[renderer] = saved
+		end
+		saved[name] = orig
+		renderer[name] = instrument(label, orig)
+	end
+
+	for _, obj in next, oUF.objects do
+		for _, elementName in next, ELEMENT_NAMES do
+			local element = obj[elementName]
+			if(element and element._indicators) then
+				for _, ind in next, element._indicators do
+					local renderer = ind._renderer
+					if(renderer) then
+						if(ind._type == C.IndicatorType.ICONS) then
+							wrapMethod(renderer, 'SetIcons', 'indicator:Icons:SetIcons')
+						elseif(ind._type == C.IndicatorType.ICON) then
+							wrapMethod(renderer, 'SetSpell', 'indicator:Icon:SetSpell')
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
 local function restore()
 	F.AuraCache.GetUnitAuras = F.MemDiag._originals.GetUnitAuras
 
@@ -239,6 +317,14 @@ local function restore()
 			r.frame:SetScript(r.script, r.orig)
 		end
 	end
+
+	if(F.MemDiag._originals.indicatorMethods) then
+		for renderer, methods in next, F.MemDiag._originals.indicatorMethods do
+			for name, orig in next, methods do
+				renderer[name] = orig
+			end
+		end
+	end
 end
 
 local function printReport(durationSec, totalStartKB, totalStopKB)
@@ -262,8 +348,11 @@ local function printReport(durationSec, totalStartKB, totalStopKB)
 	-- These are mutually exclusive paths so they sum cleanly.
 	-- AuraCache.GetUnitAuras can be called from any path but is negligible
 	-- post-migration.
+	-- indicator:* and element:* are in-situ probes nested inside event:*;
+	-- they attribute sub-paths within element Update handlers, so they are
+	-- tracked for informational totals but NOT added to topLevel.
 	local topLevel = 0
-	local byBucket = { event = 0, update = 0, standalone = 0, tickers = 0, aura = 0, memdiag = 0 }
+	local byBucket = { event = 0, update = 0, standalone = 0, tickers = 0, aura = 0, memdiag = 0, indicator = 0, element = 0 }
 	for key, c in next, F.MemDiag._counters do
 		if(key:sub(1, 6) == 'event:') then
 			topLevel = topLevel + c.kb
@@ -283,11 +372,17 @@ local function printReport(durationSec, totalStartKB, totalStopKB)
 		elseif(key:sub(1, 8) == 'memdiag:') then
 			topLevel = topLevel + c.kb
 			byBucket.memdiag = byBucket.memdiag + c.kb
+		elseif(key:sub(1, 10) == 'indicator:') then
+			byBucket.indicator = byBucket.indicator + c.kb
+		elseif(key:sub(1, 8) == 'element:') then
+			byBucket.element = byBucket.element + c.kb
 		end
 	end
 
 	print(('  --- bucket totals: event=%.1fKB  update=%.1fKB  standalone=%.1fKB  tickers=%.1fKB  auraCache=%.1fKB  memdiag=%.1fKB ---'):format(
 		byBucket.event, byBucket.update, byBucket.standalone, byBucket.tickers, byBucket.aura, byBucket.memdiag))
+	print(('  --- nested under event:* — indicator=%.1fKB  element=%.1fKB ---'):format(
+		byBucket.indicator, byBucket.element))
 
 	for _, r in next, rows do
 		local perCall = r.calls > 0 and (r.kb * 1024 / r.calls) or 0
@@ -336,6 +431,7 @@ function F.MemDiag.Start(seconds)
 	patchOUFEvents()
 	patchOnUpdates()
 	patchStandaloneFrames()
+	patchIndicatorMethods()
 
 	-- Periodic re-walk: catches OnUpdate scripts attached mid-window
 	-- (Bar depleting, Color/Overlay/BorderGlow animations) that were not

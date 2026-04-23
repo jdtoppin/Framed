@@ -124,7 +124,9 @@ end
 --- function stays at module scope — no nested-closure allocation per event.
 local function matchAura(auraData)
 	local spellId = auraData.spellId
-	if(not F.IsValueNonSecret(spellId)) then return end
+	if(not F.IsValueNonSecret(spellId)) then
+		return
+	end
 
 	local indicators  = matchCtx.indicators
 	local spellLookup = matchCtx.spellLookup
