@@ -123,8 +123,12 @@ end
 --- Reads per-call state from `matchCtx` (populated by Update) so this
 --- function stays at module scope — no nested-closure allocation per event.
 local function matchAura(auraData)
+	local mdBefore = F.MemDiag.Enter()
 	local spellId = auraData.spellId
-	if(not F.IsValueNonSecret(spellId)) then return end
+	if(not F.IsValueNonSecret(spellId)) then
+		F.MemDiag.Leave('element:Buffs.matchAura', mdBefore)
+		return
+	end
 
 	local indicators  = matchCtx.indicators
 	local spellLookup = matchCtx.spellLookup
@@ -139,7 +143,9 @@ local function matchAura(auraData)
 			if(passesCastByFilter(sourceUnit, ind._castBy)) then
 				if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
 					local list = iconsAurasPool[idx]
+					local apBefore = F.MemDiag.Enter()
 					list[#list + 1] = auraData
+					F.MemDiag.Leave('element:Buffs.matchAura.append', apBefore)
 				elseif(not matchedPool[idx]) then
 					matchedPool[idx] = auraData
 				end
@@ -153,12 +159,16 @@ local function matchAura(auraData)
 		if(passesCastByFilter(sourceUnit, ind._castBy)) then
 			if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
 				local list = iconsAurasPool[idx]
+				local apBefore = F.MemDiag.Enter()
 				list[#list + 1] = auraData
+				F.MemDiag.Leave('element:Buffs.matchAura.append', apBefore)
 			elseif(not matchedPool[idx]) then
 				matchedPool[idx] = auraData
 			end
 		end
 	end
+
+	F.MemDiag.Leave('element:Buffs.matchAura', mdBefore)
 end
 
 -- ============================================================
