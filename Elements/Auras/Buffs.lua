@@ -250,7 +250,7 @@ local function Update(self, event, unit, updateInfo)
 					sortPriority = ind._spellPriority
 					table.sort(list, prioritySort)
 				end
-				renderer:SetIcons(list)
+				renderer:SetIcons(unit, list)
 				renderer:Show()
 			else
 				renderer:Clear()
