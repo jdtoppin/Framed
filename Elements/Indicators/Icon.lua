@@ -114,19 +114,28 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 				end
 				self._cdText = cdText
 
-				-- Apply initial color so first frame isn't white
+				-- Initial paint — skip repeat renders of the same aura.
+				-- IconTicker owns ongoing color updates; this block only
+				-- bootstraps so new auras don't show white cdText before the
+				-- first ticker tick. On a refresh of the same aura (same ID,
+				-- new duration), color may lag up to one ticker interval.
 				local mdEval = F.MemDiag.Enter()
-				if(self._colorCurve and durationObj) then
-					local color = durationObj:EvaluateRemainingPercent(self._colorCurve)
-					cdText:SetTextColor(color:GetRGBA())
-				end
+				if(auraInstanceID == nil or self._lastPaintedAuraID ~= auraInstanceID) then
+					self._lastPaintedAuraID = auraInstanceID
 
-				-- Apply initial threshold so first frame doesn't flash
-				if(self._thresholdCurve and durationObj) then
-					local vis = durationObj:EvaluateRemainingPercent(self._thresholdCurve)
-					local _, _, _, a = vis:GetRGBA()
-					if(F.IsValueNonSecret(a)) then
-						self._cooldown:SetHideCountdownNumbers(a <= 0.5)
+					-- Apply initial color so first frame isn't white
+					if(self._colorCurve and durationObj) then
+						local color = durationObj:EvaluateRemainingPercent(self._colorCurve)
+						cdText:SetTextColor(color:GetRGBA())
+					end
+
+					-- Apply initial threshold so first frame doesn't flash
+					if(self._thresholdCurve and durationObj) then
+						local vis = durationObj:EvaluateRemainingPercent(self._thresholdCurve)
+						local _, _, _, a = vis:GetRGBA()
+						if(F.IsValueNonSecret(a)) then
+							self._cooldown:SetHideCountdownNumbers(a <= 0.5)
+						end
 					end
 				end
 				F.MemDiag.Leave('element:Icon.SetSpell.evaluate', mdEval)
@@ -202,6 +211,7 @@ function IconMethods:Clear()
 	end
 	self:StopGlow()
 	self._durationObj = nil
+	self._lastPaintedAuraID = nil
 	F.Indicators.IconTicker_Unregister(self)
 	self._frame:Hide()
 end
