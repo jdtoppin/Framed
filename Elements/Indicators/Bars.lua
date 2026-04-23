@@ -36,8 +36,8 @@ function BarsMethods:SetBars(auraList)
 		else
 			bar:SetValue(1, 1)
 		end
-		if(aura.stacks) then
-			bar:SetStacks(aura.stacks)
+		if(aura.applications) then
+			bar:SetStacks(aura.applications)
 		end
 		bar:Show()
 		-- Apply per-bar glow if active

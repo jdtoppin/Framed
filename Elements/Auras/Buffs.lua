@@ -291,7 +291,7 @@ local function Update(self, event, unit, updateInfo)
 				else
 					renderer:SetValue(1, 1)
 				end
-				if(aura.stacks) then renderer:SetStacks(aura.stacks) end
+				if(aura.applications) then renderer:SetStacks(aura.applications) end
 				-- Glow
 				if(ind._glowType and ind._glowType ~= 'None') then
 					renderer:StartGlow(ind._glowColor, ind._glowType, ind._glowConfig)
@@ -354,7 +354,7 @@ local function Update(self, event, unit, updateInfo)
 				else
 					renderer:SetValue(1, 1)
 				end
-				if(aura.stacks) then renderer:SetStacks(aura.stacks) end
+				if(aura.applications) then renderer:SetStacks(aura.applications) end
 			else
 				renderer:Clear()
 			end
