@@ -45,6 +45,7 @@ local eventFrame = CreateFrame('Frame')
 -- Exposed for diagnostics (Core/MemDiag.lua hooks OnEvent here).
 F.AuraCache._eventFrame = eventFrame
 eventFrame:RegisterEvent('UNIT_AURA')
+eventFrame:RegisterEvent('UNIT_PET')
 eventFrame:RegisterEvent('PLAYER_TARGET_CHANGED')
 eventFrame:RegisterEvent('PLAYER_FOCUS_CHANGED')
 eventFrame:RegisterEvent('UNIT_TARGET')
@@ -61,6 +62,24 @@ eventFrame:SetScript('OnEvent', function(_, event, arg1)
 		-- Content-only: auras changed on the same entity. No identity bump —
 		-- AuraState should take its delta path, not FullRefresh.
 		bump(arg1)
+	elseif(event == 'UNIT_PET') then
+		-- arg1 = owner unit; derive the corresponding pet token. UnitGUID
+		-- returns secret strings for pet tokens in combat, so we can't use
+		-- a GUID snapshot as a fallback — this event is the sole signal
+		-- that a pet token now points at a different entity.
+		local petUnit
+		if(arg1 == 'player') then
+			petUnit = 'pet'
+		elseif(arg1) then
+			local prefix, n = arg1:match('^(%a+)(%d+)$')
+			if(prefix == 'party' or prefix == 'raid' or prefix == 'arena') then
+				petUnit = prefix .. 'pet' .. n
+			end
+		end
+		if(petUnit) then
+			bump(petUnit)
+			bumpIdentity(petUnit)
+		end
 	elseif(event == 'PLAYER_TARGET_CHANGED') then
 		bump('target')
 		bump('targettarget')
