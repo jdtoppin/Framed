@@ -829,39 +829,15 @@ Or via `gh pr view <number> --web`.
 
 Share the PR URL. User reviews → merges `working-testing` → `working` → promotes to `main` on release cadence.
 
-- [ ] **Step 5: File the cf7fabb GitHub issue (if not already filed)**
+- [ ] **Step 5: Verify #167 is linked in the PR body**
 
-The spec's `**Issue:** TBD` front-matter entry should now point at a real issue. Create one if none exists:
-
-```bash
-gh issue create --title "Memory regression in idle party/raid introduced by cf7fabb" --body "$(cat <<'EOF'
-## Summary
-
-cf7fabb (`refactor(buffs): derive aura filter from indicator set, drop buffFilterMode`) introduced a measurable idle memory growth rate in party/raid when any buff indicator has a non-empty `spells` list.
-
-## Mechanism
-
-`computeBuffFilter` widens the helpful-aura query from `HELPFUL|RAID_IN_COMBAT` to plain `HELPFUL` whenever any enabled indicator tracks specific spells. With the wider filter, Blizzard's server-side stripping of Fort / Int / cosmetic / consumable / world buffs no longer applies, and those auras flow through Framed's `matchAura` every `UNIT_AURA` tick. Inside `matchAura`, each matched aura was mutated with three Framed-owned keys — suspected retention mechanism.
-
-## Fix
-
-PR #<this-pr>: stop mutating AuraData tables in `matchAura`. Readers migrated to `aura.applications` and the existing `unit` closure local. If idle growth persists after this lands, the follow-up is to restore `buffFilterMode` as explicit user config (Option A).
-
-## Bisect
-
-- Regression first reproduces on cf7fabb (HEAD-solo vs cf7fabb-solo measured identical, so the widened filter is the sole differential).
-- User's SavedVariables had 5 custom indicators with `spells = { 774 }` (Rejuvenation) triggering the widened filter on party frames.
-EOF
-)"
-```
-
-Then edit the spec's header to replace `**Issue:** TBD` with the real issue number, and commit that in a small follow-up:
+The cf7fabb regression issue was filed ahead of plan execution as #167, and the spec's header already points at it. Confirm the PR body mentions `Fixes #167` or `Closes #167` so merging the PR auto-closes the issue. If not, edit the PR:
 
 ```bash
-git add docs/superpowers/specs/2026-04-22-buffs-annotation-cleanup-design.md
-git commit -m "Link cf7fabb regression issue in Buffs annotation cleanup spec"
-git push origin working-testing
+gh pr edit <pr-number> --body "$(gh pr view <pr-number> --json body --jq .body)"$'\n\nFixes #167'
 ```
+
+No issue-filing step required here — it already exists.
 
 ---
 

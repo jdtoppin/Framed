@@ -1,6 +1,6 @@
 # Buffs AuraData Mutation Elimination Design
 
-**Issue:** TBD (to be filed for the cf7fabb memory-regression in idle party/raid)
+**Issue:** #167 (cf7fabb memory-regression in idle party/raid)
 **Related:** #113 (the "show in both panels when sourceUnit is secret" fix — orthogonal, preserved as-is)
 **Date:** 2026-04-22
 
