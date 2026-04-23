@@ -242,7 +242,13 @@ end
 function AuraState:FullRefresh(unit)
 	self._unit = unit
 	self._initialized = true
-	self._gen = F.AuraCache.GetGeneration(unit)
+	self._gen = F.AuraCache.GetIdentityGeneration(unit)
+	-- GUID snapshot as second-line guardrail: catches identity changes
+	-- that bypass the enumerated reassignment events (UNIT_PET, vehicle
+	-- transitions, odd timing). UnitGUID returns nil for unloaded units,
+	-- which is a stable value — first real GUID post-load triggers one
+	-- legitimate FullRefresh. See #118.
+	self._guid = unit and UnitGUID(unit) or nil
 	wipe(self._helpfulById)
 	wipe(self._harmfulById)
 	self:ResetHelpfulMatches()
@@ -275,10 +281,14 @@ function AuraState:FullRefresh(unit)
 end
 
 function AuraState:EnsureInitialized(unit)
-	-- Compare generation from AuraCache, not the token string — the token
-	-- (e.g. 'target') stays identical on retarget even when it now points
-	-- at a different entity. AuraCache bumps generation on reassignment.
-	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
+	-- Identity generation catches enumerated reassignment events and
+	-- encounter-boundary auraInstanceID re-randomization. GUID snapshot
+	-- catches any identity change not covered by an enumerated event.
+	-- Together: belt-and-suspenders against stale auraInstanceID-keyed state.
+	if(not self._initialized
+		or self._unit ~= unit
+		or self._gen  ~= F.AuraCache.GetIdentityGeneration(unit)
+		or self._guid ~= UnitGUID(unit)) then
 		self:FullRefresh(unit)
 	end
 end
@@ -295,7 +305,13 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 		return
 	end
 
-	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
+	-- Identity-stale detection: same as EnsureInitialized. Without this,
+	-- a UNIT_AURA racing an un-dispatched reassignment would apply a delta
+	-- against _helpfulById keyed by auraInstanceIDs from a different entity.
+	if(not self._initialized
+		or self._unit ~= unit
+		or self._gen  ~= F.AuraCache.GetIdentityGeneration(unit)
+		or self._guid ~= UnitGUID(unit)) then
 		self._lastUpdateInfo = updateInfo
 		self._lastUpdateUnit = unit
 		self:FullRefresh(unit)
@@ -524,6 +540,7 @@ function F.AuraState.Create(owner)
 		_unit = nil,
 		_initialized = false,
 		_gen = 0,
+		_guid = nil,
 		_lastUpdateInfo = nil,
 		_lastUpdateUnit = nil,
 		_helpfulById = {},
