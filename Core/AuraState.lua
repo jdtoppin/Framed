@@ -76,6 +76,22 @@ local function releaseClassified(pool, entry)
 	pool[#pool + 1] = entry
 end
 
+-- Pack GetAuraSlots varargs into `tbl` without allocating a fresh pack table.
+-- Returns the count, which callers MUST use as the iteration bound (not #tbl).
+-- Position 1 holds the continuation token; real slot IDs start at index 2.
+-- The tail loop nils any residual entries from a prior call where the aura
+-- count was higher, keeping `tbl` a proper sequence across reuses.
+local function fillSlots(tbl, ...)
+	local n = select('#', ...)
+	for i = 1, n do
+		tbl[i] = select(i, ...)
+	end
+	for i = n + 1, #tbl do
+		tbl[i] = nil
+	end
+	return n
+end
+
 -- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
 -- are rejected by C_UnitAuras.GetAuraSlots. Pinned target-chain slots can
 -- produce these tokens — skip aura queries for them rather than erroring.
@@ -241,17 +257,17 @@ function AuraState:FullRefresh(unit)
 	if(not unit or not GetAuraSlots or not GetAuraDataBySlot) then return end
 	if(isCompoundUnit(unit)) then return end
 
-	local helpfulResults = { GetAuraSlots(unit, 'HELPFUL') }
-	for i = 2, #helpfulResults do
-		local aura = GetAuraDataBySlot(unit, helpfulResults[i])
+	local nHelpful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HELPFUL'))
+	for i = 2, nHelpful do
+		local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
 		if(aura and aura.auraInstanceID) then
 			self._helpfulById[aura.auraInstanceID] = aura
 		end
 	end
 
-	local harmfulResults = { GetAuraSlots(unit, 'HARMFUL') }
-	for i = 2, #harmfulResults do
-		local aura = GetAuraDataBySlot(unit, harmfulResults[i])
+	local nHarmful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HARMFUL'))
+	for i = 2, nHarmful do
+		local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
 		if(aura and aura.auraInstanceID) then
 			self._harmfulById[aura.auraInstanceID] = aura
 		end
@@ -521,6 +537,7 @@ function F.AuraState.Create(owner)
 		_harmfulClassifiedById = {},
 		_harmfulClassifiedView = { dirty = true, list = {} },
 		_classifiedFreeList = {},
+		_slotsScratch = {},
 	}, AuraState)
 	F.AuraState._instances[inst] = true
 	return inst
