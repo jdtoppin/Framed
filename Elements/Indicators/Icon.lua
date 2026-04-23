@@ -27,6 +27,7 @@ local IconMethods = {}
 --- @param expirationTime number Expiration GetTime() value (may be a secret value)
 --- @param stacks number Stack count
 function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks)
+	local mdBefore = F.MemDiag.Enter()
 	-- Texture
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE) then
 		-- Per-spell color first, then base indicator color
@@ -60,6 +61,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 	end
 
 	-- Get DurationObject
+	local mdDur = F.MemDiag.Enter()
 	local durationObj
 	if(unit and auraInstanceID) then
 		durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
@@ -67,6 +69,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 		durationObj = self._manualDurObj
 	end
 	self._durationObj = durationObj
+	F.MemDiag.Leave('element:Icon.SetSpell.getDuration', mdDur)
 
 	-- Depletion bar
 	if(self._depletionBar) then
@@ -81,6 +84,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 
 	-- Duration countdown via Cooldown frame
 	if(self._cooldown) then
+		local mdCD = F.MemDiag.Enter()
 		if(durationObj and not durationObj:IsZero()) then
 			self._cooldown:SetCooldownFromDurationObject(durationObj)
 
@@ -111,6 +115,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 				self._cdText = cdText
 
 				-- Apply initial color so first frame isn't white
+				local mdEval = F.MemDiag.Enter()
 				if(self._colorCurve and durationObj) then
 					local color = durationObj:EvaluateRemainingPercent(self._colorCurve)
 					cdText:SetTextColor(color:GetRGBA())
@@ -124,6 +129,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 						self._cooldown:SetHideCountdownNumbers(a <= 0.5)
 					end
 				end
+				F.MemDiag.Leave('element:Icon.SetSpell.evaluate', mdEval)
 			end
 
 			-- Register with shared ticker if color/threshold curves exist
@@ -134,6 +140,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 			self._cooldown:Clear()
 			F.Indicators.IconTicker_Unregister(self)
 		end
+		F.MemDiag.Leave('element:Icon.SetSpell.cooldown', mdCD)
 	end
 
 	-- Glow (auto-start when glowType is configured and not 'None')
@@ -142,6 +149,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 	end
 
 	self._frame:Show()
+	F.MemDiag.Leave('element:Icon.SetSpell', mdBefore)
 end
 
 --- Switch between SpellIcon and ColoredSquare display modes.
