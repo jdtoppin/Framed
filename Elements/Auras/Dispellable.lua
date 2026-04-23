@@ -127,12 +127,11 @@ local function ensureOverlayPositioned(element)
 
 	local gradHalf = element._overlayGradientHalf
 	if(gradHalf) then
-		gradHalf:SetPoint('BOTTOMLEFT', 1, 1)
+		-- Anchor top edge to overlayFrame's vertical midpoint (LEFT = left
+		-- edge, middle height). Height tracks the parent automatically, so
+		-- later wrapper resizes can't leave a stale baked height behind.
+		gradHalf:SetPoint('TOPLEFT', element._overlayFrame, 'LEFT', 1, 0)
 		gradHalf:SetPoint('BOTTOMRIGHT', -1, 1)
-		local parent = gradHalf:GetParent()
-		if(parent) then
-			gradHalf:SetHeight((parent:GetHeight() or 20) * 0.5)
-		end
 	end
 
 	local solidCur = element._overlaySolidCurrent
