@@ -21,8 +21,16 @@ auraData.dispelType = auraData.dispelName
 Those annotations surface as:
 
 - `aura.unit` — forwarded to `C_UnitAuras.GetAuraDuration(unit, auraInstanceID)` inside `Icon:SetSpell`.
-- `aura.stacks` — forwarded to `Icon:SetStacks` (in the ICON / ICONS dispatches) and to `Bar:SetStacks` (BAR / BARS).
+- `aura.stacks` — forwarded to `Icon:SetStacks` (in the ICON / ICONS dispatches), to `Bar:SetStacks` (BAR / BARS / RECTANGLE dispatches), and directly read inside `Bars:SetBars` and `Icons:SetIcons`.
 - `aura.dispelType` — declared in `Icon:SetSpell`'s signature and documented, but **never read** inside its 408-line body. Dead parameter.
+
+Complete production-code reader inventory (confirmed via `rg 'aura\.(stacks|unit|dispelType)'`):
+
+- `Elements/Indicators/Bars.lua:39-40` — internal read inside `Bars:SetBars` loop
+- `Elements/Indicators/Icons.lua:74, 80, 81` — internal reads inside `Icons:SetIcons` loop
+- `Elements/Auras/Buffs.lua:264, 270, 271` — ICON dispatch (args 1, 7, 8 to `Icon:SetSpell`)
+- `Elements/Auras/Buffs.lua:295` — BAR dispatch (direct `Bar:SetStacks` call)
+- `Elements/Auras/Buffs.lua:358` — RECTANGLE dispatch (direct `Rectangle:SetStacks` call)
 
 The annotation pattern is Buffs-specific. `Debuffs.lua`, `Externals.lua`, `Defensives.lua`, and `Dispellable.lua` already read `auraData.applications` / `auraData.dispelName` directly and never mutate.
 
@@ -50,10 +58,11 @@ Buffs:Update
   matchAura(auraData)  -- mutates auraData.unit/.stacks/.dispelType
     → appends to iconsAurasPool[idx] or matchedPool[idx]
   dispatch to renderers:
-    ICONS  → Icons:SetIcons(list)          → reads aura.unit, aura.stacks, aura.dispelType
-    ICON   → Icon:SetSpell(unit, ..., stacks, dispelType)  -- dispelType param is dead
-    BAR    → Bar:SetStacks(aura.stacks)
-    BARS   → Bar:SetStacks(aura.stacks)    (per-bar inside Bars:SetBars loop)
+    ICONS      → Icons:SetIcons(list)               → internal loop reads aura.unit, aura.stacks, aura.dispelType
+    ICON       → Icon:SetSpell(unit, ..., stacks, dispelType)  -- dispelType param is dead
+    BAR        → Bar:SetStacks(aura.stacks)         (direct read in Buffs.lua:295)
+    BARS       → Bars:SetBars(list)                 → internal loop reads aura.stacks (Bars.lua:39-40)
+    RECTANGLE  → Rectangle:SetStacks(aura.stacks)   (direct read in Buffs.lua:358)
 ```
 
 ### Field equivalence
@@ -117,7 +126,7 @@ renderer:SetIcons(list)
 renderer:SetIcons(unit, list)
 ```
 
-**Update BAR dispatch (line 295):**
+**Update BAR dispatch (Buffs.lua:295):**
 
 ```lua
 -- before
@@ -127,7 +136,9 @@ if(aura.stacks) then renderer:SetStacks(aura.stacks) end
 if(aura.applications) then renderer:SetStacks(aura.applications) end
 ```
 
-**Update BARS dispatch (line 358):** same substitution as BAR.
+**Update RECTANGLE dispatch (Buffs.lua:358):** identical substitution to BAR — `aura.stacks` → `aura.applications`. Uses the same `Rectangle:SetStacks` pattern.
+
+**BARS dispatch (Buffs.lua:313):** no change to Buffs.lua — it already passes `list` to `Bars:SetBars`. The `.stacks` → `.applications` substitution happens inside `Bars.lua` (see §3 below).
 
 ### 2. `Elements/Indicators/Icons.lua`
 
