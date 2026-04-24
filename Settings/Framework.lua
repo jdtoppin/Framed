@@ -664,16 +664,44 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 	if(not Settings._mainFrame) then return end
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
-	-- Redirect away from preset-specific panels that don't exist under the
-	-- new preset (pinned is absent in Solo). Must run even while settings
-	-- is hidden so that Toggle()'s pre-FadeIn sync doesn't leave a stale
-	-- pinned panel active when the user reopens under Solo.
-	if(activeId == 'pinned') then
-		local preset = Settings.GetEditingPreset()
+
+	-- Redirect away from frame-type panels that don't exist under the new
+	-- preset. Must run even while settings is hidden so that Toggle()'s
+	-- pre-FadeIn sync doesn't leave a stale invalid-panel active when the
+	-- user reopens under a narrower preset.
+	--
+	-- Frame-type panels with preset-dependent validity:
+	--   party   — present only when preset has a groupKey (Party/Raid/Arena/…)
+	--   pinned  — present only when preset has a unitConfigs.pinned block
+	-- Other frame panels (player/target/targettarget/focus/pet/boss) exist
+	-- in every preset and don't need a redirect.
+	--
+	-- Without this, switching from Party → Solo while on the Party Frames
+	-- panel leaves the active panel as `party`, and the subsequent rebuild
+	-- crashes reading `unitConfigs.party.health.*` which doesn't exist in
+	-- Solo. Also leaves a stale summary card visible because the rebuild
+	-- fails before the new content is anchored.
+	local preset = Settings.GetEditingPreset()
+	local presetInfo = preset and C.PresetInfo[preset]
+	if(activeId == 'party') then
+		if(not presetInfo or not presetInfo.groupKey) then
+			activeId = 'player'
+		end
+	elseif(activeId == 'pinned') then
 		if(not preset or not F.Config:Get('presets.' .. preset .. '.unitConfigs.pinned')) then
 			activeId = 'player'
 		end
 	end
+
+	if(activeId ~= Settings._activePanelId) then
+		-- Redirect happened: fully clear the stale active frame so the
+		-- slide-in animation starts from a clean slate rather than the
+		-- partially-rendered previous panel.
+		if(Settings._activePanelFrame) then
+			Settings._activePanelFrame:Hide()
+		end
+	end
+
 	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
 	else
