@@ -441,9 +441,8 @@ function F.Settings.Builders.BuildIndicatorSettings(parent, width, yOffset, name
 	importBtn:SetOnClick(function()
 		ShowImportPopup(function(selectedSpells)
 			if(not selectedSpells or #selectedSpells == 0) then return end
-			for _, spellID in next, selectedSpells do
-				spList:AddSpell(spellID)
-			end
+			-- Single batched add: one NotifyChanged + one Layout instead of N.
+			spList:AddSpells(selectedSpells)
 		end)
 	end)
 

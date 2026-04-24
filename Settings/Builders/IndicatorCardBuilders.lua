@@ -96,9 +96,8 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 
 	local function handleImport(selectedSpells)
 		if(not selectedSpells or #selectedSpells == 0) then return end
-		for _, spellID in next, selectedSpells do
-			spList:AddSpell(spellID)
-		end
+		-- Single batched add: one NotifyChanged + one Layout instead of N.
+		spList:AddSpells(selectedSpells)
 	end
 
 	local importDD = Widgets.CreateDropdown(btnRow, btnHalf)

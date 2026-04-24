@@ -19,6 +19,10 @@ local ARROW_GAP    = 2
 local PAD_H        = 6   -- horizontal padding inside each row
 local SWATCH_SIZE  = 12  -- per-spell color swatch
 local ID_WIDTH     = 48
+local VIEWPORT_BUFFER = 3  -- rows above/below the visible range to prerender
+                           -- so scrolling doesn't reveal blank rows
+local CHUNK_SIZE      = 15 -- rows populated synchronously in noScroll mode
+                           -- before yielding to the next frame via C_Timer
 
 -- Use a single arrow icon; flip via TexCoord for the other direction
 local ARROW_ICON = [[Interface\AddOns\Framed\Media\Icons\ArrowUp1]]
@@ -219,7 +223,135 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 	emptyLabel:SetText('No spells configured')
 	spellList._emptyLabel = emptyLabel
 
+	-- Populate a single row at index `i` for the spell at spells[i]. Extracted
+	-- from Layout's loop so chunked/deferred population in noScroll mode can
+	-- reuse it across frames. Captures upvalues: spellList, content.
+	local function populateRowAt(i, count, contentWidth)
+		local spellID = spellList._spells[i]
+		local row = AcquireRow(spellList._rowPool, content)
+		row:ClearAllPoints()
+		row:SetPoint('TOPLEFT',  content, 'TOPLEFT',  0, -(i - 1) * ROW_HEIGHT)
+		row:SetPoint('TOPRIGHT', content, 'TOPRIGHT', 0, -(i - 1) * ROW_HEIGHT)
+		row:SetHeight(ROW_HEIGHT)
+
+		-- Populate spell data
+		local name, icon = GetSpellData(spellID)
+		row._nameFS:SetText(name or ('Spell ' .. spellID))
+		row._idFS:SetText(tostring(spellID))
+		row._spellID = spellID
+
+		if(icon) then
+			row._icon:SetTexture(icon)
+			row._icon:Show()
+		else
+			row._icon:SetTexture([[Interface\Icons\INV_Misc_QuestionMark]])
+			row._icon:Show()
+		end
+
+		-- Capture loop vars for closures
+		local capturedID   = spellID
+		local capturedName = name or ('Spell ' .. spellID)
+
+		-- Color swatch (shown when _showColorPicker is true)
+		local showSwatch = spellList._showColorPicker
+		if(showSwatch) then
+			-- Create swatch button on row if not already present
+			if(not row._colorSwatch) then
+				local swatch = Widgets.CreateColorPicker(row, nil, false)
+				Widgets.SetSize(swatch, SWATCH_SIZE, SWATCH_SIZE)
+				row._colorSwatch = swatch
+			end
+			row._colorSwatch:Show()
+			-- Position swatch between the arrows and the remove button
+			row._colorSwatch:ClearAllPoints()
+			row._colorSwatch:SetPoint('RIGHT', row._removeBtn, 'LEFT', -PAD_H, 0)
+			-- Shift arrows to the left of the swatch
+			row._upBtn:ClearAllPoints()
+			row._upBtn:SetPoint('RIGHT', row._colorSwatch, 'LEFT', -PAD_H, 0)
+			row._downBtn:ClearAllPoints()
+			row._downBtn:SetPoint('RIGHT', row._upBtn, 'LEFT', -ARROW_GAP, 0)
+			-- Apply spell color or white default
+			local colors = spellList._spellColors or {}
+			local c = colors[capturedID]
+			if(c) then
+				row._colorSwatch:SetColor(c[1], c[2], c[3], 1)
+			end
+			-- Wire up live change and confirm callbacks
+			row._colorSwatch:SetOnChange(function(r, g, b)
+				if(not spellList._spellColors) then spellList._spellColors = {} end
+				spellList._spellColors[capturedID] = { r, g, b }
+			end)
+			row._colorSwatch:SetOnConfirm(function(r, g, b)
+				if(not spellList._spellColors) then spellList._spellColors = {} end
+				spellList._spellColors[capturedID] = { r, g, b }
+				if(spellList._onChanged) then
+					local copy = {}
+					for j, v in next, spellList._spells do copy[j] = v end
+					spellList._onChanged(copy)
+				end
+			end)
+		elseif(row._colorSwatch) then
+			row._colorSwatch:Hide()
+		end
+
+		-- Reset arrow anchors to default (remove button) when swatch is hidden
+		if(not showSwatch) then
+			row._downBtn:ClearAllPoints()
+			row._downBtn:SetPoint('RIGHT', row._removeBtn, 'LEFT', -PAD_H, 0)
+			row._upBtn:ClearAllPoints()
+			row._upBtn:SetPoint('RIGHT', row._downBtn, 'LEFT', -ARROW_GAP, 0)
+		end
+
+		-- Truncate ID first (limited width), then name gets remaining space.
+		-- nameFS:SetWidth drives idFS position via the anchor chain.
+		local swatchUsed = showSwatch and (SWATCH_SIZE + PAD_H) or 0
+		local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + swatchUsed
+		local usedLeft  = PAD_H + ICON_SIZE + ICON_GAP
+		local totalAvail = math.max(1, contentWidth - usedLeft - usedRight)
+		TruncateText(row._idFS, tostring(spellID), ID_WIDTH)
+		local idW = row._idFS:GetStringWidth() + ICON_GAP
+		local nameAvail = math.max(1, totalAvail - idW)
+		TruncateText(row._nameFS, name or ('Spell ' .. spellID), nameAvail)
+		row._nameFS:SetWidth(nameAvail)
+
+		-- Wire remove button with confirmation
+		row._removeBtn:SetScript('OnClick', function()
+			Widgets.ShowConfirmDialog('Remove Spell', 'Remove ' .. capturedName .. ' (ID: ' .. capturedID .. ')?', function()
+				spellList:RemoveSpell(capturedID)
+			end)
+		end)
+
+		-- Wire move up/down arrows
+		local capturedIndex = i
+		row._upBtn:SetScript('OnClick', function()
+			spellList:MoveSpell(capturedIndex, capturedIndex - 1)
+		end)
+		row._downBtn:SetScript('OnClick', function()
+			spellList:MoveSpell(capturedIndex, capturedIndex + 1)
+		end)
+
+		-- Dim arrows at list boundaries
+		if(i == 1) then
+			row._upBtn._tex:SetAlpha(0.3)
+		else
+			row._upBtn._tex:SetAlpha(1)
+		end
+		if(i == count) then
+			row._downBtn._tex:SetAlpha(0.3)
+		else
+			row._downBtn._tex:SetAlpha(1)
+		end
+	end
+
+	-- Token invalidates pending chunk timers when Layout re-runs. Without it,
+	-- a re-layout (indicator switch, SetSpells, etc.) before deferred chunks
+	-- finish would populate rows against stale state.
+	local chunkToken = 0
+
 	local function Layout()
+		chunkToken = chunkToken + 1
+		local myToken = chunkToken
+
 		ReleaseAllRows(spellList._rowPool)
 
 		local spells = spellList._spells
@@ -241,131 +373,73 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 		local contentWidth = content:GetWidth()
 		if(contentWidth <= 0) then contentWidth = width end
 
-		for i, spellID in next, spells do
-			local row = AcquireRow(spellList._rowPool, content)
-			row:ClearAllPoints()
-			row:SetPoint('TOPLEFT',  content, 'TOPLEFT',  0, -(i - 1) * ROW_HEIGHT)
-			row:SetPoint('TOPRIGHT', content, 'TOPRIGHT', 0, -(i - 1) * ROW_HEIGHT)
-			row:SetHeight(ROW_HEIGHT)
-
-			-- Populate spell data
-			local name, icon = GetSpellData(spellID)
-			row._nameFS:SetText(name or ('Spell ' .. spellID))
-			row._idFS:SetText(tostring(spellID))
-			row._spellID = spellID
-
-			if(icon) then
-				row._icon:SetTexture(icon)
-				row._icon:Show()
-			else
-				row._icon:SetTexture([[Interface\Icons\INV_Misc_QuestionMark]])
-				row._icon:Show()
-			end
-
-			-- Capture loop vars for closures
-			local capturedID   = spellID
-			local capturedName = name or ('Spell ' .. spellID)
-
-			-- Color swatch (shown when _showColorPicker is true)
-			local showSwatch = spellList._showColorPicker
-			if(showSwatch) then
-				-- Create swatch button on row if not already present
-				if(not row._colorSwatch) then
-					local swatch = Widgets.CreateColorPicker(row, nil, false)
-					Widgets.SetSize(swatch, SWATCH_SIZE, SWATCH_SIZE)
-					row._colorSwatch = swatch
-				end
-				row._colorSwatch:Show()
-				-- Position swatch between the arrows and the remove button
-				row._colorSwatch:ClearAllPoints()
-				row._colorSwatch:SetPoint('RIGHT', row._removeBtn, 'LEFT', -PAD_H, 0)
-				-- Shift arrows to the left of the swatch
-				row._upBtn:ClearAllPoints()
-				row._upBtn:SetPoint('RIGHT', row._colorSwatch, 'LEFT', -PAD_H, 0)
-				row._downBtn:ClearAllPoints()
-				row._downBtn:SetPoint('RIGHT', row._upBtn, 'LEFT', -ARROW_GAP, 0)
-				-- Apply spell color or white default
-				local colors = spellList._spellColors or {}
-				local c = colors[capturedID]
-				if(c) then
-					row._colorSwatch:SetColor(c[1], c[2], c[3], 1)
-				end
-				-- Wire up live change and confirm callbacks
-				row._colorSwatch:SetOnChange(function(r, g, b)
-					if(not spellList._spellColors) then spellList._spellColors = {} end
-					spellList._spellColors[capturedID] = { r, g, b }
-				end)
-				row._colorSwatch:SetOnConfirm(function(r, g, b)
-					if(not spellList._spellColors) then spellList._spellColors = {} end
-					spellList._spellColors[capturedID] = { r, g, b }
-					if(spellList._onChanged) then
-						local copy = {}
-						for j, v in next, spellList._spells do copy[j] = v end
-						spellList._onChanged(copy)
-					end
-				end)
-			elseif(row._colorSwatch) then
-				row._colorSwatch:Hide()
-			end
-
-			-- Reset arrow anchors to default (remove button) when swatch is hidden
-			if(not showSwatch) then
-				row._downBtn:ClearAllPoints()
-				row._downBtn:SetPoint('RIGHT', row._removeBtn, 'LEFT', -PAD_H, 0)
-				row._upBtn:ClearAllPoints()
-				row._upBtn:SetPoint('RIGHT', row._downBtn, 'LEFT', -ARROW_GAP, 0)
-			end
-
-			-- Truncate ID first (limited width), then name gets remaining space.
-			-- nameFS:SetWidth drives idFS position via the anchor chain.
-			local swatchUsed = showSwatch and (SWATCH_SIZE + PAD_H) or 0
-			local usedRight = PAD_H + REMOVE_SIZE + PAD_H + ARROW_SIZE + ARROW_GAP + ARROW_SIZE + PAD_H + swatchUsed
-			local usedLeft  = PAD_H + ICON_SIZE + ICON_GAP
-			local totalAvail = math.max(1, contentWidth - usedLeft - usedRight)
-			TruncateText(row._idFS, tostring(spellID), ID_WIDTH)
-			local idW = row._idFS:GetStringWidth() + ICON_GAP
-			local nameAvail = math.max(1, totalAvail - idW)
-			TruncateText(row._nameFS, name or ('Spell ' .. spellID), nameAvail)
-			row._nameFS:SetWidth(nameAvail)
-
-			-- Wire remove button with confirmation
-			row._removeBtn:SetScript('OnClick', function()
-				Widgets.ShowConfirmDialog('Remove Spell', 'Remove ' .. capturedName .. ' (ID: ' .. capturedID .. ')?', function()
-					spellList:RemoveSpell(capturedID)
-				end)
-			end)
-
-			-- Wire move up/down arrows
-			local capturedIndex = i
-			row._upBtn:SetScript('OnClick', function()
-				spellList:MoveSpell(capturedIndex, capturedIndex - 1)
-			end)
-			row._downBtn:SetScript('OnClick', function()
-				spellList:MoveSpell(capturedIndex, capturedIndex + 1)
-			end)
-
-			-- Dim arrows at list boundaries
-			if(i == 1) then
-				row._upBtn._tex:SetAlpha(0.3)
-			else
-				row._upBtn._tex:SetAlpha(1)
-			end
-			if(i == count) then
-				row._downBtn._tex:SetAlpha(0.3)
-			else
-				row._downBtn._tex:SetAlpha(1)
-			end
-		end
-
+		-- Set content/container height up-front so the scrollbar range reflects
+		-- the full list length, not just the visible slice. Virtualization only
+		-- affects which rows are *populated*, not the scroll dimensions.
 		if(noScroll) then
 			spellList:SetHeight(count * ROW_HEIGHT)
 		else
 			content:SetHeight(count * ROW_HEIGHT)
 			spellList._scroll:UpdateScrollRange()
 		end
+
+		if(noScroll) then
+			-- Flat mode: populate the first CHUNK_SIZE rows synchronously so
+			-- the top of the list is visible immediately, then schedule the
+			-- remaining rows in CHUNK_SIZE batches across subsequent frames.
+			-- Keeps any single frame's CreateFrame cost bounded even for
+			-- long imports (60+ spec spells).
+			local firstBatchEnd = math.min(CHUNK_SIZE, count)
+			for i = 1, firstBatchEnd do
+				populateRowAt(i, count, contentWidth)
+			end
+			if(firstBatchEnd < count) then
+				local function populateChunk(startIdx)
+					if(myToken ~= chunkToken) then return end -- invalidated
+					local endIdx = math.min(startIdx + CHUNK_SIZE - 1, count)
+					for i = startIdx, endIdx do
+						populateRowAt(i, count, contentWidth)
+					end
+					if(endIdx < count) then
+						C_Timer.After(0, function() populateChunk(endIdx + 1) end)
+					end
+				end
+				C_Timer.After(0, function() populateChunk(firstBatchEnd + 1) end)
+			end
+		else
+			-- Virtualized mode: compute which rows overlap the viewport + a
+			-- small prerender buffer so scrolling doesn't reveal blank rows.
+			-- Typically ~15 rows populated regardless of list length.
+			local sf = spellList._scroll._scrollFrame
+			local offset    = (sf and sf.GetVerticalScroll and sf:GetVerticalScroll()) or 0
+			local viewportH = (sf and sf.GetHeight          and sf:GetHeight())          or 0
+			local firstIdx = math.max(1,     math.floor(offset            / ROW_HEIGHT) + 1 - VIEWPORT_BUFFER)
+			local lastIdx  = math.min(count, math.ceil ((offset + viewportH) / ROW_HEIGHT)     + VIEWPORT_BUFFER)
+			for i = firstIdx, lastIdx do
+				populateRowAt(i, count, contentWidth)
+			end
+		end
 	end
 
 	spellList._layout = Layout
+
+	-- Scroll-driven re-layout: re-populate rows when the user scrolls so newly
+	-- visible indices get populated and off-screen ones get released. Deferred
+	-- via C_Timer.After(0, ...) to coalesce multiple scroll ticks in one frame
+	-- — mirrors the pattern used by settings panels' onScroll handlers.
+	if(not noScroll and spellList._scroll and spellList._scroll._scrollFrame) then
+		local scrollFrame = spellList._scroll._scrollFrame
+		local pending = false
+		local function onScroll()
+			if(pending) then return end
+			pending = true
+			C_Timer.After(0, function()
+				pending = false
+				Layout()
+			end)
+		end
+		scrollFrame:HookScript('OnVerticalScroll', onScroll)
+	end
 
 	local function NotifyChanged()
 		if(spellList._onChanged) then
@@ -392,6 +466,30 @@ function Widgets.CreateSpellList(parent, width, height, noScroll)
 			self._spellColors[spellID] = { 1, 1, 1 }
 		end
 		NotifyChanged()
+	end
+
+	--- Bulk-add spell IDs. Dedupes against existing entries. Fires a single
+	--- NotifyChanged at the end instead of one per spell — avoids N config
+	--- saves and N Layouts when importing (e.g. 60+ spec spells at once).
+	--- @param spellIDs table Array of spell IDs
+	function spellList:AddSpells(spellIDs)
+		if(not spellIDs or #spellIDs == 0) then return end
+		local existing = {}
+		for _, id in next, self._spells do existing[id] = true end
+		local added = false
+		if(not self._spellColors) then self._spellColors = {} end
+		for _, id in next, spellIDs do
+			local n = tonumber(id)
+			if(n and not existing[n]) then
+				self._spells[#self._spells + 1] = n
+				existing[n] = true
+				if(not self._spellColors[n]) then
+					self._spellColors[n] = { 1, 1, 1 }
+				end
+				added = true
+			end
+		end
+		if(added) then NotifyChanged() end
 	end
 
 	--- Remove a spell by ID.
