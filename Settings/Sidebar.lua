@@ -630,12 +630,31 @@ local function buildSidebarContent(sidebar, contentParent)
 		syncPresetScopedButtons()
 	end, 'Sidebar')
 
-	-- ── Hide defensives/externals while the Pet page is active ──
-	-- Matches the preset-change animation: toggle visibility, reposition
-	-- visible children to close gaps, then animate the container height.
+	-- ── Hide defensives/externals when pet is the editing scope ──
+	--
+	-- External defensives and self-cast defensives don't apply to pets,
+	-- so those aura panels hide when:
+	--   (a) the Pet frame panel is the active page, or
+	--   (b) the editing unit type is 'pet' (via the aura page's
+	--       Configure-for dropdown).
+	--
+	-- Fires on both ACTIVE_PANEL_CHANGED and EDITING_UNIT_TYPE_CHANGED so
+	-- the visibility stays correct whether the user navigates into pet
+	-- or picks pet in the dropdown. If the user is currently ON one of
+	-- the hidden panels when pet becomes the scope, they get redirected
+	-- to Buffs so they don't stare at a hidden-but-active panel.
 	local PANELS_HIDDEN_ON_PET = { externals = true, defensives = true }
-	F.EventBus:Register('ACTIVE_PANEL_CHANGED', function(activePanelId)
-		local shouldHide = (activePanelId == 'pet')
+
+	local function syncPetHiddenAuraPanels()
+		local activeId = Settings._activePanelId
+		local unitType = Settings.GetEditingUnitType and Settings.GetEditingUnitType()
+		local shouldHide = (activeId == 'pet') or (unitType == 'pet')
+
+		-- Redirect off a now-hidden panel before toggling button visibility.
+		if(shouldHide and activeId and PANELS_HIDDEN_ON_PET[activeId]) then
+			Settings.SetActivePanel('buffs')
+		end
+
 		local changed = false
 		for panelId, btn in next, hiddenAuraBtns do
 			if(PANELS_HIDDEN_ON_PET[panelId]) then
@@ -667,7 +686,10 @@ local function buildSidebarContent(sidebar, contentParent)
 		if(container._recalc) then
 			container._recalc(true)
 		end
-	end, 'Sidebar.PanelChanged')
+	end
+
+	F.EventBus:Register('ACTIVE_PANEL_CHANGED', syncPetHiddenAuraPanels, 'Sidebar.PanelChanged')
+	F.EventBus:Register('EDITING_UNIT_TYPE_CHANGED', syncPetHiddenAuraPanels, 'Sidebar.UnitTypeChanged')
 
 	-- Deferred highlight fix — button widths aren't final until first layout
 	C_Timer.After(0, function()
