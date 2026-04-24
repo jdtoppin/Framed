@@ -84,11 +84,85 @@ local function getSpellInfo(spellID)
 end
 
 -- ============================================================
--- Import Popup (singleton)
+-- Section builders for the import popup
 -- ============================================================
-local importPopup
 
-local function BuildImportPopup()
+--- Build the curated cross-class healer section list.
+--- @return table[] Array of { header = string, spells = spellID[] }
+local function buildHealerSections()
+	local sections = {}
+	for _, cls in next, CLASS_ORDER do
+		local spells = HEALER_SPELLS[cls]
+		if(spells) then
+			sections[#sections + 1] = {
+				header = cls:sub(1, 1) .. cls:sub(2):lower(),
+				spells = spells,
+			}
+		end
+	end
+	return sections
+end
+
+--- Build a single section containing the current spec's active spells,
+--- pulled live from C_SpellBook. Filters out passives and entries
+--- without a spellID. Deduplicates in case the spellbook lists the same
+--- ID twice across skill lines.
+--- @return table[] Array of { header = string, spells = spellID[] }
+local function buildSpecSections()
+	local ids = {}
+	local seen = {}
+
+	if(C_SpellBook and C_SpellBook.GetNumSpellBookSkillLines and C_SpellBook.GetSpellBookItemInfo) then
+		local spellBank = Enum and Enum.SpellBookSpellBank and Enum.SpellBookSpellBank.Player or 0
+		local spellItemType = Enum and Enum.SpellBookItemType and Enum.SpellBookItemType.Spell
+
+		local numLines = C_SpellBook.GetNumSpellBookSkillLines()
+		for line = 1, (numLines or 0) do
+			local lineInfo = C_SpellBook.GetSpellBookSkillLineInfo and
+				C_SpellBook.GetSpellBookSkillLineInfo(line)
+			if(lineInfo and lineInfo.numSpellBookItems and lineInfo.itemIndexOffset) then
+				for i = 1, lineInfo.numSpellBookItems do
+					local slot = lineInfo.itemIndexOffset + i
+					local itemInfo = C_SpellBook.GetSpellBookItemInfo(slot, spellBank)
+					if(itemInfo and itemInfo.spellID and not itemInfo.isPassive
+						and (not spellItemType or itemInfo.itemType == spellItemType)) then
+						if(not seen[itemInfo.spellID]) then
+							seen[itemInfo.spellID] = true
+							ids[#ids + 1] = itemInfo.spellID
+						end
+					end
+				end
+			end
+		end
+	end
+
+	-- Alphabetize by spell name for stable UX. getSpellInfo caches internally
+	-- via Blizzard's spell cache so the double-lookup here is cheap.
+	table.sort(ids, function(a, b)
+		local na = getSpellInfo(a) or ''
+		local nb = getSpellInfo(b) or ''
+		return na < nb
+	end)
+
+	return { { header = 'Your Spec', spells = ids } }
+end
+
+-- ============================================================
+-- Import Popup (parameterized, one singleton per data source)
+-- ============================================================
+
+local healerPopup
+local specPopup
+
+--- Build an import-popup frame seeded with the given sections + title.
+--- The popup is a modal dialog with per-spell checkboxes, Select All /
+--- Deselect All, and an Import / Cancel footer. Callers wire the
+--- onImport behavior per-Show via popup.__importBtn:SetOnClick.
+---
+--- @param sections table[]  { { header = string, spells = spellID[] }, ... }
+--- @param title string      Header text
+--- @return Frame popup      Hidden by default; Show/Hide via popup + popup.__dimmer
+local function buildPopup(sections, title)
 	-- Dimmer
 	local dimmer = CreateFrame('Frame', nil, UIParent)
 	dimmer:SetAllPoints(UIParent)
@@ -122,9 +196,9 @@ local function BuildImportPopup()
 	accent:SetColorTexture(ac[1], ac[2], ac[3], ac[4] or 1)
 
 	-- Title
-	local title = Widgets.CreateFontString(frame, C.Font.sizeTitle, C.Colors.textActive)
-	title:SetPoint('TOPLEFT', frame, 'TOPLEFT', PAD, -PAD)
-	title:SetText('Import Healer Spells')
+	local titleFS = Widgets.CreateFontString(frame, C.Font.sizeTitle, C.Colors.textActive)
+	titleFS:SetPoint('TOPLEFT', frame, 'TOPLEFT', PAD, -PAD)
+	titleFS:SetText(title)
 
 	-- Select All / Deselect All
 	local selAll = Widgets.CreateButton(frame, 'Select All', 'widget', 80, BUTTON_H)
@@ -139,45 +213,54 @@ local function BuildImportPopup()
 	scroll:SetPoint('TOPLEFT', frame, 'TOPLEFT', PAD, scrollTop)
 	local content = scroll:GetContentFrame()
 
-	-- Build checkboxes
+	-- Build checkboxes from sections
 	frame.__checkboxes = {}
 	local yOff = 0
-	for _, cls in next, CLASS_ORDER do
-		local spells = HEALER_SPELLS[cls]
-		if(spells) then
-			local hdr = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.accent)
-			hdr:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, yOff)
-			hdr:SetJustifyH('LEFT')
-			hdr:SetText(cls:sub(1, 1) .. cls:sub(2):lower())
-			yOff = yOff - 18
-			for _, spellID in next, spells do
-				local spName, spIcon = getSpellInfo(spellID)
-				local label = spName .. '  (' .. spellID .. ')'
-				local cb = Widgets.CreateCheckButton(content, label, function() end)
-				cb:SetChecked(true)
-				cb:ClearAllPoints()
-				Widgets.SetPoint(cb, 'TOPLEFT', content, 'TOPLEFT', 8, yOff)
+	local totalSpells = 0
+	for _, section in next, sections do
+		local hdr = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.accent)
+		hdr:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, yOff)
+		hdr:SetJustifyH('LEFT')
+		hdr:SetText(section.header)
+		yOff = yOff - 18
+		for _, spellID in next, (section.spells or {}) do
+			local spName, spIcon = getSpellInfo(spellID)
+			local label = spName .. '  (' .. spellID .. ')'
+			local cb = Widgets.CreateCheckButton(content, label, function() end)
+			cb:SetChecked(true)
+			cb:ClearAllPoints()
+			Widgets.SetPoint(cb, 'TOPLEFT', content, 'TOPLEFT', 8, yOff)
 
-				-- Insert spell icon between toggle track and label
-				if(spIcon) then
-					local iconSize = 14
-					local icon = cb:CreateTexture(nil, 'ARTWORK')
-					icon:SetSize(iconSize, iconSize)
-					icon:SetTexture(spIcon)
-					icon:SetPoint('LEFT', cb._track, 'RIGHT', 4, 0)
-					-- Shift the label to the right of the icon
-					cb._labelText:ClearAllPoints()
-					Widgets.SetPoint(cb._labelText, 'LEFT', icon, 'RIGHT', 4, 0)
-					-- Widen frame to account for icon
-					cb:SetWidth(cb:GetWidth() + iconSize + 8)
-				end
-
-				yOff = yOff - CHECK_H
-				frame.__checkboxes[#frame.__checkboxes + 1] = { checkbox = cb, spellID = spellID }
+			-- Insert spell icon between toggle track and label
+			if(spIcon) then
+				local iconSize = 14
+				local icon = cb:CreateTexture(nil, 'ARTWORK')
+				icon:SetSize(iconSize, iconSize)
+				icon:SetTexture(spIcon)
+				icon:SetPoint('LEFT', cb._track, 'RIGHT', 4, 0)
+				-- Shift the label to the right of the icon
+				cb._labelText:ClearAllPoints()
+				Widgets.SetPoint(cb._labelText, 'LEFT', icon, 'RIGHT', 4, 0)
+				-- Widen frame to account for icon
+				cb:SetWidth(cb:GetWidth() + iconSize + 8)
 			end
-			yOff = yOff - C.Spacing.tight
+
+			yOff = yOff - CHECK_H
+			totalSpells = totalSpells + 1
+			frame.__checkboxes[#frame.__checkboxes + 1] = { checkbox = cb, spellID = spellID }
 		end
+		yOff = yOff - C.Spacing.tight
 	end
+
+	-- Empty-state message when a source has no spells to offer (e.g.
+	-- spec import on a trial character, or spellbook not yet populated).
+	if(totalSpells == 0) then
+		local emptyFS = Widgets.CreateFontString(content, C.Font.sizeNormal, C.Colors.textSecondary)
+		emptyFS:SetPoint('TOPLEFT', content, 'TOPLEFT', 0, yOff)
+		emptyFS:SetText('No spells available to import.')
+		yOff = yOff - 20
+	end
+
 	content:SetHeight(math.abs(yOff))
 	scroll:UpdateScrollRange()
 
@@ -212,25 +295,73 @@ local function BuildImportPopup()
 	return frame
 end
 
-local function ShowImportPopup(onImport)
-	if(not importPopup) then importPopup = BuildImportPopup() end
-	for _, e in next, importPopup.__checkboxes do e.checkbox:SetChecked(true) end
-	importPopup.__importBtn:SetOnClick(function()
+--- Show a previously-built popup, reset all checkboxes to checked, and
+--- wire the Import button to call onImport with the selected spellIDs.
+local function showPopup(popup, onImport)
+	for _, e in next, popup.__checkboxes do e.checkbox:SetChecked(true) end
+	popup.__importBtn:SetOnClick(function()
 		local selected = {}
-		for _, e in next, importPopup.__checkboxes do
+		for _, e in next, popup.__checkboxes do
 			if(e.checkbox:GetChecked()) then selected[#selected + 1] = e.spellID end
 		end
-		importPopup.__dismiss()
+		popup.__dismiss()
 		if(onImport) then onImport(selected) end
 	end)
-	importPopup.__dimmer:Show()
-	importPopup.__dimmer:SetAlpha(1)
-	importPopup:Show()
-	Widgets.FadeIn(importPopup, C.Animation.durationNormal)
+	popup.__dimmer:Show()
+	popup.__dimmer:SetAlpha(1)
+	popup:Show()
+	Widgets.FadeIn(popup, C.Animation.durationNormal)
 end
 
--- Expose for IndicatorCardBuilders (TrackedSpells import button)
-F.Settings.Builders.ShowImportPopup = ShowImportPopup
+--- Fully release a built popup so it can be rebuilt with fresh data.
+--- Used when the player's spec changes and the cached spec popup is
+--- stale. Relies on WoW's Hide + SetParent(nil) to drop engine-side
+--- ownership; the Lua reference is cleared by the caller.
+local function destroyPopup(popup)
+	if(not popup) then return end
+	if(popup.__dimmer) then
+		popup.__dimmer:Hide()
+		popup.__dimmer:SetParent(nil)
+	end
+	popup:Hide()
+	popup:SetParent(nil)
+end
+
+--- Show the curated healer import popup. Built lazily on first call;
+--- the section list is static (class-keyed) so the popup is cached
+--- across the session.
+local function ShowImportPopup(onImport)
+	if(not healerPopup) then
+		healerPopup = buildPopup(buildHealerSections(), 'Import Healer Spells')
+	end
+	showPopup(healerPopup, onImport)
+end
+
+--- Show the spec-spell import popup. Built lazily on first call and
+--- invalidated on spec change (see PLAYER_SPECIALIZATION_CHANGED hook
+--- in Init.lua via F.EventBus 'SPEC_CHANGED') so the list reflects
+--- the currently active spec.
+local function ShowSpecImportPopup(onImport)
+	if(not specPopup) then
+		specPopup = buildPopup(buildSpecSections(), 'Import Spec Spells')
+	end
+	showPopup(specPopup, onImport)
+end
+
+-- Invalidate the cached spec popup when the player changes spec so the
+-- next open reflects the new spec's spells.
+if(F.EventBus) then
+	F.EventBus:Register('SPEC_CHANGED', function()
+		if(specPopup) then
+			destroyPopup(specPopup)
+			specPopup = nil
+		end
+	end, 'IndicatorPanels.SpecChanged')
+end
+
+-- Expose for IndicatorCardBuilders (TrackedSpells import buttons)
+F.Settings.Builders.ShowImportPopup     = ShowImportPopup
+F.Settings.Builders.ShowSpecImportPopup = ShowSpecImportPopup
 
 -- ============================================================
 -- Build type-specific indicator settings

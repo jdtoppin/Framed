@@ -86,10 +86,16 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 	btnRow:SetWidth(width - 24)
 	btnRow:SetFrameLevel(spInput:GetFrameLevel() + 2)
 
-	local btnHalf = math.floor(((width - 24) - C.Spacing.tight) / 2)
-	local importBtn = Widgets.CreateButton(btnRow, 'Import Healer Spells', 'widget', btnHalf, 24)
-	Widgets.SetPoint(importBtn, 'TOPLEFT', btnRow, 'TOPLEFT', 0, 0)
-	importBtn:SetOnClick(function()
+	-- Three-button row: Import Healer | Import Spec | Delete All.
+	-- Compact labels so the buttons fit at the 240px narrow card width.
+	local rowW    = width - 24
+	local btnGaps = C.Spacing.tight * 2
+	local btnThird = math.floor((rowW - btnGaps) / 3)
+
+	local importHealerBtn = Widgets.CreateButton(btnRow, 'Import Healer', 'widget', btnThird, 24)
+	Widgets.SetPoint(importHealerBtn, 'TOPLEFT', btnRow, 'TOPLEFT', 0, 0)
+	importHealerBtn:SetWidgetTooltip('Import spells from the curated healer list (cross-class).')
+	importHealerBtn:SetOnClick(function()
 		F.Settings.Builders.ShowImportPopup(function(selectedSpells)
 			if(not selectedSpells or #selectedSpells == 0) then return end
 			for _, spellID in next, selectedSpells do
@@ -98,8 +104,20 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 		end)
 	end)
 
-	local deleteAllBtn = Widgets.CreateButton(btnRow, 'Delete All Spells', 'red', btnHalf, 24)
-	deleteAllBtn:SetPoint('LEFT', importBtn, 'RIGHT', C.Spacing.tight, 0)
+	local importSpecBtn = Widgets.CreateButton(btnRow, 'Import Spec', 'widget', btnThird, 24)
+	importSpecBtn:SetPoint('LEFT', importHealerBtn, 'RIGHT', C.Spacing.tight, 0)
+	importSpecBtn:SetWidgetTooltip('Import your current spec\'s active spells (passives excluded).')
+	importSpecBtn:SetOnClick(function()
+		F.Settings.Builders.ShowSpecImportPopup(function(selectedSpells)
+			if(not selectedSpells or #selectedSpells == 0) then return end
+			for _, spellID in next, selectedSpells do
+				spList:AddSpell(spellID)
+			end
+		end)
+	end)
+
+	local deleteAllBtn = Widgets.CreateButton(btnRow, 'Delete All', 'red', btnThird, 24)
+	deleteAllBtn:SetPoint('LEFT', importSpecBtn, 'RIGHT', C.Spacing.tight, 0)
 	deleteAllBtn:SetOnClick(function()
 		Widgets.ShowConfirmDialog('Delete All Spells', 'Remove all tracked spells from this indicator?', function()
 			update('spells', {})
@@ -107,8 +125,20 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 		end)
 	end)
 
-	-- Compute total card height: spellList + spacing + spInput(50) + spacing + btnRow(24)
-	cardY = cardY - spListH - C.Spacing.normal - 50 - C.Spacing.normal - 24
+	-- Spec-override hint: tracked spells apply to this preset, so users
+	-- who want different tracking per spec need to route each spec to its
+	-- own preset via the Spec Overrides card on the Frame Presets panel.
+	-- One-liner in muted text, sized to wrap within the card width.
+	local hintFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	Widgets.SetPoint(hintFS, 'TOPLEFT', btnRow, 'BOTTOMLEFT', 0, -C.Spacing.tight)
+	hintFS:SetWidth(width - 24)
+	hintFS:SetJustifyH('LEFT')
+	hintFS:SetWordWrap(true)
+	hintFS:SetText('Tracked spells apply to this preset. Use Spec Overrides (Frame Presets page) to configure different tracked spells per spec.')
+	local hintH = hintFS:GetStringHeight()
+
+	-- Compute total card height: spellList + spacing + spInput(50) + spacing + btnRow(24) + tight + hint
+	cardY = cardY - spListH - C.Spacing.normal - 50 - C.Spacing.normal - 24 - C.Spacing.tight - hintH
 
 	Widgets.EndCard(card, parent, cardY)
 	return card
