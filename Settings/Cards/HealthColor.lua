@@ -130,7 +130,12 @@ function F.SettingsCards.HealthColor(parent, width, unitType, getConfig, setConf
 	local lossPicker = Widgets.CreateColorPicker(inner, 'Loss Color', false,
 		nil,
 		function(r, g, b) setConfig('health.lossCustomColor', { r, g, b }) end)
-	local savedLoss = getConfig('health.lossCustomColor')
+	-- Defensive fallback mirrors the health.customColor read at line 104.
+	-- Ideally DeepMerge always backfills this leaf key from baseUnitConfig,
+	-- but older SavedVariables or partially-migrated configs can leave it
+	-- nil. Crashing here when the card builds is worse than reading the
+	-- canonical default inline.
+	local savedLoss = getConfig('health.lossCustomColor') or { 0.15, 0.15, 0.15 }
 	lossPicker:SetColor(savedLoss[1], savedLoss[2], savedLoss[3], 1)
 	local lossPickerH = 22
 
