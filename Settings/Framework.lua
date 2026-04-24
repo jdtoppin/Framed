@@ -96,21 +96,23 @@ function Settings.SetEditingPreset(presetName)
 		print(('|cff00ccff[Framed/preset]|r SetEditingPreset called: current=%s -> requested=%s'):format(
 			tostring(editingPreset), tostring(presetName)))
 	end
-	if(editingPreset == presetName) then
-		if(Settings._debugPresetTransitions) then
-			print('|cffff6666[Framed/preset]|r early-return (already at requested preset)')
-		end
-		return
-	end
 	editingPreset = presetName
 	Settings._editingUnitType = nil
 	F.EventBus:Fire('EDITING_PRESET_CHANGED', presetName)
 	-- Keep the breadcrumb's preset segment in sync. The EDITING_PRESET_CHANGED
-	-- handler already refreshes the unit-type dropdown; this syncs the
-	-- preset dropdown's displayed value for the same event.
+	-- listeners update the unit-type dropdown and sidebar buttons; this syncs
+	-- the preset dropdown's displayed value for the same transition.
 	local presetDD = Settings._headerPresetDD
 	if(presetDD and presetDD:IsShown()) then
 		presetDD:SetValue(presetName)
+	end
+	-- Complete the framework-side preset transition synchronously instead
+	-- of relying on our own EventBus listener ordering. This keeps the
+	-- active panel, cached preset-scoped frames, and sidebar visibility in
+	-- sync even when the user re-selects the current preset as a recovery
+	-- action (no early-return on same-preset — reconcile runs regardless).
+	if(Settings._reconcileEditingPresetChange) then
+		Settings._reconcileEditingPresetChange()
 	end
 end
 
@@ -594,18 +596,11 @@ function Settings.SetActivePanel(panelId)
 		Settings._headerPanelText:SetText(panelLabel)
 	end
 
-	-- Defensive sidebar resync: invoke Sidebar's full preset-scoped
-	-- button refresh so visibility, labels, AND container height land
-	-- consistently regardless of whether EDITING_PRESET_CHANGED fired
-	-- cleanly. Covers the case where the group-frame button stays
-	-- visible + stale-labeled after a rapid preset-switch sequence
-	-- (e.g. Mythic Raid → Raid → Arena → Solo leaving "Raid Frames"
-	-- visible in the sidebar under Solo).
-	if(Settings._syncPresetScopedButtons) then
-		Settings._syncPresetScopedButtons()
-	end
-
 	-- Show/hide and populate the breadcrumb segments + Copy-to control.
+	-- Sidebar preset-scoped button sync happens via the Sidebar's
+	-- EDITING_PRESET_CHANGED listener, which runs as part of the
+	-- synchronous reconcile in SetEditingPreset — no need for a defensive
+	-- call here.
 	activatePresetHeaderControls(info)
 
 	-- Restore drill-in breadcrumb if the panel re-entered with an active indicator
@@ -682,12 +677,21 @@ F.EventBus:Register('EDITING_UNIT_TYPE_CHANGED', function(newType)
 	dd:SetValue(newType or Settings.GetEditingUnitType() or 'player')
 end, 'Settings.HeaderUnitTypeSync')
 
--- Refresh active panel when the editing preset changes.
--- Invalidate all preset-scoped panels so stale frames are rebuilt
--- when the user navigates to them.
-F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+--- Refresh active panel after the editing preset changes.
+--- Invalidate all preset-scoped panels so stale frames are rebuilt
+--- when the user navigates to them.
+---
+--- Called synchronously from SetEditingPreset rather than via an
+--- EventBus listener. This guarantees framework-side state
+--- (activePanelId, panel cache, sidebar visibility) is fully
+--- reconciled before SetEditingPreset returns, eliminating the
+--- listener-order sensitivity that caused half-synced UI states.
+--- Other listeners (sidebar sync, FramePresets row highlight, aura
+--- preview rebuild) still fire on the EDITING_PRESET_CHANGED event
+--- normally.
+local function reconcileEditingPresetChange()
 	if(Settings._debugPresetTransitions) then
-		print(('|cff66ccff[Framed/redirect]|r handler enter — activeId=%s editingPreset=%s'):format(
+		print(('|cff66ccff[Framed/reconcile]|r enter — activeId=%s editingPreset=%s'):format(
 			tostring(Settings._activePanelId), tostring(Settings.GetEditingPreset())))
 	end
 	-- Refresh header dropdown items unconditionally — during zone
@@ -743,12 +747,6 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 	--   pinned  — present only when preset has a unitConfigs.pinned block
 	-- Other frame panels (player/target/targettarget/focus/pet/boss) exist
 	-- in every preset and don't need a redirect.
-	--
-	-- Without this, switching from Party → Solo while on the Party Frames
-	-- panel leaves the active panel as `party`, and the subsequent rebuild
-	-- crashes reading `unitConfigs.party.health.*` which doesn't exist in
-	-- Solo. Also leaves a stale summary card visible because the rebuild
-	-- fails before the new content is anchored.
 	local preset = Settings.GetEditingPreset()
 	local presetInfo = preset and C.PresetInfo[preset]
 	if(activeId == 'party') then
@@ -775,7 +773,9 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 	else
 		Settings.SetActivePanel(activeId)
 	end
-end, 'Settings.PanelRefresh')
+end
+
+Settings._reconcileEditingPresetChange = reconcileEditingPresetChange
 
 --- Call the active panel's Refresh callback, if it has one.
 function Settings.RefreshActivePanel()
