@@ -239,8 +239,17 @@ local function PresetsCard(parent, width)
 	if(F.EventBus) then
 		F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 			local editing = F.Settings.GetEditingPreset()
+			if(F.Settings._debugPresetTransitions) then
+				print(('|cffffcc00[Framed/presets-list]|r listener fired — editing=%s, rows=%d'):format(
+					tostring(editing), #presetRowPool))
+			end
 			for _, row in next, presetRowPool do
-				row:__setSelected(row.__presetName == editing)
+				local isActive = row.__presetName == editing
+				if(F.Settings._debugPresetTransitions) then
+					print(('  row %s -> setSelected(%s)'):format(
+						tostring(row.__presetName), tostring(isActive)))
+				end
+				row:__setSelected(isActive)
 				row.__tagFS:SetText(getPresetTag(row.__presetName))
 			end
 			updateResetVisibility()
