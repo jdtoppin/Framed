@@ -85,8 +85,23 @@ end
 
 --- Set the preset name being edited.
 --- @param presetName string
+--- Temporary diagnostic flag — flip to false before release.
+--- Prints every SetEditingPreset call with the current vs requested
+--- preset so we can see whether the breadcrumb dropdown is actually
+--- firing the state change or being silently dropped / early-returned.
+Settings._debugPresetTransitions = true
+
 function Settings.SetEditingPreset(presetName)
-	if(editingPreset == presetName) then return end
+	if(Settings._debugPresetTransitions) then
+		print(('|cff00ccff[Framed/preset]|r SetEditingPreset called: current=%s -> requested=%s'):format(
+			tostring(editingPreset), tostring(presetName)))
+	end
+	if(editingPreset == presetName) then
+		if(Settings._debugPresetTransitions) then
+			print('|cffff6666[Framed/preset]|r early-return (already at requested preset)')
+		end
+		return
+	end
 	editingPreset = presetName
 	Settings._editingUnitType = nil
 	F.EventBus:Fire('EDITING_PRESET_CHANGED', presetName)
