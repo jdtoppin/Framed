@@ -606,16 +606,17 @@ function Settings.SetActivePanel(panelId)
 		Settings._auraPreview = nil
 	end
 
-	-- ── Reset unit type when switching to aura panels ────────
-	-- Prevents "pet" (or other frame-only types) from leaking into
-	-- the Configure for dropdown on aura panels. Must run before the
-	-- header text decorates itself with the unit label.
-	if(info.subSection == 'auras') then
-		local currentUT = Settings._editingUnitType
-		if(currentUT == 'pet') then
-			Settings._editingUnitType = nil  -- falls back to preset default
-		end
-	end
+	-- Note: a previous reset here wiped _editingUnitType = 'pet' on every
+	-- aura panel activation to prevent pet "leaking" when navigating from
+	-- the Pet frame page to an aura page. That was overreach — it also
+	-- wiped explicit Pet selections made through the unit-type dropdown,
+	-- because SetActivePanel re-runs on every dropdown change. Net effect
+	-- was pet-scope aura editing was impossible. Removed.
+	--
+	-- If the Pet→Buffs navigation default feels wrong (landing on pet-
+	-- scope instead of player-scope), fix that at the navigation boundary
+	-- (sidebar click handler) rather than here, so explicit dropdown
+	-- choices are respected.
 
 	-- Panel name segment. Separators are rendered by dedicated font
 	-- strings (sep1/sep2/sep3) so the text itself is just the label;
