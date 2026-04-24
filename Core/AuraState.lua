@@ -484,6 +484,8 @@ function AuraState:GetHelpfulClassified()
 
 	view.dirty = false
 	wipe(view.list)
+	wipe(view.presentById)
+	wipe(view.presentByName)
 
 	for id, aura in next, self._helpfulById do
 		local entry = self._helpfulClassifiedById[id]
@@ -492,9 +494,27 @@ function AuraState:GetHelpfulClassified()
 			self._helpfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
+
+		local sid  = aura.spellId
+		local name = aura.name
+		if(F.IsValueNonSecret(sid))  then view.presentById[sid]    = entry end
+		if(F.IsValueNonSecret(name)) then view.presentByName[name] = entry end
 	end
 
 	return view.list
+end
+
+-- Look up a helpful classified entry by spellId (with an optional name
+-- fallback). Returns the entry or nil. Piggybacks on the presence maps
+-- populated during GetHelpfulClassified's rebuild, so the amortized
+-- cost is O(1) per lookup: first caller pays for the classified scan;
+-- subsequent lookups against the same unchanged view are hash hits.
+-- Used by MissingBuffs where the iteration is inverted (small fixed
+-- set of tracked spells vs. the full aura list).
+function AuraState:FindHelpfulBySpellId(spellId, name)
+	self:GetHelpfulClassified()
+	local view = self._helpfulClassifiedView
+	return view.presentById[spellId] or (name and view.presentByName[name])
 end
 
 function AuraState:GetHarmfulClassified()
@@ -561,7 +581,7 @@ function F.AuraState.Create(owner)
 		_helpfulViews = {},
 		_helpfulMatches = {},
 		_helpfulClassifiedById = {},
-		_helpfulClassifiedView = { dirty = true, list = {} },
+		_helpfulClassifiedView = { dirty = true, list = {}, presentById = {}, presentByName = {} },
 		_harmfulById = {},
 		_harmfulViews = {},
 		_harmfulMatches = {},
