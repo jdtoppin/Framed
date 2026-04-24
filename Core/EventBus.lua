@@ -98,6 +98,23 @@ function EventBus:Fire(eventName, ...)
 	end
 end
 
+--- Diagnostic: total count of live listeners across all events.
+--- @return number total
+--- @return table|nil  Per-event counts: { [eventName] = n }
+function EventBus:GetRegistrySize()
+	local total = 0
+	local perEvent = {}
+	for eventName, listeners in next, registry do
+		local n = 0
+		for _ in next, listeners do n = n + 1 end
+		if(n > 0) then
+			perEvent[eventName] = n
+			total = total + n
+		end
+	end
+	return total, perEvent
+end
+
 -- ============================================================
 -- WoW event bridge
 -- ============================================================

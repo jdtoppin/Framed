@@ -565,6 +565,12 @@ local settingsProbeOn      = false
 local preShowFramedKB      = nil
 local preShowTotalKB       = nil
 local preShowDescCount     = nil
+-- Cross-cycle tracking: post-GC values from the previous close, so each
+-- new baseline can report drift relative to last cycle's steady state.
+-- That reveals per-cycle retention that accumulates over a session.
+local lastPostGCFramedKB   = nil
+local lastPostGCTotalKB    = nil
+local lastPostGCDescCount  = nil
 
 --- Recursively count a frame and all its descendants (children + regions).
 local function countDescendants(f)
@@ -584,6 +590,16 @@ local function countDescendants(f)
 	return n
 end
 
+-- Count UIParent's direct children. Orphan frames created during panel
+-- builds that don't live inside _mainFrame would show up here.
+local function countUIParentChildren()
+	if(not UIParent or not UIParent.GetChildren) then return 0 end
+	local kids = { UIParent:GetChildren() }
+	return #kids
+end
+
+local preShowUIParentKids = nil
+
 local function captureBaseline()
 	collectgarbage('collect')
 	UpdateAddOnMemoryUsage()
@@ -592,8 +608,17 @@ local function captureBaseline()
 	-- Descendant count at baseline (may be 0 if _mainFrame doesn't exist yet).
 	local main = F.Settings and F.Settings._mainFrame
 	preShowDescCount = main and countDescendants(main) or 0
-	print(('|cff00ccff[Framed/mem/settings]|r baseline — Framed %.2f MB | total %.2f MB | _mainFrame descendants: %d'):format(
-		preShowFramedKB / 1024, preShowTotalKB / 1024, preShowDescCount))
+	preShowUIParentKids = countUIParentChildren()
+	print(('|cff00ccff[Framed/mem/settings]|r baseline — Framed %.2f MB | total %.2f MB | _mainFrame descendants: %d | UIParent kids: %d'):format(
+		preShowFramedKB / 1024, preShowTotalKB / 1024, preShowDescCount, preShowUIParentKids))
+	-- Drift since last cycle's post-GC state. Non-zero here means the
+	-- previous teardown left references alive that accumulated across cycles.
+	if(lastPostGCFramedKB) then
+		print(('  drift since last close (post-GC → post-GC): Framed %+.2f MB | total %+.2f MB | descendants %+d'):format(
+			(preShowFramedKB - lastPostGCFramedKB) / 1024,
+			(preShowTotalKB  - lastPostGCTotalKB)  / 1024,
+			preShowDescCount - lastPostGCDescCount))
+	end
 end
 
 local function reportCloseDelta()
@@ -607,8 +632,13 @@ local function reportCloseDelta()
 	local postGCFramedKB = GetAddOnMemoryUsage('Framed')
 	local postGCTotalKB  = collectgarbage('count')
 
+	-- Stash for next cycle's drift comparison in captureBaseline.
+	lastPostGCFramedKB = postGCFramedKB
+	lastPostGCTotalKB  = postGCTotalKB
+
 	local main = F.Settings and F.Settings._mainFrame
 	local postDescCount = main and countDescendants(main) or 0
+	lastPostGCDescCount = postDescCount
 
 	print(('|cff00ccff[Framed/mem/settings]|r close delta vs baseline:'):format())
 	print(('  at-hide:  Framed %+.2f MB  |  total %+.2f MB'):format(
@@ -619,7 +649,100 @@ local function reportCloseDelta()
 		(postGCTotalKB  - preShowTotalKB)  / 1024))
 	print(('  frames:   _mainFrame descendants %+d (%d → %d)'):format(
 		postDescCount - preShowDescCount, preShowDescCount, postDescCount))
+	local postUIKids = countUIParentChildren()
+	print(('  UIParent: direct children %+d (%d → %d) — any growth here is orphan frames leaked outside _mainFrame'):format(
+		postUIKids - (preShowUIParentKids or 0), preShowUIParentKids or 0, postUIKids))
 	print('  (at-hide = retention before GC; post-GC = genuinely held references)')
+
+	-- Bucket retained descendants by ObjectType and by top-level section
+	-- (direct child of _mainFrame) so we see where they're concentrated.
+	if(main) then
+		local byType = {}
+		local bySection = {}
+		local function walk(f, sectionLabel)
+			-- Count this frame by type
+			local t = f.GetObjectType and f:GetObjectType() or '?'
+			byType[t] = (byType[t] or 0) + 1
+			bySection[sectionLabel] = (bySection[sectionLabel] or 0) + 1
+			-- Recurse children
+			if(f.GetChildren) then
+				local children = { f:GetChildren() }
+				for i = 1, #children do walk(children[i], sectionLabel) end
+			end
+			-- Count regions (textures, fontstrings) but don't recurse
+			if(f.GetRegions) then
+				local regions = { f:GetRegions() }
+				for i = 1, #regions do
+					local rt = regions[i].GetObjectType and regions[i]:GetObjectType() or '?'
+					byType[rt] = (byType[rt] or 0) + 1
+					bySection[sectionLabel] = (bySection[sectionLabel] or 0) + 1
+				end
+			end
+		end
+		-- Walk each top-level section separately so we can attribute by section
+		local topChildren = { main:GetChildren() }
+		for i = 1, #topChildren do
+			local child = topChildren[i]
+			local label = (child.GetName and child:GetName()) or (child.GetDebugName and child:GetDebugName()) or ('anon#' .. i)
+			walk(child, label)
+		end
+
+		-- Print top buckets
+		local function printTop(label, tbl, n)
+			local rows = {}
+			for k, v in next, tbl do rows[#rows + 1] = { k = k, v = v } end
+			table.sort(rows, function(a, b) return a.v > b.v end)
+			print(('  by %s:'):format(label))
+			for i = 1, math.min(n or 10, #rows) do
+				print(('    %6d × %s'):format(rows[i].v, rows[i].k))
+			end
+		end
+		printTop('ObjectType', byType, 8)
+		printTop('top-level section (direct child of _mainFrame)', bySection, 10)
+
+		-- Drill into _contentParent specifically — if it's the leak site, list
+		-- its direct children so we see which panels are cached.
+		-- Cross-reference Settings._panelFrames (keyed by panelId) to label
+		-- each retained panel by its id ('player', 'raid', 'debuffs', etc.)
+		-- instead of an anonymous frame address.
+		local cp = F.Settings and F.Settings._contentParent
+		local panelFrames = F.Settings and F.Settings._panelFrames or {}
+		local frameToId = {}
+		for id, frame in next, panelFrames do frameToId[frame] = id end
+		if(cp) then
+			local cpKids = { cp:GetChildren() }
+			if(#cpKids > 0) then
+				local rows = {}
+				for i = 1, #cpKids do
+					local child = cpKids[i]
+					local label = frameToId[child]
+						or (child.GetName and child:GetName())
+						or (child.GetDebugName and child:GetDebugName())
+						or ('anon#' .. i)
+					-- Count descendants of this specific panel
+					local c = 0
+					local function deepCount(f)
+						c = c + 1
+						if(f.GetChildren) then
+							local k = { f:GetChildren() }
+							for j = 1, #k do deepCount(k[j]) end
+						end
+						if(f.GetRegions) then
+							local r = { f:GetRegions() }
+							c = c + #r
+						end
+					end
+					deepCount(child)
+					rows[#rows + 1] = { label = label, count = c }
+				end
+				table.sort(rows, function(a, b) return a.count > b.count end)
+				print(('  _contentParent direct children (%d total):'):format(#cpKids))
+				for i = 1, math.min(15, #rows) do
+					print(('    %6d × %s'):format(rows[i].count, rows[i].label))
+				end
+			end
+		end
+	end
 end
 
 local function settingsProbeInstall()

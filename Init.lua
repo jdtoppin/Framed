@@ -448,6 +448,8 @@ SlashCmdList['FRAMED'] = function(msg)
 	elseif(cmd == 'memdiag') then
 		local seconds = tonumber(arg1:match('^(%d+)')) or 10
 		F.MemDiag.Start(seconds)
+	elseif(cmd == 'settingsmem') then
+		F.MemDiag.ToggleSettingsProbe()
 	elseif(cmd == 'memusage') then
 		-- `raw` suffix skips the forced GC (see live allocated state);
 		-- default forces a collect so we see post-GC live footprint.
@@ -504,6 +506,30 @@ SlashCmdList['FRAMED'] = function(msg)
 		end
 		print(('|cff00ccff[Framed/mem]|r aurastate pool: %d entries across %d instances'):format(
 			totalPooled, instanceCount))
+
+		-- EventBus registry size — leak detector for handlers that fail to
+		-- dedupe across panel rebuilds. Healthy: stable across settings cycles.
+		if(F.EventBus and F.EventBus.GetRegistrySize) then
+			local totalListeners, perEvent = F.EventBus:GetRegistrySize()
+			local ebRows = {}
+			for eventName, n in next, perEvent do
+				ebRows[#ebRows + 1] = { name = eventName, n = n }
+			end
+			table.sort(ebRows, function(a, b) return a.n > b.n end)
+			print(('|cff00ccff[Framed/mem]|r EventBus listeners: %d total across %d events'):format(
+				totalListeners, #ebRows))
+			for i = 1, math.min(10, #ebRows) do
+				print(('  %3d × %s'):format(ebRows[i].n, ebRows[i].name))
+			end
+		end
+
+		-- UIParent direct children count. Growth here over cycles = orphan
+		-- frames leaked outside the settings tree. Stable = any leak is
+		-- in non-frame state (tables, closures, textures).
+		if(UIParent and UIParent.GetChildren) then
+			local uiKids = { UIParent:GetChildren() }
+			print(('|cff00ccff[Framed/mem]|r UIParent direct children: %d'):format(#uiKids))
+		end
 	elseif(cmd == 'pools') then
 		local rows = {}
 		-- Count observers per unit token first so each row can annotate
@@ -575,6 +601,7 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed aurastate [unit] — Dump classified aura flags (default: target)')
 		print('  /framed memdiag [seconds] — Measure aura-path allocation churn (default 10s, max 30s; stops GC for the window)')
 		print('  /framed memusage [raw] — Framed + total memory snapshot (default forces GC; "raw" skips it)')
+		print('  /framed settingsmem — Toggle settings-window memory probe (prints delta on open/close)')
 		print('  /framed pools — Dump per-instance classified pool sizes (for #144 diagnostics)')
 	else
 		-- Default: open settings
