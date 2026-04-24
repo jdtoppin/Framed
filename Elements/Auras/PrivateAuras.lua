@@ -28,25 +28,31 @@ local function RegisterAnchors(element, unit)
 	-- AddPrivateAuraAnchor throws on a nil unitToken.
 	if(not unit) then return end
 	local iconSize = element._iconSize
+	-- SetScale on scaledAnchor cascades through Blizzard's InboundContainerFrameMixin
+	-- to the Duration FontString (fixed FontObject, no anchor-level override). Icon
+	-- width/height are pre-divided by scale so the icon renders at iconSize visually
+	-- after the scale cascade; only the duration text shrinks or grows.
+	local scale = element._durationScale
 	for idx = 1, #element._pool do
 		local slot = element._pool[idx]
+		slot.scaledAnchor:SetScale(scale)
 		if(slot.anchorID) then
 			C_UnitAuras.RemovePrivateAuraAnchor(slot.anchorID)
 		end
 		slot.anchorID = C_UnitAuras.AddPrivateAuraAnchor({
 			unitToken            = unit,
 			auraIndex            = idx,
-			parent               = slot.frame,
+			parent               = slot.scaledAnchor,
 			showCountdownFrame   = true,
 			showCountdownNumbers = true,
 			isContainer          = false,
 			iconInfo             = {
-				iconWidth   = iconSize,
-				iconHeight  = iconSize,
+				iconWidth   = iconSize / scale,
+				iconHeight  = iconSize / scale,
 				borderScale = -100,
 				iconAnchor  = {
 					point         = 'CENTER',
-					relativeTo    = slot.frame,
+					relativeTo    = slot.scaledAnchor,
 					relativePoint = 'CENTER',
 					offsetX       = 0,
 					offsetY       = 0,
@@ -220,16 +226,24 @@ oUF:AddElement('FramedPrivateAuras', Update, Enable, Disable)
 function F.Elements.PrivateAuras.Setup(self, config)
 	config = config or {}
 
-	-- Create a pool of anchor frames, one per auraIndex slot
+	-- Create a pool of anchor frames, one per auraIndex slot.
+	-- `frame` participates in LayoutPool at scale 1 so spacing math works.
+	-- `scaledAnchor` is an inner overlay whose SetScale cascades through
+	-- Blizzard's InboundContainerFrameMixin to the PrivateAura's Duration
+	-- FontString — the only way to influence that font size, since Blizzard
+	-- uses a fixed FontObject with no anchor-level override.
 	local pool = {}
 	for idx = 1, config.maxDisplayed do
 		local frame = CreateFrame('Frame', nil, self)
-		pool[idx] = { frame = frame, anchorID = nil }
+		local scaledAnchor = CreateFrame('Frame', nil, frame)
+		scaledAnchor:SetAllPoints(frame)
+		pool[idx] = { frame = frame, scaledAnchor = scaledAnchor, anchorID = nil }
 	end
 
 	local element = {
 		_pool           = pool,
 		_iconSize       = config.iconSize,
+		_durationScale  = config.durationScale,
 		_showDispelType = config.showDispelType,
 		_anchorID       = nil,
 		Rebuild         = Rebuild,
