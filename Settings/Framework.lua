@@ -686,6 +686,10 @@ end, 'Settings.HeaderUnitTypeSync')
 -- Invalidate all preset-scoped panels so stale frames are rebuilt
 -- when the user navigates to them.
 F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+	if(Settings._debugPresetTransitions) then
+		print(('|cff66ccff[Framed/redirect]|r handler enter — activeId=%s editingPreset=%s'):format(
+			tostring(Settings._activePanelId), tostring(Settings.GetEditingPreset())))
+	end
 	-- Refresh header dropdown items unconditionally — during zone
 	-- transitions the main frame may not be :IsShown() yet, but the
 	-- items must be correct when it reappears.
