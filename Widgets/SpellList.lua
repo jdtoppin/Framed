@@ -516,7 +516,12 @@ local DEBOUNCE_DELAY    = 0.3
 --- @param width  number Total logical width — edit box + gap + Add button fit within this
 --- @return Frame input
 function Widgets.CreateSpellInput(parent, width)
-	local totalHeight = INPUT_ROW_HEIGHT + C.Spacing.tight + PREVIEW_HEIGHT
+	-- Container measures only the input-row height so the preview frame
+	-- doesn't reserve empty space when hidden. The preview is a child of
+	-- the container but renders below it and floats over downstream
+	-- siblings (e.g. the button row below the input) via elevated frame
+	-- level. Only visible when there's a valid preview to show.
+	local totalHeight = INPUT_ROW_HEIGHT
 
 	-- Edit box consumes whatever's left after the fixed-width Add button
 	-- + gap. At narrow settings widths this keeps the Add button inside
@@ -541,9 +546,14 @@ function Widgets.CreateSpellInput(parent, width)
 	container._addBtn = addBtn
 
 	local preview = CreateFrame('Frame', nil, container, 'BackdropTemplate')
-	preview:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -(INPUT_ROW_HEIGHT + C.Spacing.tight))
+	-- Anchor from the BOTTOMLEFT of the input row so the preview sits
+	-- just below the edit box but isn't part of the container's height.
+	preview:SetPoint('TOPLEFT', editBox, 'BOTTOMLEFT', 0, -C.Spacing.tight)
 	preview:SetWidth(inputWidth)
 	preview:SetHeight(PREVIEW_HEIGHT)
+	-- Elevate above the container's own frame level so the preview
+	-- overlays the button row the caller anchors below spInput.
+	preview:SetFrameLevel(container:GetFrameLevel() + 20)
 	local pvBg = C.Colors.widget
 	preview:SetBackdrop({
 		bgFile   = [[Interface\BUTTONS\WHITE8x8]],

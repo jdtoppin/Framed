@@ -104,9 +104,20 @@ local function buildHealerSections()
 end
 
 --- Build a single section containing the current spec's active spells,
---- pulled live from C_SpellBook. Filters out passives and entries
---- without a spellID. Deduplicates in case the spellbook lists the same
---- ID twice across skill lines.
+--- pulled live from C_SpellBook. Filters:
+---
+---   - Skip skill lines flagged as hidden (off-spec / inactive tabs).
+---     C_SpellBook iteration returns lines for ALL of a class's specs,
+---     not just the active one, so iterating unconditionally leaks
+---     off-spec spells (e.g. Resto druid seeing Guardian's Red Moon).
+---   - itemType == Spell and not isPassive (drops passives + future
+---     spells).
+---   - IsPlayerSpell(spellID) as a second-line guard — returns true
+---     only for spells the player's active spec actually knows.
+---     Catches edge cases where shouldHide is unreliable.
+---
+--- Deduplicates in case the spellbook lists the same ID across shared
+--- skill lines (general tab + spec tab).
 --- @return table[] Array of { header = string, spells = spellID[] }
 local function buildSpecSections()
 	local ids = {}
@@ -120,12 +131,16 @@ local function buildSpecSections()
 		for line = 1, (numLines or 0) do
 			local lineInfo = C_SpellBook.GetSpellBookSkillLineInfo and
 				C_SpellBook.GetSpellBookSkillLineInfo(line)
-			if(lineInfo and lineInfo.numSpellBookItems and lineInfo.itemIndexOffset) then
+			-- Skip off-spec / inactive tabs. shouldHide is true for tabs
+			-- the default spellbook UI hides (e.g. the other specs' tabs).
+			if(lineInfo and not lineInfo.shouldHide
+				and lineInfo.numSpellBookItems and lineInfo.itemIndexOffset) then
 				for i = 1, lineInfo.numSpellBookItems do
 					local slot = lineInfo.itemIndexOffset + i
 					local itemInfo = C_SpellBook.GetSpellBookItemInfo(slot, spellBank)
 					if(itemInfo and itemInfo.spellID and not itemInfo.isPassive
-						and (not spellItemType or itemInfo.itemType == spellItemType)) then
+						and (not spellItemType or itemInfo.itemType == spellItemType)
+						and (not IsPlayerSpell or IsPlayerSpell(itemInfo.spellID))) then
 						if(not seen[itemInfo.spellID]) then
 							seen[itemInfo.spellID] = true
 							ids[#ids + 1] = itemInfo.spellID
