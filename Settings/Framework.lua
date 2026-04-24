@@ -321,7 +321,7 @@ local function activatePresetHeaderControls(info)
 		Settings.SetEditingUnitType(value)
 		-- Invalidate and rebuild the current panel — matches the
 		-- behavior of the old in-panel "Configure for" dropdown.
-		Settings._panelFrames[currentId] = nil
+		Settings.TearDownPanel(currentId)
 		Settings.SetActivePanel(currentId)
 	end)
 	unitDD:Show()
@@ -360,7 +360,7 @@ local function activatePresetHeaderControls(info)
 				if(Settings.CopyTo(configKey, target)) then
 					-- Invalidate + refresh so the active panel rebuilds
 					-- against the new config.
-					Settings._panelFrames[info.id] = nil
+					Settings.TearDownPanel(info.id)
 					Settings.RefreshActivePanel()
 					-- Friendly chat confirmation (mirrors dialog output).
 					local targetLabel = target
@@ -405,6 +405,50 @@ Settings._activePanelId  = nil
 Settings._activePanelFrame = nil
 Settings._panelFrames    = {}
 Settings._panelRefresh   = {}
+
+-- ============================================================
+-- Panel teardown helper
+-- ============================================================
+
+--- Release all references to a cached panel frame so Lua can GC it.
+---
+--- Dropping _panelFrames[id] = nil alone only removes the Lua cache
+--- reference — the Frame object stays parented to _contentParent with
+--- all its widgets, textures, and event handlers alive. Repeated
+--- invalidate-rebuild cycles (unit-type switches, copy-to, refresh,
+--- preset changes) leak one orphaned panel frame per cycle. Explicit
+--- Hide + SetParent(nil) releases WoW's frame ownership, and clearing
+--- the various tracking tables ensures no dangling references prevent
+--- collection.
+---
+--- Safe to call with an unknown panelId (no-op if nothing cached).
+--- @param panelId string
+function Settings.TearDownPanel(panelId)
+	local frame = Settings._panelFrames[panelId]
+	if(not frame) then return end
+
+	-- Cancel any in-flight panel transition animation so its onComplete
+	-- callback doesn't keep a reference alive past the teardown.
+	if(frame._anim and frame._anim['panelTransition']) then
+		local anim = frame._anim['panelTransition']
+		if(anim.onComplete) then
+			anim.onComplete(frame)
+		end
+		frame._anim['panelTransition'] = nil
+	end
+
+	frame:Hide()
+	frame:SetParent(nil)
+
+	Settings._panelFrames[panelId] = nil
+	Settings._panelRefresh[panelId] = nil
+	if(Settings._panelBuiltUnitType) then
+		Settings._panelBuiltUnitType[panelId] = nil
+	end
+	if(Settings._activePanelFrame == frame) then
+		Settings._activePanelFrame = nil
+	end
+end
 Settings._sidebarButtons = {}
 Settings._contentParent  = nil
 Settings._headerPanelText = nil
@@ -469,9 +513,7 @@ function Settings.SetActivePanel(panelId)
 		local builtFor = Settings._panelBuiltUnitType and Settings._panelBuiltUnitType[panelId]
 		local current = Settings.GetEditingUnitType()
 		if(builtFor and builtFor ~= current) then
-			Settings._panelFrames[panelId]:Hide()
-			Settings._panelFrames[panelId]:SetParent(nil)
-			Settings._panelFrames[panelId] = nil
+			Settings.TearDownPanel(panelId)
 			Settings._auraPreview = nil
 		end
 	end
@@ -704,33 +746,12 @@ local function reconcileEditingPresetChange()
 	end
 
 	-- Tear down cached preset-scoped panel frames before forgetting them.
-	-- Setting _panelFrames[id] = nil only drops the Lua cache reference;
-	-- the Frame object stays parented to _contentParent with all its
-	-- widgets, textures, and registered event handlers intact. Repeated
-	-- preset switches would orphan one set of panel frames per switch,
-	-- producing steady memory growth across a session. Explicit Hide +
-	-- SetParent(nil) releases WoW's frame ownership and lets GC reclaim
-	-- everything once the last Lua reference is dropped.
+	-- See Settings.TearDownPanel for the full rationale; in short, dropping
+	-- _panelFrames[id] = nil alone leaks the Frame object because WoW keeps
+	-- it parented. TearDownPanel does the full release.
 	for _, p in next, registeredPanels do
-		local frame = Settings._panelFrames[p.id]
-		if(p.section == 'PRESET_SCOPED' and frame) then
-			if(frame._anim and frame._anim['panelTransition']) then
-				local anim = frame._anim['panelTransition']
-				if(anim.onComplete) then
-					anim.onComplete(frame)
-				end
-				frame._anim['panelTransition'] = nil
-			end
-			frame:Hide()
-			frame:SetParent(nil)
-			Settings._panelFrames[p.id] = nil
-			Settings._panelRefresh[p.id] = nil
-			if(Settings._panelBuiltUnitType) then
-				Settings._panelBuiltUnitType[p.id] = nil
-			end
-			if(Settings._activePanelFrame == frame) then
-				Settings._activePanelFrame = nil
-			end
+		if(p.section == 'PRESET_SCOPED') then
+			Settings.TearDownPanel(p.id)
 		end
 	end
 	if(not Settings._mainFrame) then return end
@@ -784,7 +805,7 @@ function Settings.RefreshActivePanel()
 	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
 	else
-		Settings._panelFrames[activeId] = nil
+		Settings.TearDownPanel(activeId)
 		Settings.SetActivePanel(activeId)
 	end
 end
