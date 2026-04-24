@@ -506,12 +506,23 @@ SlashCmdList['FRAMED'] = function(msg)
 			totalPooled, instanceCount))
 	elseif(cmd == 'pools') then
 		local rows = {}
+		-- Count observers per unit token first so each row can annotate
+		-- how many other AuraState instances share its unit. Drives the
+		-- #149 evaluation — central classification cache only helps when
+		-- multiple frames observe the same unit token.
+		local observersByUnit = {}
+		for instance in next, F.AuraState._instances do
+			local unit = instance._unit or '?'
+			observersByUnit[unit] = (observersByUnit[unit] or 0) + 1
+		end
 		for instance in next, F.AuraState._instances do
 			local owner = instance._owner
 			local ownerName = owner and owner.GetName and owner:GetName() or '<anon>'
+			local unit = instance._unit or '?'
 			local row = {
 				name = ownerName,
-				unit = instance._unit or '?',
+				unit = unit,
+				observers = observersByUnit[unit],
 				pooled = #instance._classifiedFreeList,
 				helpful = 0,
 				harmful = 0,
@@ -524,12 +535,32 @@ SlashCmdList['FRAMED'] = function(msg)
 			end
 			rows[#rows + 1] = row
 		end
-		table.sort(rows, function(a, b) return a.pooled > b.pooled end)
+		-- Sort: highest-observer units first (most relevant to #149), then
+		-- by pool size as a secondary key for same-observer-count entries.
+		table.sort(rows, function(a, b)
+			if(a.observers ~= b.observers) then return a.observers > b.observers end
+			return a.pooled > b.pooled
+		end)
 		print('|cff00ccff Framed|r classified pool per instance:')
-		print(('  %-32s %-12s %6s %6s %6s'):format('frame', 'unit', 'pooled', 'live+', 'live-'))
+		print(('  %-32s %-12s %4s %6s %6s %6s'):format('frame', 'unit', 'obs', 'pooled', 'live+', 'live-'))
 		for _, r in next, rows do
-			print(('  %-32s %-12s %6d %6d %6d'):format(r.name, r.unit, r.pooled, r.helpful, r.harmful))
+			print(('  %-32s %-12s %4d %6d %6d %6d'):format(
+				r.name, r.unit, r.observers, r.pooled, r.helpful, r.harmful))
 		end
+
+		-- Summary: how many unit tokens have >1 observer? This is the
+		-- upper bound on classification dedup savings from #149.
+		local totalUnits, duplicatedUnits, totalInstances, dupInstances = 0, 0, 0, 0
+		for _, count in next, observersByUnit do
+			totalUnits = totalUnits + 1
+			totalInstances = totalInstances + count
+			if(count > 1) then
+				duplicatedUnits = duplicatedUnits + 1
+				dupInstances = dupInstances + count
+			end
+		end
+		print(('  %-32s %d unit tokens, %d duplicated (%d instances total, %d on dup units)'):format(
+			'[#149 overlap summary]', totalUnits, duplicatedUnits, totalInstances, dupInstances))
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
 		print('  /framed — Open settings')
