@@ -699,9 +699,34 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 		dd:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
 	end
 
+	-- Tear down cached preset-scoped panel frames before forgetting them.
+	-- Setting _panelFrames[id] = nil only drops the Lua cache reference;
+	-- the Frame object stays parented to _contentParent with all its
+	-- widgets, textures, and registered event handlers intact. Repeated
+	-- preset switches would orphan one set of panel frames per switch,
+	-- producing steady memory growth across a session. Explicit Hide +
+	-- SetParent(nil) releases WoW's frame ownership and lets GC reclaim
+	-- everything once the last Lua reference is dropped.
 	for _, p in next, registeredPanels do
-		if(p.section == 'PRESET_SCOPED' and Settings._panelFrames[p.id]) then
+		local frame = Settings._panelFrames[p.id]
+		if(p.section == 'PRESET_SCOPED' and frame) then
+			if(frame._anim and frame._anim['panelTransition']) then
+				local anim = frame._anim['panelTransition']
+				if(anim.onComplete) then
+					anim.onComplete(frame)
+				end
+				frame._anim['panelTransition'] = nil
+			end
+			frame:Hide()
+			frame:SetParent(nil)
 			Settings._panelFrames[p.id] = nil
+			Settings._panelRefresh[p.id] = nil
+			if(Settings._panelBuiltUnitType) then
+				Settings._panelBuiltUnitType[p.id] = nil
+			end
+			if(Settings._activePanelFrame == frame) then
+				Settings._activePanelFrame = nil
+			end
 		end
 	end
 	if(not Settings._mainFrame) then return end
