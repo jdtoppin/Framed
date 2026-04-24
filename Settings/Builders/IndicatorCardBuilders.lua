@@ -86,16 +86,13 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 	btnRow:SetWidth(width - 24)
 	btnRow:SetFrameLevel(spInput:GetFrameLevel() + 2)
 
-	-- Two-button row: Import (opens a popup menu with Healer / Spec
-	-- sources) | Delete All. A menu trigger keeps the two-button
-	-- layout even as import sources multiply, and avoids truncation
-	-- on 3-column card grids where a three-button row can't fit
-	-- full labels.
+	-- Two-control row: Import dropdown (opens a menu with Healer / Spec
+	-- sources) | Delete All button. The dropdown is used as a menu
+	-- trigger — after each selection, the label is reset so the control
+	-- always reads "Import Spells" rather than tracking a persistent
+	-- selection. Keeps the two-column layout even as import sources
+	-- multiply, and avoids label truncation on 3-column card grids.
 	local btnHalf = math.floor(((width - 24) - C.Spacing.tight) / 2)
-
-	local importBtn = Widgets.CreateButton(btnRow, 'Import Spells ▾', 'widget', btnHalf, 24)
-	Widgets.SetPoint(importBtn, 'TOPLEFT', btnRow, 'TOPLEFT', 0, 0)
-	importBtn:SetWidgetTooltip('Choose a source to import tracked spells from.')
 
 	local function handleImport(selectedSpells)
 		if(not selectedSpells or #selectedSpells == 0) then return end
@@ -104,21 +101,28 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 		end
 	end
 
-	importBtn:SetOnClick(function()
-		Widgets.OpenPopupMenu(importBtn, {
-			{ text = 'Healer Spells', value = 'healer' },
-			{ text = 'Your Spec',     value = 'spec'   },
-		}, nil, function(value)
-			if(value == 'healer') then
-				F.Settings.Builders.ShowImportPopup(handleImport)
-			elseif(value == 'spec') then
-				F.Settings.Builders.ShowSpecImportPopup(handleImport)
-			end
-		end)
+	local importDD = Widgets.CreateDropdown(btnRow, btnHalf)
+	Widgets.SetPoint(importDD, 'TOPLEFT', btnRow, 'TOPLEFT', 0, 0)
+	importDD:SetItems({
+		{ text = 'Healer Spells', value = 'healer' },
+		{ text = 'Your Spec',     value = 'spec'   },
+	})
+	importDD._label:SetText('Import Spells')
+	importDD:SetWidgetTooltip('Import tracked spells from a curated source or your spec\'s spellbook.')
+	importDD:SetOnSelect(function(value)
+		-- Reset display back to the trigger label — this dropdown acts
+		-- as a menu, not a persistent selector.
+		importDD._label:SetText('Import Spells')
+		importDD._value = nil
+		if(value == 'healer') then
+			F.Settings.Builders.ShowImportPopup(handleImport)
+		elseif(value == 'spec') then
+			F.Settings.Builders.ShowSpecImportPopup(handleImport)
+		end
 	end)
 
 	local deleteAllBtn = Widgets.CreateButton(btnRow, 'Delete All Spells', 'red', btnHalf, 24)
-	deleteAllBtn:SetPoint('LEFT', importBtn, 'RIGHT', C.Spacing.tight, 0)
+	deleteAllBtn:SetPoint('LEFT', importDD, 'RIGHT', C.Spacing.tight, 0)
 	deleteAllBtn:SetOnClick(function()
 		Widgets.ShowConfirmDialog('Delete All Spells', 'Remove all tracked spells from this indicator?', function()
 			update('spells', {})
