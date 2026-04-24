@@ -582,18 +582,30 @@ local function buildSidebarContent(sidebar, contentParent)
 		end
 	end
 
-	-- ── EDITING_PRESET_CHANGED listener ──────────────────────
-	F.EventBus:Register('EDITING_PRESET_CHANGED', function(presetName)
+	-- Preset-scoped sidebar button visibility + labels. Pulls current
+	-- state from the editing preset and applies it to the group-frame and
+	-- pinned buttons. Exposed via Settings._syncPresetScopedButtons so
+	-- Framework can call it as a belt-and-suspenders resync on panel
+	-- activation, not solely relying on EDITING_PRESET_CHANGED firing.
+	--
+	-- Returns `true` if any button visibility changed so callers can
+	-- decide whether to recalc the container height.
+	local function syncPresetScopedButtons()
 		local changed = false
 		if(groupFrameBtn) then
 			local groupLabel = getGroupFrameLabel()
 			if(groupLabel) then
-				groupFrameBtn:Show()
+				if(not groupFrameBtn:IsShown()) then
+					groupFrameBtn:Show()
+					changed = true
+				end
 				groupFrameBtn._label:SetText(groupLabel)
 			else
-				groupFrameBtn:Hide()
+				if(groupFrameBtn:IsShown()) then
+					groupFrameBtn:Hide()
+					changed = true
+				end
 			end
-			changed = true
 		end
 		if(pinnedFrameBtn) then
 			local shouldShow = hasPinnedConfig()
@@ -605,18 +617,44 @@ local function buildSidebarContent(sidebar, contentParent)
 				changed = true
 			end
 		end
-		-- Recalc FRAMES container height since button visibility changed
 		if(changed and sidebar._framesContainer and sidebar._framesContainer._recalc) then
 			sidebar._framesContainer._recalc(true)
 		end
+		return changed
+	end
+
+	Settings._syncPresetScopedButtons = syncPresetScopedButtons
+
+	-- ── EDITING_PRESET_CHANGED listener ──────────────────────
+	F.EventBus:Register('EDITING_PRESET_CHANGED', function(presetName)
+		syncPresetScopedButtons()
 	end, 'Sidebar')
 
-	-- ── Hide defensives/externals while the Pet page is active ──
-	-- Matches the preset-change animation: toggle visibility, reposition
-	-- visible children to close gaps, then animate the container height.
+	-- ── Hide defensives/externals when pet is the editing scope ──
+	--
+	-- External defensives and self-cast defensives don't apply to pets,
+	-- so those aura panels hide when:
+	--   (a) the Pet frame panel is the active page, or
+	--   (b) the editing unit type is 'pet' (via the aura page's
+	--       Configure-for dropdown).
+	--
+	-- Fires on both ACTIVE_PANEL_CHANGED and EDITING_UNIT_TYPE_CHANGED so
+	-- the visibility stays correct whether the user navigates into pet
+	-- or picks pet in the dropdown. If the user is currently ON one of
+	-- the hidden panels when pet becomes the scope, they get redirected
+	-- to Buffs so they don't stare at a hidden-but-active panel.
 	local PANELS_HIDDEN_ON_PET = { externals = true, defensives = true }
-	F.EventBus:Register('ACTIVE_PANEL_CHANGED', function(activePanelId)
-		local shouldHide = (activePanelId == 'pet')
+
+	local function syncPetHiddenAuraPanels()
+		local activeId = Settings._activePanelId
+		local unitType = Settings.GetEditingUnitType and Settings.GetEditingUnitType()
+		local shouldHide = (activeId == 'pet') or (unitType == 'pet')
+
+		-- Redirect off a now-hidden panel before toggling button visibility.
+		if(shouldHide and activeId and PANELS_HIDDEN_ON_PET[activeId]) then
+			Settings.SetActivePanel('buffs')
+		end
+
 		local changed = false
 		for panelId, btn in next, hiddenAuraBtns do
 			if(PANELS_HIDDEN_ON_PET[panelId]) then
@@ -648,7 +686,10 @@ local function buildSidebarContent(sidebar, contentParent)
 		if(container._recalc) then
 			container._recalc(true)
 		end
-	end, 'Sidebar.PanelChanged')
+	end
+
+	F.EventBus:Register('ACTIVE_PANEL_CHANGED', syncPetHiddenAuraPanels, 'Sidebar.PanelChanged')
+	F.EventBus:Register('EDITING_UNIT_TYPE_CHANGED', syncPetHiddenAuraPanels, 'Sidebar.UnitTypeChanged')
 
 	-- Deferred highlight fix — button widths aren't final until first layout
 	C_Timer.After(0, function()

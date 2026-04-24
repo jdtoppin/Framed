@@ -1133,10 +1133,16 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 	F.EventBus:Register('EDITING_PRESET_CHANGED', function(newPreset)
 		scroll._builtForPreset = nil
 		if(F.Settings and F.Settings._panelFrames) then
-			-- Invalidate cache so panel rebuilds with new preset data
+			-- Invalidate cache so panel rebuilds with new preset data.
+			-- TearDownPanel handles the full release (Hide + SetParent(nil)
+			-- + tracking-table cleanup) so we don't leak the orphaned frame.
 			for panelId, frame in next, F.Settings._panelFrames do
 				if(frame == scroll) then
-					F.Settings._panelFrames[panelId] = nil
+					if(F.Settings.TearDownPanel) then
+						F.Settings.TearDownPanel(panelId)
+					else
+						F.Settings._panelFrames[panelId] = nil
+					end
 					break
 				end
 			end

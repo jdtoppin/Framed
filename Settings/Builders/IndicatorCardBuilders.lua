@@ -571,11 +571,13 @@ function Builders.BorderAppearance(parent, width, data, update, get, set)
 		colorPicker:SetColor(glowColor[1], glowColor[2], glowColor[3], glowColor[4] or 1)
 		cardY = placeWidget(colorPicker, inner, cardY, DROPDOWN_H)
 
-		-- Glow type dropdown (frame-level glows only: Pixel and Shine)
+		-- Glow type dropdown (frame-level glows only: Pixel and Shine).
+		-- Both animate particle textures via unthrottled Lua OnUpdate at
+		-- 60 fps (~1.14 ms/s per active glow) — note the cost in the label.
 		local typeDD = Widgets.CreateDropdown(inner, widgetW)
 		typeDD:SetItems({
-			{ text = 'Pixel', value = C.GlowType.PIXEL },
-			{ text = 'Shine', value = C.GlowType.SHINE },
+			{ text = 'Pixel (high CPU)', value = C.GlowType.PIXEL },
+			{ text = 'Shine (high CPU)', value = C.GlowType.SHINE },
 		})
 		typeDD:SetValue(get('glowType') or C.GlowType.PIXEL)
 		typeDD:SetOnSelect(function(value) set('glowType', value) end)

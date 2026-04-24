@@ -83,6 +83,14 @@ local function buildDisplayCard(parent, width, get, set)
 	sizeSlider:SetAfterValueChanged(function(v) set('iconSize', v) end)
 	cy = placeWidget(sizeSlider, inner, cy, SLIDER_H)
 
+	-- Duration Text Scale. Blizzard's Duration FontString uses a fixed FontObject
+	-- with no anchor-level size override; scaling the anchor's parent is the only
+	-- lever. Icon size is preserved independently via compensating iconInfo.
+	local durSlider = Widgets.CreateSlider(inner, 'Duration Text Scale', widgetW, 0.5, 1.5, 0.05)
+	durSlider:SetValue(get('durationScale') or 1)
+	durSlider:SetAfterValueChanged(function(v) set('durationScale', v) end)
+	cy = placeWidget(durSlider, inner, cy, SLIDER_H)
+
 	-- Max Displayed
 	local maxSlider = Widgets.CreateSlider(inner, 'Max Displayed', widgetW, 1, 5, 1)
 	maxSlider:SetValue(get('maxDisplayed') or 3)

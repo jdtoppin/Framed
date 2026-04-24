@@ -32,7 +32,7 @@ local DEFAULT_CONFIG = {
 	growDirection = 'LEFT',
 	spacing       = 2,
 	frameLevel    = 2,
-	glowType      = 'Pixel',
+	glowType      = 'Proc',
 	glowColor     = { 1, 0.82, 0, 1 },
 	anchor        = { 'TOPRIGHT', nil, 'TOPLEFT', -2, 0 },
 }

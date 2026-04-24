@@ -505,7 +505,7 @@ end
 -- SpellInput — compact spell ID entry with debounced live preview
 
 local PREVIEW_ICON_SIZE = 16
-local INPUT_WIDTH       = 170
+local INPUT_MIN_WIDTH   = 80   -- narrowest usable edit box (fits a 7-digit spell ID)
 local ADD_BTN_WIDTH     = 60
 local INPUT_ROW_HEIGHT  = 24
 local PREVIEW_HEIGHT    = 20
@@ -513,10 +513,15 @@ local DEBOUNCE_DELAY    = 0.3
 
 --- Create a spell ID input widget with live preview.
 --- @param parent Frame  Parent frame
---- @param width  number Total logical width
+--- @param width  number Total logical width — edit box + gap + Add button fit within this
 --- @return Frame input
 function Widgets.CreateSpellInput(parent, width)
 	local totalHeight = INPUT_ROW_HEIGHT + C.Spacing.tight + PREVIEW_HEIGHT
+
+	-- Edit box consumes whatever's left after the fixed-width Add button
+	-- + gap. At narrow settings widths this keeps the Add button inside
+	-- the container instead of clipping its right edge.
+	local inputWidth = math.max(INPUT_MIN_WIDTH, width - ADD_BTN_WIDTH - C.Spacing.base)
 
 	local container = CreateFrame('Frame', nil, parent)
 	Widgets.SetSize(container, width, totalHeight)
@@ -526,7 +531,7 @@ function Widgets.CreateSpellInput(parent, width)
 	container._onAdd      = nil
 	container._debounce   = nil
 
-	local editBox = Widgets.CreateEditBox(container, nil, INPUT_WIDTH, INPUT_ROW_HEIGHT, 'number')
+	local editBox = Widgets.CreateEditBox(container, nil, inputWidth, INPUT_ROW_HEIGHT, 'number')
 	editBox:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, 0)
 	editBox:SetPlaceholder('Spell ID...')
 	container._editBox = editBox
@@ -537,7 +542,7 @@ function Widgets.CreateSpellInput(parent, width)
 
 	local preview = CreateFrame('Frame', nil, container, 'BackdropTemplate')
 	preview:SetPoint('TOPLEFT', container, 'TOPLEFT', 0, -(INPUT_ROW_HEIGHT + C.Spacing.tight))
-	preview:SetWidth(INPUT_WIDTH)
+	preview:SetWidth(inputWidth)
 	preview:SetHeight(PREVIEW_HEIGHT)
 	local pvBg = C.Colors.widget
 	preview:SetBackdrop({

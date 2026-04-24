@@ -85,13 +85,36 @@ end
 
 --- Set the preset name being edited.
 --- @param presetName string
+--- Diagnostic flag — set true to surface preset-transition prints in
+--- chat when investigating breadcrumb/dropdown desyncs. Leave false in
+--- normal operation. The gated prints in SetEditingPreset,
+--- reconcileEditingPresetChange, and FramePresets' row-highlight
+--- listener all check this flag.
+Settings._debugPresetTransitions = false
+
 function Settings.SetEditingPreset(presetName)
-	if(editingPreset == presetName) then return end
+	if(Settings._debugPresetTransitions) then
+		print(('|cff00ccff[Framed/preset]|r SetEditingPreset called: current=%s -> requested=%s'):format(
+			tostring(editingPreset), tostring(presetName)))
+	end
 	editingPreset = presetName
 	Settings._editingUnitType = nil
 	F.EventBus:Fire('EDITING_PRESET_CHANGED', presetName)
-	-- Update the sub-header preset indicator live
-	if(Settings._updateHeaderPresetText) then Settings._updateHeaderPresetText() end
+	-- Keep the breadcrumb's preset segment in sync. The EDITING_PRESET_CHANGED
+	-- listeners update the unit-type dropdown and sidebar buttons; this syncs
+	-- the preset dropdown's displayed value for the same transition.
+	local presetDD = Settings._headerPresetDD
+	if(presetDD and presetDD:IsShown()) then
+		presetDD:SetValue(presetName)
+	end
+	-- Complete the framework-side preset transition synchronously instead
+	-- of relying on our own EventBus listener ordering. This keeps the
+	-- active panel, cached preset-scoped frames, and sidebar visibility in
+	-- sync even when the user re-selects the current preset as a recovery
+	-- action (no early-return on same-preset — reconcile runs regardless).
+	if(Settings._reconcileEditingPresetChange) then
+		Settings._reconcileEditingPresetChange()
+	end
 end
 
 -- ============================================================
@@ -162,16 +185,6 @@ local function unitTypeLabel(unitKey)
 	return unitKey
 end
 
---- Look up the active panel's registration info.
-local function getActivePanelInfo()
-	local id = Settings._activePanelId
-	if(not id) then return nil end
-	for _, p in next, registeredPanels do
-		if(p.id == id) then return p end
-	end
-	return nil
-end
-
 --- Convert a raw unit label to a "Frame"-decorated variant:
 ---   'Player'           → 'Player Frame'
 ---   'Target of Target' → 'Target of Target Frame'
@@ -197,20 +210,81 @@ local function buildHeaderUnitTypeItems()
 	return items
 end
 
---- Populate / show / hide the title-card unit-type dropdown, Copy-to
---- button, and drill-in indicator suffix based on the active panel.
---- Called by SetActivePanel after the panel's unit type has been
---- normalized.
-local function activateAuraHeaderControls(info)
-	local dd        = Settings._headerUnitTypeDD
+--- Build breadcrumb-ready preset items — `{ text, value }` pairs drawn
+--- from the ordered PresetOrder list. Text is the preset name as-is;
+--- the inline dropdown doesn't prefix-decorate preset labels since the
+--- preset segment is leftmost in the breadcrumb.
+local function buildPresetItems()
+	local items = {}
+	for _, presetName in next, C.PresetOrder do
+		if(C.PresetInfo[presetName]) then
+			items[#items + 1] = { text = presetName, value = presetName }
+		end
+	end
+	return items
+end
+
+-- Breadcrumb separator gap. Mirrors the SEP_GAP in MainFrame.lua so
+-- downstream re-anchors match the initial layout spacing.
+local SEP_GAP = 6
+
+--- Re-anchor _headerPanelText's LEFT edge to the right edge of the deepest
+--- upstream visible breadcrumb separator (or directly to the preset DD /
+--- titleCard LEFT when no separators are visible). Called from
+--- activatePresetHeaderControls after upstream segments have been shown
+--- or hidden so the label doesn't float over a hidden anchor slot.
+local function anchorPanelTextAfter(prevFrame)
+	local panelText = Settings._headerPanelText
+	if(not panelText or not prevFrame) then return end
+	panelText:ClearAllPoints()
+	Widgets.SetPoint(panelText, 'LEFT', prevFrame, 'RIGHT', SEP_GAP, 0)
+end
+
+--- Populate / show / hide every breadcrumb segment + the Copy-to control
+--- based on the active panel. Called by SetActivePanel after the panel's
+--- unit type has been normalized.
+---
+--- Preset dropdown shows on every PRESET_SCOPED panel (both frame and
+--- aura subsections). Frame-type dropdown shows on aura panels only.
+--- Indicator label shows only while drilled in (managed separately by
+--- UpdateAuraBreadcrumb).
+local function activatePresetHeaderControls(info)
+	local presetDD  = Settings._headerPresetDD
+	local unitDD    = Settings._headerUnitTypeDD
 	local copy      = Settings._headerCopyToBtn
 	local indic     = Settings._headerIndicatorText
 	local copyDD    = Settings._headerCopyToDD
-	if(not dd or not copy or not indic) then return end
+	local sep1      = Settings._headerSep1
+	local sep2      = Settings._headerSep2
+	local sep3      = Settings._headerSep3
+	if(not presetDD or not unitDD or not copy or not indic) then return end
 
+	-- Sep3 (panel → indicator) hides by default; UpdateAuraBreadcrumb shows
+	-- it only while drilled in. Reset here so panel activation always lands
+	-- on the base page.
+	if(sep3) then sep3:Hide() end
+
+	-- ── Preset segment: show on any PRESET_SCOPED panel ──────────
+	local presetScoped = info and info.section == 'PRESET_SCOPED'
+	if(presetScoped) then
+		presetDD:SetItems(buildPresetItems())
+		presetDD:SetValue(Settings.GetEditingPreset())
+		presetDD:SetOnSelect(function(value)
+			Settings.SetEditingPreset(value)
+		end)
+		presetDD:Show()
+		if(sep1) then sep1:Show() end
+	else
+		if(presetDD.Close) then presetDD:Close() end
+		presetDD:Hide()
+		if(sep1) then sep1:Hide() end
+	end
+
+	-- ── Frame / indicator / copy-to segments: aura pages only ────
 	if(not info or info.subSection ~= 'auras') then
-		if(dd.Close) then dd:Close() end
-		dd:Hide()
+		if(unitDD.Close) then unitDD:Close() end
+		unitDD:Hide()
+		if(sep2) then sep2:Hide() end
 		if(copyDD) then
 			if(copyDD.Close) then copyDD:Close() end
 			copyDD:Hide()
@@ -218,25 +292,45 @@ local function activateAuraHeaderControls(info)
 		copy:Hide()
 		indic:Hide()
 		indic:SetText('')
+		-- Panel text anchors to sep1 on preset-scoped non-aura pages
+		-- (frame pages), or to titleCard LEFT on GLOBAL / FRAME_PRESETS
+		-- panels where even the preset segment is hidden.
+		if(presetScoped and sep1) then
+			anchorPanelTextAfter(sep1)
+		else
+			-- Fallback: restore original left-edge anchor for panels
+			-- with no breadcrumb (Global, Frame Presets, Bottom).
+			local panelText = Settings._headerPanelText
+			if(panelText) then
+				panelText:ClearAllPoints()
+				Widgets.SetPoint(panelText, 'LEFT', panelText:GetParent(), 'LEFT', C.Spacing.normal, 0)
+			end
+		end
 		return
 	end
 
-	-- Populate the inline dropdown with "Player Frame" / "Target Frame" /
-	-- etc. items and point its selection at the current unit type. The
-	-- '/ ' prefix renders in the trigger only, not in the menu rows.
-	dd:SetItems(buildHeaderUnitTypeItems())
-	dd:SetLabelPrefix('/ ')
-	dd:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
-	dd:SetOnSelect(function(value)
+	-- Populate the frame-type dropdown. The breadcrumb's '/' separator
+	-- lives in sep2 (positioned just before this segment); the trigger
+	-- itself renders without an internal prefix so the padding around
+	-- the separator is consistent with the rest of the breadcrumb.
+	unitDD:SetItems(buildHeaderUnitTypeItems())
+	unitDD:SetLabelPrefix('')
+	unitDD:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
+	unitDD:SetOnSelect(function(value)
 		local currentId = Settings._activePanelId
 		if(not currentId) then return end
 		Settings.SetEditingUnitType(value)
 		-- Invalidate and rebuild the current panel — matches the
 		-- behavior of the old in-panel "Configure for" dropdown.
-		Settings._panelFrames[currentId] = nil
+		Settings.TearDownPanel(currentId)
 		Settings.SetActivePanel(currentId)
 	end)
-	dd:Show()
+	unitDD:Show()
+	if(sep2) then sep2:Show() end
+
+	-- Panel text anchors after sep2 on aura pages so the breadcrumb
+	-- reads "Preset / Frame / Panel / [Indicator]".
+	if(sep2) then anchorPanelTextAfter(sep2) end
 
 	-- Copy-to: visible only when the panel registered a configKey.
 	local configKey = Settings._auraConfigKeys[info.id]
@@ -267,7 +361,7 @@ local function activateAuraHeaderControls(info)
 				if(Settings.CopyTo(configKey, target)) then
 					-- Invalidate + refresh so the active panel rebuilds
 					-- against the new config.
-					Settings._panelFrames[info.id] = nil
+					Settings.TearDownPanel(info.id)
 					Settings.RefreshActivePanel()
 					-- Friendly chat confirmation (mirrors dialog output).
 					local targetLabel = target
@@ -288,8 +382,10 @@ local function activateAuraHeaderControls(info)
 		copy:Hide()
 	end
 
-	-- Constrain indicator text width so it truncates before right-side controls.
-	local rightAnchor = (copyDD and copy:IsShown()) and copyDD or Settings._headerPresetText
+	-- Constrain indicator text width so it truncates before the right-side
+	-- Copy-to control. When Copy-to is hidden, fall back to copy (the
+	-- button itself), which is anchored to the titleCard RIGHT.
+	local rightAnchor = (copyDD and copy:IsShown()) and copyDD or copy
 	indic:SetPoint('RIGHT', rightAnchor, 'LEFT', -C.Spacing.normal, 0)
 
 	-- Reset drill-in state — SetActivePanel always lands on the base page.
@@ -297,22 +393,7 @@ local function activateAuraHeaderControls(info)
 	indic:SetText('')
 end
 
-Settings._activateAuraHeaderControls = activateAuraHeaderControls
-
---- Recompute the sub-header accent text ("Editing: Preset") and
---- show/hide it based on the active panel's section.
-local function updateHeaderPresetText()
-	if(not Settings._headerPresetText) then return end
-	local info = getActivePanelInfo()
-	if(not info or info.section ~= 'PRESET_SCOPED') then
-		Settings._headerPresetText:Hide()
-		return
-	end
-	Settings._headerPresetText:SetText('Editing: ' .. Settings.GetEditingPreset())
-	Settings._headerPresetText:Show()
-end
-
-Settings._updateHeaderPresetText = updateHeaderPresetText
+Settings._activatePresetHeaderControls = activatePresetHeaderControls
 
 -- ============================================================
 -- Shared State
@@ -325,6 +406,50 @@ Settings._activePanelId  = nil
 Settings._activePanelFrame = nil
 Settings._panelFrames    = {}
 Settings._panelRefresh   = {}
+
+-- ============================================================
+-- Panel teardown helper
+-- ============================================================
+
+--- Release all references to a cached panel frame so Lua can GC it.
+---
+--- Dropping _panelFrames[id] = nil alone only removes the Lua cache
+--- reference — the Frame object stays parented to _contentParent with
+--- all its widgets, textures, and event handlers alive. Repeated
+--- invalidate-rebuild cycles (unit-type switches, copy-to, refresh,
+--- preset changes) leak one orphaned panel frame per cycle. Explicit
+--- Hide + SetParent(nil) releases WoW's frame ownership, and clearing
+--- the various tracking tables ensures no dangling references prevent
+--- collection.
+---
+--- Safe to call with an unknown panelId (no-op if nothing cached).
+--- @param panelId string
+function Settings.TearDownPanel(panelId)
+	local frame = Settings._panelFrames[panelId]
+	if(not frame) then return end
+
+	-- Cancel any in-flight panel transition animation so its onComplete
+	-- callback doesn't keep a reference alive past the teardown.
+	if(frame._anim and frame._anim['panelTransition']) then
+		local anim = frame._anim['panelTransition']
+		if(anim.onComplete) then
+			anim.onComplete(frame)
+		end
+		frame._anim['panelTransition'] = nil
+	end
+
+	frame:Hide()
+	frame:SetParent(nil)
+
+	Settings._panelFrames[panelId] = nil
+	Settings._panelRefresh[panelId] = nil
+	if(Settings._panelBuiltUnitType) then
+		Settings._panelBuiltUnitType[panelId] = nil
+	end
+	if(Settings._activePanelFrame == frame) then
+		Settings._activePanelFrame = nil
+	end
+end
 Settings._sidebarButtons = {}
 Settings._contentParent  = nil
 Settings._headerPanelText = nil
@@ -389,9 +514,7 @@ function Settings.SetActivePanel(panelId)
 		local builtFor = Settings._panelBuiltUnitType and Settings._panelBuiltUnitType[panelId]
 		local current = Settings.GetEditingUnitType()
 		if(builtFor and builtFor ~= current) then
-			Settings._panelFrames[panelId]:Hide()
-			Settings._panelFrames[panelId]:SetParent(nil)
-			Settings._panelFrames[panelId] = nil
+			Settings.TearDownPanel(panelId)
 			Settings._auraPreview = nil
 		end
 	end
@@ -484,33 +607,49 @@ function Settings.SetActivePanel(panelId)
 		Settings._auraPreview = nil
 	end
 
-	-- ── Reset unit type when switching to aura panels ────────
-	-- Prevents "pet" (or other frame-only types) from leaking into
-	-- the Configure for dropdown on aura panels. Must run before the
-	-- header text decorates itself with the unit label.
-	if(info.subSection == 'auras') then
-		local currentUT = Settings._editingUnitType
-		if(currentUT == 'pet') then
-			Settings._editingUnitType = nil  -- falls back to preset default
+	-- Note: a previous reset here wiped _editingUnitType = 'pet' on every
+	-- aura panel activation to prevent pet "leaking" when navigating from
+	-- the Pet frame page to an aura page. That was overreach — it also
+	-- wiped explicit Pet selections made through the unit-type dropdown,
+	-- because SetActivePanel re-runs on every dropdown change. Net effect
+	-- was pet-scope aura editing was impossible. Removed.
+	--
+	-- If the Pet→Buffs navigation default feels wrong (landing on pet-
+	-- scope instead of player-scope), fix that at the navigation boundary
+	-- (sidebar click handler) rather than here, so explicit dropdown
+	-- choices are respected.
+
+	-- Panel name segment. Separators are rendered by dedicated font
+	-- strings (sep1/sep2/sep3) so the text itself is just the label;
+	-- activatePresetHeaderControls handles anchoring after the correct
+	-- upstream separator.
+	--
+	-- The group-frame panel (id='party') is special: its registered label
+	-- is the static "Party Frames", but the actual label depends on the
+	-- current preset's groupLabel ("Raid Frames" / "Arena Frames" / etc.).
+	-- Resolve dynamically so the breadcrumb matches what the sidebar and
+	-- preview show.
+	local panelLabel = info.label or ''
+	if(info.id == 'party') then
+		local presetInfo = C.PresetInfo[Settings.GetEditingPreset()]
+		if(presetInfo and presetInfo.groupLabel) then
+			panelLabel = presetInfo.groupLabel
 		end
 	end
-
-	-- Update sub-header text — the breadcrumb is always just the panel
-	-- label now; aura panels get their "/ <Unit> Frame" suffix via the
-	-- title-card inline dropdown, not via text concatenation.
 	if(Settings._headerPanelText) then
-		Settings._headerPanelText:SetText(info.label or '')
+		Settings._headerPanelText:SetText(panelLabel)
 	end
 
-	-- Update preset indicator (right side of title card)
-	updateHeaderPresetText()
-
-	-- Show/hide and populate the inline unit dropdown + Copy-to button
-	activateAuraHeaderControls(info)
+	-- Show/hide and populate the breadcrumb segments + Copy-to control.
+	-- Sidebar preset-scoped button sync happens via the Sidebar's
+	-- EDITING_PRESET_CHANGED listener, which runs as part of the
+	-- synchronous reconcile in SetEditingPreset — no need for a defensive
+	-- call here.
+	activatePresetHeaderControls(info)
 
 	-- Restore drill-in breadcrumb if the panel re-entered with an active indicator
 	if(Settings._activePanelFrame and Settings._activePanelFrame._editingIndicatorName) then
-		Settings.UpdateAuraBreadcrumb(info.label or '', Settings._activePanelFrame._editingIndicatorName)
+		Settings.UpdateAuraBreadcrumb(panelLabel, Settings._activePanelFrame._editingIndicatorName)
 	end
 
 	-- ── Show/hide aura sidebar buttons based on active panel ─
@@ -529,21 +668,25 @@ end
 --- @param indicatorName string|nil  Optional indicator sub-page name
 function Settings.UpdateAuraBreadcrumb(pageLabel, indicatorName)
 	if(not Settings._headerPanelText) then return end
-	Settings._headerPanelText:SetText(pageLabel)
+	-- Separators are rendered separately — the panel text is just the label.
+	Settings._headerPanelText:SetText(pageLabel or '')
 
 	local indic = Settings._headerIndicatorText
 	local copy  = Settings._headerCopyToBtn
 	local copyDD    = Settings._headerCopyToDD
+	local sep3  = Settings._headerSep3
 	if(indicatorName) then
 		if(indic) then
-			indic:SetText('|cff6688cc>|r  ' .. indicatorName)
+			indic:SetText(indicatorName)
 			indic:Show()
 		end
+		if(sep3) then sep3:Show() end
 	else
 		if(indic) then
 			indic:SetText('')
 			indic:Hide()
 		end
+		if(sep3) then sep3:Hide() end
 		-- Restore Copy-to only if this panel has a configKey registered.
 		local activeId = Settings._activePanelId
 		local configKey = activeId and Settings._auraConfigKeys[activeId]
@@ -578,10 +721,23 @@ F.EventBus:Register('EDITING_UNIT_TYPE_CHANGED', function(newType)
 	dd:SetValue(newType or Settings.GetEditingUnitType() or 'player')
 end, 'Settings.HeaderUnitTypeSync')
 
--- Refresh active panel when the editing preset changes.
--- Invalidate all preset-scoped panels so stale frames are rebuilt
--- when the user navigates to them.
-F.EventBus:Register('EDITING_PRESET_CHANGED', function()
+--- Refresh active panel after the editing preset changes.
+--- Invalidate all preset-scoped panels so stale frames are rebuilt
+--- when the user navigates to them.
+---
+--- Called synchronously from SetEditingPreset rather than via an
+--- EventBus listener. This guarantees framework-side state
+--- (activePanelId, panel cache, sidebar visibility) is fully
+--- reconciled before SetEditingPreset returns, eliminating the
+--- listener-order sensitivity that caused half-synced UI states.
+--- Other listeners (sidebar sync, FramePresets row highlight, aura
+--- preview rebuild) still fire on the EDITING_PRESET_CHANGED event
+--- normally.
+local function reconcileEditingPresetChange()
+	if(Settings._debugPresetTransitions) then
+		print(('|cff66ccff[Framed/reconcile]|r enter — activeId=%s editingPreset=%s'):format(
+			tostring(Settings._activePanelId), tostring(Settings.GetEditingPreset())))
+	end
 	-- Refresh header dropdown items unconditionally — during zone
 	-- transitions the main frame may not be :IsShown() yet, but the
 	-- items must be correct when it reappears.
@@ -591,30 +747,58 @@ F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 		dd:SetValue(Settings.GetEditingUnitType() or getDefaultUnitType())
 	end
 
+	-- Tear down cached preset-scoped panel frames before forgetting them.
+	-- See Settings.TearDownPanel for the full rationale; in short, dropping
+	-- _panelFrames[id] = nil alone leaks the Frame object because WoW keeps
+	-- it parented. TearDownPanel does the full release.
 	for _, p in next, registeredPanels do
-		if(p.section == 'PRESET_SCOPED' and Settings._panelFrames[p.id]) then
-			Settings._panelFrames[p.id] = nil
+		if(p.section == 'PRESET_SCOPED') then
+			Settings.TearDownPanel(p.id)
 		end
 	end
 	if(not Settings._mainFrame) then return end
 	local activeId = Settings._activePanelId
 	if(not activeId) then return end
-	-- Redirect away from preset-specific panels that don't exist under the
-	-- new preset (pinned is absent in Solo). Must run even while settings
-	-- is hidden so that Toggle()'s pre-FadeIn sync doesn't leave a stale
-	-- pinned panel active when the user reopens under Solo.
-	if(activeId == 'pinned') then
-		local preset = Settings.GetEditingPreset()
+
+	-- Redirect away from frame-type panels that don't exist under the new
+	-- preset. Must run even while settings is hidden so that Toggle()'s
+	-- pre-FadeIn sync doesn't leave a stale invalid-panel active when the
+	-- user reopens under a narrower preset.
+	--
+	-- Frame-type panels with preset-dependent validity:
+	--   party   — present only when preset has a groupKey (Party/Raid/Arena/…)
+	--   pinned  — present only when preset has a unitConfigs.pinned block
+	-- Other frame panels (player/target/targettarget/focus/pet/boss) exist
+	-- in every preset and don't need a redirect.
+	local preset = Settings.GetEditingPreset()
+	local presetInfo = preset and C.PresetInfo[preset]
+	if(activeId == 'party') then
+		if(not presetInfo or not presetInfo.groupKey) then
+			activeId = 'player'
+		end
+	elseif(activeId == 'pinned') then
 		if(not preset or not F.Config:Get('presets.' .. preset .. '.unitConfigs.pinned')) then
 			activeId = 'player'
 		end
 	end
+
+	if(activeId ~= Settings._activePanelId) then
+		-- Redirect happened: fully clear the stale active frame so the
+		-- slide-in animation starts from a clean slate rather than the
+		-- partially-rendered previous panel.
+		if(Settings._activePanelFrame) then
+			Settings._activePanelFrame:Hide()
+		end
+	end
+
 	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
 	else
 		Settings.SetActivePanel(activeId)
 	end
-end, 'Settings.PanelRefresh')
+end
+
+Settings._reconcileEditingPresetChange = reconcileEditingPresetChange
 
 --- Call the active panel's Refresh callback, if it has one.
 function Settings.RefreshActivePanel()
@@ -623,7 +807,7 @@ function Settings.RefreshActivePanel()
 	if(Settings._panelRefresh[activeId]) then
 		Settings._panelRefresh[activeId]()
 	else
-		Settings._panelFrames[activeId] = nil
+		Settings.TearDownPanel(activeId)
 		Settings.SetActivePanel(activeId)
 	end
 end

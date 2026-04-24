@@ -1,13 +1,17 @@
 local _, Framed = ...
 local F = Framed
 
--- Diagnostic tool: measure allocation churn in the aura fan-out hot paths.
+-- Diagnostic tool: measure allocation churn AND CPU cost in the aura
+-- fan-out hot paths.
 --
 -- Usage: F.MemDiag.Start(seconds)
 -- Stops GC for the window so any `collectgarbage('count')` rise is pure
 -- allocation (nothing gets freed), wraps each hot funnel to accumulate
--- KB delta + call count, restores originals when the window ends, runs
--- a full collect, and prints a sorted report.
+-- KB delta + ms delta + call count, restores originals when the window
+-- ends, runs a full collect, and prints a sorted report.
+--
+-- ms timing via debugprofilestop() requires /console scriptProfile 1 +
+-- /reload. Without it, the ms column reads 0.
 --
 -- Not for steady-state use — memory climbs for the duration by design.
 
@@ -19,44 +23,56 @@ F.MemDiag = {
 
 local MAX_SECONDS = 30
 
+-- Cache hot builtins as upvalues — instrumentation wrappers call these
+-- on every hot-path invocation, so avoiding the global table lookup
+-- matters for the overhead we're adding to the very code we're measuring.
+local gc_count     = collectgarbage
+local profile_stop = debugprofilestop
+
 local function ensureCounter(key)
 	local c = F.MemDiag._counters[key]
 	if(not c) then
-		c = { calls = 0, kb = 0 }
+		c = { calls = 0, kb = 0, ms = 0 }
 		F.MemDiag._counters[key] = c
 	end
 	return c
 end
 
---- Build a wrapper that records KB-delta + call count for `fn` under `key`.
+--- Build a wrapper that records KB-delta + ms-delta + call count for `fn` under `key`.
 local function instrument(key, fn)
 	return function(...)
-		local before = collectgarbage('count')
+		local beforeKB = gc_count('count')
+		local beforeMS = profile_stop()
 		local a, b, c, d, e, f = fn(...)
 		local c1 = ensureCounter(key)
 		c1.calls = c1.calls + 1
-		c1.kb    = c1.kb + (collectgarbage('count') - before)
+		c1.kb    = c1.kb + (gc_count('count') - beforeKB)
+		c1.ms    = c1.ms + (profile_stop() - beforeMS)
 		return a, b, c, d, e, f
 	end
 end
 
 --- In-situ probe API for element modules that want per-expression
---- attribution inside their own hot-path functions. Enter() returns a
---- token (or nil when MemDiag is inactive); Leave() uses that token to
---- record the bytes-allocated delta against `key`. Both are no-ops when
---- the window is closed, so probes compiled into element code impose
---- only a per-call branch + function-call cost in normal operation.
+--- attribution inside their own hot-path functions. Enter() returns two
+--- tokens (or nils when MemDiag is inactive); Leave() uses those tokens
+--- to record the bytes- and ms-allocated deltas against `key`. Both are
+--- no-ops when the window is closed, so probes compiled into element
+--- code impose only a per-call branch + function-call cost in normal
+--- operation.
 function F.MemDiag.Enter()
-	if(not F.MemDiag._active) then return nil end
-	return collectgarbage('count')
+	if(not F.MemDiag._active) then return nil, nil end
+	return gc_count('count'), profile_stop()
 end
 
-function F.MemDiag.Leave(key, before)
-	if(not before) then return end
+function F.MemDiag.Leave(key, beforeKB, beforeMS)
+	if(not beforeKB) then return end
 	if(not F.MemDiag._active) then return end
 	local c = ensureCounter(key)
 	c.calls = c.calls + 1
-	c.kb    = c.kb + (collectgarbage('count') - before)
+	c.kb    = c.kb + (gc_count('count') - beforeKB)
+	if(beforeMS) then
+		c.ms = c.ms + (profile_stop() - beforeMS)
+	end
 end
 
 -- Element containers that expose an indicator list on an oUF frame.
@@ -114,11 +130,13 @@ local function patchOUFEvents()
 		if(orig) then
 			F.MemDiag._originals.frameEvents[frame] = orig
 			frame:SetScript('OnEvent', function(self, event, ...)
-				local before = collectgarbage('count')
+				local beforeKB = gc_count('count')
+				local beforeMS = profile_stop()
 				orig(self, event, ...)
 				local c = ensureCounter('event:' .. (event or '?'))
 				c.calls = c.calls + 1
-				c.kb    = c.kb + (collectgarbage('count') - before)
+				c.kb    = c.kb + (gc_count('count') - beforeKB)
+				c.ms    = c.ms + (profile_stop() - beforeMS)
 			end)
 		end
 	end
@@ -132,6 +150,15 @@ end
 local function frameLabel(frame, depth)
 	local name = frame:GetName()
 	if(name) then return name end
+
+	-- GetDebugName surfaces Blizzard's internal hierarchical name (e.g.
+	-- 'FramedPartyHeaderUnitButton1.HealPredictionBar') even for anonymous
+	-- frames. Not available on all versions, so guard with a check.
+	if(frame.GetDebugName) then
+		local debugName = frame:GetDebugName()
+		if(debugName and debugName ~= '') then return debugName end
+	end
+
 	local p = frame
 	local hops = 0
 	while(hops < 8) do
@@ -168,36 +195,63 @@ local function hookFrameOnUpdate(frame, label)
 	if(not orig) then return false end
 	F.MemDiag._originals.onUpdates[frame] = orig
 	frame:SetScript('OnUpdate', function(self, elapsed)
-		local before = collectgarbage('count')
+		local beforeKB = gc_count('count')
+		local beforeMS = profile_stop()
 		orig(self, elapsed)
 		local c = ensureCounter('update:' .. label)
 		c.calls = c.calls + 1
-		c.kb    = c.kb + (collectgarbage('count') - before)
+		c.kb    = c.kb + (gc_count('count') - beforeKB)
+		c.ms    = c.ms + (profile_stop() - beforeMS)
 	end)
 	return true
 end
 
---- Walk all oUF frames + descendants and hook their OnUpdate scripts.
---- Safe to call repeatedly — `hookFrameOnUpdate` skips already-wrapped
---- frames. Used both at Start and periodically during the window to
---- catch dynamically-attached OnUpdates (Bar depleting, Color/Overlay
---- animations) that escape the initial walk.
-local function walkAndHookOnUpdates()
+--- One-time catalog walk: descend oUF.objects once, record every reachable
+--- frame + its label into _trackedFrames, and hook any OnUpdate scripts
+--- present at that moment.
+---
+--- Labels are computed (and GetDebugName called) exactly once per frame
+--- here and cached for the rest of the window — subsequent rewalks reuse
+--- the cached label without re-walking the parent chain.
+local function walkAndCatalogFrames()
 	local oUF = F.oUF
 	if(not oUF or not oUF.objects) then return end
 
+	local tracked = F.MemDiag._originals.trackedFrames
 	for _, root in next, oUF.objects do
 		walkFrames(root, 0, 5, function(frame, depth)
-			hookFrameOnUpdate(frame, frameLabel(frame, depth))
+			if(not tracked[frame]) then
+				local label = frameLabel(frame, depth)
+				tracked[frame] = label
+				hookFrameOnUpdate(frame, label)
+			end
 		end)
 	end
 end
 
---- Initial OnUpdate hook pass. See walkAndHookOnUpdates for ongoing
---- coverage of dynamically-attached scripts.
+--- Cheap rewalk: iterate the cached frame set and hook any OnUpdate that
+--- appeared since last pass. No tree traversal, no table packing, no
+--- label recomputation. Pure GetScript probe per tracked frame.
+---
+--- Limitation: frames created after Start are not in the cache and won't
+--- be caught. Acceptable — Framed spawns frames at addon load, not in
+--- combat, so new-frame emergence inside a 30s window is vanishingly rare.
+local function rewalkCachedFrames()
+	local tracked = F.MemDiag._originals.trackedFrames
+	local hooked  = F.MemDiag._originals.onUpdates
+	for frame, label in next, tracked do
+		if(not hooked[frame]) then
+			hookFrameOnUpdate(frame, label)
+		end
+	end
+end
+
+--- Initial OnUpdate hook pass. Populates the tracked-frame cache used by
+--- subsequent rewalks.
 local function patchOnUpdates()
-	F.MemDiag._originals.onUpdates = {}
-	walkAndHookOnUpdates()
+	F.MemDiag._originals.onUpdates     = {}
+	F.MemDiag._originals.trackedFrames = {}
+	walkAndCatalogFrames()
 end
 
 --- Hook known standalone event/update frames that are not in oUF.objects.
@@ -214,11 +268,13 @@ local function patchStandaloneFrames()
 			frame = frame, script = 'OnEvent', orig = orig,
 		}
 		frame:SetScript('OnEvent', function(self, event, ...)
-			local before = collectgarbage('count')
+			local beforeKB = gc_count('count')
+			local beforeMS = profile_stop()
 			orig(self, event, ...)
 			local c = ensureCounter('standalone-event:' .. label .. ':' .. (event or '?'))
 			c.calls = c.calls + 1
-			c.kb    = c.kb + (collectgarbage('count') - before)
+			c.kb    = c.kb + (gc_count('count') - beforeKB)
+			c.ms    = c.ms + (profile_stop() - beforeMS)
 		end)
 	end
 
@@ -230,11 +286,13 @@ local function patchStandaloneFrames()
 			frame = frame, script = 'OnUpdate', orig = orig,
 		}
 		frame:SetScript('OnUpdate', function(self, elapsed)
-			local before = collectgarbage('count')
+			local beforeKB = gc_count('count')
+			local beforeMS = profile_stop()
 			orig(self, elapsed)
 			local c = ensureCounter('standalone-update:' .. label)
 			c.calls = c.calls + 1
-			c.kb    = c.kb + (collectgarbage('count') - before)
+			c.kb    = c.kb + (gc_count('count') - beforeKB)
+			c.ms    = c.ms + (profile_stop() - beforeMS)
 		end)
 	end
 
@@ -334,14 +392,15 @@ local function printReport(durationSec, totalStartKB, totalStopKB)
 
 	local rows = {}
 	for key, c in next, F.MemDiag._counters do
-		rows[#rows + 1] = { key = key, calls = c.calls, kb = c.kb }
+		rows[#rows + 1] = { key = key, calls = c.calls, kb = c.kb, ms = c.ms or 0 }
 	end
-	table.sort(rows, function(a, b) return a.kb > b.kb end)
+	table.sort(rows, function(a, b) return a.ms > b.ms end)
 
-	print('|cff00ccff[Framed/memdiag]|r per-hook (sorted by bytes allocated):')
+	print('|cff00ccff[Framed/memdiag]|r per-hook (sorted by ms spent):')
 	print('  note: event:* totals nest AuraState:* costs — do not sum both')
+	print('  note: ms column is 0 unless /console scriptProfile 1 + /reload')
 
-	-- Unattributed = totalDelta minus the top-level scopes. event:* wraps
+	-- Unattributed KB = totalDelta minus the top-level scopes. event:* wraps
 	-- oUF OnEvent dispatch (nests AuraState); update:* wraps per-frame
 	-- OnUpdate; standalone-event:* wraps non-oUF event frames;
 	-- standalone-update:* wraps non-oUF ticker frames (IconTicker etc.).
@@ -351,50 +410,61 @@ local function printReport(durationSec, totalStartKB, totalStopKB)
 	-- indicator:* and element:* are in-situ probes nested inside event:*;
 	-- they attribute sub-paths within element Update handlers, so they are
 	-- tracked for informational totals but NOT added to topLevel.
-	local topLevel = 0
-	local byBucket = { event = 0, update = 0, standalone = 0, tickers = 0, aura = 0, memdiag = 0, indicator = 0, element = 0 }
+	local topLevelKB = 0
+	local topLevelMS = 0
+	local bKB = { event = 0, update = 0, standalone = 0, tickers = 0, aura = 0, memdiag = 0, indicator = 0, element = 0 }
+	local bMS = { event = 0, update = 0, standalone = 0, tickers = 0, aura = 0, memdiag = 0, indicator = 0, element = 0 }
 	for key, c in next, F.MemDiag._counters do
+		local ms = c.ms or 0
 		if(key:sub(1, 6) == 'event:') then
-			topLevel = topLevel + c.kb
-			byBucket.event = byBucket.event + c.kb
+			topLevelKB = topLevelKB + c.kb; topLevelMS = topLevelMS + ms
+			bKB.event = bKB.event + c.kb;    bMS.event = bMS.event + ms
 		elseif(key:sub(1, 7) == 'update:') then
-			topLevel = topLevel + c.kb
-			byBucket.update = byBucket.update + c.kb
+			topLevelKB = topLevelKB + c.kb; topLevelMS = topLevelMS + ms
+			bKB.update = bKB.update + c.kb;  bMS.update = bMS.update + ms
 		elseif(key:sub(1, 17) == 'standalone-event:') then
-			topLevel = topLevel + c.kb
-			byBucket.standalone = byBucket.standalone + c.kb
+			topLevelKB = topLevelKB + c.kb; topLevelMS = topLevelMS + ms
+			bKB.standalone = bKB.standalone + c.kb; bMS.standalone = bMS.standalone + ms
 		elseif(key:sub(1, 18) == 'standalone-update:') then
-			topLevel = topLevel + c.kb
-			byBucket.tickers = byBucket.tickers + c.kb
+			topLevelKB = topLevelKB + c.kb; topLevelMS = topLevelMS + ms
+			bKB.tickers = bKB.tickers + c.kb; bMS.tickers = bMS.tickers + ms
 		elseif(key == 'AuraCache.GetUnitAuras') then
-			topLevel = topLevel + c.kb
-			byBucket.aura = byBucket.aura + c.kb
+			topLevelKB = topLevelKB + c.kb; topLevelMS = topLevelMS + ms
+			bKB.aura = bKB.aura + c.kb;      bMS.aura = bMS.aura + ms
 		elseif(key:sub(1, 8) == 'memdiag:') then
-			topLevel = topLevel + c.kb
-			byBucket.memdiag = byBucket.memdiag + c.kb
+			topLevelKB = topLevelKB + c.kb; topLevelMS = topLevelMS + ms
+			bKB.memdiag = bKB.memdiag + c.kb; bMS.memdiag = bMS.memdiag + ms
 		elseif(key:sub(1, 10) == 'indicator:') then
-			byBucket.indicator = byBucket.indicator + c.kb
+			bKB.indicator = bKB.indicator + c.kb; bMS.indicator = bMS.indicator + ms
 		elseif(key:sub(1, 8) == 'element:') then
-			byBucket.element = byBucket.element + c.kb
+			bKB.element = bKB.element + c.kb; bMS.element = bMS.element + ms
 		end
 	end
 
-	print(('  --- bucket totals: event=%.1fKB  update=%.1fKB  standalone=%.1fKB  tickers=%.1fKB  auraCache=%.1fKB  memdiag=%.1fKB ---'):format(
-		byBucket.event, byBucket.update, byBucket.standalone, byBucket.tickers, byBucket.aura, byBucket.memdiag))
-	print(('  --- nested under event:* — indicator=%.1fKB  element=%.1fKB ---'):format(
-		byBucket.indicator, byBucket.element))
+	print(('  --- KB by bucket: event=%.1f  update=%.1f  standalone=%.1f  tickers=%.1f  auraCache=%.1f  memdiag=%.1f ---'):format(
+		bKB.event, bKB.update, bKB.standalone, bKB.tickers, bKB.aura, bKB.memdiag))
+	print(('  --- ms by bucket: event=%.1f  update=%.1f  standalone=%.1f  tickers=%.1f  auraCache=%.1f  memdiag=%.1f ---'):format(
+		bMS.event, bMS.update, bMS.standalone, bMS.tickers, bMS.aura, bMS.memdiag))
+	print(('  --- nested under event:* — indicator KB=%.1f/ms=%.1f  element KB=%.1f/ms=%.1f ---'):format(
+		bKB.indicator, bMS.indicator, bKB.element, bMS.element))
 
+	-- Per-call μs is (ms*1000)/calls — kept in μs to avoid the "0.00 ms/call"
+	-- degenerate case that hides real cost on high-frequency hot paths.
 	for _, r in next, rows do
-		local perCall = r.calls > 0 and (r.kb * 1024 / r.calls) or 0
-		print(('  %-48s  %6d calls  %8.1f KB  (%.0f B/call)'):format(
-			r.key, r.calls, r.kb, perCall))
+		local bPerCall  = r.calls > 0 and (r.kb * 1024 / r.calls) or 0
+		local usPerCall = r.calls > 0 and (r.ms * 1000    / r.calls) or 0
+		print(('  %-48s  %6d calls  %8.1f ms  %8.1f KB  (%.0f μs/call, %.0f B/call)'):format(
+			r.key, r.calls, r.ms, r.kb, usPerCall, bPerCall))
 	end
 
-	local unattributed = totalDelta - topLevel
+	local unattributedKB = totalDelta - topLevelKB
 	print(('  %-48s                 %8.1f KB  (%.0f%%)'):format(
-		'[unattributed: non-hooked paths]',
-		unattributed,
-		totalDelta > 0 and (unattributed / totalDelta * 100) or 0))
+		'[unattributed KB: non-hooked paths]',
+		unattributedKB,
+		totalDelta > 0 and (unattributedKB / totalDelta * 100) or 0))
+	print(('  %-48s                 %8.1f ms  (top-level sum; compare to AddonProfiler Framed Total)'):format(
+		'[top-level ms total]',
+		topLevelMS))
 end
 
 --- Read Framed-specific heap usage in KB. Blizzard attributes Lua
@@ -434,23 +504,28 @@ function F.MemDiag.Start(seconds)
 	patchIndicatorMethods()
 
 	-- Periodic re-walk: catches OnUpdate scripts attached mid-window
-	-- (Bar depleting, Color/Overlay/BorderGlow animations) that were not
-	-- present at the initial patchOnUpdates sweep. walkAndHookOnUpdates is
-	-- idempotent — already-hooked frames are skipped. Limitation: if a
-	-- hooked frame's script is later replaced with a new fn, we keep
-	-- tracking the old one (rare; noted for follow-up if needed).
+	-- (Bar depleting, Color/Overlay/BorderGlow animations, glow effects)
+	-- that were not present at the initial patchOnUpdates sweep.
 	--
-	-- The walk itself allocates (table-packed GetChildren results), so we
-	-- attribute that cost to a `memdiag:rewalk` counter — keeping it out of
-	-- the [unattributed] bucket so the report still reflects real leaks.
+	-- rewalkCachedFrames iterates only the frame set collected during the
+	-- initial catalog walk — no tree traversal, no table packing, no
+	-- GetDebugName recomputation. Per-tick cost is ~one GetScript probe
+	-- per tracked frame. Still attributed to `memdiag:rewalk` so the
+	-- report reflects remaining self-cost.
+	--
+	-- Limitation: frames created after Start are not in the cache and
+	-- won't be caught. Acceptable — Framed spawns frames at addon load,
+	-- not in combat, so new-frame emergence inside a 30s window is rare.
 	local function scheduleRewalk()
 		C_Timer.After(2, function()
 			if(not F.MemDiag._active) then return end
-			local before = collectgarbage('count')
-			walkAndHookOnUpdates()
+			local beforeKB = gc_count('count')
+			local beforeMS = profile_stop()
+			rewalkCachedFrames()
 			local c = ensureCounter('memdiag:rewalk')
 			c.calls = c.calls + 1
-			c.kb    = c.kb + (collectgarbage('count') - before)
+			c.kb    = c.kb + (gc_count('count') - beforeKB)
+			c.ms    = c.ms + (profile_stop() - beforeMS)
 			scheduleRewalk()
 		end)
 	end

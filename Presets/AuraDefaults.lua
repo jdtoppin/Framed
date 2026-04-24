@@ -159,6 +159,7 @@ function F.AuraDefaults.Solo(debuffSize, debuffMax)
 		privateAuras = {
 			enabled        = false,
 			iconSize       = 16,
+			durationScale  = 1,
 			maxDisplayed   = 3,
 			orientation    = 'RIGHT',
 			showDispelType = true,
@@ -172,7 +173,7 @@ function F.AuraDefaults.Solo(debuffSize, debuffMax)
 			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 16 },
 			growDirection = 'LEFT',
 			spacing       = 1,
-			glowType      = 'Pixel',
+			glowType      = 'Proc',
 			glowColor     = { 1, 0.8, 0, 1 },
 		},
 		lossOfControl = {
@@ -260,6 +261,7 @@ function F.AuraDefaults.Minimal()
 		privateAuras = {
 			enabled        = false,
 			iconSize       = 14,
+			durationScale  = 1,
 			maxDisplayed   = 3,
 			orientation    = 'RIGHT',
 			showDispelType = true,
@@ -273,7 +275,7 @@ function F.AuraDefaults.Minimal()
 			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 16 },
 			growDirection = 'LEFT',
 			spacing       = 1,
-			glowType      = 'Pixel',
+			glowType      = 'Proc',
 			glowColor     = { 1, 0.8, 0, 1 },
 		},
 		lossOfControl = {
@@ -399,12 +401,13 @@ function F.AuraDefaults.Group(sizes)
 			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 16 },
 			growDirection  = 'LEFT',
 			spacing       = 1,
-			glowType      = 'Pixel',
+			glowType      = 'Proc',
 			glowColor     = { 1, 0.8, 0, 1 },
 		},
 		privateAuras = {
 			enabled        = true,
 			iconSize       = s.privateAurasIcon or 16,
+			durationScale  = 1,
 			maxDisplayed   = 3,
 			orientation    = 'RIGHT',
 			showDispelType = true,
@@ -503,6 +506,7 @@ function F.AuraDefaults.Arena()
 		privateAuras = {
 			enabled        = false,
 			iconSize       = 14,
+			durationScale  = 1,
 			maxDisplayed   = 3,
 			orientation    = 'RIGHT',
 			showDispelType = true,
@@ -516,7 +520,7 @@ function F.AuraDefaults.Arena()
 			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 16 },
 			growDirection = 'LEFT',
 			spacing       = 1,
-			glowType      = 'Pixel',
+			glowType      = 'Proc',
 			glowColor     = { 1, 0.8, 0, 1 },
 		},
 		lossOfControl = {
@@ -617,6 +621,7 @@ function F.AuraDefaults.Boss()
 		privateAuras = {
 			enabled        = false,
 			iconSize       = 16,
+			durationScale  = 1,
 			maxDisplayed   = 3,
 			orientation    = 'RIGHT',
 			showDispelType = true,
@@ -630,7 +635,7 @@ function F.AuraDefaults.Boss()
 			anchor        = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', -2, 16 },
 			growDirection = 'LEFT',
 			spacing       = 1,
-			glowType      = 'Pixel',
+			glowType      = 'Proc',
 			glowColor     = { 1, 0.8, 0, 1 },
 		},
 		lossOfControl = {
