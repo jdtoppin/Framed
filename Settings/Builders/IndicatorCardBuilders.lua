@@ -106,8 +106,8 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 
 	importBtn:SetOnClick(function()
 		Widgets.OpenPopupMenu(importBtn, {
-			{ text = 'Healer Spells (curated)',  value = 'healer' },
-			{ text = 'Your Spec (spellbook)',    value = 'spec'   },
+			{ text = 'Healer Spells', value = 'healer' },
+			{ text = 'Your Spec',     value = 'spec'   },
 		}, nil, function(value)
 			if(value == 'healer') then
 				F.Settings.Builders.ShowImportPopup(handleImport)
