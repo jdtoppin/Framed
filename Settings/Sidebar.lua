@@ -582,18 +582,30 @@ local function buildSidebarContent(sidebar, contentParent)
 		end
 	end
 
-	-- ── EDITING_PRESET_CHANGED listener ──────────────────────
-	F.EventBus:Register('EDITING_PRESET_CHANGED', function(presetName)
+	-- Preset-scoped sidebar button visibility + labels. Pulls current
+	-- state from the editing preset and applies it to the group-frame and
+	-- pinned buttons. Exposed via Settings._syncPresetScopedButtons so
+	-- Framework can call it as a belt-and-suspenders resync on panel
+	-- activation, not solely relying on EDITING_PRESET_CHANGED firing.
+	--
+	-- Returns `true` if any button visibility changed so callers can
+	-- decide whether to recalc the container height.
+	local function syncPresetScopedButtons()
 		local changed = false
 		if(groupFrameBtn) then
 			local groupLabel = getGroupFrameLabel()
 			if(groupLabel) then
-				groupFrameBtn:Show()
+				if(not groupFrameBtn:IsShown()) then
+					groupFrameBtn:Show()
+					changed = true
+				end
 				groupFrameBtn._label:SetText(groupLabel)
 			else
-				groupFrameBtn:Hide()
+				if(groupFrameBtn:IsShown()) then
+					groupFrameBtn:Hide()
+					changed = true
+				end
 			end
-			changed = true
 		end
 		if(pinnedFrameBtn) then
 			local shouldShow = hasPinnedConfig()
@@ -605,10 +617,17 @@ local function buildSidebarContent(sidebar, contentParent)
 				changed = true
 			end
 		end
-		-- Recalc FRAMES container height since button visibility changed
 		if(changed and sidebar._framesContainer and sidebar._framesContainer._recalc) then
 			sidebar._framesContainer._recalc(true)
 		end
+		return changed
+	end
+
+	Settings._syncPresetScopedButtons = syncPresetScopedButtons
+
+	-- ── EDITING_PRESET_CHANGED listener ──────────────────────
+	F.EventBus:Register('EDITING_PRESET_CHANGED', function(presetName)
+		syncPresetScopedButtons()
 	end, 'Sidebar')
 
 	-- ── Hide defensives/externals while the Pet page is active ──

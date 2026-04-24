@@ -579,16 +579,15 @@ function Settings.SetActivePanel(panelId)
 		Settings._headerPanelText:SetText(panelLabel)
 	end
 
-	-- Defensive sidebar-label resync: ensure the group-frame button's
-	-- displayed label matches the current preset, regardless of whether
-	-- EDITING_PRESET_CHANGED fired cleanly. Covers edge cases where the
-	-- sidebar listener was raced past or the button was re-created.
-	local groupBtn = Settings._sidebarButtons and Settings._sidebarButtons['party']
-	if(groupBtn and groupBtn._label) then
-		local presetInfo = C.PresetInfo[Settings.GetEditingPreset()]
-		if(presetInfo and presetInfo.groupLabel) then
-			groupBtn._label:SetText(presetInfo.groupLabel)
-		end
+	-- Defensive sidebar resync: invoke Sidebar's full preset-scoped
+	-- button refresh so visibility, labels, AND container height land
+	-- consistently regardless of whether EDITING_PRESET_CHANGED fired
+	-- cleanly. Covers the case where the group-frame button stays
+	-- visible + stale-labeled after a rapid preset-switch sequence
+	-- (e.g. Mythic Raid → Raid → Arena → Solo leaving "Raid Frames"
+	-- visible in the sidebar under Solo).
+	if(Settings._syncPresetScopedButtons) then
+		Settings._syncPresetScopedButtons()
 	end
 
 	-- Show/hide and populate the breadcrumb segments + Copy-to control.
