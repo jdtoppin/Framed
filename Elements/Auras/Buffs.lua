@@ -150,6 +150,19 @@ end
 --- Shared per-aura matcher used by both the classified and fallback paths.
 --- Reads per-call state from `matchCtx` (populated by Update) so this
 --- function stays at module scope — no nested-closure allocation per event.
+--- BARS is a timer display — showing a static fill for an infinite or
+--- near-infinite duration aura (Arcane Intellect, Mark of the Wild,
+--- world buffs, long-lived consumables) wastes a bar slot and confuses
+--- users ("why isn't this bar depleting?"). Skip auras where we can
+--- confirm the duration is zero or >= 10 minutes. Mirrors the skip
+--- pattern in Debuffs.lua:128. Secret durations pass through since we
+--- can't evaluate them Lua-side; the C-level timer handles depletion.
+local function shouldSkipForBars(auraData)
+	local dur = auraData.duration
+	if(not F.IsValueNonSecret(dur)) then return false end
+	return dur == 0 or dur >= 600
+end
+
 local function matchAura(auraData)
 	local spellId = auraData.spellId
 	if(not F.IsValueNonSecret(spellId)) then
@@ -167,9 +180,14 @@ local function matchAura(auraData)
 		for _, idx in next, indicatorIndices do
 			local ind = indicators[idx]
 			if(passesCastByFilter(sourceUnit, ind._castBy)) then
-				if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
+				if(ind._type == C.IndicatorType.ICONS) then
 					local list = iconsAurasPool[idx]
 					list[#list + 1] = auraData
+				elseif(ind._type == C.IndicatorType.BARS) then
+					if(not shouldSkipForBars(auraData)) then
+						local list = iconsAurasPool[idx]
+						list[#list + 1] = auraData
+					end
 				elseif(not matchedPool[idx]) then
 					matchedPool[idx] = auraData
 				end
@@ -181,9 +199,14 @@ local function matchAura(auraData)
 	for _, idx in next, hasTrackAll do
 		local ind = indicators[idx]
 		if(passesCastByFilter(sourceUnit, ind._castBy)) then
-			if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
+			if(ind._type == C.IndicatorType.ICONS) then
 				local list = iconsAurasPool[idx]
 				list[#list + 1] = auraData
+			elseif(ind._type == C.IndicatorType.BARS) then
+				if(not shouldSkipForBars(auraData)) then
+					local list = iconsAurasPool[idx]
+					list[#list + 1] = auraData
+				end
 			elseif(not matchedPool[idx]) then
 				matchedPool[idx] = auraData
 			end
