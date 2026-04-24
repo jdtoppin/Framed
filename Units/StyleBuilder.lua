@@ -6,6 +6,22 @@ local Widgets = F.Widgets
 F.StyleBuilder = {}
 
 -- ============================================================
+-- Deferred RegisterForClicks queue
+-- RegisterForClicks is protected; calling it on a SecureGroupHeader
+-- child during combat triggers ADDON_ACTION_BLOCKED (issue #165).
+-- Defer to PLAYER_REGEN_ENABLED when locked down.
+-- ============================================================
+
+local pendingRegisterClicks = {}
+
+F.EventBus:Register('PLAYER_REGEN_ENABLED', function()
+	for frame in next, pendingRegisterClicks do
+		pendingRegisterClicks[frame] = nil
+		frame:RegisterForClicks('AnyUp')
+	end
+end, 'StyleBuilder.RegisterClicksQueue')
+
+-- ============================================================
 -- Power Color Overrides
 -- Blizzard's PowerBarColor.MANA is pure blue (0,0,1) which has
 -- very low perceived luminance and is nearly invisible on thin
@@ -133,8 +149,13 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- Store unit type for live config lookups
 	self._framedUnitType = unitType
 
-	-- Register for all mouse button clicks (WoW 10.0+ defaults to LeftButtonUp only)
-	self:RegisterForClicks('AnyUp')
+	-- Register for all mouse button clicks (WoW 10.0+ defaults to LeftButtonUp only).
+	-- Protected call — defer if locked down (issue #165).
+	if(InCombatLockdown()) then
+		pendingRegisterClicks[self] = true
+	else
+		self:RegisterForClicks('AnyUp')
+	end
 
 	-- Unit tooltip on hover
 	self:SetScript('OnEnter', function(frame)

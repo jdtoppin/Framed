@@ -195,19 +195,33 @@ local function Update(self, event, unit, updateInfo)
 			auraState:EnsureInitialized(unit)
 		end
 	end
-	local auras = auraState and auraState:GetHelpfulClassified()
-		or C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	-- Primary path uses AuraState's presence maps (O(1) per tracked spell).
+	-- Fallback path fetches raw auras and falls back to the linear scan
+	-- helper — only reachable if F.AuraState was never wired up.
+	local auras
+	if(not auraState) then
+		auras = C_UnitAuras.GetUnitAuras(unit, 'HELPFUL')
+	end
 
 	for _, spellId in next, BUFF_ORDER do
 		local providingClass = RAID_BUFFS[spellId]
 		local slot = slots[spellId]
 		if(not slot) then break end
 
+		local present
+		if(providingClass and groupClasses[providingClass]) then
+			if(auraState) then
+				present = auraState:FindHelpfulBySpellId(spellId, ensureCached(spellId))
+			else
+				present = auraListHasBuff(auras, spellId)
+			end
+		end
+
 		-- Skip non-player buffs on NPCs — can't reliably detect them
 		if(isNpc and providingClass ~= playerClass) then
 			slot.bi:Hide()
 			if(slot.glow:IsActive()) then slot.glow:Stop() end
-		elseif(providingClass and groupClasses[providingClass] and not auraListHasBuff(auras, spellId)) then
+		elseif(providingClass and groupClasses[providingClass] and not present) then
 			-- Missing buff from a class in the group — show and reposition
 			slot.bi.icon:SetTexture(iconCache[spellId])
 			slot.bi:ClearAllPoints()

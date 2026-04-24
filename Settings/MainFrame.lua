@@ -192,12 +192,16 @@ function Settings.CreateMainFrame()
 
 	-- ── ESC closes the window ─────────────────────────────────
 	frame:EnableKeyboard(true)
-	frame:SetPropagateKeyboardInput(true)
+	if(not InCombatLockdown()) then
+		frame:SetPropagateKeyboardInput(true)
+	end
 	frame:SetScript('OnKeyDown', function(self, key)
 		if(key == 'ESCAPE') then
-			self:SetPropagateKeyboardInput(false)
+			if(not InCombatLockdown()) then
+				self:SetPropagateKeyboardInput(false)
+			end
 			Widgets.FadeOut(self)
-		else
+		elseif(not InCombatLockdown()) then
 			self:SetPropagateKeyboardInput(true)
 		end
 	end)
