@@ -63,6 +63,34 @@ local function defaultGrowForAnchor(parentPoint)
 	return 'RIGHT'
 end
 
+-- Derive the element's aura-query filter from its indicator set.
+--
+-- Only an indicator with a non-empty spell list widens the query to
+-- bare HELPFUL. The list is an allowlist — widening doesn't leak
+-- noise onto the indicator, and tracked spell IDs become visible
+-- regardless of Blizzard's RAID_IN_COMBAT curation. This matters
+-- for tracking HoTs, cooldowns, and other player-cast buffs that
+-- Blizzard doesn't flag as raid-combat buffs.
+--
+-- Every other configuration (trackAll alone, any castBy) keeps the
+-- narrow HELPFUL|RAID_IN_COMBAT filter so world / cosmetic /
+-- consumable buffs stay filtered out by Blizzard before reaching
+-- the indicator. The classified path's `isRaidInCombat` gate in
+-- Update mirrors this — applied only when the filter is narrow.
+--
+-- (Originally present, removed in 8578b34, restored here after BARS
+-- regression: user's tracked HoTs were being gated out even though
+-- they were on an explicit spell list.)
+local function computeBuffFilter(indicatorConfigs)
+	if(not indicatorConfigs) then return 'HELPFUL|RAID_IN_COMBAT' end
+	for _, ind in next, indicatorConfigs do
+		if(ind.enabled ~= false and ind.spells and #ind.spells > 0) then
+			return 'HELPFUL'
+		end
+	end
+	return 'HELPFUL|RAID_IN_COMBAT'
+end
+
 -- Reusable containers — wiped each Update to avoid per-call allocation.
 -- Stores auraData references directly (no copy tables).
 local iconsAurasPool = {} -- [idx] = reusable sub-array of auraData refs
@@ -213,11 +241,14 @@ local function Update(self, event, unit, updateInfo)
 
 	if(classified) then
 		-- Classified path returns ALL helpful auras. Gate each entry on
-		-- flags.isRaidInCombat client-side so cosmetic / consumable / world
-		-- buffs stay filtered out — matching what HELPFUL|RAID_IN_COMBAT
-		-- would have done at the server-side filter level.
+		-- flags.isRaidInCombat client-side only when the filter is narrow
+		-- (no indicator has a configured spell list). When an indicator
+		-- widens the filter to HELPFUL, the gate must be skipped so the
+		-- allowlisted spell IDs can reach matchAura even if Blizzard
+		-- doesn't flag them as raid-combat buffs. See computeBuffFilter.
+		local narrowFilter = element._narrowFilter
 		for _, entry in next, classified do
-			if(entry.flags.isRaidInCombat) then
+			if(not narrowFilter or entry.flags.isRaidInCombat) then
 				matchAura(entry.aura)
 			end
 		end
@@ -570,7 +601,8 @@ local function Rebuild(element, config)
 	element._indicators           = {}
 	element._spellLookup          = {}
 	element._hasTrackAll          = {}
-	element._buffFilter           = 'HELPFUL|RAID_IN_COMBAT'
+	element._buffFilter           = computeBuffFilter(config.indicators)
+	element._narrowFilter         = element._buffFilter == 'HELPFUL|RAID_IN_COMBAT'
 
 	local indicators = config.indicators
 	for name, indConfig in next, indicators do
@@ -711,11 +743,13 @@ function F.Elements.Buffs.Setup(self, config)
 		end
 	end
 
+	local buffFilter = computeBuffFilter(config.indicators)
 	local container = {
 		_indicators           = indicators,
 		_spellLookup          = spellLookup,
 		_hasTrackAll          = hasTrackAll,
-		_buffFilter           = 'HELPFUL|RAID_IN_COMBAT',
+		_buffFilter           = buffFilter,
+		_narrowFilter         = buffFilter == 'HELPFUL|RAID_IN_COMBAT',
 	}
 
 	container.Rebuild = Rebuild
