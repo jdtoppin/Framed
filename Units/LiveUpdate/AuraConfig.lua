@@ -16,7 +16,6 @@ local AURA_ELEMENT_MAP = {
 	externals      = 'FramedExternals',
 	defensives     = 'FramedDefensives',
 	dispellable    = 'FramedDispellable',
-	targetedSpells = 'FramedTargetedSpells',
 	buffs          = 'FramedBuffs',
 	lossOfControl  = 'FramedLossOfControl',
 	crowdControl   = 'FramedCrowdControl',
@@ -34,7 +33,6 @@ local REBUILD_ELEMENTS = {
 	crowdControl   = true,
 	missingBuffs   = true,
 	privateAuras   = true,
-	targetedSpells = true,
 }
 
 -- ============================================================

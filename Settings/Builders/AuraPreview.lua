@@ -10,7 +10,6 @@ F.Settings.AuraPreview = AuraPreview
 
 -- Map panel IDs (lowercase) to aura group keys used in _auraGroups
 local PANEL_TO_GROUP = {
-	targetedspells = 'targetedSpells',
 	dispels        = 'dispellable',
 	missingbuffs   = 'missingBuffs',
 	privateauras   = 'privateAuras',

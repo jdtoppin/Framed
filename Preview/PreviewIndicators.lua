@@ -12,7 +12,6 @@ local FAKE_ICONS = {
 	externals      = { 135936, 135964 },           -- BoP, BoS
 	defensives     = { 135919, 135872 },           -- Divine Shield, Ice Block
 	missingBuffs   = { 136075 },                   -- Fort (fallback)
-	targetedSpells = { 136197 },                   -- Shadow Bolt
 	privateAuras   = { 134400 },                   -- question mark
 	dispellable    = { 136139 },                   -- Corruption
 	lossOfControl  = { 132168 },                   -- stun

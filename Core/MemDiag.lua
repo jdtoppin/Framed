@@ -255,8 +255,8 @@ local function patchOnUpdates()
 end
 
 --- Hook known standalone event/update frames that are not in oUF.objects.
---- Add new entries here as we find them — CastTracker is currently gated
---- off, AuraCache is exposed for diag via F.AuraCache._eventFrame.
+--- Add new entries here as we find them — AuraCache is exposed for diag
+--- via F.AuraCache._eventFrame.
 local function patchStandaloneFrames()
 	F.MemDiag._originals.standalone = {}
 

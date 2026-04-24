@@ -38,11 +38,6 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		-- Start auto-switching (detects content type and activates preset)
 		F.AutoSwitch.Check()
 
-		-- Cast tracker is gated off alongside TargetedSpells
-		-- (see Units/StyleBuilder.lua TARGETED_SPELLS_ENABLED).
-		-- Re-enable here if the feature is restored.
-		-- if(F.CastTracker) then F.CastTracker:Enable() end
-
 		-- Minimap icon via LibDataBroker + LibDBIcon
 		local LDB = LibStub('LibDataBroker-1.1')
 		local LDBIcon = LibStub('LibDBIcon-1.0')
@@ -509,16 +504,6 @@ SlashCmdList['FRAMED'] = function(msg)
 		end
 		print(('|cff00ccff[Framed/mem]|r aurastate pool: %d entries across %d instances'):format(
 			totalPooled, instanceCount))
-	elseif(cmd == 'casttracker') then
-		if(arg1 == 'off' or arg1 == 'disable') then
-			F.CastTracker:Disable()
-			print('|cff00ccff Framed|r cast tracker disabled')
-		elseif(arg1 == 'on' or arg1 == 'enable') then
-			F.CastTracker:Enable()
-			print('|cff00ccff Framed|r cast tracker enabled')
-		else
-			print('|cff00ccff Framed|r casttracker: use "on" or "off"')
-		end
 	elseif(cmd == 'pools') then
 		local rows = {}
 		for instance in next, F.AuraState._instances do
@@ -560,7 +545,6 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed memdiag [seconds] — Measure aura-path allocation churn (default 10s, max 30s; stops GC for the window)')
 		print('  /framed memusage [raw] — Framed + total memory snapshot (default forces GC; "raw" skips it)')
 		print('  /framed pools — Dump per-instance classified pool sizes (for #144 diagnostics)')
-		print('  /framed casttracker on|off — Toggle CastTracker (for memdiag A/B testing)')
 	else
 		-- Default: open settings
 		if(F.Settings and F.Settings.Toggle) then
