@@ -85,11 +85,12 @@ end
 
 --- Set the preset name being edited.
 --- @param presetName string
---- Temporary diagnostic flag — flip to false before release.
---- Prints every SetEditingPreset call with the current vs requested
---- preset so we can see whether the breadcrumb dropdown is actually
---- firing the state change or being silently dropped / early-returned.
-Settings._debugPresetTransitions = true
+--- Diagnostic flag — set true to surface preset-transition prints in
+--- chat when investigating breadcrumb/dropdown desyncs. Leave false in
+--- normal operation. The gated prints in SetEditingPreset,
+--- reconcileEditingPresetChange, and FramePresets' row-highlight
+--- listener all check this flag.
+Settings._debugPresetTransitions = false
 
 function Settings.SetEditingPreset(presetName)
 	if(Settings._debugPresetTransitions) then
