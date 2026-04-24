@@ -562,8 +562,33 @@ function Settings.SetActivePanel(panelId)
 	-- strings (sep1/sep2/sep3) so the text itself is just the label;
 	-- activatePresetHeaderControls handles anchoring after the correct
 	-- upstream separator.
+	--
+	-- The group-frame panel (id='party') is special: its registered label
+	-- is the static "Party Frames", but the actual label depends on the
+	-- current preset's groupLabel ("Raid Frames" / "Arena Frames" / etc.).
+	-- Resolve dynamically so the breadcrumb matches what the sidebar and
+	-- preview show.
+	local panelLabel = info.label or ''
+	if(info.id == 'party') then
+		local presetInfo = C.PresetInfo[Settings.GetEditingPreset()]
+		if(presetInfo and presetInfo.groupLabel) then
+			panelLabel = presetInfo.groupLabel
+		end
+	end
 	if(Settings._headerPanelText) then
-		Settings._headerPanelText:SetText(info.label or '')
+		Settings._headerPanelText:SetText(panelLabel)
+	end
+
+	-- Defensive sidebar-label resync: ensure the group-frame button's
+	-- displayed label matches the current preset, regardless of whether
+	-- EDITING_PRESET_CHANGED fired cleanly. Covers edge cases where the
+	-- sidebar listener was raced past or the button was re-created.
+	local groupBtn = Settings._sidebarButtons and Settings._sidebarButtons['party']
+	if(groupBtn and groupBtn._label) then
+		local presetInfo = C.PresetInfo[Settings.GetEditingPreset()]
+		if(presetInfo and presetInfo.groupLabel) then
+			groupBtn._label:SetText(presetInfo.groupLabel)
+		end
 	end
 
 	-- Show/hide and populate the breadcrumb segments + Copy-to control.
@@ -571,7 +596,7 @@ function Settings.SetActivePanel(panelId)
 
 	-- Restore drill-in breadcrumb if the panel re-entered with an active indicator
 	if(Settings._activePanelFrame and Settings._activePanelFrame._editingIndicatorName) then
-		Settings.UpdateAuraBreadcrumb(info.label or '', Settings._activePanelFrame._editingIndicatorName)
+		Settings.UpdateAuraBreadcrumb(panelLabel, Settings._activePanelFrame._editingIndicatorName)
 	end
 
 	-- ── Show/hide aura sidebar buttons based on active panel ─
