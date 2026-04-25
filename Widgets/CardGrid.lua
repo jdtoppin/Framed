@@ -403,6 +403,9 @@ local function RemoveCard(grid, id)
 	if(entry.card) then
 		cancelCardAnims(entry.card)
 		entry.card:Hide()
+		if(Widgets.RemoveTreeFromPixelUpdater) then
+			Widgets.RemoveTreeFromPixelUpdater(entry.card)
+		end
 		entry.card:SetParent(nil)
 	end
 
@@ -425,6 +428,9 @@ local function RemoveAllCards(grid)
 		if(entry.card) then
 			cancelCardAnims(entry.card)
 			entry.card:Hide()
+			if(Widgets.RemoveTreeFromPixelUpdater) then
+				Widgets.RemoveTreeFromPixelUpdater(entry.card)
+			end
 			entry.card:SetParent(nil)
 		end
 		grid._cardIndex[entry.id] = nil
@@ -542,6 +548,9 @@ end
 --- @param grid     table
 --- @param newWidth number
 local function SetWidth(grid, newWidth)
+	if(newWidth ~= grid._width) then
+		grid._needsRebuild = true
+	end
 	grid._width = newWidth
 	Widgets.SetSize(grid._container, newWidth, math.max(1, grid._totalHeight + BOTTOM_PAD))
 	Layout(grid, grid._lastScrollOffset, grid._lastViewHeight)
@@ -552,10 +561,24 @@ end
 --- at the correct size without per-frame flicker.
 --- @param grid table
 local function RebuildCards(grid)
+	if(grid._skipNextRebuild and not grid._needsRebuild) then
+		grid._skipNextRebuild = nil
+		Layout(grid, grid._lastScrollOffset, grid._lastViewHeight)
+		return
+	end
+	if(not grid._needsRebuild) then
+		Layout(grid, grid._lastScrollOffset, grid._lastViewHeight)
+		return
+	end
+	grid._skipNextRebuild = nil
+	grid._needsRebuild = nil
 	for _, entry in next, grid._cards do
 		if(entry.card) then
 			cancelCardAnims(entry.card)
 			entry.card:Hide()
+			if(Widgets.RemoveTreeFromPixelUpdater) then
+				Widgets.RemoveTreeFromPixelUpdater(entry.card)
+			end
 			entry.card:SetParent(nil)
 		end
 		entry.card        = nil
@@ -601,6 +624,7 @@ function Widgets.CreateCardGrid(parent, width)
 		_cardIndex   = {},
 		_totalHeight = 0,
 		_topOffset   = 0,
+		_skipNextRebuild = true,
 	}
 
 	-- Bind methods

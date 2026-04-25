@@ -82,6 +82,7 @@ end
 local function updateIndicator(self, unit, ind)
 	local cfg = ind._config
 	local maxDisplayed = cfg.maxDisplayed
+	local pool = ind._pool
 
 	-- Backward compat: map old boolean to new filterMode
 	local filterMode = cfg.filterMode
@@ -93,48 +94,95 @@ local function updateIndicator(self, unit, ind)
 	if(filterMode == 'encounter') then
 		if(not C_InstanceEncounter or not C_InstanceEncounter.IsEncounterInProgress
 			or not C_InstanceEncounter.IsEncounterInProgress()) then
-			for idx = 1, #ind._pool do
-				ind._pool[idx]:Clear()
+			for idx = 1, #pool do
+				pool[idx]:Clear()
 			end
 			return
 		end
 	end
 
-	local filter = FILTER_MAP[filterMode] or 'HARMFUL'
-	local auraState = self.FramedAuraState
-	local rawAuras = auraState and auraState:GetHarmful(filter) or F.AuraCache.GetUnitAuras(unit, filter)
-	local pool = ind._pool
+	local auraState  = self.FramedAuraState
+	local classified = auraState and auraState:GetHarmfulClassified()
 
-	-- Single-pass: filter and display directly from auraData.
-	-- auraInstanceID is NeverSecret; BorderIcon.SetAura uses C-level APIs
-	-- for secret fields (icon, duration, etc.).
 	local displayed = 0
 	local runOffset = 0
-	for _, auraData in next, rawAuras do
-		if(displayed >= maxDisplayed) then break end
 
-		local dur = auraData.duration
-		local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
-
-		if(not skip) then
-			displayed = displayed + 1
-			runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, auraData.dispelName)
+	if(classified) then
+		-- Dispatch filter mode to a single flag key (nil = match all).
+		-- encounter mode uses the same flag as raid — the IsEncounterInProgress
+		-- gate above already short-circuits the no-encounter case.
+		local flagKey
+		if(filterMode == 'raid' or filterMode == 'encounter') then flagKey = 'isRaid'
+		elseif(filterMode == 'important')   then flagKey = 'isImportant'
+		elseif(filterMode == 'dispellable') then flagKey = 'isRaidDispellable'
+		elseif(filterMode == 'raidCombat')  then flagKey = 'isRaidInCombat'
 		end
-	end
 
-	-- When filterMode is 'dispellable', also include Physical/bleed debuffs
-	-- from a broader HARMFUL|RAID query (RAID_PLAYER_DISPELLABLE excludes them).
-	-- Supplementary results appear after the server-sorted dispellable set.
-	if(filterMode == 'dispellable' and displayed < maxDisplayed) then
-		local raidAuras = auraState and auraState:GetHarmful('HARMFUL|RAID') or F.AuraCache.GetUnitAuras(unit, 'HARMFUL|RAID')
-		for _, auraData in next, raidAuras do
+		for _, entry in next, classified do
 			if(displayed >= maxDisplayed) then break end
 
-			local dn = auraData.dispelName
-			local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
-			if(isPhysical) then
+			local flags = entry.flags
+			if(not flagKey or flags[flagKey]) then
+				local auraData = entry.aura
+				local dur = auraData.duration
+				local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
+				if(not skip) then
+					displayed = displayed + 1
+					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, auraData.dispelName)
+				end
+			end
+		end
+
+		-- Dispellable supplementary pass: RAID_PLAYER_DISPELLABLE excludes
+		-- Physical/bleeds, so iterate raid-flagged entries and include any
+		-- whose dispelName is nil/empty/Physical. Pass nil dispelType — these
+		-- aren't dispellable, no overlay color.
+		if(filterMode == 'dispellable' and displayed < maxDisplayed) then
+			for _, entry in next, classified do
+				if(displayed >= maxDisplayed) then break end
+
+				local flags = entry.flags
+				if(flags.isRaid) then
+					local auraData = entry.aura
+					local dn = auraData.dispelName
+					local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
+					if(isPhysical) then
+						displayed = displayed + 1
+						runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, nil)
+					end
+				end
+			end
+		end
+	else
+		-- Vestigial no-AuraState fallback. Every aura-tracking frame creates
+		-- AuraState via the idempotent Setup guard — preserved to match the
+		-- element-level pattern used across Auras/.
+		local filter = FILTER_MAP[filterMode] or 'HARMFUL'
+		local rawAuras = F.AuraCache.GetUnitAuras(unit, filter)
+
+		for _, auraData in next, rawAuras do
+			if(displayed >= maxDisplayed) then break end
+
+			local dur = auraData.duration
+			local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
+
+			if(not skip) then
 				displayed = displayed + 1
-				runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, nil)
+				runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, auraData.dispelName)
+			end
+		end
+
+		if(filterMode == 'dispellable' and displayed < maxDisplayed) then
+			local raidAuras = F.AuraCache.GetUnitAuras(unit, 'HARMFUL|RAID')
+			for _, auraData in next, raidAuras do
+				if(displayed >= maxDisplayed) then break end
+
+				local dn = auraData.dispelName
+				local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
+				if(isPhysical) then
+					displayed = displayed + 1
+					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, nil)
+				end
 			end
 		end
 	end

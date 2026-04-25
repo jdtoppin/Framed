@@ -214,6 +214,11 @@ function F.SettingsCards.PositionAndLayout(parent, width, unitType, getConfig, s
 		F.EventBus:Unregister('EDIT_MODE_DRAG_STOPPED', evtTag .. '.drag')
 		F.EventBus:Unregister('EDIT_MODE_DRAGGING', evtTag .. '.dragging')
 	end)
+	card._eventBusOwners = {
+		{ 'EDIT_MODE_FRAME_RESIZED', evtTag .. '.resize' },
+		{ 'EDIT_MODE_DRAG_STOPPED', evtTag .. '.drag' },
+		{ 'EDIT_MODE_DRAGGING', evtTag .. '.dragging' },
+	}
 
 	Widgets.EndCard(card, parent, cardY)
 	return card

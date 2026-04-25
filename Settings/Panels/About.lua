@@ -52,6 +52,11 @@ F.Settings.RegisterPanel({
 			grid:RebuildCards()
 		end, 'AboutPanel.resizeComplete')
 
+		scroll._eventBusOwners = {
+			{ 'SETTINGS_RESIZED', 'AboutPanel.resize' },
+			{ 'SETTINGS_RESIZE_COMPLETE', 'AboutPanel.resizeComplete' },
+		}
+
 		return scroll
 	end,
 })

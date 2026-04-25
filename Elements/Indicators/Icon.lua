@@ -26,8 +26,7 @@ local IconMethods = {}
 --- @param duration number Duration in seconds (may be a secret value)
 --- @param expirationTime number Expiration GetTime() value (may be a secret value)
 --- @param stacks number Stack count
---- @param dispelType string|nil Dispel/debuff type ('Magic', 'Curse', etc.)
-function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks, dispelType)
+function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, duration, expirationTime, stacks)
 	-- Texture
 	if(self._displayType == C.IconDisplay.COLORED_SQUARE) then
 		-- Per-spell color first, then base indicator color
@@ -111,13 +110,24 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 				end
 				self._cdText = cdText
 
-				-- Apply initial color so first frame isn't white
-				if(self._colorCurve and durationObj) then
-					local color = durationObj:EvaluateRemainingPercent(self._colorCurve)
-					cdText:SetTextColor(color:GetRGBA())
+				-- Initial color — skip repeat renders of the same aura.
+				-- IconTicker owns ongoing color updates, so on a refresh
+				-- of the same aura (same ID, new duration), color may lag
+				-- up to one ticker interval before converging to the hue
+				-- of the new duration. Acceptable visual tradeoff.
+				if(auraInstanceID == nil or self._lastPaintedAuraID ~= auraInstanceID) then
+					self._lastPaintedAuraID = auraInstanceID
+
+					if(self._colorCurve and durationObj) then
+						local color = durationObj:EvaluateRemainingPercent(self._colorCurve)
+						cdText:SetTextColor(color:GetRGBA())
+					end
 				end
 
-				-- Apply initial threshold so first frame doesn't flash
+				-- Threshold visibility — always re-evaluate. Duration
+				-- changes on refresh, so the show/hide state of the
+				-- countdown text must be resampled immediately rather
+				-- than waiting for IconTicker to catch up.
 				if(self._thresholdCurve and durationObj) then
 					local vis = durationObj:EvaluateRemainingPercent(self._thresholdCurve)
 					local _, _, _, a = vis:GetRGBA()
@@ -195,6 +205,7 @@ function IconMethods:Clear()
 	end
 	self:StopGlow()
 	self._durationObj = nil
+	self._lastPaintedAuraID = nil
 	F.Indicators.IconTicker_Unregister(self)
 	self._frame:Hide()
 end

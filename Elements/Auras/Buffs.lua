@@ -65,13 +65,24 @@ end
 
 -- Derive the element's aura-query filter from its indicator set.
 --
--- Only a spell list widens the query to HELPFUL. The list itself is an
--- allowlist — so broadening doesn't leak noise onto the indicator, and
--- tracked IDs become visible regardless of Blizzard's RAID_IN_COMBAT
--- curation. Every other configuration (trackAll, any castBy) keeps
--- HELPFUL|RAID_IN_COMBAT so world/cosmetic/consumable buffs stay
--- filtered out by Blizzard before reaching the indicator.
+-- Only an indicator with a non-empty spell list widens the query to
+-- bare HELPFUL. The list is an allowlist — widening doesn't leak
+-- noise onto the indicator, and tracked spell IDs become visible
+-- regardless of Blizzard's RAID_IN_COMBAT curation. This matters
+-- for tracking HoTs, cooldowns, and other player-cast buffs that
+-- Blizzard doesn't flag as raid-combat buffs.
+--
+-- Every other configuration (trackAll alone, any castBy) keeps the
+-- narrow HELPFUL|RAID_IN_COMBAT filter so world / cosmetic /
+-- consumable buffs stay filtered out by Blizzard before reaching
+-- the indicator. The classified path's `isRaidInCombat` gate in
+-- Update mirrors this — applied only when the filter is narrow.
+--
+-- (Originally present, removed in 8578b34, restored here after BARS
+-- regression: user's tracked HoTs were being gated out even though
+-- they were on an explicit spell list.)
 local function computeBuffFilter(indicatorConfigs)
+	if(not indicatorConfigs) then return 'HELPFUL|RAID_IN_COMBAT' end
 	for _, ind in next, indicatorConfigs do
 		if(ind.enabled ~= false and ind.spells and #ind.spells > 0) then
 			return 'HELPFUL'
@@ -84,6 +95,17 @@ end
 -- Stores auraData references directly (no copy tables).
 local iconsAurasPool = {} -- [idx] = reusable sub-array of auraData refs
 local matchedPool = {}    -- [idx] = auraData ref or false
+
+-- Shared matcher context: populated by Update before iteration so the
+-- module-level matchAura can read per-call state without being redeclared
+-- as a nested closure each frame. Only one Update runs at a time on the
+-- main thread, so a single shared table is safe.
+local matchCtx = {
+	unit        = nil,
+	indicators  = nil,
+	spellLookup = nil,
+	hasTrackAll = nil,
+}
 
 -- Pre-created sort comparator (sortPriority set before each sort call)
 local sortPriority
@@ -122,6 +144,77 @@ local function passesCastByFilter(sourceUnit, castBy)
 end
 
 -- ============================================================
+-- Per-aura matcher
+-- ============================================================
+
+--- Shared per-aura matcher used by both the classified and fallback paths.
+--- Reads per-call state from `matchCtx` (populated by Update) so this
+--- function stays at module scope — no nested-closure allocation per event.
+--- BARS is a timer display — showing a static fill for an infinite or
+--- near-infinite duration aura (Arcane Intellect, Mark of the Wild,
+--- world buffs, long-lived consumables) wastes a bar slot and confuses
+--- users ("why isn't this bar depleting?"). Skip auras where we can
+--- confirm the duration is zero or >= 10 minutes. Mirrors the skip
+--- pattern in Debuffs.lua:128. Secret durations pass through since we
+--- can't evaluate them Lua-side; the C-level timer handles depletion.
+local function shouldSkipForBars(auraData)
+	local dur = auraData.duration
+	if(not F.IsValueNonSecret(dur)) then return false end
+	return dur == 0 or dur >= 600
+end
+
+local function matchAura(auraData)
+	local spellId = auraData.spellId
+	if(not F.IsValueNonSecret(spellId)) then
+		return
+	end
+
+	local indicators  = matchCtx.indicators
+	local spellLookup = matchCtx.spellLookup
+	local hasTrackAll = matchCtx.hasTrackAll
+	local sourceUnit  = auraData.sourceUnit
+
+	-- Check spell-specific indicators
+	local indicatorIndices = spellLookup[spellId]
+	if(indicatorIndices) then
+		for _, idx in next, indicatorIndices do
+			local ind = indicators[idx]
+			if(passesCastByFilter(sourceUnit, ind._castBy)) then
+				if(ind._type == C.IndicatorType.ICONS) then
+					local list = iconsAurasPool[idx]
+					list[#list + 1] = auraData
+				elseif(ind._type == C.IndicatorType.BARS) then
+					if(not shouldSkipForBars(auraData)) then
+						local list = iconsAurasPool[idx]
+						list[#list + 1] = auraData
+					end
+				elseif(not matchedPool[idx]) then
+					matchedPool[idx] = auraData
+				end
+			end
+		end
+	end
+
+	-- Check track-all indicators (empty spells list)
+	for _, idx in next, hasTrackAll do
+		local ind = indicators[idx]
+		if(passesCastByFilter(sourceUnit, ind._castBy)) then
+			if(ind._type == C.IndicatorType.ICONS) then
+				local list = iconsAurasPool[idx]
+				list[#list + 1] = auraData
+			elseif(ind._type == C.IndicatorType.BARS) then
+				if(not shouldSkipForBars(auraData)) then
+					local list = iconsAurasPool[idx]
+					list[#list + 1] = auraData
+				end
+			elseif(not matchedPool[idx]) then
+				matchedPool[idx] = auraData
+			end
+		end
+	end
+end
+
+-- ============================================================
 -- Update
 -- ============================================================
 
@@ -157,56 +250,37 @@ local function Update(self, event, unit, updateInfo)
 			auraState:EnsureInitialized(unit)
 		end
 	end
+
 	local filter = element._buffFilter
-	local auras = auraState and auraState:GetHelpful(filter) or F.AuraCache.GetUnitAuras(unit, filter)
-	for _, auraData in next, auras do
-		local spellId = auraData.spellId
-		if(F.IsValueNonSecret(spellId)) then
-			local sourceUnit = auraData.sourceUnit
-			local annotated = false
 
-			-- Check spell-specific indicators
-			local indicatorIndices = spellLookup[spellId]
-			if(indicatorIndices) then
-				for _, idx in next, indicatorIndices do
-					local ind = indicators[idx]
-					if(passesCastByFilter(sourceUnit, ind._castBy)) then
-						-- Annotate auraData with renderer-expected field names
-						-- (non-conflicting keys: auraData has no .stacks/.dispelType/.unit)
-						if(not annotated) then
-							auraData.unit      = unit
-							auraData.stacks    = auraData.applications
-							auraData.dispelType = auraData.dispelName
-							annotated = true
-						end
-						if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
-							local list = iconsAurasPool[idx]
-							list[#list + 1] = auraData
-						elseif(not matchedPool[idx]) then
-							matchedPool[idx] = auraData
-						end
-					end
-				end
-			end
+	-- Publish per-call state into the shared matcher context before
+	-- iterating. matchAura lives at module scope and reads from matchCtx.
+	matchCtx.unit        = unit
+	matchCtx.indicators  = indicators
+	matchCtx.spellLookup = spellLookup
+	matchCtx.hasTrackAll = hasTrackAll
 
-			-- Check track-all indicators (empty spells list)
-			for _, idx in next, hasTrackAll do
-				local ind = indicators[idx]
-				if(passesCastByFilter(sourceUnit, ind._castBy)) then
-					if(not annotated) then
-						auraData.unit      = unit
-						auraData.stacks    = auraData.applications
-						auraData.dispelType = auraData.dispelName
-						annotated = true
-					end
-					if(ind._type == C.IndicatorType.ICONS or ind._type == C.IndicatorType.BARS) then
-						local list = iconsAurasPool[idx]
-						list[#list + 1] = auraData
-					elseif(not matchedPool[idx]) then
-						matchedPool[idx] = auraData
-					end
-				end
+	local classified = auraState and auraState:GetHelpfulClassified()
+
+	if(classified) then
+		-- Classified path returns ALL helpful auras. Gate each entry on
+		-- flags.isRaidInCombat client-side only when the filter is narrow
+		-- (no indicator has a configured spell list). When an indicator
+		-- widens the filter to HELPFUL, the gate must be skipped so the
+		-- allowlisted spell IDs can reach matchAura even if Blizzard
+		-- doesn't flag them as raid-combat buffs. See computeBuffFilter.
+		local narrowFilter = element._narrowFilter
+		for _, entry in next, classified do
+			if(not narrowFilter or entry.flags.isRaidInCombat) then
+				matchAura(entry.aura)
 			end
+		end
+	else
+		-- Vestigial no-AuraState fallback. Every aura-tracking frame creates
+		-- AuraState via the idempotent Setup guard — preserved to match the
+		-- element-level pattern used across Auras/.
+		for _, auraData in next, F.AuraCache.GetUnitAuras(unit, filter) do
+			matchAura(auraData)
 		end
 	end
 
@@ -223,7 +297,7 @@ local function Update(self, event, unit, updateInfo)
 					sortPriority = ind._spellPriority
 					table.sort(list, prioritySort)
 				end
-				renderer:SetIcons(list)
+				renderer:SetIcons(unit, list)
 				renderer:Show()
 			else
 				renderer:Clear()
@@ -234,14 +308,13 @@ local function Update(self, event, unit, updateInfo)
 			local aura = matchedPool[idx]
 			if(aura) then
 				renderer:SetSpell(
-					aura.unit,
+					unit,
 					aura.auraInstanceID,
 					aura.spellId,
 					aura.icon,
 					aura.duration,
 					aura.expirationTime,
-					aura.stacks,
-					aura.dispelType
+					aura.applications
 				)
 			else
 				renderer:Clear()
@@ -265,7 +338,7 @@ local function Update(self, event, unit, updateInfo)
 				else
 					renderer:SetValue(1, 1)
 				end
-				if(aura.stacks) then renderer:SetStacks(aura.stacks) end
+				if(aura.applications) then renderer:SetStacks(aura.applications) end
 				-- Glow
 				if(ind._glowType and ind._glowType ~= 'None') then
 					renderer:StartGlow(ind._glowColor, ind._glowType, ind._glowConfig)
@@ -328,7 +401,7 @@ local function Update(self, event, unit, updateInfo)
 				else
 					renderer:SetValue(1, 1)
 				end
-				if(aura.stacks) then renderer:SetStacks(aura.stacks) end
+				if(aura.applications) then renderer:SetStacks(aura.applications) end
 			else
 				renderer:Clear()
 			end
@@ -552,6 +625,7 @@ local function Rebuild(element, config)
 	element._spellLookup          = {}
 	element._hasTrackAll          = {}
 	element._buffFilter           = computeBuffFilter(config.indicators)
+	element._narrowFilter         = element._buffFilter == 'HELPFUL|RAID_IN_COMBAT'
 
 	local indicators = config.indicators
 	for name, indConfig in next, indicators do
@@ -692,11 +766,13 @@ function F.Elements.Buffs.Setup(self, config)
 		end
 	end
 
+	local buffFilter = computeBuffFilter(config.indicators)
 	local container = {
 		_indicators           = indicators,
 		_spellLookup          = spellLookup,
 		_hasTrackAll          = hasTrackAll,
-		_buffFilter           = computeBuffFilter(config.indicators),
+		_buffFilter           = buffFilter,
+		_narrowFilter         = buffFilter == 'HELPFUL|RAID_IN_COMBAT',
 	}
 
 	container.Rebuild = Rebuild

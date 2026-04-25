@@ -38,11 +38,6 @@ eventFrame:SetScript('OnEvent', function(self, event, arg1)
 		-- Start auto-switching (detects content type and activates preset)
 		F.AutoSwitch.Check()
 
-		-- Enable cast tracker for targeted spells
-		if(F.CastTracker) then
-			F.CastTracker:Enable()
-		end
-
 		-- Minimap icon via LibDataBroker + LibDBIcon
 		local LDB = LibStub('LibDataBroker-1.1')
 		local LDBIcon = LibStub('LibDBIcon-1.0')
@@ -450,6 +445,177 @@ SlashCmdList['FRAMED'] = function(msg)
 
 		dumpList('HELPFUL', state:GetHelpfulClassified())
 		dumpList('HARMFUL', state:GetHarmfulClassified())
+	elseif(cmd == 'memdiag') then
+		local seconds = tonumber(arg1:match('^(%d+)')) or 10
+		F.MemDiag.Start(seconds)
+	elseif(cmd == 'settingsmem') then
+		F.MemDiag.ToggleSettingsProbe()
+	elseif(cmd == 'memusage') then
+		-- `raw` suffix skips the forced GC (see live allocated state);
+		-- default forces a collect so we see post-GC live footprint.
+		local forceGC = (arg1 ~= 'raw')
+		if(forceGC) then collectgarbage('collect') end
+
+		UpdateAddOnMemoryUsage()
+		local totalKB = collectgarbage('count')
+		local framedKB = GetAddOnMemoryUsage('Framed')
+
+		-- Track delta from the previous call for yoyo amplitude sampling.
+		local prev = F._lastMemSnapshot
+		F._lastMemSnapshot = { total = totalKB, framed = framedKB, t = GetTime() }
+
+		local mode = forceGC and 'post-GC' or 'raw'
+		print(('|cff00ccff[Framed/mem]|r (%s) Framed: %.1f MB  |  total: %.1f MB  |  share: %.1f%%'):format(
+			mode,
+			framedKB / 1024,
+			totalKB / 1024,
+			totalKB > 0 and (framedKB / totalKB * 100) or 0))
+
+		if(prev) then
+			local dt = GetTime() - prev.t
+			print(('  delta since last sample (%.1fs ago):  Framed %+.1f MB  |  total %+.1f MB'):format(
+				dt,
+				(framedKB - prev.framed) / 1024,
+				(totalKB - prev.total) / 1024))
+		end
+
+		-- Top 10 addons by memory
+		local rows = {}
+		for i = 1, C_AddOns.GetNumAddOns() do
+			local name = C_AddOns.GetAddOnInfo(i)
+			local loaded = C_AddOns.IsAddOnLoaded(i)
+			if(loaded) then
+				local kb = GetAddOnMemoryUsage(name)
+				if(kb and kb > 0) then
+					rows[#rows + 1] = { name = name, kb = kb }
+				end
+			end
+		end
+		table.sort(rows, function(a, b) return a.kb > b.kb end)
+		print('|cff00ccff[Framed/mem]|r top 10 addons by memory:')
+		for i = 1, math.min(10, #rows) do
+			print(('  %2d. %-32s  %7.1f MB'):format(i, rows[i].name, rows[i].kb / 1024))
+		end
+
+		-- Classified entry pool aggregate across all live AuraState instances.
+		local totalPooled = 0
+		local instanceCount = 0
+		for instance in next, F.AuraState._instances do
+			instanceCount = instanceCount + 1
+			totalPooled = totalPooled + #instance._classifiedFreeList
+		end
+		print(('|cff00ccff[Framed/mem]|r aurastate pool: %d entries across %d instances'):format(
+			totalPooled, instanceCount))
+
+		-- Settings cache surface — direct test for "did teardown actually
+		-- run?" Cached panel count should be 0 with settings closed, equal
+		-- to # visited panels with settings open. _contentParent child count
+		-- should match. Either non-zero with settings closed = teardown
+		-- bypassed (close path didn't route through Settings.Hide).
+		if(F.Settings) then
+			local cachedPanels = 0
+			for _ in next, F.Settings._panelFrames or {} do
+				cachedPanels = cachedPanels + 1
+			end
+			local contentChildren = 0
+			local cp = F.Settings._contentParent
+			if(cp and cp.GetChildren) then
+				contentChildren = select('#', cp:GetChildren())
+			end
+			print(('|cff00ccff[Framed/mem]|r settings cache: %d panels, %d content children'):format(
+				cachedPanels, contentChildren))
+		end
+
+		-- Pixel updater registry growth — direct test for the registry-pinning
+		-- leak class fixed in 5e8f974. Healthy: stable across settings cycles.
+		-- Growing here = weak-key semantics broke or a new registry was added
+		-- with strong keys.
+		if(F.Widgets and F.Widgets.GetPixelUpdaterCounts) then
+			local autoCount, onShowCount = F.Widgets.GetPixelUpdaterCounts()
+			print(('|cff00ccff[Framed/mem]|r pixel updater: %d auto, %d on-show'):format(
+				autoCount, onShowCount))
+		end
+
+		-- EventBus registry size — leak detector for handlers that fail to
+		-- dedupe across panel rebuilds. Healthy: stable across settings cycles.
+		if(F.EventBus and F.EventBus.GetRegistrySize) then
+			local totalListeners, perEvent = F.EventBus:GetRegistrySize()
+			local ebRows = {}
+			for eventName, n in next, perEvent do
+				ebRows[#ebRows + 1] = { name = eventName, n = n }
+			end
+			table.sort(ebRows, function(a, b) return a.n > b.n end)
+			print(('|cff00ccff[Framed/mem]|r EventBus listeners: %d total across %d events'):format(
+				totalListeners, #ebRows))
+			for i = 1, math.min(10, #ebRows) do
+				print(('  %3d × %s'):format(ebRows[i].n, ebRows[i].name))
+			end
+		end
+
+		-- UIParent direct children count. Growth here over cycles = orphan
+		-- frames leaked outside the settings tree. Stable = any leak is
+		-- in non-frame state (tables, closures, textures).
+		if(UIParent and UIParent.GetChildren) then
+			local uiKids = { UIParent:GetChildren() }
+			print(('|cff00ccff[Framed/mem]|r UIParent direct children: %d'):format(#uiKids))
+		end
+	elseif(cmd == 'pools') then
+		local rows = {}
+		-- Count observers per unit token first so each row can annotate
+		-- how many other AuraState instances share its unit. Drives the
+		-- #149 evaluation — central classification cache only helps when
+		-- multiple frames observe the same unit token.
+		local observersByUnit = {}
+		for instance in next, F.AuraState._instances do
+			local unit = instance._unit or '?'
+			observersByUnit[unit] = (observersByUnit[unit] or 0) + 1
+		end
+		for instance in next, F.AuraState._instances do
+			local owner = instance._owner
+			local ownerName = owner and owner.GetName and owner:GetName() or '<anon>'
+			local unit = instance._unit or '?'
+			local row = {
+				name = ownerName,
+				unit = unit,
+				observers = observersByUnit[unit],
+				pooled = #instance._classifiedFreeList,
+				helpful = 0,
+				harmful = 0,
+			}
+			for _ in next, instance._helpfulClassifiedById do
+				row.helpful = row.helpful + 1
+			end
+			for _ in next, instance._harmfulClassifiedById do
+				row.harmful = row.harmful + 1
+			end
+			rows[#rows + 1] = row
+		end
+		-- Sort: highest-observer units first (most relevant to #149), then
+		-- by pool size as a secondary key for same-observer-count entries.
+		table.sort(rows, function(a, b)
+			if(a.observers ~= b.observers) then return a.observers > b.observers end
+			return a.pooled > b.pooled
+		end)
+		print('|cff00ccff Framed|r classified pool per instance:')
+		print(('  %-32s %-12s %4s %6s %6s %6s'):format('frame', 'unit', 'obs', 'pooled', 'live+', 'live-'))
+		for _, r in next, rows do
+			print(('  %-32s %-12s %4d %6d %6d %6d'):format(
+				r.name, r.unit, r.observers, r.pooled, r.helpful, r.harmful))
+		end
+
+		-- Summary: how many unit tokens have >1 observer? This is the
+		-- upper bound on classification dedup savings from #149.
+		local totalUnits, duplicatedUnits, totalInstances, dupInstances = 0, 0, 0, 0
+		for _, count in next, observersByUnit do
+			totalUnits = totalUnits + 1
+			totalInstances = totalInstances + count
+			if(count > 1) then
+				duplicatedUnits = duplicatedUnits + 1
+				dupInstances = dupInstances + count
+			end
+		end
+		print(('  %-32s %d unit tokens, %d duplicated (%d instances total, %d on dup units)'):format(
+			'[#149 overlap summary]', totalUnits, duplicatedUnits, totalInstances, dupInstances))
 	elseif(cmd == 'help') then
 		print('|cff00ccff Framed|r v' .. F.version .. ' — Commands:')
 		print('  /framed — Open settings')
@@ -462,6 +628,10 @@ SlashCmdList['FRAMED'] = function(msg)
 		print('  /framed debugicons — Debug indicator element state')
 		print('  /framed testimport — Generate a synthetic-diff import string for testing backfill')
 		print('  /framed aurastate [unit] — Dump classified aura flags (default: target)')
+		print('  /framed memdiag [seconds] — Measure aura-path allocation churn (default 10s, max 30s; stops GC for the window)')
+		print('  /framed memusage [raw] — Framed + total memory snapshot (default forces GC; "raw" skips it)')
+		print('  /framed settingsmem — Toggle settings-window memory probe (prints delta on open/close)')
+		print('  /framed pools — Dump per-instance classified pool sizes (for #144 diagnostics)')
 	else
 		-- Default: open settings
 		if(F.Settings and F.Settings.Toggle) then

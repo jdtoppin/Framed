@@ -646,6 +646,10 @@ F.Settings.RegisterPanel({
 
 		F.EventBus:Register('SETTINGS_RESIZED', onResize, 'ClickCastingPanel.resize')
 
+		scroll._eventBusOwners = {
+			{ 'SETTINGS_RESIZED', 'ClickCastingPanel.resize' },
+		}
+
 		scroll:HookScript('OnHide', function()
 			F.EventBus:Unregister('SETTINGS_RESIZED', 'ClickCastingPanel.resize')
 		end)
@@ -661,7 +665,14 @@ F.Settings.RegisterPanel({
 
 F.EventBus:Register('SPEC_CHANGED', function()
 	if(not F.Settings._panelFrames) then return end
-	F.Settings._panelFrames['clickcasting'] = nil
+	-- Full teardown to release the old panel frame's widgets + event hooks
+	-- so GC can reclaim them; dropping the cache key alone leaks the
+	-- orphaned frame.
+	if(F.Settings.TearDownPanel) then
+		F.Settings.TearDownPanel('clickcasting')
+	else
+		F.Settings._panelFrames['clickcasting'] = nil
+	end
 	if(F.Settings._activePanelId == 'clickcasting') then
 		F.Settings.SetActivePanel('clickcasting')
 	end

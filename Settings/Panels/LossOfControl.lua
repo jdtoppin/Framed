@@ -180,6 +180,11 @@ F.Settings.RegisterPanel({
 			grid:RebuildCards()
 		end, resizeKey .. '.complete')
 
+		scroll._eventBusOwners = {
+			{ 'SETTINGS_RESIZED',          resizeKey },
+			{ 'SETTINGS_RESIZE_COMPLETE',  resizeKey .. '.complete' },
+		}
+
 		-- ── Cleanup on hide, re-register on show ──────────────────
 		scroll:HookScript('OnHide', function()
 			grid:CancelAnimations()

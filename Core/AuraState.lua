@@ -1,36 +1,117 @@
 local _, Framed = ...
 local F = Framed
 
+-- Classified entries ({ aura, flags } wrappers) are pooled per-instance.
+-- Consumers must not stash entry or entry.flags across UNIT_AURA — pool
+-- reuse silently refills the wrapper with a different aura, producing
+-- ghost-aura bugs that no guardrail in AuraState can catch.
+-- Audit completed 2026-04-22 (Externals / Defensives / Debuffs / Buffs /
+-- MissingBuffs): all consumers destructure fields inline within their
+-- iteration loops and do not persist entry references.
+
 F.AuraState = {}
+
+-- Weak-keyed registry so diagnostics (/framed memusage, /framed pools)
+-- can walk live instances without preventing GC of frames whose
+-- AuraState becomes unreferenced (e.g., preset hot-swap drops old
+-- oUF frames).
+F.AuraState._instances = setmetatable({}, { __mode = 'k' })
 
 local GetAuraSlots = C_UnitAuras and C_UnitAuras.GetAuraSlots
 local GetAuraDataBySlot = C_UnitAuras and C_UnitAuras.GetAuraDataBySlot
 local GetAuraDataByAuraInstanceID = C_UnitAuras and C_UnitAuras.GetAuraDataByAuraInstanceID
 local IsAuraFilteredOutByInstanceID = C_UnitAuras and C_UnitAuras.IsAuraFilteredOutByInstanceID
 
--- Classify a single aura into a wrapper entry { aura, flags }.
--- Tier 1 flags are structural passthroughs from AuraData (never secret).
+-- Acquire a classified entry from the per-instance pool (or allocate
+-- fresh if the pool is empty) and fill its flag fields for `aura`.
+--
+-- Split into polarity-specific variants (#173): each branch probes
+-- only the filter flags that semantically apply to its polarity, and
+-- explicitly zeroes the inapplicable ones so `entry.flags` has a
+-- uniform shape regardless of helpful/harmful origin.
+--
+-- Tier 1 flags are structural AuraData booleans. Per Blizzard's 12.0.x
+-- changes, isHelpful / isHarmful / isRaid / isNameplateOnly /
+-- isFromPlayerOrPlayerPet are non-secret. isBossAura remains secret on
+-- encounter auras and must be guarded with F.IsValueNonSecret to avoid
+-- tainted boolean tests.
 -- Tier 2 flags use C_UnitAuras filter probes (secret-safe C API).
-local function classify(unit, aura, isHelpful)
-	local id = aura.auraInstanceID
-	local prefix = isHelpful and 'HELPFUL' or 'HARMFUL'
+local function acquireStructural(pool, aura)
+	local entry = pool[#pool]
+	if(entry) then
+		pool[#pool] = nil
+		wipe(entry.flags)
+	else
+		entry = { flags = {} }
+	end
 
-	local flags = {
-		isHelpful         = aura.isHelpful         or false,
-		isHarmful         = aura.isHarmful         or false,
-		isRaid            = aura.isRaid            or false,
-		isBossAura        = aura.isBossAura        or false,
-		isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false,
-	}
+	entry.aura = aura
 
-	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|EXTERNAL_DEFENSIVE') == false
-	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|IMPORTANT')          == false
-	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, prefix .. '|PLAYER')             == false
-	flags.isBigDefensive      = isHelpful
-	                            and IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|BIG_DEFENSIVE') == false
-	                            or false
+	local flags = entry.flags
+	flags.isHelpful         = aura.isHelpful         or false
+	flags.isHarmful         = aura.isHarmful         or false
+	flags.isRaid            = aura.isRaid            or false
+	flags.isBossAura        = F.IsValueNonSecret(aura.isBossAura) and aura.isBossAura or false
+	flags.isFromPlayerOrPet = aura.isFromPlayerOrPlayerPet or false
 
-	return { aura = aura, flags = flags }
+	return entry, flags, aura.auraInstanceID
+end
+
+-- EXTERNAL_DEFENSIVE and BIG_DEFENSIVE are curated helpful-only filters
+-- (ExternalDefensivesFrame.lua pairs EXTERNAL_DEFENSIVE with HELPFUL;
+-- BIG_DEFENSIVE is a spell whitelist of defensive cooldowns, all buffs).
+local function acquireHelpful(pool, unit, aura)
+	local entry, flags, id = acquireStructural(pool, aura)
+
+	flags.isExternalDefensive = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|EXTERNAL_DEFENSIVE') == false
+	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|IMPORTANT')          == false
+	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|PLAYER')             == false
+	flags.isBigDefensive      = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|BIG_DEFENSIVE')      == false
+	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, 'HELPFUL|RAID_IN_COMBAT')     == false
+	flags.isRaidDispellable   = false
+
+	return entry
+end
+
+-- RAID_PLAYER_DISPELLABLE is harmful-only (Blizzard: "Auras with a dispel
+-- type the player can dispel" — dispelling applies to debuffs).
+local function acquireHarmful(pool, unit, aura)
+	local entry, flags, id = acquireStructural(pool, aura)
+
+	flags.isImportant         = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|IMPORTANT')               == false
+	flags.isPlayerCast        = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|PLAYER')                  == false
+	flags.isRaidDispellable   = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|RAID_PLAYER_DISPELLABLE') == false
+	flags.isRaidInCombat      = IsAuraFilteredOutByInstanceID(unit, id, 'HARMFUL|RAID_IN_COMBAT')          == false
+	flags.isExternalDefensive = false
+	flags.isBigDefensive      = false
+
+	return entry
+end
+
+-- Return a classified entry to the pool. Nils the aura reference so
+-- the underlying AuraData can be GC'd even while the wrapper sits in
+-- the free list; flags contents are left stale until the next acquire
+-- wipes them (lazy — avoids paying wipe cost on entries that never
+-- get reused before session end).
+local function releaseClassified(pool, entry)
+	entry.aura = nil
+	pool[#pool + 1] = entry
+end
+
+-- Pack GetAuraSlots varargs into `tbl` without allocating a fresh pack table.
+-- Returns the count, which callers MUST use as the iteration bound (not #tbl).
+-- Position 1 holds the continuation token; real slot IDs start at index 2.
+-- The tail loop nils any residual entries from a prior call where the aura
+-- count was higher, keeping `tbl` a proper sequence across reuses.
+local function fillSlots(tbl, ...)
+	local n = select('#', ...)
+	for i = 1, n do
+		tbl[i] = select(i, ...)
+	end
+	for i = n + 1, #tbl do
+		tbl[i] = nil
+	end
+	return n
 end
 
 -- Compound unit tokens (e.g. 'party2target', 'playertarget', 'focustarget')
@@ -101,19 +182,33 @@ function AuraState:MarkHarmfulDirty()
 end
 
 function AuraState:ResetHelpfulClassified()
+	for _, entry in next, self._helpfulClassifiedById do
+		releaseClassified(self._classifiedFreeList, entry)
+	end
 	wipe(self._helpfulClassifiedById)
 end
 
 function AuraState:ResetHarmfulClassified()
+	for _, entry in next, self._harmfulClassifiedById do
+		releaseClassified(self._classifiedFreeList, entry)
+	end
 	wipe(self._harmfulClassifiedById)
 end
 
 function AuraState:InvalidateHelpfulClassified(auraInstanceID)
-	self._helpfulClassifiedById[auraInstanceID] = nil
+	local entry = self._helpfulClassifiedById[auraInstanceID]
+	if(entry) then
+		releaseClassified(self._classifiedFreeList, entry)
+		self._helpfulClassifiedById[auraInstanceID] = nil
+	end
 end
 
 function AuraState:InvalidateHarmfulClassified(auraInstanceID)
-	self._harmfulClassifiedById[auraInstanceID] = nil
+	local entry = self._harmfulClassifiedById[auraInstanceID]
+	if(entry) then
+		releaseClassified(self._classifiedFreeList, entry)
+		self._harmfulClassifiedById[auraInstanceID] = nil
+	end
 end
 
 function AuraState:MarkHelpfulClassifiedDirty()
@@ -169,7 +264,7 @@ end
 function AuraState:FullRefresh(unit)
 	self._unit = unit
 	self._initialized = true
-	self._gen = F.AuraCache.GetGeneration(unit)
+	self._gen = F.AuraCache.GetIdentityGeneration(unit)
 	wipe(self._helpfulById)
 	wipe(self._harmfulById)
 	self:ResetHelpfulMatches()
@@ -184,17 +279,17 @@ function AuraState:FullRefresh(unit)
 	if(not unit or not GetAuraSlots or not GetAuraDataBySlot) then return end
 	if(isCompoundUnit(unit)) then return end
 
-	local helpfulResults = { GetAuraSlots(unit, 'HELPFUL') }
-	for i = 2, #helpfulResults do
-		local aura = GetAuraDataBySlot(unit, helpfulResults[i])
+	local nHelpful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HELPFUL'))
+	for i = 2, nHelpful do
+		local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
 		if(aura and aura.auraInstanceID) then
 			self._helpfulById[aura.auraInstanceID] = aura
 		end
 	end
 
-	local harmfulResults = { GetAuraSlots(unit, 'HARMFUL') }
-	for i = 2, #harmfulResults do
-		local aura = GetAuraDataBySlot(unit, harmfulResults[i])
+	local nHarmful = fillSlots(self._slotsScratch, GetAuraSlots(unit, 'HARMFUL'))
+	for i = 2, nHarmful do
+		local aura = GetAuraDataBySlot(unit, self._slotsScratch[i])
 		if(aura and aura.auraInstanceID) then
 			self._harmfulById[aura.auraInstanceID] = aura
 		end
@@ -202,10 +297,14 @@ function AuraState:FullRefresh(unit)
 end
 
 function AuraState:EnsureInitialized(unit)
-	-- Compare generation from AuraCache, not the token string — the token
-	-- (e.g. 'target') stays identical on retarget even when it now points
-	-- at a different entity. AuraCache bumps generation on reassignment.
-	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
+	-- Identity generation catches enumerated reassignment events (incl.
+	-- UNIT_PET) and encounter-boundary auraInstanceID re-randomization.
+	-- Can't use UnitGUID as a belt here — it returns secret-value strings
+	-- on pet/nameplate tokens during tainted execution, which would taint
+	-- the comparison. Per CLAUDE.md, no secret/non-secret path splits.
+	if(not self._initialized
+		or self._unit ~= unit
+		or self._gen  ~= F.AuraCache.GetIdentityGeneration(unit)) then
 		self:FullRefresh(unit)
 	end
 end
@@ -222,7 +321,12 @@ function AuraState:ApplyUpdateInfo(unit, updateInfo)
 		return
 	end
 
-	if(not self._initialized or self._unit ~= unit or self._gen ~= F.AuraCache.GetGeneration(unit)) then
+	-- Identity-stale detection: same as EnsureInitialized. Without this,
+	-- a UNIT_AURA racing an un-dispatched reassignment would apply a delta
+	-- against _helpfulById keyed by auraInstanceIDs from a different entity.
+	if(not self._initialized
+		or self._unit ~= unit
+		or self._gen  ~= F.AuraCache.GetIdentityGeneration(unit)) then
 		self._lastUpdateInfo = updateInfo
 		self._lastUpdateUnit = unit
 		self:FullRefresh(unit)
@@ -380,17 +484,37 @@ function AuraState:GetHelpfulClassified()
 
 	view.dirty = false
 	wipe(view.list)
+	wipe(view.presentById)
+	wipe(view.presentByName)
 
 	for id, aura in next, self._helpfulById do
 		local entry = self._helpfulClassifiedById[id]
 		if(not entry) then
-			entry = classify(self._unit, aura, true)
+			entry = acquireHelpful(self._classifiedFreeList, self._unit, aura)
 			self._helpfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
+
+		local sid  = aura.spellId
+		local name = aura.name
+		if(F.IsValueNonSecret(sid))  then view.presentById[sid]    = entry end
+		if(F.IsValueNonSecret(name)) then view.presentByName[name] = entry end
 	end
 
 	return view.list
+end
+
+-- Look up a helpful classified entry by spellId (with an optional name
+-- fallback). Returns the entry or nil. Piggybacks on the presence maps
+-- populated during GetHelpfulClassified's rebuild, so the amortized
+-- cost is O(1) per lookup: first caller pays for the classified scan;
+-- subsequent lookups against the same unchanged view are hash hits.
+-- Used by MissingBuffs where the iteration is inverted (small fixed
+-- set of tracked spells vs. the full aura list).
+function AuraState:FindHelpfulBySpellId(spellId, name)
+	self:GetHelpfulClassified()
+	local view = self._helpfulClassifiedView
+	return view.presentById[spellId] or (name and view.presentByName[name])
 end
 
 function AuraState:GetHarmfulClassified()
@@ -405,7 +529,7 @@ function AuraState:GetHarmfulClassified()
 	for id, aura in next, self._harmfulById do
 		local entry = self._harmfulClassifiedById[id]
 		if(not entry) then
-			entry = classify(self._unit, aura, false)
+			entry = acquireHarmful(self._classifiedFreeList, self._unit, aura)
 			self._harmfulClassifiedById[id] = entry
 		end
 		view.list[#view.list + 1] = entry
@@ -422,7 +546,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	local aura = self._helpfulById[auraInstanceID]
 	if(aura) then
-		entry = classify(self._unit, aura, true)
+		entry = acquireHelpful(self._classifiedFreeList, self._unit, aura)
 		self._helpfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
@@ -434,7 +558,7 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 
 	aura = self._harmfulById[auraInstanceID]
 	if(aura) then
-		entry = classify(self._unit, aura, false)
+		entry = acquireHarmful(self._classifiedFreeList, self._unit, aura)
 		self._harmfulClassifiedById[auraInstanceID] = entry
 		return entry
 	end
@@ -442,8 +566,11 @@ function AuraState:GetClassifiedByInstanceID(auraInstanceID)
 	return nil
 end
 
+-- Exposed for diagnostics (e.g. Core/MemDiag.lua monkey-patches methods here).
+F.AuraState._mt = AuraState
+
 function F.AuraState.Create(owner)
-	return setmetatable({
+	local inst = setmetatable({
 		_owner = owner,
 		_unit = nil,
 		_initialized = false,
@@ -454,11 +581,15 @@ function F.AuraState.Create(owner)
 		_helpfulViews = {},
 		_helpfulMatches = {},
 		_helpfulClassifiedById = {},
-		_helpfulClassifiedView = { dirty = true, list = {} },
+		_helpfulClassifiedView = { dirty = true, list = {}, presentById = {}, presentByName = {} },
 		_harmfulById = {},
 		_harmfulViews = {},
 		_harmfulMatches = {},
 		_harmfulClassifiedById = {},
 		_harmfulClassifiedView = { dirty = true, list = {} },
+		_classifiedFreeList = {},
+		_slotsScratch = {},
 	}, AuraState)
+	F.AuraState._instances[inst] = true
+	return inst
 end

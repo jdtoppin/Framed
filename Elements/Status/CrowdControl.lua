@@ -80,6 +80,9 @@ end
 local tickerFrame = CreateFrame('Frame')
 tickerFrame:Hide()
 
+F.Status = F.Status or {}
+F.Status.CrowdControl_Ticker = tickerFrame
+
 local activeTimers = {}
 
 tickerFrame:SetScript('OnUpdate', function(_, elapsed)

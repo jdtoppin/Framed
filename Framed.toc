@@ -2,7 +2,7 @@
 ## Title: Framed
 ## Notes: Modern, customizable unit frames and raid frames
 ## Author: Moodibs
-## Version: 0.8.14-alpha
+## Version: 0.8.15-alpha
 ## X-Curse-Project-ID: 1513359
 ## SavedVariables: FramedDB, FramedBackupDB, FramedSnapshotsDB
 ## SavedVariablesPerCharacter: FramedCharDB
@@ -33,9 +33,9 @@ Core/SecretValues.lua
 Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
-Core/CastTracker.lua
 Core/AuraCache.lua
 Core/AuraState.lua
+Core/MemDiag.lua
 Core/Backups.lua
 
 # Widgets
@@ -104,7 +104,6 @@ Elements/Auras/Debuffs.lua
 Elements/Auras/PrivateAuras.lua
 Elements/Auras/Dispellable.lua
 Elements/Auras/MissingBuffs.lua
-Elements/Auras/TargetedSpells.lua
 Elements/Auras/Externals.lua
 Elements/Auras/Defensives.lua
 
@@ -214,7 +213,6 @@ Settings/Panels/Externals.lua
 Settings/Panels/Defensives.lua
 Settings/Panels/MissingBuffs.lua
 Settings/Panels/PrivateAuras.lua
-Settings/Panels/TargetedSpells.lua
 Settings/Panels/Dispels.lua
 Settings/Panels/LossOfControl.lua
 Settings/Panels/CrowdControl.lua

@@ -6,6 +6,22 @@ local Widgets = F.Widgets
 F.StyleBuilder = {}
 
 -- ============================================================
+-- Deferred RegisterForClicks queue
+-- RegisterForClicks is protected; calling it on a SecureGroupHeader
+-- child during combat triggers ADDON_ACTION_BLOCKED (issue #165).
+-- Defer to PLAYER_REGEN_ENABLED when locked down.
+-- ============================================================
+
+local pendingRegisterClicks = {}
+
+F.EventBus:Register('PLAYER_REGEN_ENABLED', function()
+	for frame in next, pendingRegisterClicks do
+		pendingRegisterClicks[frame] = nil
+		frame:RegisterForClicks('AnyUp')
+	end
+end, 'StyleBuilder.RegisterClicksQueue')
+
+-- ============================================================
 -- Power Color Overrides
 -- Blizzard's PowerBarColor.MANA is pure blue (0,0,1) which has
 -- very low perceived luminance and is nearly invisible on thin
@@ -133,8 +149,13 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	-- Store unit type for live config lookups
 	self._framedUnitType = unitType
 
-	-- Register for all mouse button clicks (WoW 10.0+ defaults to LeftButtonUp only)
-	self:RegisterForClicks('AnyUp')
+	-- Register for all mouse button clicks (WoW 10.0+ defaults to LeftButtonUp only).
+	-- Protected call — defer if locked down (issue #165).
+	if(InCombatLockdown()) then
+		pendingRegisterClicks[self] = true
+	else
+		self:RegisterForClicks('AnyUp')
+	end
 
 	-- Unit tooltip on hover
 	self:SetScript('OnEnter', function(frame)
@@ -378,11 +399,6 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 	local missingBuffsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'missingBuffs')
 	if(missingBuffsConfig and missingBuffsConfig.enabled and F.Elements.MissingBuffs) then
 		F.Elements.MissingBuffs.Setup(self, missingBuffsConfig)
-	end
-
-	local targetedSpellsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'targetedSpells')
-	if(targetedSpellsConfig and targetedSpellsConfig.enabled and F.Elements.TargetedSpells) then
-		F.Elements.TargetedSpells.Setup(self, targetedSpellsConfig)
 	end
 
 	local privateAurasConfig = F.StyleBuilder.GetAuraConfig(unitType, 'privateAuras')
@@ -802,7 +818,6 @@ local AURA_ELEMENT_MAP = {
 	externals      = 'FramedExternals',
 	defensives     = 'FramedDefensives',
 	dispellable    = 'FramedDispellable',
-	targetedSpells = 'FramedTargetedSpells',
 }
 
 -- Structural BorderIcon config keys — if these change, wipe and recreate pool
@@ -894,40 +909,6 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					element._iconFrame:ClearAllPoints()
 					local a = newConfig.anchor
 					element._iconFrame:SetPoint(a[1], frame, a[3] or a[1], a[4] or 0, a[5] or 0)
-				end
-
-				if(element.ForceUpdate) then
-					element:ForceUpdate()
-				end
-
-			-- ── TargetedSpells (individual properties) ──
-			elseif(elementKey == 'FramedTargetedSpells') then
-				element._maxDisplayed = newConfig.maxDisplayed or 1
-				element._borderColor  = newConfig.borderColor
-
-				-- Glow properties
-				local glowCfg = newConfig.glow or {}
-				element._glowColor = glowCfg.color or C.Colors.accent
-				element._glowType  = glowCfg.type or C.GlowType.PROC
-				if(glowCfg.lines or glowCfg.frequency or glowCfg.length or glowCfg.thickness
-					or glowCfg.particles or glowCfg.scale) then
-					element._glowConfig = {
-						lines     = glowCfg.lines,
-						frequency = glowCfg.frequency,
-						length    = glowCfg.length,
-						thickness = glowCfg.thickness,
-						particles = glowCfg.particles,
-						scale     = glowCfg.scale,
-					}
-				else
-					element._glowConfig = nil
-				end
-
-				-- Resize pool icons
-				if(newConfig.iconSize and element._pool) then
-					for _, bi in next, element._pool do
-						bi:SetSize(newConfig.iconSize)
-					end
 				end
 
 				if(element.ForceUpdate) then

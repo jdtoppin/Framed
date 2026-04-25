@@ -366,6 +366,13 @@ local function UnregisterConfigListener()
 	end
 end
 
+local function SetPreviewEventBusOwners(card)
+	card._eventBusOwners = {
+		{ 'CONFIG_CHANGED', 'FramePreview.ConfigListener' },
+		{ 'EDITING_PRESET_CHANGED', 'FramePreview.PresetListener' },
+	}
+end
+
 -- ============================================================
 -- Solo preview rendering
 -- ============================================================
@@ -1202,6 +1209,7 @@ function FP.BuildPreviewCard(parent, width, unitType)
 	card._viewport = viewport
 	card._viewContent = viewContent
 	card._unitType = unitType
+	SetPreviewEventBusOwners(card)
 
 	-- Reflow Focus Mode between rows as the card width changes (raid stepper
 	-- shifts columns, window resize, pinned split animation). Two guards keep
@@ -1244,6 +1252,7 @@ function FP.RestorePreview(card, unitType)
 	F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 		FP.RebuildPreview()
 	end, 'FramePreview.PresetListener')
+	SetPreviewEventBusOwners(card)
 
 	FP.RebuildPreview()
 end

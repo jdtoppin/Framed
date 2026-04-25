@@ -78,7 +78,14 @@ function Settings.CreateMainFrame()
 	closeBtn:ClearAllPoints()
 	Widgets.SetPoint(closeBtn, 'RIGHT', header, 'RIGHT', -C.Spacing.base, 0)
 	closeBtn:SetOnClick(function()
-		Widgets.FadeOut(frame)
+		-- Route through Settings.Hide so TearDownAllPanels runs. Calling
+		-- Widgets.FadeOut directly here previously bypassed teardown,
+		-- leaving every cached panel + its widget tree alive after close.
+		if(Settings and Settings.Hide) then
+			Settings.Hide()
+		else
+			Widgets.FadeOut(frame)
+		end
 	end)
 	closeBtn:SetWidgetTooltip('Close')
 	closeBtn:SetBackdrop(nil)
@@ -192,12 +199,23 @@ function Settings.CreateMainFrame()
 
 	-- ── ESC closes the window ─────────────────────────────────
 	frame:EnableKeyboard(true)
-	frame:SetPropagateKeyboardInput(true)
+	if(not InCombatLockdown()) then
+		frame:SetPropagateKeyboardInput(true)
+	end
 	frame:SetScript('OnKeyDown', function(self, key)
 		if(key == 'ESCAPE') then
-			self:SetPropagateKeyboardInput(false)
-			Widgets.FadeOut(self)
-		else
+			if(not InCombatLockdown()) then
+				self:SetPropagateKeyboardInput(false)
+			end
+			-- Route through Settings.Hide so TearDownAllPanels runs.
+			-- Same fix as the close button — direct FadeOut would bypass
+			-- teardown and leak the cached panel tree.
+			if(Settings and Settings.Hide) then
+				Settings.Hide()
+			else
+				Widgets.FadeOut(self)
+			end
+		elseif(not InCombatLockdown()) then
 			self:SetPropagateKeyboardInput(true)
 		end
 	end)
@@ -235,43 +253,85 @@ function Settings.CreateMainFrame()
 	-- Faded accent bar underlining the panel title, separating header from content
 	Widgets.CreateAccentBar(titleCard, 'bottom')
 
-	Settings._headerPanelText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
-	Settings._headerPanelText:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', titleCard, 'LEFT', C.Spacing.normal, 0)
-	Settings._headerPanelText:SetText('')
+	-- ── Breadcrumb title ───────────────────────────────────────
+	-- Left-to-right, preset-scoped panels render as:
+	--   Frame pages: [Preset ▾] / [Panel name]
+	--   Aura pages:  [Preset ▾] / [Frame ▾] / [Panel name] / [Indicator name]
+	-- Framework manages per-page visibility + left-anchor chaining via
+	-- activatePresetHeaderControls.
+	--
+	-- Separators are dedicated muted-color FontStrings rather than prefixes
+	-- embedded inside segment text. This gives them independent padding
+	-- (so they don't collide with the dropdown chevrons) and a distinct
+	-- visual weight (textSecondary vs textActive) so separators read as
+	-- punctuation rather than content.
 
-	-- ── Inline unit-type dropdown for aura panels ───────────────
-	-- Renders as "/ Player Frame ▾" immediately after the breadcrumb.
-	-- Hidden by default; Framework toggles visibility per panel.
+	local SEP_GAP    = 6  -- padding between a segment and its outgoing separator
+	local SEP_TEXT   = '/'
+
+	-- Segment 1: Preset dropdown. Leftmost, shown on every PRESET_SCOPED
+	-- panel, hidden elsewhere.
+	Settings._headerPresetDD = Widgets.CreateInlineDropdown(titleCard)
+	Settings._headerPresetDD:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerPresetDD, 'LEFT', titleCard, 'LEFT', C.Spacing.normal, 0)
+	Settings._headerPresetDD:Hide()
+
+	-- Separator 1: between preset and the next visible segment.
+	Settings._headerSep1 = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textSecondary)
+	Settings._headerSep1:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerSep1, 'LEFT', Settings._headerPresetDD, 'RIGHT', SEP_GAP, 0)
+	Settings._headerSep1:SetText(SEP_TEXT)
+	Settings._headerSep1:Hide()
+
+	-- Segment 2: Frame-type (unit) dropdown. Aura pages only — selects
+	-- which frame's config is being edited within the active preset.
+	-- Frame pages hide this; the panel name itself is the frame type.
 	Settings._headerUnitTypeDD = Widgets.CreateInlineDropdown(titleCard)
 	Settings._headerUnitTypeDD:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerUnitTypeDD, 'LEFT', Settings._headerPanelText, 'RIGHT', 4, 0)
+	Widgets.SetPoint(Settings._headerUnitTypeDD, 'LEFT', Settings._headerSep1, 'RIGHT', SEP_GAP, 0)
 	Settings._headerUnitTypeDD:Hide()
 
-	-- ── Drill-in breadcrumb suffix (e.g. "  >  Major Cooldowns") ──
-	-- Shown only while editing a specific indicator inside an aura panel.
+	-- Separator 2: between frame dropdown and panel name (aura pages).
+	Settings._headerSep2 = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textSecondary)
+	Settings._headerSep2:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerSep2, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', SEP_GAP, 0)
+	Settings._headerSep2:SetText(SEP_TEXT)
+	Settings._headerSep2:Hide()
+
+	-- Segment 3: Panel name ("Buffs", "Player", etc.). Plain label, no
+	-- click behaviour — navigation lives in the sidebar.
+	-- activatePresetHeaderControls re-anchors this to whichever separator
+	-- is currently the deepest-visible upstream one (sep2 on aura pages,
+	-- sep1 on frame pages, titleCard LEFT on non-preset-scoped panels).
+	Settings._headerPanelText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
+	Settings._headerPanelText:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerPanelText, 'LEFT', Settings._headerSep2, 'RIGHT', SEP_GAP, 0)
+	Settings._headerPanelText:SetText('')
+
+	-- Separator 3: between panel name and indicator drill-in.
+	Settings._headerSep3 = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textSecondary)
+	Settings._headerSep3:ClearAllPoints()
+	Widgets.SetPoint(Settings._headerSep3, 'LEFT', Settings._headerPanelText, 'RIGHT', SEP_GAP, 0)
+	Settings._headerSep3:SetText(SEP_TEXT)
+	Settings._headerSep3:Hide()
+
+	-- Segment 4: Indicator drill-in label. Aura pages only, populated by
+	-- Settings.UpdateAuraBreadcrumb when a panel drills into an indicator.
 	Settings._headerIndicatorText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.textActive)
 	Settings._headerIndicatorText:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerIndicatorText, 'LEFT', Settings._headerUnitTypeDD, 'RIGHT', 8, 0)
+	Widgets.SetPoint(Settings._headerIndicatorText, 'LEFT', Settings._headerSep3, 'RIGHT', SEP_GAP, 0)
 	Settings._headerIndicatorText:SetText('')
 	Settings._headerIndicatorText:SetWordWrap(false)
 	Settings._headerIndicatorText:SetJustifyH('LEFT')
 	Settings._headerIndicatorText:Hide()
 
-	Settings._headerPresetText = Widgets.CreateFontString(titleCard, C.Font.sizeNormal, C.Colors.accent)
-	Settings._headerPresetText:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerPresetText, 'RIGHT', titleCard, 'RIGHT', -C.Spacing.normal, 0)
-	Settings._headerPresetText:SetText('')
-	Settings._headerPresetText:Hide()
-
-	-- ── Copy-to control (label + dropdown + Copy button) ───────
-	-- Right-aligned stack that sits immediately left of _headerPresetText.
-	-- Visible only on aura panels that registered a configKey.
-	-- Framework.activateAuraHeaderControls populates the dropdown and
-	-- wires the button per panel.
+	-- ── Copy-to control (dropdown + Copy button) ───────────────
+	-- Right-aligned stack. Visible only on aura panels that registered
+	-- a configKey via BuildAuraUnitTypeRow. Framework wires the button
+	-- target list per-panel.
 	Settings._headerCopyToBtn = Widgets.CreateButton(titleCard, 'Copy To', 'accent', 64, 20)
 	Settings._headerCopyToBtn:ClearAllPoints()
-	Widgets.SetPoint(Settings._headerCopyToBtn, 'RIGHT', Settings._headerPresetText, 'LEFT', -C.Spacing.normal, 0)
+	Widgets.SetPoint(Settings._headerCopyToBtn, 'RIGHT', titleCard, 'RIGHT', -C.Spacing.normal, 0)
 	Settings._headerCopyToBtn:Hide()
 
 	Settings._headerCopyToDD = Widgets.CreateDropdown(titleCard, 84)

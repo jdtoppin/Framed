@@ -116,15 +116,20 @@ function F.Settings.BuildGlowCard(parent, width, yOffset, get, set, opts)
 	if(opts.allowNone) then
 		typeItems[#typeItems + 1] = { text = 'None', value = 'None' }
 	end
+	-- Pixel and Shine animate particle textures via unthrottled Lua OnUpdate
+	-- at 60 fps (~1.14 ms/s per active glow). In raids with many simultaneous
+	-- glows the cost scales linearly — Proc (engine-driven AnimationGroup)
+	-- and Soft (sprite-sheet) are materially cheaper. Label this in the
+	-- dropdown so the choice is informed.
 	if(opts.frameGlowOnly) then
 		-- Only procedural glows that work on non-square frames
-		typeItems[#typeItems + 1] = { text = 'Pixel', value = C.GlowType.PIXEL }
-		typeItems[#typeItems + 1] = { text = 'Shine', value = C.GlowType.SHINE }
+		typeItems[#typeItems + 1] = { text = 'Pixel (high CPU)', value = C.GlowType.PIXEL }
+		typeItems[#typeItems + 1] = { text = 'Shine (high CPU)', value = C.GlowType.SHINE }
 	else
-		typeItems[#typeItems + 1] = { text = 'Proc',  value = C.GlowType.PROC }
-		typeItems[#typeItems + 1] = { text = 'Pixel', value = C.GlowType.PIXEL }
-		typeItems[#typeItems + 1] = { text = 'Soft',  value = C.GlowType.SOFT }
-		typeItems[#typeItems + 1] = { text = 'Shine', value = C.GlowType.SHINE }
+		typeItems[#typeItems + 1] = { text = 'Proc',             value = C.GlowType.PROC }
+		typeItems[#typeItems + 1] = { text = 'Pixel (high CPU)', value = C.GlowType.PIXEL }
+		typeItems[#typeItems + 1] = { text = 'Soft',             value = C.GlowType.SOFT }
+		typeItems[#typeItems + 1] = { text = 'Shine (high CPU)', value = C.GlowType.SHINE }
 	end
 
 	local typeDD = Widgets.CreateDropdown(inner, widgetW)

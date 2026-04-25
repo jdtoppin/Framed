@@ -71,15 +71,48 @@ function EventBus:UnregisterAll(owner)
 end
 
 --- Fire an event, calling all registered callbacks.
+---
+--- Each callback runs in its own protected call so a throw in one
+--- listener doesn't halt the cascade and silently break every listener
+--- registered after it. This is isolation, not suppression — errors
+--- still surface through WoW's standard error handler (BugSack /
+--- BugGrabber / default error frame), exactly as if the callback ran
+--- unprotected. The previous non-isolating implementation caused
+--- silent resize + preset-change cascade failures: a single stale
+--- reference in any listener would stop all subsequent panels from
+--- receiving the event, leaving them "frozen" to future state changes.
+---
 --- @param eventName string The event to fire
 --- @param ... any Arguments passed to callbacks
 function EventBus:Fire(eventName, ...)
 	local listeners = registry[eventName]
 	if(not listeners) then return end
 
+	local errorHandler = geterrorhandler()
 	for id, entry in next, listeners do
-		entry.callback(...)
+		local ok, err = pcall(entry.callback, ...)
+		if(not ok) then
+			errorHandler(('Framed EventBus listener error (event=%s, owner=%s): %s'):format(
+				tostring(eventName), tostring(entry.owner), tostring(err)))
+		end
 	end
+end
+
+--- Diagnostic: total count of live listeners across all events.
+--- @return number total
+--- @return table|nil  Per-event counts: { [eventName] = n }
+function EventBus:GetRegistrySize()
+	local total = 0
+	local perEvent = {}
+	for eventName, listeners in next, registry do
+		local n = 0
+		for _ in next, listeners do n = n + 1 end
+		if(n > 0) then
+			perEvent[eventName] = n
+			total = total + n
+		end
+	end
+	return total, perEvent
 end
 
 -- ============================================================

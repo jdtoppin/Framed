@@ -194,6 +194,11 @@ F.Settings.RegisterPanel({
 			grid:RebuildCards()
 		end, resizeKey .. '.complete')
 
+		scroll._eventBusOwners = {
+			{ 'SETTINGS_RESIZED',          resizeKey },
+			{ 'SETTINGS_RESIZE_COMPLETE',  resizeKey .. '.complete' },
+		}
+
 		scroll:HookScript('OnHide', function()
 			grid:CancelAnimations()
 			F.EventBus:Unregister('SETTINGS_RESIZED', resizeKey)

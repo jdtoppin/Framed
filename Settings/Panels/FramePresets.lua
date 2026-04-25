@@ -107,6 +107,40 @@ local function PresetsCard(parent, width)
 			Widgets.SetBackdropHighlight(row, false)
 		end)
 
+		-- Active-preset styling: mirrors the Buffs indicator-list
+		-- "selected row" treatment — 2px accent left bar + 25% accent
+		-- tinted background fill. Shown only while this row is the
+		-- editing preset; toggled via row:__setSelected(bool).
+
+		-- Accent left bar (2px)
+		local selectedBar = row:CreateTexture(nil, 'OVERLAY')
+		selectedBar:SetTexture(F.Media.GetPlainTexture())
+		selectedBar:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 1)
+		selectedBar:SetPoint('TOPLEFT',    row, 'TOPLEFT',    0, 0)
+		selectedBar:SetPoint('BOTTOMLEFT', row, 'BOTTOMLEFT', 0, 0)
+		selectedBar:SetWidth(2)
+		selectedBar:Hide()
+		row.__selectedBar = selectedBar
+
+		-- Solid lighter tint across the row body (offset 2px to clear the bar)
+		local selectedBg = row:CreateTexture(nil, 'BORDER')
+		selectedBg:SetTexture(F.Media.GetPlainTexture())
+		selectedBg:SetVertexColor(C.Colors.accent[1], C.Colors.accent[2], C.Colors.accent[3], 0.25)
+		selectedBg:SetPoint('TOPLEFT',     row, 'TOPLEFT',     2, 0)
+		selectedBg:SetPoint('BOTTOMRIGHT', row, 'BOTTOMRIGHT', 0, 0)
+		selectedBg:Hide()
+		row.__selectedBg = selectedBg
+
+		function row:__setSelected(selected)
+			if(selected) then
+				self.__selectedBar:Show()
+				self.__selectedBg:Show()
+			else
+				self.__selectedBar:Hide()
+				self.__selectedBg:Hide()
+			end
+		end
+
 		row.__nameFS     = nameFS
 		row.__tagFS      = tagFS
 		row.__selectBtn  = selectBtn
@@ -121,9 +155,7 @@ local function PresetsCard(parent, width)
 		local row = buildPresetRow(inner, name, cardY)
 		presetRowPool[#presetRowPool + 1] = row
 
-		if(name == editingPreset) then
-			Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.accent)
-		end
+		row:__setSelected(name == editingPreset)
 
 		cardY = cardY - ROW_H - 1
 	end
@@ -207,12 +239,17 @@ local function PresetsCard(parent, width)
 	if(F.EventBus) then
 		F.EventBus:Register('EDITING_PRESET_CHANGED', function()
 			local editing = F.Settings.GetEditingPreset()
+			if(F.Settings._debugPresetTransitions) then
+				print(('|cffffcc00[Framed/presets-list]|r listener fired — editing=%s, rows=%d'):format(
+					tostring(editing), #presetRowPool))
+			end
 			for _, row in next, presetRowPool do
-				if(row.__presetName == editing) then
-					Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.accent)
-				else
-					Widgets.ApplyBackdrop(row, C.Colors.panel, C.Colors.border)
+				local isActive = row.__presetName == editing
+				if(F.Settings._debugPresetTransitions) then
+					print(('  row %s -> setSelected(%s)'):format(
+						tostring(row.__presetName), tostring(isActive)))
 				end
+				row:__setSelected(isActive)
 				row.__tagFS:SetText(getPresetTag(row.__presetName))
 			end
 			updateResetVisibility()
@@ -463,6 +500,12 @@ F.Settings.RegisterPanel({
 		F.EventBus:Register('SETTINGS_RESIZE_COMPLETE', function()
 			grid:RebuildCards()
 		end, 'FramePresets.resizeComplete')
+
+		scroll._eventBusOwners = {
+			{ 'EDITING_PRESET_CHANGED', 'FramePresets.editingChanged' },
+			{ 'SETTINGS_RESIZED', 'FramePresets.resize' },
+			{ 'SETTINGS_RESIZE_COMPLETE', 'FramePresets.resizeComplete' },
+		}
 
 		return scroll
 	end,

@@ -86,20 +86,42 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 	btnRow:SetWidth(width - 24)
 	btnRow:SetFrameLevel(spInput:GetFrameLevel() + 2)
 
+	-- Two-control row: Import dropdown (opens a menu with Healer / Spec
+	-- sources) | Delete All button. The dropdown is used as a menu
+	-- trigger — after each selection, the label is reset so the control
+	-- always reads "Import Spells" rather than tracking a persistent
+	-- selection. Keeps the two-column layout even as import sources
+	-- multiply, and avoids label truncation on 3-column card grids.
 	local btnHalf = math.floor(((width - 24) - C.Spacing.tight) / 2)
-	local importBtn = Widgets.CreateButton(btnRow, 'Import Healer Spells', 'widget', btnHalf, 24)
-	Widgets.SetPoint(importBtn, 'TOPLEFT', btnRow, 'TOPLEFT', 0, 0)
-	importBtn:SetOnClick(function()
-		F.Settings.Builders.ShowImportPopup(function(selectedSpells)
-			if(not selectedSpells or #selectedSpells == 0) then return end
-			for _, spellID in next, selectedSpells do
-				spList:AddSpell(spellID)
-			end
-		end)
+
+	local function handleImport(selectedSpells)
+		if(not selectedSpells or #selectedSpells == 0) then return end
+		-- Single batched add: one NotifyChanged + one Layout instead of N.
+		spList:AddSpells(selectedSpells)
+	end
+
+	local importDD = Widgets.CreateDropdown(btnRow, btnHalf)
+	Widgets.SetPoint(importDD, 'TOPLEFT', btnRow, 'TOPLEFT', 0, 0)
+	importDD:SetItems({
+		{ text = 'Healer Spells', value = 'healer' },
+		{ text = 'Your Spec',     value = 'spec'   },
+	})
+	importDD._label:SetText('Import Spells')
+	importDD:SetWidgetTooltip('Import tracked spells from a curated source or your spec\'s spellbook.')
+	importDD:SetOnSelect(function(value)
+		-- Reset display back to the trigger label — this dropdown acts
+		-- as a menu, not a persistent selector.
+		importDD._label:SetText('Import Spells')
+		importDD._value = nil
+		if(value == 'healer') then
+			F.Settings.Builders.ShowImportPopup(handleImport)
+		elseif(value == 'spec') then
+			F.Settings.Builders.ShowSpecImportPopup(handleImport)
+		end
 	end)
 
 	local deleteAllBtn = Widgets.CreateButton(btnRow, 'Delete All Spells', 'red', btnHalf, 24)
-	deleteAllBtn:SetPoint('LEFT', importBtn, 'RIGHT', C.Spacing.tight, 0)
+	deleteAllBtn:SetPoint('LEFT', importDD, 'RIGHT', C.Spacing.tight, 0)
 	deleteAllBtn:SetOnClick(function()
 		Widgets.ShowConfirmDialog('Delete All Spells', 'Remove all tracked spells from this indicator?', function()
 			update('spells', {})
@@ -107,8 +129,22 @@ function Builders.TrackedSpells(parent, width, data, update, get, set, rebuildPa
 		end)
 	end)
 
-	-- Compute total card height: spellList + spacing + spInput(50) + spacing + btnRow(24)
-	cardY = cardY - spListH - C.Spacing.normal - 50 - C.Spacing.normal - 24
+	-- Spec-override hint: tracked spells apply to this preset, so users
+	-- who want different tracking per spec need to route each spec to its
+	-- own preset via the Spec Overrides card on the Frame Presets panel.
+	-- One-liner in muted text, sized to wrap within the card width.
+	local hintFS = Widgets.CreateFontString(inner, C.Font.sizeSmall, C.Colors.textSecondary)
+	Widgets.SetPoint(hintFS, 'TOPLEFT', btnRow, 'BOTTOMLEFT', 0, -C.Spacing.tight)
+	hintFS:SetWidth(width - 24)
+	hintFS:SetJustifyH('LEFT')
+	hintFS:SetWordWrap(true)
+	hintFS:SetText('Tracked spells apply to this preset. Use Spec Overrides (Frame Presets page) to configure different tracked spells per spec.')
+	local hintH = hintFS:GetStringHeight()
+
+	-- Total card height. spInput is now just INPUT_ROW_HEIGHT (24) since
+	-- the spell preview floats over downstream content instead of
+	-- reserving vertical space.
+	cardY = cardY - spListH - C.Spacing.normal - 24 - C.Spacing.normal - 24 - C.Spacing.tight - hintH
 
 	Widgets.EndCard(card, parent, cardY)
 	return card
@@ -571,11 +607,13 @@ function Builders.BorderAppearance(parent, width, data, update, get, set)
 		colorPicker:SetColor(glowColor[1], glowColor[2], glowColor[3], glowColor[4] or 1)
 		cardY = placeWidget(colorPicker, inner, cardY, DROPDOWN_H)
 
-		-- Glow type dropdown (frame-level glows only: Pixel and Shine)
+		-- Glow type dropdown (frame-level glows only: Pixel and Shine).
+		-- Both animate particle textures via unthrottled Lua OnUpdate at
+		-- 60 fps (~1.14 ms/s per active glow) — note the cost in the label.
 		local typeDD = Widgets.CreateDropdown(inner, widgetW)
 		typeDD:SetItems({
-			{ text = 'Pixel', value = C.GlowType.PIXEL },
-			{ text = 'Shine', value = C.GlowType.SHINE },
+			{ text = 'Pixel (high CPU)', value = C.GlowType.PIXEL },
+			{ text = 'Shine (high CPU)', value = C.GlowType.SHINE },
 		})
 		typeDD:SetValue(get('glowType') or C.GlowType.PIXEL)
 		typeDD:SetOnSelect(function(value) set('glowType', value) end)
