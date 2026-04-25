@@ -111,10 +111,19 @@ end
 -- Pixel Updater Registry
 -- Tracks frames that need re-snapping on scale change.
 -- Two strategies: Auto (always-visible) and OnShow (intermittent).
+--
+-- Weak-key registries prevent transient settings widgets from being
+-- pinned in memory after their panel trees are torn down. Strong-key
+-- tables here would retain every ScrollFrame, SpellList, dialog, and
+-- card-internal widget that ever called AddToPixelUpdater_*, since
+-- the registry itself lives forever and would hold strong refs to
+-- the keys (the frames). With weak keys, GC can collect a frame as
+-- soon as its other references drop, and the registry entry vanishes
+-- with it.
 -- ============================================================
 
-local pixelUpdaterAuto = {}     -- frames always visible
-local pixelUpdaterOnShow = {}   -- frames shown intermittently
+local pixelUpdaterAuto = setmetatable({}, { __mode = 'k' })     -- frames always visible
+local pixelUpdaterOnShow = setmetatable({}, { __mode = 'k' })   -- frames shown intermittently
 local lastPixelUpdateTime = 0
 
 --- Register a frame for automatic pixel updates (always-visible frames).
@@ -164,7 +173,9 @@ end
 -- so Framed frames render at the user's configured size.
 -- ============================================================
 
-local uiScaleFrames = {}  -- frames registered for UI scale compensation
+-- Weak-key for the same reason as the pixel updater registries above —
+-- transient settings widgets must not be pinned alive by membership here.
+local uiScaleFrames = setmetatable({}, { __mode = 'k' })  -- frames registered for UI scale compensation
 
 --- Apply the user's configured UI scale to a frame, compensating
 --- for the parent frame's scale so addons like ElvUI don't affect sizing.
