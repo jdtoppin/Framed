@@ -426,12 +426,20 @@ F.Settings.RegisterPanel({
 
 		-- ── State ────────────────────────────────────────────────
 		local editingName = nil
+		local spawnedSettingsName = nil
 		local listRowPool = {}
 		local indicatorCount = 0
 
 		-- ── Helper: spawn settings cards for an indicator ────────
-		local function spawnSettingsCards(iName, iData)
+		local function spawnSettingsCards(iName, iData, force)
+			if(not force and spawnedSettingsName == iName) then
+				scroll._editingIndicatorName = iName
+				F.Settings.UpdateAuraBreadcrumb('Debuffs', iName)
+				F.Settings.UpdateAuraPreviewDimming('debuffs', iName)
+				return
+			end
 			grid:RemoveAllCards()
+			spawnedSettingsName = iName
 
 			local function update(key, value)
 				iData[key] = value
@@ -460,6 +468,7 @@ F.Settings.RegisterPanel({
 		local function closeSettingsCards()
 			grid:RemoveAllCards()
 			grid:Layout(0, parentH)
+			spawnedSettingsName = nil
 
 			editingName = nil
 			scroll._editingIndicatorName = nil

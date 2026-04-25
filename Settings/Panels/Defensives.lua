@@ -251,11 +251,17 @@ F.Settings.RegisterPanel({
 		local resizeKey        = 'Defensives.resize'
 		local currentPreviewW  = previewCardW
 		local currentOverviewW = overviewCardW
+		local pinnedRowDirty   = false
 
 		local function onResize(newW)
 			local newWidth      = newW - C.Spacing.normal * 2
-			currentPreviewW     = math.floor((newWidth - CARD_GAP) * 0.40)
-			currentOverviewW    = newWidth - currentPreviewW - CARD_GAP
+			local newPreviewW   = math.floor((newWidth - CARD_GAP) * 0.40)
+			local newOverviewW  = newWidth - newPreviewW - CARD_GAP
+			if(newPreviewW ~= currentPreviewW or newOverviewW ~= currentOverviewW) then
+				pinnedRowDirty = true
+			end
+			currentPreviewW  = newPreviewW
+			currentOverviewW = newOverviewW
 
 			previewCard:SetWidth(currentPreviewW)
 			overviewCard:SetWidth(currentOverviewW)
@@ -272,6 +278,8 @@ F.Settings.RegisterPanel({
 		end
 
 		local function rebuildPinnedRow()
+			if(not pinnedRowDirty) then return end
+			pinnedRowDirty = false
 			local oldOverview = overviewCard
 			overviewCard = buildOverviewCard(scroll, currentOverviewW)
 			overviewCard:SetFrameLevel(previewOrigLevel + 50)
@@ -285,6 +293,9 @@ F.Settings.RegisterPanel({
 			grid:SetTopOffset(math.abs(pinnedRowY) + pinnedRowH + C.Spacing.normal)
 
 			oldOverview:Hide()
+			if(Widgets.RemoveTreeFromPixelUpdater) then
+				Widgets.RemoveTreeFromPixelUpdater(oldOverview)
+			end
 			oldOverview:SetParent(nil)
 		end
 

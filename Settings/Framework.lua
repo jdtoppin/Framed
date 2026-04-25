@@ -406,10 +406,30 @@ Settings._activePanelId  = nil
 Settings._activePanelFrame = nil
 Settings._panelFrames    = {}
 Settings._panelRefresh   = {}
+-- Keep settings panels alive across close/open cycles. WoW frame allocations
+-- are not reliably returned after SetParent(nil), so repeated teardown and
+-- rebuild causes memory to ratchet upward. Preset/unit invalidation still
+-- tears down stale panels through TearDownPanel/TearDownAllPanels.
+Settings._cachePanelsOnClose = true
 
 -- ============================================================
 -- Panel teardown helper
 -- ============================================================
+
+local function unregisterEventBusOwners(frame)
+	if(not frame) then return end
+	if(frame._eventBusOwners) then
+		for _, owner in next, frame._eventBusOwners do
+			F.EventBus:Unregister(owner[1], owner[2])
+		end
+	end
+	if(frame.GetChildren) then
+		local children = { frame:GetChildren() }
+		for i = 1, #children do
+			unregisterEventBusOwners(children[i])
+		end
+	end
+end
 
 --- Release all references to a cached panel frame so Lua can GC it.
 ---
@@ -439,11 +459,7 @@ function Settings.TearDownPanel(panelId)
 	end
 
 	frame:Hide()
-	if(frame._eventBusOwners) then
-		for _, owner in next, frame._eventBusOwners do
-			F.EventBus:Unregister(owner[1], owner[2])
-		end
-	end
+	unregisterEventBusOwners(frame)
 	if(Widgets.RemoveTreeFromPixelUpdater) then
 		Widgets.RemoveTreeFromPixelUpdater(frame)
 	end
@@ -923,7 +939,9 @@ end
 --- Hide the settings window (fade out).
 function Settings.Hide()
 	if(Settings._mainFrame and Settings._mainFrame:IsShown()) then
-		Settings.TearDownAllPanels()
+		if(not Settings._cachePanelsOnClose) then
+			Settings.TearDownAllPanels()
+		end
 		Widgets.FadeOut(Settings._mainFrame)
 	end
 end
@@ -938,7 +956,9 @@ function Settings.Toggle()
 		Settings.CreateMainFrame()
 	end
 	if(Settings._mainFrame:IsShown()) then
-		Settings.TearDownAllPanels()
+		if(not Settings._cachePanelsOnClose) then
+			Settings.TearDownAllPanels()
+		end
 		Widgets.FadeOut(Settings._mainFrame)
 	else
 		Settings._syncPresetIfContentChanged()

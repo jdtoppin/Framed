@@ -143,6 +143,10 @@ function Widgets.AddToPixelUpdater_OnShow(frame, updateFunc)
 		func = fn,
 		lastUpdate = 0,
 	}
+	if(frame._framedPixelUpdaterOnShowHooked) then
+		return
+	end
+	frame._framedPixelUpdaterOnShowHooked = true
 	frame:HookScript('OnShow', function(self)
 		local entry = pixelUpdaterOnShow[self]
 		if(entry and entry.lastUpdate < lastPixelUpdateTime) then

@@ -933,6 +933,11 @@ function F.BackupsCards.Snapshots(parent, width, onResize)
 		F.EventBus:Register('BACKUP_DELETED', onChange, 'BackupsCard.deleted')
 		F.EventBus:Register('BACKUP_LOADED',  onChange, 'BackupsCard.loaded')
 	end
+	card._eventBusOwners = {
+		{ 'BACKUP_CREATED', 'BackupsCard.created' },
+		{ 'BACKUP_DELETED', 'BackupsCard.deleted' },
+		{ 'BACKUP_LOADED', 'BackupsCard.loaded' },
+	}
 
 	reflow()
 	building = false
