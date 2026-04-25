@@ -439,6 +439,14 @@ function Settings.TearDownPanel(panelId)
 	end
 
 	frame:Hide()
+	if(frame._eventBusOwners) then
+		for _, owner in next, frame._eventBusOwners do
+			F.EventBus:Unregister(owner[1], owner[2])
+		end
+	end
+	if(Widgets.RemoveTreeFromPixelUpdater) then
+		Widgets.RemoveTreeFromPixelUpdater(frame)
+	end
 	frame:SetParent(nil)
 
 	Settings._panelFrames[panelId] = nil

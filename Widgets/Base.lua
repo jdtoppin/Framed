@@ -159,6 +159,21 @@ function Widgets.RemoveFromPixelUpdater(frame)
 	pixelUpdaterOnShow[frame] = nil
 end
 
+--- Remove a frame and all descendant frames from pixel updater registries.
+--- Settings panels create many short-lived ScrollFrames and widgets that opt
+--- into OnShow pixel updates; teardown needs to unregister the whole tree.
+--- @param frame Region
+function Widgets.RemoveTreeFromPixelUpdater(frame)
+	if(not frame) then return end
+	Widgets.RemoveFromPixelUpdater(frame)
+	if(frame.GetChildren) then
+		local children = { frame:GetChildren() }
+		for i = 1, #children do
+			Widgets.RemoveTreeFromPixelUpdater(children[i])
+		end
+	end
+end
+
 --- Diagnostic: count live entries in each pixel updater registry.
 --- Used by /framed memusage to surface registry growth as a leak signal.
 --- Healthy: stable across settings open/close cycles. Growing = retained

@@ -1149,5 +1149,12 @@ function F.FrameSettingsBuilder.Create(parent, unitType)
 		end
 	end, 'FrameSettingsBuilder.' .. unitType)
 
+	scroll._eventBusOwners = {
+		{ 'CONFIG_CHANGED', 'summaryCard:' .. unitType },
+		{ 'SETTINGS_RESIZED', 'FrameSettingsBuilder.resize.' .. unitType },
+		{ 'SETTINGS_RESIZE_COMPLETE', 'FrameSettingsBuilder.resizeComplete.' .. unitType },
+		{ 'EDITING_PRESET_CHANGED', 'FrameSettingsBuilder.' .. unitType },
+	}
+
 	return scroll
 end

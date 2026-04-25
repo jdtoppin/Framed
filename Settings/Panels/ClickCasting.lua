@@ -646,6 +646,10 @@ F.Settings.RegisterPanel({
 
 		F.EventBus:Register('SETTINGS_RESIZED', onResize, 'ClickCastingPanel.resize')
 
+		scroll._eventBusOwners = {
+			{ 'SETTINGS_RESIZED', 'ClickCastingPanel.resize' },
+		}
+
 		scroll:HookScript('OnHide', function()
 			F.EventBus:Unregister('SETTINGS_RESIZED', 'ClickCastingPanel.resize')
 		end)

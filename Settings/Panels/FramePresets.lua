@@ -501,6 +501,12 @@ F.Settings.RegisterPanel({
 			grid:RebuildCards()
 		end, 'FramePresets.resizeComplete')
 
+		scroll._eventBusOwners = {
+			{ 'EDITING_PRESET_CHANGED', 'FramePresets.editingChanged' },
+			{ 'SETTINGS_RESIZED', 'FramePresets.resize' },
+			{ 'SETTINGS_RESIZE_COMPLETE', 'FramePresets.resizeComplete' },
+		}
+
 		return scroll
 	end,
 })
