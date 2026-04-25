@@ -855,7 +855,17 @@ end
 function Settings.TearDownAllPanels()
 	Settings._lastActivePanelId = Settings._activePanelId
 
+	-- Snapshot keys before iterating: TearDownPanel deletes from
+	-- _panelFrames, and Lua's `next` traversal over a table being
+	-- mutated can skip entries (rehash on delete reorders the chain).
+	-- That would leave some visited panels cached after teardown,
+	-- which exactly matches the "X-button close still leaks" symptom
+	-- we'd otherwise still see on heavy panels.
+	local panelIds = {}
 	for panelId in next, Settings._panelFrames do
+		panelIds[#panelIds + 1] = panelId
+	end
+	for _, panelId in next, panelIds do
 		Settings.TearDownPanel(panelId)
 	end
 

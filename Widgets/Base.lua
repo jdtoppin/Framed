@@ -159,6 +159,27 @@ function Widgets.RemoveFromPixelUpdater(frame)
 	pixelUpdaterOnShow[frame] = nil
 end
 
+--- Diagnostic: count live entries in each pixel updater registry.
+--- Used by /framed memusage to surface registry growth as a leak signal.
+--- Healthy: stable across settings open/close cycles. Growing = retained
+--- frames somewhere holding registry membership alive (would only happen
+--- if weak-key semantics broke, e.g. a strong-ref upgrade of the registry).
+--- @return number autoCount
+--- @return number onShowCount
+function Widgets.GetPixelUpdaterCounts()
+	local autoCount = 0
+	for _ in next, pixelUpdaterAuto do
+		autoCount = autoCount + 1
+	end
+
+	local onShowCount = 0
+	for _ in next, pixelUpdaterOnShow do
+		onShowCount = onShowCount + 1
+	end
+
+	return autoCount, onShowCount
+end
+
 --- Run all auto pixel updates and mark time for OnShow updates.
 local function RunPixelUpdates()
 	lastPixelUpdateTime = GetTime()

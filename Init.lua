@@ -507,6 +507,35 @@ SlashCmdList['FRAMED'] = function(msg)
 		print(('|cff00ccff[Framed/mem]|r aurastate pool: %d entries across %d instances'):format(
 			totalPooled, instanceCount))
 
+		-- Settings cache surface — direct test for "did teardown actually
+		-- run?" Cached panel count should be 0 with settings closed, equal
+		-- to # visited panels with settings open. _contentParent child count
+		-- should match. Either non-zero with settings closed = teardown
+		-- bypassed (close path didn't route through Settings.Hide).
+		if(F.Settings) then
+			local cachedPanels = 0
+			for _ in next, F.Settings._panelFrames or {} do
+				cachedPanels = cachedPanels + 1
+			end
+			local contentChildren = 0
+			local cp = F.Settings._contentParent
+			if(cp and cp.GetChildren) then
+				contentChildren = select('#', cp:GetChildren())
+			end
+			print(('|cff00ccff[Framed/mem]|r settings cache: %d panels, %d content children'):format(
+				cachedPanels, contentChildren))
+		end
+
+		-- Pixel updater registry growth — direct test for the registry-pinning
+		-- leak class fixed in 5e8f974. Healthy: stable across settings cycles.
+		-- Growing here = weak-key semantics broke or a new registry was added
+		-- with strong keys.
+		if(F.Widgets and F.Widgets.GetPixelUpdaterCounts) then
+			local autoCount, onShowCount = F.Widgets.GetPixelUpdaterCounts()
+			print(('|cff00ccff[Framed/mem]|r pixel updater: %d auto, %d on-show'):format(
+				autoCount, onShowCount))
+		end
+
 		-- EventBus registry size — leak detector for handlers that fail to
 		-- dedupe across panel rebuilds. Healthy: stable across settings cycles.
 		if(F.EventBus and F.EventBus.GetRegistrySize) then
