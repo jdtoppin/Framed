@@ -406,10 +406,30 @@ Settings._activePanelId  = nil
 Settings._activePanelFrame = nil
 Settings._panelFrames    = {}
 Settings._panelRefresh   = {}
+-- Keep settings panels alive across close/open cycles. WoW frame allocations
+-- are not reliably returned after SetParent(nil), so repeated teardown and
+-- rebuild causes memory to ratchet upward. Preset/unit invalidation still
+-- tears down stale panels through TearDownPanel/TearDownAllPanels.
+Settings._cachePanelsOnClose = true
 
 -- ============================================================
 -- Panel teardown helper
 -- ============================================================
+
+local function unregisterEventBusOwners(frame)
+	if(not frame) then return end
+	if(frame._eventBusOwners) then
+		for _, owner in next, frame._eventBusOwners do
+			F.EventBus:Unregister(owner[1], owner[2])
+		end
+	end
+	if(frame.GetChildren) then
+		local children = { frame:GetChildren() }
+		for i = 1, #children do
+			unregisterEventBusOwners(children[i])
+		end
+	end
+end
 
 --- Release all references to a cached panel frame so Lua can GC it.
 ---
@@ -439,6 +459,10 @@ function Settings.TearDownPanel(panelId)
 	end
 
 	frame:Hide()
+	unregisterEventBusOwners(frame)
+	if(Widgets.RemoveTreeFromPixelUpdater) then
+		Widgets.RemoveTreeFromPixelUpdater(frame)
+	end
 	frame:SetParent(nil)
 
 	Settings._panelFrames[panelId] = nil
@@ -842,6 +866,63 @@ function Settings._syncPresetIfContentChanged()
 	end
 end
 
+--- Tear down every cached panel frame so Lua can GC their widget trees.
+--- Stashes the currently-active panelId into _lastActivePanelId so the
+--- next open can restore the user's mental position ("I was on buffs →
+--- closed → reopened → still on buffs").
+---
+--- Called from the close path of Hide() and Toggle(). Panels are cached
+--- during a session for snappy panel-to-panel navigation, but that cache
+--- holds 20+ MB of widget references; close is the right boundary to
+--- release it because reopen carries enough perceptual latency (fade-in)
+--- to absorb a fresh panel rebuild.
+function Settings.TearDownAllPanels()
+	Settings._lastActivePanelId = Settings._activePanelId
+
+	-- Snapshot keys before iterating: TearDownPanel deletes from
+	-- _panelFrames, and Lua's `next` traversal over a table being
+	-- mutated can skip entries (rehash on delete reorders the chain).
+	-- That would leave some visited panels cached after teardown,
+	-- which exactly matches the "X-button close still leaks" symptom
+	-- we'd otherwise still see on heavy panels.
+	local panelIds = {}
+	for panelId in next, Settings._panelFrames do
+		panelIds[#panelIds + 1] = panelId
+	end
+	for _, panelId in next, panelIds do
+		Settings.TearDownPanel(panelId)
+	end
+
+	Settings._activePanelId    = nil
+	Settings._activePanelFrame = nil
+	Settings._auraPreview      = nil
+
+	-- FramePreview holds module-level references (activePreview, previewFrames,
+	-- framePool, EventBus listeners) that survive panel-tree teardown because
+	-- they live outside the panel frame. Its Destroy() releases all of that.
+	if(Settings.FramePreview and Settings.FramePreview.Destroy) then
+		Settings.FramePreview.Destroy()
+	end
+
+	-- Clear sidebar selection so the next open doesn't render a stale
+	-- highlight pointing at a panel that no longer exists.
+	if(Settings._setSidebarSelected) then
+		for _, btn in next, Settings._sidebarButtons do
+			Settings._setSidebarSelected(btn, false)
+		end
+	end
+end
+
+--- Restore the last-active panel after a post-teardown open. No-op if
+--- there's no stashed id (first-ever open of the session) or if an active
+--- panel already exists (e.g. a click between Show and this call).
+local function restoreLastPanel()
+	if(Settings._activePanelId) then return end
+	local lastId = Settings._lastActivePanelId
+	if(not lastId) then return end
+	Settings.SetActivePanel(lastId)
+end
+
 --- Show the settings window (fade in).
 function Settings.Show()
 	if(not Settings._mainFrame) then
@@ -852,11 +933,15 @@ function Settings.Show()
 		Settings.BuildSidebar()
 	end
 	Settings._syncPresetIfContentChanged()
+	restoreLastPanel()
 end
 
 --- Hide the settings window (fade out).
 function Settings.Hide()
 	if(Settings._mainFrame and Settings._mainFrame:IsShown()) then
+		if(not Settings._cachePanelsOnClose) then
+			Settings.TearDownAllPanels()
+		end
 		Widgets.FadeOut(Settings._mainFrame)
 	end
 end
@@ -871,6 +956,9 @@ function Settings.Toggle()
 		Settings.CreateMainFrame()
 	end
 	if(Settings._mainFrame:IsShown()) then
+		if(not Settings._cachePanelsOnClose) then
+			Settings.TearDownAllPanels()
+		end
 		Widgets.FadeOut(Settings._mainFrame)
 	else
 		Settings._syncPresetIfContentChanged()
@@ -878,5 +966,6 @@ function Settings.Toggle()
 		if(not Settings._sidebarBuilt) then
 			Settings.BuildSidebar()
 		end
+		restoreLastPanel()
 	end
 end

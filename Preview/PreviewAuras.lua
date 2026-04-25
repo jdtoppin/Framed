@@ -158,13 +158,12 @@ end
 -- Border icon groups (debuffs, externals, defensives)
 -- ============================================================
 
-local BORDICON_GROUPS = { 'debuffs', 'externals', 'defensives', 'targetedSpells' }
+local BORDICON_GROUPS = { 'debuffs', 'externals', 'defensives' }
 
 local GROUP_DISPEL_TYPES = {
 	debuffs        = { 'Magic', 'Curse', 'Poison' },
 	externals      = {},
 	defensives     = {},
-	targetedSpells = {},
 }
 
 -- Build alternating border colors for source-colored groups (externals, defensives)
@@ -319,7 +318,7 @@ local function BuildDispellableGroup(frame, dispCfg)
 end
 
 -- ============================================================
--- Simple icon groups (missingBuffs, privateAuras, targetedSpells, etc.)
+-- Simple icon groups (missingBuffs, privateAuras, etc.)
 -- ============================================================
 
 local function BuildSimpleIconGroup(frame, groupKey, cfg)

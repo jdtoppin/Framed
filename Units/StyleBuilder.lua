@@ -401,15 +401,6 @@ function F.StyleBuilder.Apply(self, unit, config, unitType)
 		F.Elements.MissingBuffs.Setup(self, missingBuffsConfig)
 	end
 
-	-- TargetedSpells runtime-gated off — Blizzard 12.0.x secret-tainting
-	-- leaves cast source/target unreliable. Config keys left in place so
-	-- SavedVariables remain stable until a full removal PR lands.
-	local TARGETED_SPELLS_ENABLED = false
-	local targetedSpellsConfig = F.StyleBuilder.GetAuraConfig(unitType, 'targetedSpells')
-	if(TARGETED_SPELLS_ENABLED and targetedSpellsConfig and targetedSpellsConfig.enabled and F.Elements.TargetedSpells) then
-		F.Elements.TargetedSpells.Setup(self, targetedSpellsConfig)
-	end
-
 	local privateAurasConfig = F.StyleBuilder.GetAuraConfig(unitType, 'privateAuras')
 	if(privateAurasConfig and privateAurasConfig.enabled and F.Elements.PrivateAuras) then
 		F.Elements.PrivateAuras.Setup(self, privateAurasConfig)
@@ -827,7 +818,6 @@ local AURA_ELEMENT_MAP = {
 	externals      = 'FramedExternals',
 	defensives     = 'FramedDefensives',
 	dispellable    = 'FramedDispellable',
-	targetedSpells = 'FramedTargetedSpells',
 }
 
 -- Structural BorderIcon config keys — if these change, wipe and recreate pool
@@ -919,40 +909,6 @@ F.EventBus:Register('CONFIG_CHANGED', function(path)
 					element._iconFrame:ClearAllPoints()
 					local a = newConfig.anchor
 					element._iconFrame:SetPoint(a[1], frame, a[3] or a[1], a[4] or 0, a[5] or 0)
-				end
-
-				if(element.ForceUpdate) then
-					element:ForceUpdate()
-				end
-
-			-- ── TargetedSpells (individual properties) ──
-			elseif(elementKey == 'FramedTargetedSpells') then
-				element._maxDisplayed = newConfig.maxDisplayed or 1
-				element._borderColor  = newConfig.borderColor
-
-				-- Glow properties
-				local glowCfg = newConfig.glow or {}
-				element._glowColor = glowCfg.color or C.Colors.accent
-				element._glowType  = glowCfg.type or C.GlowType.PROC
-				if(glowCfg.lines or glowCfg.frequency or glowCfg.length or glowCfg.thickness
-					or glowCfg.particles or glowCfg.scale) then
-					element._glowConfig = {
-						lines     = glowCfg.lines,
-						frequency = glowCfg.frequency,
-						length    = glowCfg.length,
-						thickness = glowCfg.thickness,
-						particles = glowCfg.particles,
-						scale     = glowCfg.scale,
-					}
-				else
-					element._glowConfig = nil
-				end
-
-				-- Resize pool icons
-				if(newConfig.iconSize and element._pool) then
-					for _, bi in next, element._pool do
-						bi:SetSize(newConfig.iconSize)
-					end
 				end
 
 				if(element.ForceUpdate) then

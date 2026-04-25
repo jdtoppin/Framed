@@ -85,6 +85,14 @@ F.Settings.RegisterPanel({
 		F.EventBus:Register('BACKUP_DELETED', updateBadge, 'BackupsPanel.badge.deleted')
 		F.EventBus:Register('BACKUP_LOADED',  updateBadge, 'BackupsPanel.badge.loaded')
 
+		scroll._eventBusOwners = {
+			{ 'SETTINGS_RESIZED',          'BackupsPanel.resize' },
+			{ 'SETTINGS_RESIZE_COMPLETE',  'BackupsPanel.resizeComplete' },
+			{ 'BACKUP_CREATED',            'BackupsPanel.badge.created' },
+			{ 'BACKUP_DELETED',            'BackupsPanel.badge.deleted' },
+			{ 'BACKUP_LOADED',             'BackupsPanel.badge.loaded' },
+		}
+
 		return scroll
 	end,
 })

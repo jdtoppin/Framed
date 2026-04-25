@@ -78,7 +78,14 @@ function Settings.CreateMainFrame()
 	closeBtn:ClearAllPoints()
 	Widgets.SetPoint(closeBtn, 'RIGHT', header, 'RIGHT', -C.Spacing.base, 0)
 	closeBtn:SetOnClick(function()
-		Widgets.FadeOut(frame)
+		-- Route through Settings.Hide so TearDownAllPanels runs. Calling
+		-- Widgets.FadeOut directly here previously bypassed teardown,
+		-- leaving every cached panel + its widget tree alive after close.
+		if(Settings and Settings.Hide) then
+			Settings.Hide()
+		else
+			Widgets.FadeOut(frame)
+		end
 	end)
 	closeBtn:SetWidgetTooltip('Close')
 	closeBtn:SetBackdrop(nil)
@@ -200,7 +207,14 @@ function Settings.CreateMainFrame()
 			if(not InCombatLockdown()) then
 				self:SetPropagateKeyboardInput(false)
 			end
-			Widgets.FadeOut(self)
+			-- Route through Settings.Hide so TearDownAllPanels runs.
+			-- Same fix as the close button — direct FadeOut would bypass
+			-- teardown and leak the cached panel tree.
+			if(Settings and Settings.Hide) then
+				Settings.Hide()
+			else
+				Widgets.FadeOut(self)
+			end
 		elseif(not InCombatLockdown()) then
 			self:SetPropagateKeyboardInput(true)
 		end

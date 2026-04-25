@@ -219,12 +219,16 @@ local function walkAndCatalogFrames()
 
 	local tracked = F.MemDiag._originals.trackedFrames
 	for _, root in next, oUF.objects do
-		walkFrames(root, 0, 5, function(frame, depth)
-			if(not tracked[frame]) then
-				local label = frameLabel(frame, depth)
-				tracked[frame] = label
-				hookFrameOnUpdate(frame, label)
-			end
+		walkFrames(root, 0, 1, function(frame, depth)
+			if(tracked[frame]) then return end
+			-- Label + hook only frames that actually have an OnUpdate.
+			-- GetDebugName() is expensive in large frame trees; skipping it
+			-- for the ~95% of frames with no OnUpdate keeps the catalog walk
+			-- under the 10s script watchdog in 40-man raid.
+			if(not frame:GetScript('OnUpdate')) then return end
+			local label = frameLabel(frame, depth)
+			tracked[frame] = label
+			hookFrameOnUpdate(frame, label)
 		end)
 	end
 end
@@ -255,8 +259,8 @@ local function patchOnUpdates()
 end
 
 --- Hook known standalone event/update frames that are not in oUF.objects.
---- Add new entries here as we find them — CastTracker is currently gated
---- off, AuraCache is exposed for diag via F.AuraCache._eventFrame.
+--- Add new entries here as we find them — AuraCache is exposed for diag
+--- via F.AuraCache._eventFrame.
 local function patchStandaloneFrames()
 	F.MemDiag._originals.standalone = {}
 
@@ -545,4 +549,247 @@ function F.MemDiag.Start(seconds)
 		F.MemDiag._counters  = nil
 		F.MemDiag._originals = nil
 	end)
+end
+
+-- ============================================================
+-- Settings memory probe — measures open/close deltas.
+-- Wraps F.Settings.Show and F.Settings.Hide with a toggleable
+-- logger. When enabled, prints a baseline on open and a delta
+-- on close (both at-hide and post-GC) so we can distinguish
+-- "settings held memory but it's now collectable" from "settings
+-- retained references that survive GC".
+-- ============================================================
+
+local settingsProbeWrapped = false
+local settingsProbeOn      = false
+local preShowFramedKB      = nil
+local preShowTotalKB       = nil
+local preShowDescCount     = nil
+-- Cross-cycle tracking: post-GC values from the previous close, so each
+-- new baseline can report drift relative to last cycle's steady state.
+-- That reveals per-cycle retention that accumulates over a session.
+local lastPostGCFramedKB   = nil
+local lastPostGCTotalKB    = nil
+local lastPostGCDescCount  = nil
+
+--- Recursively count a frame and all its descendants (children + regions).
+local function countDescendants(f)
+	if(not f) then return 0 end
+	local n = 1
+	-- Child frames (sub-frames with their own frame level)
+	local children = { f:GetChildren() }
+	for i = 1, #children do
+		n = n + countDescendants(children[i])
+	end
+	-- Regions (textures, fontstrings) — not frames themselves but still
+	-- allocations that get retained if the parent is retained.
+	if(f.GetRegions) then
+		local regions = { f:GetRegions() }
+		n = n + #regions
+	end
+	return n
+end
+
+-- Count UIParent's direct children. Orphan frames created during panel
+-- builds that don't live inside _mainFrame would show up here.
+local function countUIParentChildren()
+	if(not UIParent or not UIParent.GetChildren) then return 0 end
+	local kids = { UIParent:GetChildren() }
+	return #kids
+end
+
+local preShowUIParentKids = nil
+
+local function captureBaseline()
+	collectgarbage('collect')
+	UpdateAddOnMemoryUsage()
+	preShowFramedKB  = GetAddOnMemoryUsage('Framed')
+	preShowTotalKB   = collectgarbage('count')
+	-- Descendant count at baseline (may be 0 if _mainFrame doesn't exist yet).
+	local main = F.Settings and F.Settings._mainFrame
+	preShowDescCount = main and countDescendants(main) or 0
+	preShowUIParentKids = countUIParentChildren()
+	print(('|cff00ccff[Framed/mem/settings]|r baseline — Framed %.2f MB | total %.2f MB | _mainFrame descendants: %d | UIParent kids: %d'):format(
+		preShowFramedKB / 1024, preShowTotalKB / 1024, preShowDescCount, preShowUIParentKids))
+	-- Drift since last cycle's post-GC state. Non-zero here means the
+	-- previous teardown left references alive that accumulated across cycles.
+	if(lastPostGCFramedKB) then
+		print(('  drift since last close (post-GC → post-GC): Framed %+.2f MB | total %+.2f MB | descendants %+d'):format(
+			(preShowFramedKB - lastPostGCFramedKB) / 1024,
+			(preShowTotalKB  - lastPostGCTotalKB)  / 1024,
+			preShowDescCount - lastPostGCDescCount))
+	end
+end
+
+local function reportCloseDelta()
+	if(not preShowFramedKB) then return end
+	UpdateAddOnMemoryUsage()
+	local atHideFramedKB = GetAddOnMemoryUsage('Framed')
+	local atHideTotalKB  = collectgarbage('count')
+
+	collectgarbage('collect')
+	UpdateAddOnMemoryUsage()
+	local postGCFramedKB = GetAddOnMemoryUsage('Framed')
+	local postGCTotalKB  = collectgarbage('count')
+
+	-- Stash for next cycle's drift comparison in captureBaseline.
+	lastPostGCFramedKB = postGCFramedKB
+	lastPostGCTotalKB  = postGCTotalKB
+
+	local main = F.Settings and F.Settings._mainFrame
+	local postDescCount = main and countDescendants(main) or 0
+	lastPostGCDescCount = postDescCount
+
+	print(('|cff00ccff[Framed/mem/settings]|r close delta vs baseline:'):format())
+	print(('  at-hide:  Framed %+.2f MB  |  total %+.2f MB'):format(
+		(atHideFramedKB - preShowFramedKB) / 1024,
+		(atHideTotalKB  - preShowTotalKB)  / 1024))
+	print(('  post-GC:  Framed %+.2f MB  |  total %+.2f MB'):format(
+		(postGCFramedKB - preShowFramedKB) / 1024,
+		(postGCTotalKB  - preShowTotalKB)  / 1024))
+	print(('  frames:   _mainFrame descendants %+d (%d → %d)'):format(
+		postDescCount - preShowDescCount, preShowDescCount, postDescCount))
+	local postUIKids = countUIParentChildren()
+	print(('  UIParent: direct children %+d (%d → %d) — any growth here is orphan frames leaked outside _mainFrame'):format(
+		postUIKids - (preShowUIParentKids or 0), preShowUIParentKids or 0, postUIKids))
+	print('  (at-hide = retention before GC; post-GC = genuinely held references)')
+
+	-- Bucket retained descendants by ObjectType and by top-level section
+	-- (direct child of _mainFrame) so we see where they're concentrated.
+	if(main) then
+		local byType = {}
+		local bySection = {}
+		local function walk(f, sectionLabel)
+			-- Count this frame by type
+			local t = f.GetObjectType and f:GetObjectType() or '?'
+			byType[t] = (byType[t] or 0) + 1
+			bySection[sectionLabel] = (bySection[sectionLabel] or 0) + 1
+			-- Recurse children
+			if(f.GetChildren) then
+				local children = { f:GetChildren() }
+				for i = 1, #children do walk(children[i], sectionLabel) end
+			end
+			-- Count regions (textures, fontstrings) but don't recurse
+			if(f.GetRegions) then
+				local regions = { f:GetRegions() }
+				for i = 1, #regions do
+					local rt = regions[i].GetObjectType and regions[i]:GetObjectType() or '?'
+					byType[rt] = (byType[rt] or 0) + 1
+					bySection[sectionLabel] = (bySection[sectionLabel] or 0) + 1
+				end
+			end
+		end
+		-- Walk each top-level section separately so we can attribute by section
+		local topChildren = { main:GetChildren() }
+		for i = 1, #topChildren do
+			local child = topChildren[i]
+			local label = (child.GetName and child:GetName()) or (child.GetDebugName and child:GetDebugName()) or ('anon#' .. i)
+			walk(child, label)
+		end
+
+		-- Print top buckets
+		local function printTop(label, tbl, n)
+			local rows = {}
+			for k, v in next, tbl do rows[#rows + 1] = { k = k, v = v } end
+			table.sort(rows, function(a, b) return a.v > b.v end)
+			print(('  by %s:'):format(label))
+			for i = 1, math.min(n or 10, #rows) do
+				print(('    %6d × %s'):format(rows[i].v, rows[i].k))
+			end
+		end
+		printTop('ObjectType', byType, 8)
+		printTop('top-level section (direct child of _mainFrame)', bySection, 10)
+
+		-- Drill into _contentParent specifically — if it's the leak site, list
+		-- its direct children so we see which panels are cached.
+		-- Cross-reference Settings._panelFrames (keyed by panelId) to label
+		-- each retained panel by its id ('player', 'raid', 'debuffs', etc.)
+		-- instead of an anonymous frame address.
+		local cp = F.Settings and F.Settings._contentParent
+		local panelFrames = F.Settings and F.Settings._panelFrames or {}
+		local frameToId = {}
+		for id, frame in next, panelFrames do frameToId[frame] = id end
+		if(cp) then
+			local cpKids = { cp:GetChildren() }
+			if(#cpKids > 0) then
+				local rows = {}
+				for i = 1, #cpKids do
+					local child = cpKids[i]
+					local label = frameToId[child]
+						or (child.GetName and child:GetName())
+						or (child.GetDebugName and child:GetDebugName())
+						or ('anon#' .. i)
+					-- Count descendants of this specific panel
+					local c = 0
+					local function deepCount(f)
+						c = c + 1
+						if(f.GetChildren) then
+							local k = { f:GetChildren() }
+							for j = 1, #k do deepCount(k[j]) end
+						end
+						if(f.GetRegions) then
+							local r = { f:GetRegions() }
+							c = c + #r
+						end
+					end
+					deepCount(child)
+					rows[#rows + 1] = { label = label, count = c }
+				end
+				table.sort(rows, function(a, b) return a.count > b.count end)
+				print(('  _contentParent direct children (%d total):'):format(#cpKids))
+				for i = 1, math.min(15, #rows) do
+					print(('    %6d × %s'):format(rows[i].count, rows[i].label))
+				end
+			end
+		end
+	end
+end
+
+local function settingsProbeInstall()
+	if(settingsProbeWrapped) then return true end
+	local S = F.Settings
+	if(not S or not S.Show or not S.Hide or not S.Toggle) then return false end
+
+	local origShow   = S.Show
+	local origHide   = S.Hide
+	local origToggle = S.Toggle
+
+	S.Show = function(...)
+		if(settingsProbeOn) then captureBaseline() end
+		return origShow(...)
+	end
+
+	S.Hide = function(...)
+		local r = origHide(...)
+		if(settingsProbeOn) then reportCloseDelta() end
+		return r
+	end
+
+	-- Toggle bypasses Show/Hide and calls Widgets.FadeIn/FadeOut directly,
+	-- so we need to hook it separately. Capture wasShown BEFORE Toggle runs
+	-- so we know which transition the invocation triggered.
+	S.Toggle = function(...)
+		if(not settingsProbeOn) then return origToggle(...) end
+		local wasShown = S._mainFrame and S._mainFrame:IsShown()
+		if(not wasShown) then captureBaseline() end
+		local r = origToggle(...)
+		if(wasShown) then reportCloseDelta() end
+		return r
+	end
+
+	settingsProbeWrapped = true
+	return true
+end
+
+--- Toggle the Settings memory probe on/off.
+--- On: wraps Show/Hide once (idempotent) and prints deltas on next cycle.
+--- Off: leaves wrappers installed but silenced — no lingering overhead.
+function F.MemDiag.ToggleSettingsProbe()
+	if(not settingsProbeInstall()) then
+		print('|cff00ccff[Framed/mem/settings]|r F.Settings not available yet')
+		return
+	end
+	settingsProbeOn = not settingsProbeOn
+	print(('|cff00ccff[Framed/mem/settings]|r probe %s — open the settings window to capture a cycle.'):format(
+		settingsProbeOn and 'ENABLED' or 'DISABLED'))
 end

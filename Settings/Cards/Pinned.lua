@@ -351,5 +351,10 @@ function F.SettingsCards.Pinned(parent, width, unitType, getConfig, setConfig)
 		end
 	end, 'PinnedCard.Roster')
 
+	card._eventBusOwners = {
+		{ 'CONFIG_CHANGED', 'PinnedCard.CC' },
+		{ 'GROUP_ROSTER_UPDATE', 'PinnedCard.Roster' },
+	}
+
 	return card
 end

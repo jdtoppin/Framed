@@ -394,7 +394,7 @@ local PARTY_AURA_SIZES = {
 	iconSize = 16, bigIconSize = 22,
 	raidDebuffIcon = 16, raidDebuffBigIcon = 20,
 	externalsIcon = 16, defensivesIcon = 16,
-	targetedSpellsIcon = 16, dispellableIcon = 16,
+	dispellableIcon = 16,
 	privateAurasIcon = 16, missingBuffsIcon = 12,
 }
 
@@ -404,7 +404,7 @@ local RAID_AURA_SIZES = {
 	externalsIcon = 14, defensivesIcon = 14,
 	externalsMax = 1, defensivesMax = 1,
 	debuffMax = 1, raidDebuffMax = 1,
-	targetedSpellsIcon = 14, dispellableIcon = 14,
+	dispellableIcon = 14,
 	privateAurasIcon = 14, missingBuffsIcon = 12,
 }
 

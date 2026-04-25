@@ -137,25 +137,6 @@ function F.AuraDefaults.Solo(debuffSize, debuffMax)
 			anchor               = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', 0, 4 },
 			frameLevel           = 15,
 		},
-		targetedSpells = {
-			enabled       = false,
-			displayMode   = 'Both',
-			iconSize      = 20,
-			borderColor   = { 1, 0, 0, 1 },
-			maxDisplayed  = 1,
-			showDuration  = true,
-			durationFont  = durationFont(),
-			anchor        = { 'CENTER', nil, 'CENTER', 0, 6 },
-			frameLevel    = 50,
-			glow          = {
-				type      = 'Pixel',
-				color     = { 1, 0, 0, 1 },
-				lines     = 8,
-				frequency = 0.25,
-				length    = 4,
-				thickness = 2,
-			},
-		},
 		privateAuras = {
 			enabled        = false,
 			iconSize       = 16,
@@ -239,25 +220,6 @@ function F.AuraDefaults.Minimal()
 			anchor               = { 'BOTTOMRIGHT', nil, 'BOTTOMRIGHT', 0, 4 },
 			frameLevel           = 15,
 		},
-		targetedSpells = {
-			enabled       = false,
-			displayMode   = 'Both',
-			iconSize      = 18,
-			borderColor   = { 1, 0, 0, 1 },
-			maxDisplayed  = 1,
-			showDuration  = true,
-			durationFont  = durationFont(),
-			anchor        = { 'CENTER', nil, 'CENTER', 0, 6 },
-			frameLevel    = 50,
-			glow          = {
-				type      = 'Pixel',
-				color     = { 1, 0, 0, 1 },
-				lines     = 8,
-				frequency = 0.25,
-				length    = 4,
-				thickness = 2,
-			},
-		},
 		privateAuras = {
 			enabled        = false,
 			iconSize       = 14,
@@ -309,7 +271,6 @@ function F.AuraDefaults.Group(sizes)
 	local defMax   = s.defensivesMax or 2
 	local debMax   = s.debuffMax or 3
 	local rdMax    = s.raidDebuffMax or 1
-	local tsIcon   = s.targetedSpellsIcon or 20
 	local dispIcon = s.dispellableIcon or 10
 
 	return {
@@ -334,25 +295,6 @@ function F.AuraDefaults.Group(sizes)
 					anchor       = { 'CENTER', nil, 'CENTER', 0, 3 },
 					frameLevel   = 20,
 				}),
-			},
-		},
-		targetedSpells = {
-			enabled       = true,
-			displayMode   = 'Both',
-			iconSize      = tsIcon,
-			borderColor   = { 1, 0, 0, 1 },
-			maxDisplayed  = 1,
-			showDuration  = true,
-			durationFont  = durationFont(),
-			anchor        = { 'CENTER', nil, 'CENTER', 0, 6 },
-			frameLevel    = 50,
-			glow          = {
-				type      = 'Pixel',
-				color     = { 1, 0, 0, 1 },
-				lines     = 8,
-				frequency = 0.25,
-				length    = 4,
-				thickness = 2,
 			},
 		},
 		dispellable = {
@@ -484,25 +426,6 @@ function F.AuraDefaults.Arena()
 			stackFont      = stackFont(),
 			durationFont   = durationFont(),
 		},
-		targetedSpells = {
-			enabled       = false,
-			displayMode   = 'Both',
-			iconSize      = 18,
-			borderColor   = { 1, 0, 0, 1 },
-			maxDisplayed  = 1,
-			showDuration  = true,
-			durationFont  = durationFont(),
-			anchor        = { 'CENTER', nil, 'CENTER', 0, 6 },
-			frameLevel    = 50,
-			glow          = {
-				type      = 'Pixel',
-				color     = { 1, 0, 0, 1 },
-				lines     = 8,
-				frequency = 0.25,
-				length    = 4,
-				thickness = 2,
-			},
-		},
 		privateAuras = {
 			enabled        = false,
 			iconSize       = 14,
@@ -598,25 +521,6 @@ function F.AuraDefaults.Boss()
 			otherColor     = { 1, 0.85, 0 },
 			stackFont      = stackFont(),
 			durationFont   = durationFont(),
-		},
-		targetedSpells = {
-			enabled       = false,
-			displayMode   = 'Both',
-			iconSize      = 20,
-			borderColor   = { 1, 0, 0, 1 },
-			maxDisplayed  = 1,
-			showDuration  = true,
-			durationFont  = durationFont(),
-			anchor        = { 'CENTER', nil, 'CENTER', 0, 6 },
-			frameLevel    = 50,
-			glow          = {
-				type      = 'Pixel',
-				color     = { 1, 0, 0, 1 },
-				lines     = 8,
-				frequency = 0.25,
-				length    = 4,
-				thickness = 2,
-			},
 		},
 		privateAuras = {
 			enabled        = false,

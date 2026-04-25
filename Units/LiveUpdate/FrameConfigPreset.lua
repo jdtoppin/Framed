@@ -455,7 +455,6 @@ local AURA_ELEMENTS = {
 	{ key = 'externals',      element = 'FramedExternals',      setup = 'Externals' },
 	{ key = 'defensives',     element = 'FramedDefensives',     setup = 'Defensives' },
 	{ key = 'dispellable',    element = 'FramedDispellable',    setup = 'Dispellable' },
-	{ key = 'targetedSpells', element = 'FramedTargetedSpells', setup = 'TargetedSpells' },
 	{ key = 'buffs',          element = 'FramedBuffs',          setup = 'Buffs' },
 	{ key = 'lossOfControl',  element = 'FramedLossOfControl',  setup = 'LossOfControl' },
 	{ key = 'crowdControl',   element = 'FramedCrowdControl',   setup = 'CrowdControl' },

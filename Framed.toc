@@ -33,7 +33,6 @@ Core/SecretValues.lua
 Core/Utilities.lua
 Core/EventBus.lua
 Core/Config.lua
-Core/CastTracker.lua
 Core/AuraCache.lua
 Core/AuraState.lua
 Core/MemDiag.lua
@@ -105,7 +104,6 @@ Elements/Auras/Debuffs.lua
 Elements/Auras/PrivateAuras.lua
 Elements/Auras/Dispellable.lua
 Elements/Auras/MissingBuffs.lua
-Elements/Auras/TargetedSpells.lua
 Elements/Auras/Externals.lua
 Elements/Auras/Defensives.lua
 
@@ -215,7 +213,6 @@ Settings/Panels/Externals.lua
 Settings/Panels/Defensives.lua
 Settings/Panels/MissingBuffs.lua
 Settings/Panels/PrivateAuras.lua
-Settings/Panels/TargetedSpells.lua
 Settings/Panels/Dispels.lua
 Settings/Panels/LossOfControl.lua
 Settings/Panels/CrowdControl.lua
