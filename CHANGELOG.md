@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## v0.8.17-alpha
+
+### Bug fixes
+
+- **Externals: Symbiotic Relationship leak in M+** — the RAID secret-aura fallback admitted Symbiotic Relationship in secret-active content because it carries the broad `RAID` classification despite being a passive bond rather than a combat-relevant external. Switched the fallback to Blizzard's tighter `RAID_IN_COMBAT` curation, which excludes passive bonds while still admitting Power Infusion and similar raid-important buffs
+- **Icon: secret-safe DurationObject zero check** — `DurationObject:IsZero()` returns a secret boolean for classified combat auras (e.g. Ironbark on player in M+); the Lua test `not durationObj:IsZero()` then crashed mid-`SetSpell`, halting before the icon was rendered. Affected auras silently disappeared in secret content in addition to spamming the error frame. Wrapped the zero check in a helper that falls through to the C-level timer consumers when `IsZero` is secret
+
 ## v0.8.16-alpha
 
 - **Interface bump to 120005** — TOC interface version raised from 120001 to align with WoW 12.0.5
