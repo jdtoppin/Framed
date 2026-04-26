@@ -35,14 +35,8 @@ function ColorMethods:SetValue(current, max)
 	self:Show()
 end
 
-function ColorMethods:SetStacks(count)
-	if(not self._stackText) then return end
-	if(count and count > 1) then
-		self._stackText:SetText(count)
-		self._stackText:Show()
-	else
-		self._stackText:Hide()
-	end
+function ColorMethods:SetStacks(count, unit, auraInstanceID)
+	F.Indicators.SetAuraStackText(self._stackText, unit, auraInstanceID, count)
 end
 
 function ColorMethods:Clear()

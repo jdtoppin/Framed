@@ -338,7 +338,7 @@ local function Update(self, event, unit, updateInfo)
 				else
 					renderer:SetValue(1, 1)
 				end
-				if(aura.applications) then renderer:SetStacks(aura.applications) end
+				renderer:SetStacks(aura.applications, unit, aura.auraInstanceID)
 				-- Glow
 				if(ind._glowType and ind._glowType ~= 'None') then
 					renderer:StartGlow(ind._glowColor, ind._glowType, ind._glowConfig)
@@ -356,7 +356,7 @@ local function Update(self, event, unit, updateInfo)
 					sortPriority = ind._spellPriority
 					table.sort(list, prioritySort)
 				end
-				renderer:SetBars(list)
+				renderer:SetBars(unit, list)
 				renderer:Show()
 				-- Glow
 				if(ind._glowType and ind._glowType ~= 'None') then
@@ -401,7 +401,7 @@ local function Update(self, event, unit, updateInfo)
 				else
 					renderer:SetValue(1, 1)
 				end
-				if(aura.applications) then renderer:SetStacks(aura.applications) end
+				renderer:SetStacks(aura.applications, unit, aura.auraInstanceID)
 			else
 				renderer:Clear()
 			end

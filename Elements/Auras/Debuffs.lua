@@ -25,7 +25,7 @@ local FILTER_MAP = {
 
 --- Display one aura directly from auraData fields (no intermediate table).
 --- Returns the new running pixel offset for the next icon.
-local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, dispelType)
+local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, showDispelColor)
 	local iconSize    = cfg.iconSize
 	local bigIconSize = cfg.bigIconSize
 	local orientation = cfg.orientation
@@ -72,11 +72,18 @@ local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData
 		auraData.duration,
 		auraData.expirationTime,
 		auraData.applications,
-		dispelType
+		showDispelColor
 	)
 	bi:Show()
 
 	return runOffset + size + 2
+end
+
+local function shouldShowDispelColor(auraData, force)
+	if(force) then return true end
+
+	local dispelName = auraData.dispelName
+	return F.IsValueNonSecret(dispelName) and dispelName ~= nil and dispelName ~= ''
 end
 
 local function updateIndicator(self, unit, ind)
@@ -128,7 +135,8 @@ local function updateIndicator(self, unit, ind)
 				local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
 				if(not skip) then
 					displayed = displayed + 1
-					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, auraData.dispelName)
+					local showDispelColor = shouldShowDispelColor(auraData, filterMode == 'dispellable')
+					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, showDispelColor)
 				end
 			end
 		end
@@ -148,7 +156,7 @@ local function updateIndicator(self, unit, ind)
 					local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
 					if(isPhysical) then
 						displayed = displayed + 1
-						runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, nil)
+						runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, false)
 					end
 				end
 			end
@@ -168,7 +176,8 @@ local function updateIndicator(self, unit, ind)
 
 			if(not skip) then
 				displayed = displayed + 1
-				runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, auraData.dispelName)
+				local showDispelColor = shouldShowDispelColor(auraData, filterMode == 'dispellable')
+				runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, showDispelColor)
 			end
 		end
 
@@ -181,7 +190,7 @@ local function updateIndicator(self, unit, ind)
 				local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
 				if(isPhysical) then
 					displayed = displayed + 1
-					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, nil)
+					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, false)
 				end
 			end
 		end

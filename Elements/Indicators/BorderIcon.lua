@@ -47,7 +47,7 @@ local BorderIconMethods = {}
 
 --- Set the displayed aura data on this border icon.
 --- Supports two calling conventions:
----   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType)
+---   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, showDispelColor)
 ---   Legacy:            SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
 --- When unit + auraInstanceID are provided, C-level APIs are used for
 --- cooldown (DurationObject), stacks, and dispel color (secret-safe).
@@ -55,15 +55,15 @@ local BorderIconMethods = {}
 --- via SetCooldownFromDurationObject — secret-safe, no Lua math needed.
 --- Without unit + auraInstanceID, falls back to legacy behavior.
 function BorderIconMethods:SetAura(...)
-	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType
+	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, showDispelColor
 
 	local arg1, arg2 = ...
 	-- Detect new vs legacy signature: if first arg is a string (unit token)
 	-- and second arg is a number (auraInstanceID), it's the new signature.
 	if(type(arg1) == 'string' and type(arg2) == 'number') then
-		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, showDispelColor = ...
 	else
-		spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+		spellId, iconTexture, duration, expirationTime, count, showDispelColor = ...
 	end
 
 	-- Store for OnUpdate and other deferred lookups
@@ -85,13 +85,10 @@ function BorderIconMethods:SetAura(...)
 		self.icon:SetTexture(tex)
 	end
 
-	-- Border color from dispel type (only when dispelType is non-nil).
-	-- Non-dispellable auras have dispelName = nil (not secret-nil), so
-	-- the truthiness check safely skips them — callers set their own
-	-- default border color before SetAura.
-	if(dispelType) then
-		if(unit and auraInstanceID) then
-			-- New path: C-level dispel color via curve (handles secret dispelType)
+	-- Border color from dispel type. The secret-safe path takes an addon-owned
+	-- boolean rather than raw aura.dispelName, then lets the C API resolve color.
+	if(unit and auraInstanceID) then
+		if(F.IsValueNonSecret(showDispelColor) and showDispelColor == true) then
 			local curve = getDispelColorCurve()
 			if(curve) then
 				local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
@@ -99,8 +96,11 @@ function BorderIconMethods:SetAura(...)
 					self:SetBorderColor(color:GetRGBA())
 				end
 			end
-		elseif(F.IsValueNonSecret(dispelType)) then
-			-- Legacy path: manual color lookup
+		end
+	else
+		-- Legacy path: callers may still pass a concrete dispel type string.
+		local dispelType = showDispelColor
+		if(F.IsValueNonSecret(dispelType) and dispelType) then
 			local color = C.Colors.dispel[dispelType]
 			if(color) then
 				self:SetBorderColor(color[1], color[2], color[3], 1)
@@ -116,7 +116,7 @@ function BorderIconMethods:SetAura(...)
 		local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
 		if(durationObj) then
 			if(self.cooldown) then
-				self.cooldown:SetCooldownFromDurationObject(durationObj)
+				self.cooldown:SetCooldownFromDurationObject(durationObj, true)
 				self.cooldown:SetReverse(true)
 			end
 		elseif(self.cooldown) then
@@ -164,28 +164,9 @@ function BorderIconMethods:SetAura(...)
 	-- Stacks
 	if(self.stacks) then
 		if(unit and auraInstanceID) then
-			-- New path: C-level formatted display count.
-			-- SetText is a C-level API that accepts secret values, so we
-			-- pass the result directly without IsValueNonSecret. Always
-			-- show when non-nil — an empty secret string is invisible.
-			local displayCount = C_UnitAuras.GetAuraApplicationDisplayCount(
-				unit, auraInstanceID, 2, 99)
-			if(displayCount) then
-				self.stacks:SetText(displayCount)
-				self.stacks:Show()
-			else
-				self.stacks:SetText('')
-				self.stacks:Hide()
-			end
+			F.Indicators.SetAuraStackText(self.stacks, unit, auraInstanceID, count)
 		else
-			-- Legacy path
-			if(count and count > 1) then
-				self.stacks:SetText(count)
-				self.stacks:Show()
-			else
-				self.stacks:SetText('')
-				self.stacks:Hide()
-			end
+			F.Indicators.SetAuraStackText(self.stacks, nil, nil, count)
 		end
 	end
 

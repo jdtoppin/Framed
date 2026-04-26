@@ -208,14 +208,8 @@ function BarMethods:GetStatusBar()
 	return self._statusBar
 end
 
-function BarMethods:SetStacks(count)
-	if(not self._stackText) then return end
-	if(count and count > 1) then
-		self._stackText:SetText(count)
-		self._stackText:Show()
-	else
-		self._stackText:Hide()
-	end
+function BarMethods:SetStacks(count, unit, auraInstanceID)
+	F.Indicators.SetAuraStackText(self._stackText, unit, auraInstanceID, count)
 end
 
 --- Format duration as seconds (with tenths below 10s).

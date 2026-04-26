@@ -69,7 +69,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 
 	-- Stacks
 	if(self._config.showStacks) then
-		self:SetStacks(stacks)
+		F.Indicators.SetAuraStackText(self.stacks, unit, auraInstanceID, stacks)
 	end
 
 	-- Get DurationObject
@@ -95,7 +95,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 	-- Duration countdown via Cooldown frame
 	if(self._cooldown) then
 		if(hasUsableDurationObject(durationObj)) then
-			self._cooldown:SetCooldownFromDurationObject(durationObj)
+			self._cooldown:SetCooldownFromDurationObject(durationObj, true)
 
 			-- Reparent and style Blizzard's countdown text once (lazy creation),
 			-- then re-apply anchor after every cooldown set (Blizzard re-centers it).
@@ -176,15 +176,10 @@ end
 
 --- Show/update stack count text. Hidden when stacks <= 1.
 --- @param count number|nil
-function IconMethods:SetStacks(count)
-	if(not self.stacks) then return end
-	if(count and count > 1) then
-		self.stacks:SetText(count)
-		self.stacks:Show()
-	else
-		self.stacks:SetText('')
-		self.stacks:Hide()
-	end
+--- @param unit string|nil Unit token for secret-safe stack display
+--- @param auraInstanceID number|nil Aura instance ID for secret-safe stack display
+function IconMethods:SetStacks(count, unit, auraInstanceID)
+	F.Indicators.SetAuraStackText(self.stacks, unit, auraInstanceID, count)
 end
 
 --- Set up a manual DurationObject for preview/manual use.
