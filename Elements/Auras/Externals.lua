@@ -111,13 +111,13 @@ local function Update(self, event, unit, updateInfo)
 				show = true
 			end
 
-			-- Step 3: RAID fallback — only for secret auras (combat) where
-			-- spell-level classification isn't available. Catches Power Infusion
-			-- and similar raid-important buffs. Too broad out of combat (catches
-			-- basic HoTs like Rejuvenation). Exclude BIG_DEFENSIVE.
+			-- Step 3: RAID_IN_COMBAT fallback — only for secret auras where
+			-- spell-level classification isn't available. The broader RAID
+			-- fallback lets long maintenance buffs through in M+ when duration
+			-- is secret, so keep this on Blizzard's combat-relevant allowlist.
 			if(not show) then
 				local isSecret = not F.IsValueNonSecret(auraData.spellId)
-				if(isSecret and flags.isRaid and not flags.isBigDefensive) then
+				if(isSecret and flags.isRaidInCombat and not flags.isBigDefensive) then
 					show = true
 				end
 			end
@@ -167,13 +167,13 @@ local function Update(self, event, unit, updateInfo)
 				end
 			end
 
-			-- Step 3: RAID fallback for secret auras — exclude BIG_DEFENSIVE.
+			-- Step 3: RAID_IN_COMBAT fallback for secret auras — exclude BIG_DEFENSIVE.
 			if(not show) then
 				local isSecret = not F.IsValueNonSecret(auraData.spellId)
 				if(isSecret) then
-					local isRaid = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
-						unit, id, 'HELPFUL|RAID')
-					if(isRaid) then
+					local isRaidCombat = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
+						unit, id, 'HELPFUL|RAID_IN_COMBAT')
+					if(isRaidCombat) then
 						local isBigDef = not C_UnitAuras.IsAuraFilteredOutByInstanceID(
 							unit, id, 'HELPFUL|BIG_DEFENSIVE')
 						show = not isBigDef

@@ -114,6 +114,13 @@ end
 -- BEGIN GENERATED CHANGELOG
 local CHANGELOG = {
 	{
+		version = 'v0.8.17-alpha',
+		entries = {
+			'**Externals: Symbiotic Relationship leak in M+** — the RAID secret-aura fallback admitted Symbiotic Relationship in secret-active content because it carries the broad `RAID` classification despite being a passive bond rather than a combat-relevant external. Switched the fallback to Blizzard\'s tighter `RAID_IN_COMBAT` curation, which excludes passive bonds while still admitting Power Infusion and similar raid-important buffs',
+			'**Icon: secret-safe DurationObject zero check** — `DurationObject:IsZero()` returns a secret boolean for classified combat auras (e.g. Ironbark on player in M+); the Lua test `not durationObj:IsZero()` then crashed mid-`SetSpell`, halting before the icon was rendered. Affected auras silently disappeared in secret content in addition to spamming the error frame. Wrapped the zero check in a helper that falls through to the C-level timer consumers when `IsZero` is secret',
+		},
+	},
+	{
 		version = 'v0.8.16-alpha',
 		entries = {
 			'**Interface bump to 120005** — TOC interface version raised from 120001 to align with WoW 12.0.5',
@@ -155,14 +162,6 @@ local CHANGELOG = {
 			'**Tracked pre-commit hook** running luacheck on staged Lua files; install via `tools/install-hooks.sh`',
 			'Buffs `matchAura` no longer mutates `AuraData` tables — Blizzard fields stay clean for downstream consumers',
 			'Internal MemDiag in-situ probes stripped from `Icon.lua`/`Buffs.lua` hot paths; replaced with broader `OnUpdate` coverage in MemDiag itself',
-		},
-	},
-	{
-		version = 'v0.8.14-alpha',
-		entries = {
-			'**12.0.5 compatibility** — fix `bad argument #2 to \'?\' (Current Field: [isContainer])` error on unit frame spawn; 12.0.5 added a required `isContainer` field to `C_UnitAuras.AddPrivateAuraAnchor`\'s args table',
-			'Add `/framed aurastate [unit]` debug slash — dumps the classified aura flag breakdown for a unit (defaults to target), showing which of `external-defensive`, `important`, `player-cast`, `big-defensive`, `raid`, `boss`, `from-player-or-pet` apply to each aura. Useful for verifying classification correctness as #115\'s B-series migrations land',
-			'Internal: AuraState now exposes shared per-frame classification (`GetHelpfulClassified` / `GetHarmfulClassified` / `GetClassifiedByInstanceID`) with write-path invalidation wired through `FullRefresh` and `ApplyUpdateInfo`. No element yet consumes the new API — infrastructure only in this patch, element migrations follow in subsequent releases (#115 B1-B6)',
 		},
 	},
 }
