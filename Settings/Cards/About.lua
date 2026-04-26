@@ -114,8 +114,9 @@ end
 -- BEGIN GENERATED CHANGELOG
 local CHANGELOG = {
 	{
-		version = 'v0.8.15-alpha',
+		version = 'v0.8.16-alpha',
 		entries = {
+			'**Interface bump to 120005** — TOC interface version raised from 120001 to align with WoW 12.0.5',
 			'**Settings memory leak fixed (closes #187)** — Framed memory previously climbed toward ~50 MB across settings open/close cycles and never dropped, even after forced GC. Resolved through a chain of fixes: panel teardown infrastructure, weak-key pixel/UI-scale registries, X-button + ESC routing through `Settings.Hide`, snapshot-keys-before-iteration in `TearDownAllPanels`, panel-owned `_eventBusOwners` declarations with recursive tree walk, single-installation OnShow hooks, gated CardGrid rebuilds, and a new `Settings._cachePanelsOnClose = true` policy that retains the cache for fast reopen now that the bounding fixes prevent compounding',
 			'**Buffs/Debuffs/Externals/Defensives spec import hitch eliminated** — loading 60+ spec or healer spells via the indicator import button previously caused a visible frame stall. SpellList now virtualizes scrollable lists, chunks flat lists across frames, and bulk-imports via a new `AddSpells` API. ~240× theoretical reduction on the import path',
 			'**TrackedSpells improvements (#180)** — import-from-spec button + spec-override hint + dropdown trigger + floating preview + off-spec filter',

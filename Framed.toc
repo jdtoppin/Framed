@@ -1,8 +1,8 @@
-## Interface: 120001
+## Interface: 120005
 ## Title: Framed
 ## Notes: Modern, customizable unit frames and raid frames
 ## Author: Moodibs
-## Version: 0.8.15-alpha
+## Version: 0.8.16-alpha
 ## X-Curse-Project-ID: 1513359
 ## SavedVariables: FramedDB, FramedBackupDB, FramedSnapshotsDB
 ## SavedVariablesPerCharacter: FramedCharDB
