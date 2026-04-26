@@ -18,6 +18,19 @@ F.Indicators.Icon = {}
 
 local IconMethods = {}
 
+local function hasUsableDurationObject(durationObj)
+	if(not durationObj) then return false end
+
+	local isZero = durationObj:IsZero()
+	if(F.IsValueNonSecret(isZero)) then
+		return not isZero
+	end
+
+	-- IsZero can be secret for classified combat auras. In that case, avoid
+	-- branching on it and let C-level timer consumers handle the DurationObject.
+	return true
+end
+
 --- Set the displayed spell/aura data on this icon.
 --- @param unit string|nil Unit token
 --- @param auraInstanceID number|nil Aura instance ID
@@ -70,7 +83,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 
 	-- Depletion bar
 	if(self._depletionBar) then
-		if(durationObj and not durationObj:IsZero()) then
+		if(hasUsableDurationObject(durationObj)) then
 			self._depletionBar:SetTimerDuration(durationObj, nil, Enum.StatusBarTimerDirection.ElapsedTime)
 			self._depletionBar:Show()
 		else
@@ -81,7 +94,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 
 	-- Duration countdown via Cooldown frame
 	if(self._cooldown) then
-		if(durationObj and not durationObj:IsZero()) then
+		if(hasUsableDurationObject(durationObj)) then
 			self._cooldown:SetCooldownFromDurationObject(durationObj)
 
 			-- Reparent and style Blizzard's countdown text once (lazy creation),
