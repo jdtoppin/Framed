@@ -2,7 +2,9 @@
 
 ## [Unreleased]
 
-## v0.8.15-alpha
+## v0.8.16-alpha
+
+- **Interface bump to 120005** — TOC interface version raised from 120001 to align with WoW 12.0.5
 
 ### Settings & UX
 
