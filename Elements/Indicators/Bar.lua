@@ -247,7 +247,9 @@ function F.Indicators.Bar.Create(parent, config)
 	frame:SetFrameLevel(parent:GetFrameLevel() + 5)
 	frame:Hide()
 
-	-- Dark background
+	-- Dark background on the container. The StatusBar also gets its own
+	-- background below so the depleted portion remains visible even when the
+	-- StatusBar frame covers the container texture.
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(frame)
 	bg:SetColorTexture(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 0.5)
@@ -261,6 +263,10 @@ function F.Indicators.Bar.Create(parent, config)
 	statusBar:SetStatusBarColor(0, 0, 0, 0)
 	statusBar:SetMinMaxValues(0, 1)
 	statusBar:SetValue(0)
+
+	local statusBg = statusBar:CreateTexture(nil, 'BACKGROUND')
+	statusBg:SetAllPoints(statusBar)
+	statusBg:SetColorTexture(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 0.5)
 
 	-- 0.5px border overlay
 	local border = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
@@ -302,6 +308,7 @@ function F.Indicators.Bar.Create(parent, config)
 	local bar = {
 		_frame        = frame,
 		_statusBar    = statusBar,
+		_bg           = statusBg,
 		_stackText    = stackText,
 		_durationText = durationText,
 		_lowTimeColor = config.lowTimeColor,   -- { enabled, threshold, color }
