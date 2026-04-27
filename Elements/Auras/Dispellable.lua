@@ -230,14 +230,22 @@ local function Update(self, event, unit, updateInfo)
 
 	local onlyDispellableByMe = element._onlyDispellableByMe
 
-	-- Find the first dispellable debuff. Non-nil dispelName (may be
-	-- secret) means the aura is dispellable. auraInstanceID is
-	-- NeverSecret — safe to store and pass to curve APIs.
+	-- Find the first dispellable debuff. In "by me" mode, the server-side
+	-- filter (RAID_PLAYER_DISPELLABLE) has already restricted the list to
+	-- auras the active player can dispel, so the first entry is sufficient.
+	-- In "all" mode, a non-nil dispelName means the aura has a dispel type
+	-- (may be secret userdata in classified content — Lua truthy-checks on
+	-- secret strings are safe, only secret booleans crash). auraInstanceID
+	-- is NeverSecret so it's safe to store and pass to the curve API.
 	local dispelAuraID = nil
 	local primaryFilter = onlyDispellableByMe and 'HARMFUL|RAID_PLAYER_DISPELLABLE' or 'HARMFUL'
 	local allAuras = auraState and auraState:GetHarmful(primaryFilter) or F.AuraCache.GetUnitAuras(unit, primaryFilter)
 
 	for _, auraData in next, allAuras do
+		if(onlyDispellableByMe) then
+			dispelAuraID = auraData.auraInstanceID
+			break
+		end
 		if(auraData.dispelName) then
 			dispelAuraID = auraData.auraInstanceID
 			break

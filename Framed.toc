@@ -2,7 +2,7 @@
 ## Title: Framed
 ## Notes: Modern, customizable unit frames and raid frames
 ## Author: Moodibs
-## Version: 0.8.17-alpha
+## Version: 0.8.18-alpha
 ## X-Curse-Project-ID: 1513359
 ## SavedVariables: FramedDB, FramedBackupDB, FramedSnapshotsDB
 ## SavedVariablesPerCharacter: FramedCharDB
@@ -94,7 +94,7 @@ Elements/Indicators/FrameBar.lua
 Elements/Indicators/Bar.lua
 Elements/Indicators/Bars.lua
 Elements/Indicators/BorderGlow.lua
-Elements/Indicators/Color.lua
+Elements/Indicators/Rectangle.lua
 Elements/Indicators/Overlay.lua
 Elements/Indicators/BorderIcon.lua
 

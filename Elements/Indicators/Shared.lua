@@ -48,3 +48,49 @@ function F.Indicators.UpdateThresholdColor(self, remaining, duration, setColorFn
 		setColorFn(base[1], base[2], base[3], base[4] or 1)
 	end
 end
+
+--- Set aura stack/count text without branching on secret AuraData fields.
+--- When unit + auraInstanceID are available, the display string comes from
+--- C_UnitAuras and is passed straight into FontString:SetText.
+--- @param fontString FontString|nil
+--- @param unit string|nil
+--- @param auraInstanceID number|nil
+--- @param fallbackCount number|nil
+function F.Indicators.SetAuraStackText(fontString, unit, auraInstanceID, fallbackCount)
+	if(not fontString) then return end
+
+	if(unit and auraInstanceID and C_UnitAuras and C_UnitAuras.GetAuraApplicationDisplayCount) then
+		local displayCount = C_UnitAuras.GetAuraApplicationDisplayCount(unit, auraInstanceID, 2, 99)
+		fontString:SetText(displayCount)
+		fontString:Show()
+		return
+	end
+
+	if(F.IsValueNonSecret(fallbackCount) and fallbackCount and fallbackCount > 1) then
+		fontString:SetText(fallbackCount)
+		fontString:Show()
+	else
+		fontString:SetText('')
+		fontString:Hide()
+	end
+end
+
+--- Clear a cooldown and any countdown text that was reparented for styling.
+--- Cooldown:Clear() resets the cooldown state, but a moved FontString can keep
+--- rendering stale text unless we explicitly blank it.
+--- @param cooldown Cooldown|nil
+--- @param countdownText FontString|nil
+function F.Indicators.ClearCooldownCountdown(cooldown, countdownText)
+	if(cooldown) then
+		cooldown:Clear()
+	end
+
+	local text = countdownText
+	if(not text and cooldown and cooldown.GetCountdownFontString) then
+		text = cooldown:GetCountdownFontString()
+	end
+	if(text) then
+		text:SetText('')
+		text:Hide()
+	end
+end

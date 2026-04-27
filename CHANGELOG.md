@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## v0.8.18-alpha
+
+### Aura/indicator secret-mode hardening
+
+- **`Bar` depleted area now renders bg color** — the StatusBar frame's draw context was masking the parent container's BACKGROUND-layer bg texture, so the depleted portion of a bar appeared transparent (no visible "shaded" area) even though the container had a bg texture configured. Adds a second bg texture parented to the StatusBar itself so the depleted portion renders the bg from the StatusBar's own draw context. Affects both `BAR` and `BARS` (BARS uses Bar.Create per slot)
+- **Long-duration aura filter extended** from `BARS` to track-all `OVERLAY`, `RECTANGLE`, `BAR`, and `BORDER` indicators — flask/food/long maintenance buffs no longer pin the indicator at a stale depletion progress in track-all mode. Spell-specific paths unchanged
+- **`BAR` / `Rectangle` `showStacks` defaults to off** (matches UI checkbox initial state). `ICON` / `ICONS` still default on since the icon itself reveals what's matched
+- **Reparented countdown text on Cooldown:Clear** — moved FontStrings now blank explicitly when the cooldown clears, fixing stale duration text bleeding through in secret content
+- **`Health` / `Power` percent text** uses C-level `SetFormattedText` so secret curve results don't crash Lua-side formatting; renders invisible for secret values rather than throwing
+- **`Name` element drops Lua-side UTF-8 truncation** in favor of native `SetWordWrap(false)` + bounded width. Avoids touching potentially-restricted name strings in Lua
+- **`CrowdControl` / `LossOfControl` expiry comparisons** guarded against secret-tagged values; explicit timer stop when expiry is unavailable
+- **`BorderIcon` dispel-color path** is opt-in via `useDispelColor` flag. `Externals` / `Defensives` keep their custom borders; `Debuffs` opt in and get curve-resolved colors via `C_UnitAuras.GetAuraDispelTypeColor` reusing oUF's dispel color table
+
+### Edit mode
+
+- **Inline position panel shows the frame name** — once a frame is selected its hover highlight is suppressed, so the user lost on-screen confirmation of which frame they were dragging. Title at the top of the panel ("Player Frame", "Boss 1 Frame", etc.) makes it obvious. Settings.GetFrameUnitLabel exported for the lookup
+- **Group click catchers live-resize from EditCache values** — party/raid/boss/arena/pinned catchers were sized from the real saved config at creation and never re-read, so width/height/columns/spacing edits never propagated to the catcher overlay. After deselect the catcher snapped back to its original size even though the underlying frames advanced. New `applyGroupCatcherLayout` helper runs from both `EDIT_CACHE_VALUE_CHANGED` and `EDIT_MODE_FRAME_SELECTED` so the catcher tracks slider edits in real time and shows the correct size when reshown
+
+### Settings
+
+- **`Rectangle` indicator gets `Cast By` + `Tracked Spells` cards** — the new card-grid panel was missing both card definitions for `RECTANGLE`, so users couldn't add spells. The indicator preview rendered fine but the live frame never matched a real aura at runtime
+- **Centralized `F.Indicators.SetAuraStackText` helper** — secret-safe stack rendering deduplicated across `Bar`, `Bars`, `BorderIcon`, `Color`, `Icon`. Unified `SetStacks(count, unit, auraInstanceID)` signature across all renderer types so callers don't need to know the concrete type
+
+### File renames
+
+- **`Elements/Indicators/Color.lua` → `Rectangle.lua`** to match the user-facing label. The file backed the `RECTANGLE` indicator type but its name collided with the user-facing "Color / Duration Overlay" indicator (which is actually backed by `Overlay.lua`). Namespace renamed `F.Indicators.Color` → `F.Indicators.Rectangle`. No behavior change
+
 ## v0.8.17-alpha
 
 ### Bug fixes

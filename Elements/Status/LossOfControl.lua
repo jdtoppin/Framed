@@ -149,8 +149,9 @@ local function Update(self, event, unit, updateInfo)
 			element.icon:Hide()
 		end
 
-		if(bestExpiry and bestExpiry > 0) then
-			local remaining = bestExpiry - GetTime()
+		local expiry = F.IsValueNonSecret(bestExpiry) and bestExpiry or nil
+		if(expiry and expiry > 0) then
+			local remaining = expiry - GetTime()
 			if(remaining > 0) then
 				element.duration:SetText(F.FormatDuration(remaining))
 				element.duration:Show()
@@ -162,8 +163,12 @@ local function Update(self, event, unit, updateInfo)
 		end
 
 		-- Store expiry for OnUpdate ticker
-		element._expiry = bestExpiry
-		StartTimer(element)
+		element._expiry = expiry
+		if(expiry) then
+			StartTimer(element)
+		else
+			StopTimer(element)
+		end
 
 		element:Show()
 	else

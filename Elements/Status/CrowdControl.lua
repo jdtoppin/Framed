@@ -51,8 +51,9 @@ local function Update(self, event, unit, updateInfo)
 		element.icon:SetTexture(foundIcon)
 		element.icon:Show()
 
-		if(foundExpiry and foundExpiry > 0) then
-			local remaining = foundExpiry - GetTime()
+		local expiry = F.IsValueNonSecret(foundExpiry) and foundExpiry or nil
+		if(expiry and expiry > 0) then
+			local remaining = expiry - GetTime()
 			if(remaining > 0) then
 				element.duration:SetText(F.FormatDuration(remaining))
 				element.duration:Show()
@@ -63,8 +64,12 @@ local function Update(self, event, unit, updateInfo)
 			element.duration:Hide()
 		end
 
-		element._expiry = foundExpiry
-		StartTimer(element)
+		element._expiry = expiry
+		if(expiry) then
+			StartTimer(element)
+		else
+			StopTimer(element)
+		end
 		element:Show()
 	else
 		element._expiry = nil
