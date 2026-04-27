@@ -210,7 +210,13 @@ local function matchAura(auraData)
 					local list = iconsAurasPool[idx]
 					list[#list + 1] = auraData
 				end
-			elseif(ind._type == C.IndicatorType.OVERLAY or ind._type == C.IndicatorType.RECTANGLE) then
+			elseif(ind._type == C.IndicatorType.OVERLAY
+				or ind._type == C.IndicatorType.RECTANGLE
+				or ind._type == C.IndicatorType.BORDER
+				or ind._type == C.IndicatorType.BAR) then
+				-- Long-duration auras (flasks, food) leave these visual-only
+				-- indicators stuck since they don't show identifying info.
+				-- ICON is excluded — the icon itself reveals what's matched.
 				if(not matchedPool[idx] and not shouldSkipLongDuration(auraData)) then
 					matchedPool[idx] = auraData
 				end
