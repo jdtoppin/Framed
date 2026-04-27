@@ -279,9 +279,9 @@ function F.Indicators.Bar.Create(parent, config)
 		statusBar:SetOrientation('VERTICAL')
 	end
 
-	-- Stack text (optional)
+	-- Stack text (optional, default off — opposite of ICON/ICONS)
 	local stackText
-	if(config.showStacks ~= false) then
+	if(config.showStacks == true) then
 		local sf = config.stackFont or {}
 		stackText = Widgets.CreateFontString(frame, sf.size or 10, { 1, 1, 1, 1 })
 		stackText:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -1, 1)
