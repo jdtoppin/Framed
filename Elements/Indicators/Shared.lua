@@ -74,3 +74,23 @@ function F.Indicators.SetAuraStackText(fontString, unit, auraInstanceID, fallbac
 		fontString:Hide()
 	end
 end
+
+--- Clear a cooldown and any countdown text that was reparented for styling.
+--- Cooldown:Clear() resets the cooldown state, but a moved FontString can keep
+--- rendering stale text unless we explicitly blank it.
+--- @param cooldown Cooldown|nil
+--- @param countdownText FontString|nil
+function F.Indicators.ClearCooldownCountdown(cooldown, countdownText)
+	if(cooldown) then
+		cooldown:Clear()
+	end
+
+	local text = countdownText
+	if(not text and cooldown and cooldown.GetCountdownFontString) then
+		text = cooldown:GetCountdownFontString()
+	end
+	if(text) then
+		text:SetText('')
+		text:Hide()
+	end
+end

@@ -155,7 +155,7 @@ function IconMethods:SetSpell(unit, auraInstanceID, spellID, iconTexture, durati
 				F.Indicators.IconTicker_Register(self)
 			end
 		else
-			self._cooldown:Clear()
+			F.Indicators.ClearCooldownCountdown(self._cooldown, self._cdText)
 			F.Indicators.IconTicker_Unregister(self)
 		end
 	end
@@ -209,7 +209,7 @@ function IconMethods:Clear()
 		self._depletionBar:Hide()
 	end
 	if(self._cooldown) then
-		self._cooldown:Clear()
+		F.Indicators.ClearCooldownCountdown(self._cooldown, self._cdText)
 	end
 	self:StopGlow()
 	self._durationObj = nil

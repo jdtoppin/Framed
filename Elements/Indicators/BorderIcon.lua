@@ -120,7 +120,7 @@ function BorderIconMethods:SetAura(...)
 				self.cooldown:SetReverse(true)
 			end
 		elseif(self.cooldown) then
-			self.cooldown:Clear()
+			F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 		end
 	elseif(self.cooldown) then
 		-- Legacy path: raw SetCooldown (works in untainted contexts only)
@@ -131,7 +131,7 @@ function BorderIconMethods:SetAura(...)
 			self.cooldown:SetCooldown(startTime, duration)
 			self.cooldown:SetReverse(true)
 		else
-			self.cooldown:Clear()
+			F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 		end
 	end
 
@@ -156,8 +156,10 @@ function BorderIconMethods:SetAura(...)
 			end
 			-- Re-apply position after every cooldown set (Blizzard resets to CENTER)
 			cdText:ClearAllPoints()
-			local df = self._durationFont
-			cdText:SetPoint(df.anchor, self._iconFrame, df.anchor, df.xOffset, df.yOffset)
+			local df = self._durationFont or {}
+			local anchor = df.anchor or 'CENTER'
+			cdText:SetPoint(anchor, self._iconFrame, anchor, df.xOffset or 0, df.yOffset or 0)
+			self._cdText = cdText
 		end
 	end
 
@@ -191,7 +193,7 @@ function BorderIconMethods:Clear()
 	self._unit = nil
 	self._auraInstanceID = nil
 	if(self.cooldown) then
-		self.cooldown:Clear()
+		F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 	end
 	if(self.stacks) then
 		self.stacks:SetText('')
@@ -235,6 +237,7 @@ function BorderIconMethods:Destroy()
 	self._frame._biRef = nil
 	self._unit = nil
 	self._auraInstanceID = nil
+	F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 	self._frame:Hide()
 	self._frame:SetParent(nil)
 end
@@ -331,6 +334,7 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 		_countdownReparented = false,
 		_unit            = nil,
 		_auraInstanceID  = nil,
+		_cdText          = nil,
 
 		icon          = icon,
 		cooldown      = cooldown,
