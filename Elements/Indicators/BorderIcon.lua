@@ -12,31 +12,24 @@ F.Indicators.BorderIcon = {}
 
 local dispelColorCurve
 
---- Build a dispel color curve from C.Colors.dispel using oUF's
---- DispelType enum indices. Lazy-initialized on first use.
+--- Build a dispel color curve using oUF's own dispel color table.
+--- This mirrors oUF/elements/auras.lua so the x-values match
+--- C_UnitAuras.GetAuraDispelTypeColor's dispel type IDs.
 local function getDispelColorCurve()
 	if(dispelColorCurve) then return dispelColorCurve end
 	if(not C_CurveUtil or not C_CurveUtil.CreateColorCurve) then return nil end
 
 	local oUF = F.oUF
-	if(not oUF or not oUF.Enum or not oUF.Enum.DispelType) then return nil end
+	if(not oUF or not oUF.Enum or not oUF.Enum.DispelType or not oUF.colors or not oUF.colors.dispel) then return nil end
 	local dispelTypes = oUF.Enum.DispelType
 
 	dispelColorCurve = C_CurveUtil.CreateColorCurve()
 	dispelColorCurve:SetType(Enum.LuaCurveType.Step)
 
-	if(dispelTypes.None) then
-		dispelColorCurve:AddPoint(dispelTypes.None, CreateColor(1, 0, 0, 1))
-	end
-
-	-- Map oUF DispelType enum indices to C.Colors.dispel color keys.
-	-- oUF uses 'Bleed' but C.Colors.dispel uses 'Physical' for that type.
-	local COLOR_KEY = { Bleed = 'Physical' }
-	for name, index in next, dispelTypes do
-		local colorKey = COLOR_KEY[name] or name
-		local rgb = C.Colors.dispel[colorKey]
-		if(rgb) then
-			dispelColorCurve:AddPoint(index, CreateColor(rgb[1], rgb[2], rgb[3], 1))
+	for _, index in next, dispelTypes do
+		local color = oUF.colors.dispel[index]
+		if(color) then
+			dispelColorCurve:AddPoint(index, color)
 		end
 	end
 
@@ -51,7 +44,7 @@ local BorderIconMethods = {}
 
 --- Set the displayed aura data on this border icon.
 --- Supports two calling conventions:
----   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, showDispelColor)
+---   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count)
 ---   Legacy:            SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
 --- When unit + auraInstanceID are provided, C-level APIs are used for
 --- cooldown (DurationObject), stacks, and dispel color (secret-safe).
@@ -59,15 +52,15 @@ local BorderIconMethods = {}
 --- via SetCooldownFromDurationObject — secret-safe, no Lua math needed.
 --- Without unit + auraInstanceID, falls back to legacy behavior.
 function BorderIconMethods:SetAura(...)
-	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, showDispelColor
+	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType
 
 	local arg1, arg2 = ...
 	-- Detect new vs legacy signature: if first arg is a string (unit token)
 	-- and second arg is a number (auraInstanceID), it's the new signature.
 	if(type(arg1) == 'string' and type(arg2) == 'number') then
-		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, showDispelColor = ...
+		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType = ...
 	else
-		spellId, iconTexture, duration, expirationTime, count, showDispelColor = ...
+		spellId, iconTexture, duration, expirationTime, count, dispelType = ...
 	end
 
 	-- Store for OnUpdate and other deferred lookups
@@ -89,26 +82,24 @@ function BorderIconMethods:SetAura(...)
 		self.icon:SetTexture(tex)
 	end
 
-	-- Border color from dispel type. The secret-safe path takes an addon-owned
-	-- boolean rather than raw aura.dispelName, then lets the C API resolve color.
+	-- Border color from dispel type. In the unit/auraInstanceID path, do not
+	-- inspect aura.dispelName in Lua. Ask the C API to map the aura's dispel
+	-- type through the oUF-shaped curve; no-type auras evaluate to None/red.
 	if(unit and auraInstanceID) then
-		if(F.IsValueNonSecret(showDispelColor) and showDispelColor == true) then
-			local curve = getDispelColorCurve()
-			if(curve) then
-				local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
-				if(color) then
-					self:SetBorderColor(color:GetRGBA())
-				end
+		local curve = getDispelColorCurve()
+		if(curve) then
+			local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
+			if(color == nil) then
+				color = curve:Evaluate(0)
+			end
+			if(color) then
+				self:SetBorderColor(color:GetRGBA())
 			end
 		end
-	else
-		-- Legacy path: callers may still pass a concrete dispel type string.
-		local dispelType = showDispelColor
-		if(F.IsValueNonSecret(dispelType) and dispelType) then
-			local color = C.Colors.dispel[dispelType]
-			if(color) then
-				self:SetBorderColor(color[1], color[2], color[3], 1)
-			end
+	elseif(F.IsValueNonSecret(dispelType) and dispelType) then
+		local color = C.Colors.dispel[dispelType]
+		if(color) then
+			self:SetBorderColor(color[1], color[2], color[3], 1)
 		end
 	end
 

@@ -25,7 +25,7 @@ local FILTER_MAP = {
 
 --- Display one aura directly from auraData fields (no intermediate table).
 --- Returns the new running pixel offset for the next icon.
-local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, showDispelColor)
+local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData)
 	local iconSize    = cfg.iconSize
 	local bigIconSize = cfg.bigIconSize
 	local orientation = cfg.orientation
@@ -71,25 +71,11 @@ local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData
 		auraData.icon,
 		auraData.duration,
 		auraData.expirationTime,
-		auraData.applications,
-		showDispelColor
+		auraData.applications
 	)
 	bi:Show()
 
 	return runOffset + size + 2
-end
-
-local function shouldShowDispelColor(auraData, force)
-	if(force) then return true end
-
-	local dispelName = auraData.dispelName
-	if(not F.IsValueNonSecret(dispelName)) then
-		-- Classified combat can hide the type from Lua. Still ask the
-		-- C-level curve path to resolve the correct color for the icon.
-		return true
-	end
-
-	return dispelName ~= nil and dispelName ~= ''
 end
 
 local function updateIndicator(self, unit, ind)
@@ -141,16 +127,15 @@ local function updateIndicator(self, unit, ind)
 				local skip = F.IsValueNonSecret(dur) and (dur == 0 or dur >= 600)
 				if(not skip) then
 					displayed = displayed + 1
-					local showDispelColor = shouldShowDispelColor(auraData, filterMode == 'dispellable')
-					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, showDispelColor)
+					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData)
 				end
 			end
 		end
 
 		-- Dispellable supplementary pass: RAID_PLAYER_DISPELLABLE excludes
 		-- Physical/bleeds, so iterate raid-flagged entries and include any
-		-- whose dispelName is nil/empty/Physical. Pass nil dispelType — these
-		-- aren't dispellable, no overlay color.
+		-- whose dispelName is nil/empty/Physical. BorderIcon resolves the
+		-- actual type color through C_UnitAuras, so secret bleeds still color.
 		if(filterMode == 'dispellable' and displayed < maxDisplayed) then
 			for _, entry in next, classified do
 				if(displayed >= maxDisplayed) then break end
@@ -162,7 +147,7 @@ local function updateIndicator(self, unit, ind)
 					local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
 					if(isPhysical) then
 						displayed = displayed + 1
-						runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, false)
+						runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData)
 					end
 				end
 			end
@@ -182,8 +167,7 @@ local function updateIndicator(self, unit, ind)
 
 			if(not skip) then
 				displayed = displayed + 1
-				local showDispelColor = shouldShowDispelColor(auraData, filterMode == 'dispellable')
-				runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, showDispelColor)
+				runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData)
 			end
 		end
 
@@ -196,7 +180,7 @@ local function updateIndicator(self, unit, ind)
 				local isPhysical = F.IsValueNonSecret(dn) and (not dn or dn == '' or dn == 'Physical')
 				if(isPhysical) then
 					displayed = displayed + 1
-					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData, false)
+					runOffset = displayAura(self, unit, pool, displayed, runOffset, cfg, auraData)
 				end
 			end
 		end
