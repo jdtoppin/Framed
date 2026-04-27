@@ -152,12 +152,15 @@ end
 --- function stays at module scope — no nested-closure allocation per event.
 --- BARS is a timer display — showing a static fill for an infinite or
 --- near-infinite duration aura (Arcane Intellect, Mark of the Wild,
---- world buffs, long-lived consumables) wastes a bar slot and confuses
---- users ("why isn't this bar depleting?"). Skip auras where we can
---- confirm the duration is zero or >= 10 minutes. Mirrors the skip
---- pattern in Debuffs.lua:128. Secret durations pass through since we
---- can't evaluate them Lua-side; the C-level timer handles depletion.
-local function shouldSkipForBars(auraData)
+--- world buffs, long-lived consumables) wastes a slot and confuses
+--- users ("why isn't this bar depleting?"). Used by BARS and by
+--- track-all OVERLAY/RECTANGLE indicators where the matched aura
+--- would otherwise be an arbitrary long-duration buff. Skip auras
+--- where we can confirm the duration is zero or >= 10 minutes.
+--- Mirrors the skip pattern in Debuffs.lua:128. Secret durations
+--- pass through since we can't evaluate them Lua-side; the C-level
+--- timer handles depletion.
+local function shouldSkipLongDuration(auraData)
 	local dur = auraData.duration
 	if(not F.IsValueNonSecret(dur)) then return false end
 	return dur == 0 or dur >= 600
@@ -184,7 +187,7 @@ local function matchAura(auraData)
 					local list = iconsAurasPool[idx]
 					list[#list + 1] = auraData
 				elseif(ind._type == C.IndicatorType.BARS) then
-					if(not shouldSkipForBars(auraData)) then
+					if(not shouldSkipLongDuration(auraData)) then
 						local list = iconsAurasPool[idx]
 						list[#list + 1] = auraData
 					end
@@ -203,9 +206,13 @@ local function matchAura(auraData)
 				local list = iconsAurasPool[idx]
 				list[#list + 1] = auraData
 			elseif(ind._type == C.IndicatorType.BARS) then
-				if(not shouldSkipForBars(auraData)) then
+				if(not shouldSkipLongDuration(auraData)) then
 					local list = iconsAurasPool[idx]
 					list[#list + 1] = auraData
+				end
+			elseif(ind._type == C.IndicatorType.OVERLAY or ind._type == C.IndicatorType.RECTANGLE) then
+				if(not matchedPool[idx] and not shouldSkipLongDuration(auraData)) then
+					matchedPool[idx] = auraData
 				end
 			elseif(not matchedPool[idx]) then
 				matchedPool[idx] = auraData
