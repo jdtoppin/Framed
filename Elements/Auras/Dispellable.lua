@@ -208,6 +208,18 @@ local function showDispelIcons(element, unit, auraInstanceID)
 	end
 end
 
+local function getHighlightColor(unit, auraInstanceID)
+	return C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, highlightCurve)
+end
+
+local function isTypedDispelAura(unit, auraInstanceID)
+	local color = getHighlightColor(unit, auraInstanceID)
+	if(not color) then return false end
+
+	local _, _, _, a = color:GetRGBA()
+	return F.IsValueNonSecret(a) and a > 0
+end
+
 -- ============================================================
 -- Update
 -- ============================================================
@@ -230,24 +242,18 @@ local function Update(self, event, unit, updateInfo)
 
 	local onlyDispellableByMe = element._onlyDispellableByMe
 
-	-- Find the first dispellable debuff. In "by me" mode, the server-side
-	-- filter has already done the dispelability check, so the first aura is
-	-- enough. In "all" mode, raw dispelName can be secret, so only branch on
-	-- it after a non-secret guard; secret unknowns are skipped rather than
-	-- risking a tainted boolean test.
+	-- Find the first matching debuff. In "by me" mode, the server-side filter
+	-- has already done the dispelability check. In "all" mode, resolve the
+	-- typed/none decision through the C-level dispel color curve so secret
+	-- combat auras still count without Lua reading aura.dispelName.
 	local dispelAuraID = nil
 	local primaryFilter = onlyDispellableByMe and 'HARMFUL|RAID_PLAYER_DISPELLABLE' or 'HARMFUL'
 	local allAuras = auraState and auraState:GetHarmful(primaryFilter) or F.AuraCache.GetUnitAuras(unit, primaryFilter)
 
 	for _, auraData in next, allAuras do
-		if(onlyDispellableByMe) then
-			dispelAuraID = auraData.auraInstanceID
-			break
-		end
-
-		local dispelName = auraData.dispelName
-		if(F.IsValueNonSecret(dispelName) and dispelName and dispelName ~= '') then
-			dispelAuraID = auraData.auraInstanceID
+		local auraInstanceID = auraData.auraInstanceID
+		if(onlyDispellableByMe or isTypedDispelAura(unit, auraInstanceID)) then
+			dispelAuraID = auraInstanceID
 			break
 		end
 	end
@@ -260,7 +266,7 @@ local function Update(self, event, unit, updateInfo)
 		-- Ignore the curve's alpha (1.0) — use our own overlayAlpha
 		-- to avoid a bright/washed overlay with ADD blend mode.
 		local overlayAlpha = element.__config.highlightAlpha
-		local hlColor = C_UnitAuras.GetAuraDispelTypeColor(unit, dispelAuraID, highlightCurve)
+		local hlColor = getHighlightColor(unit, dispelAuraID)
 		if(hlColor and element._highlightType) then
 			local cr, cg, cb = hlColor:GetRGB()
 			showOverlay(element, element._highlightType, cr, cg, cb, overlayAlpha)
