@@ -83,7 +83,13 @@ local function shouldShowDispelColor(auraData, force)
 	if(force) then return true end
 
 	local dispelName = auraData.dispelName
-	return F.IsValueNonSecret(dispelName) and dispelName ~= nil and dispelName ~= ''
+	if(not F.IsValueNonSecret(dispelName)) then
+		-- Classified combat can hide the type from Lua. Still ask the
+		-- C-level curve path to resolve the correct color for the icon.
+		return true
+	end
+
+	return dispelName ~= nil and dispelName ~= ''
 end
 
 local function updateIndicator(self, unit, ind)

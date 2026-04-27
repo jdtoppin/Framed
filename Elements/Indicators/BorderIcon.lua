@@ -20,14 +20,18 @@ local function getDispelColorCurve()
 
 	local oUF = F.oUF
 	if(not oUF or not oUF.Enum or not oUF.Enum.DispelType) then return nil end
+	local dispelTypes = oUF.Enum.DispelType
 
 	dispelColorCurve = C_CurveUtil.CreateColorCurve()
 	dispelColorCurve:SetType(Enum.LuaCurveType.Step)
 
+	if(dispelTypes.None) then
+		dispelColorCurve:AddPoint(dispelTypes.None, CreateColor(1, 0, 0, 1))
+	end
+
 	-- Map oUF DispelType enum indices to C.Colors.dispel color keys.
 	-- oUF uses 'Bleed' but C.Colors.dispel uses 'Physical' for that type.
 	local COLOR_KEY = { Bleed = 'Physical' }
-	local dispelTypes = oUF.Enum.DispelType
 	for name, index in next, dispelTypes do
 		local colorKey = COLOR_KEY[name] or name
 		local rgb = C.Colors.dispel[colorKey]
@@ -92,7 +96,7 @@ function BorderIconMethods:SetAura(...)
 			local curve = getDispelColorCurve()
 			if(curve) then
 				local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
-				if(color and F.IsValueNonSecret(color)) then
+				if(color) then
 					self:SetBorderColor(color:GetRGBA())
 				end
 			end
