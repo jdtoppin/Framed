@@ -3,10 +3,12 @@ local F = Framed
 local Widgets = F.Widgets
 
 F.Indicators = F.Indicators or {}
-F.Indicators.Color = {}
+F.Indicators.Rectangle = {}
 
 -- ============================================================
--- Color (Positioned Rectangle) methods
+-- Rectangle (positioned colored rectangle) methods
+-- Backs the RECTANGLE indicator type. Distinct from the user-facing
+-- "Color / Duration Overlay" label which is backed by Overlay.lua.
 -- ============================================================
 
 local DURATION_UPDATE_INTERVAL = 0.1
@@ -82,7 +84,7 @@ end
 -- Factory
 -- ============================================================
 
-function F.Indicators.Color.Create(parent, config)
+function F.Indicators.Rectangle.Create(parent, config)
 	config = config or {}
 	local color   = config.color or { 1, 1, 1, 1 }
 	local rectW   = config.rectWidth or 10

@@ -16,7 +16,7 @@ local RENDERERS = {
 	[C.IndicatorType.BAR]       = F.Indicators.Bar,
 	[C.IndicatorType.BARS]      = F.Indicators.Bars,
 	[C.IndicatorType.BORDER]    = F.Indicators.BorderGlow,
-	[C.IndicatorType.RECTANGLE] = F.Indicators.Color,
+	[C.IndicatorType.RECTANGLE] = F.Indicators.Rectangle,
 	[C.IndicatorType.OVERLAY]   = F.Indicators.Overlay,
 }
 
