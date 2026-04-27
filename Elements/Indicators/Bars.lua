@@ -11,9 +11,10 @@ F.Indicators.Bars = {}
 
 local BarsMethods = {}
 
---- Set bars from aura data list. Each entry: { spellId, icon, duration, expirationTime, count, color }
+--- Set bars from aura data list. Each entry: { auraInstanceID, spellId, icon, duration, expirationTime, applications, color }
+--- @param unit string|nil Unit token for secret-safe stack display
 --- @param auraList table[]
-function BarsMethods:SetBars(auraList)
+function BarsMethods:SetBars(unit, auraList)
 	local count = math.min(#auraList, self._maxDisplayed)
 	local spellColors = self._config.spellColors
 	local defaultColor = self._config.color
@@ -36,9 +37,7 @@ function BarsMethods:SetBars(auraList)
 		else
 			bar:SetValue(1, 1)
 		end
-		if(aura.applications) then
-			bar:SetStacks(aura.applications)
-		end
+		bar:SetStacks(aura.applications, unit, aura.auraInstanceID)
 		bar:Show()
 		-- Apply per-bar glow if active
 		if(self._glowType and self._glowType ~= 'None') then

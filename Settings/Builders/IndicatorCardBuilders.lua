@@ -676,11 +676,13 @@ Builders.CARDS_FOR_TYPE = {
 		{ 'glow',             'Border Glow',     'SharedGlow' },
 	},
 	[C.IndicatorType.RECTANGLE] = {
-		{ 'size',             'Size',       Builders.Size },
-		{ 'thresholdColors',  nil,          'SharedThresholdColors' },
-		{ 'stacks',           'Stacks',     Builders.Stacks },
-		{ 'glow',             'Border Glow', 'SharedGlow' },
-		{ 'position',         'Position',   'SharedPosition' },
+		{ 'castBy',           'Cast By',        Builders.CastBy },
+		{ 'trackedSpells',    'Tracked Spells', Builders.TrackedSpells },
+		{ 'size',             'Size',           Builders.Size },
+		{ 'thresholdColors',  nil,              'SharedThresholdColors' },
+		{ 'stacks',           'Stacks',         Builders.Stacks },
+		{ 'glow',             'Border Glow',    'SharedGlow' },
+		{ 'position',         'Position',       'SharedPosition' },
 	},
 	[C.IndicatorType.OVERLAY] = {
 		{ 'castBy',           'Cast By',    Builders.CastBy },

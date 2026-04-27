@@ -198,6 +198,8 @@ local function frameUnitLabel(unitKey)
 	return label
 end
 
+Settings.GetFrameUnitLabel = frameUnitLabel
+
 --- Build the item list for the header inline dropdown. Reuses the
 --- Configure-for items but decorates each label with " Frame" so the
 --- menu rows read "Player Frame", "Target Frame", etc.

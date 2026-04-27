@@ -85,6 +85,66 @@ local function getGroupBounds(config, frameKey)
 	return F.PreviewManager.GetGroupBounds(config, frameKey)
 end
 
+--- Build a config table with EditCache overlaid on the saved config.
+--- Mirrors PreviewManager's getUnitConfig so click catchers and the
+--- preview frame size from the same source of truth during edit mode.
+local function getEditedConfig(frameKey)
+	local preset = F.Settings.GetEditingPreset()
+	local saved = F.Config:Get('presets.' .. preset .. '.unitConfigs.' .. frameKey)
+	if(not saved) then return nil end
+	if(not EditCache or not EditCache.IsActive()) then return saved end
+
+	local edits = EditCache.GetEditsForFrame(frameKey)
+	if(not edits) then return saved end
+
+	local config = F.DeepCopy(saved)
+	for path, value in next, edits do
+		local keys = {}
+		for k in path:gmatch('[^%.]+') do
+			keys[#keys + 1] = k
+		end
+		local target = config
+		for i = 1, #keys - 1 do
+			if(type(target[keys[i]]) ~= 'table') then
+				target[keys[i]] = {}
+			end
+			target = target[keys[i]]
+		end
+		target[keys[#keys]] = value
+	end
+	return config
+end
+
+--- Re-apply size + anchor for a group catcher based on the current
+--- (EditCache-overlaid) config. No-op for solo catchers since they
+--- use SetAllPoints which already follows the real frame.
+local function applyGroupCatcherLayout(catcher)
+	local def = catcher and catcher._def
+	if(not def or not def.isGroup) then return end
+	local frame = def.getter()
+	local frameKey = def.key
+	local config = getEditedConfig(frameKey)
+	if(not config) then return end
+
+	local totalW, totalH = getGroupBounds(config, frameKey)
+	local anchor = config.anchorPoint
+	if(not totalW or not anchor) then
+		if(frame) then catcher:SetAllPoints(frame) end
+		return
+	end
+
+	catcher:SetSize(totalW, totalH)
+	catcher:ClearAllPoints()
+	if(frame) then
+		catcher:SetPoint(anchor, frame, anchor, 0, 0)
+	else
+		local posAnchor = (config.position and config.position.anchor) or 'CENTER'
+		local posX = (config.position and config.position.x) or 0
+		local posY = (config.position and config.position.y) or 0
+		catcher:SetPoint(anchor, UIParent, posAnchor, posX, posY)
+	end
+end
+
 -- ── Catcher creation ─────────────────────────────────────────
 
 local function CreateCatcher(def, overlay)
@@ -399,6 +459,22 @@ F.EventBus:Register('EDIT_MODE_FRAME_SELECTED', function(frameKey)
 			-- Keep above preview so unselected frames stay clickable
 			catcher:SetFrameLevel(overlay:GetFrameLevel() + 10)
 		end
+		-- Re-sync group catchers to current EditCache values so a deselected
+		-- catcher reflects edits made while it was hidden behind the preview.
+		applyGroupCatcherLayout(catcher)
 		catcher:Show()
 	end
 end, 'ClickCatchers')
+
+-- Live-resize group catchers when EditCache values change. Solo catchers
+-- use SetAllPoints(frame) and follow the real frame automatically once
+-- ResizeHandles applies frame:SetSize, so they don't need this path.
+F.EventBus:Register('EDIT_CACHE_VALUE_CHANGED', function(frameKey, configPath, value)
+	local affectsLayout = (configPath == 'width' or configPath == 'height'
+		or configPath == 'columns' or configPath == 'spacing'
+		or configPath == 'anchorPoint')
+	if(not affectsLayout) then return end
+	local catcher = catchers[frameKey]
+	if(not catcher) then return end
+	applyGroupCatcherLayout(catcher)
+end, 'ClickCatchers.cacheChanged')

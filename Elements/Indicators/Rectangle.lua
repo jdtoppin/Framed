@@ -3,10 +3,12 @@ local F = Framed
 local Widgets = F.Widgets
 
 F.Indicators = F.Indicators or {}
-F.Indicators.Color = {}
+F.Indicators.Rectangle = {}
 
 -- ============================================================
--- Color (Positioned Rectangle) methods
+-- Rectangle (positioned colored rectangle) methods
+-- Backs the RECTANGLE indicator type. Distinct from the user-facing
+-- "Color / Duration Overlay" label which is backed by Overlay.lua.
 -- ============================================================
 
 local DURATION_UPDATE_INTERVAL = 0.1
@@ -35,14 +37,8 @@ function ColorMethods:SetValue(current, max)
 	self:Show()
 end
 
-function ColorMethods:SetStacks(count)
-	if(not self._stackText) then return end
-	if(count and count > 1) then
-		self._stackText:SetText(count)
-		self._stackText:Show()
-	else
-		self._stackText:Hide()
-	end
+function ColorMethods:SetStacks(count, unit, auraInstanceID)
+	F.Indicators.SetAuraStackText(self._stackText, unit, auraInstanceID, count)
 end
 
 function ColorMethods:Clear()
@@ -88,7 +84,7 @@ end
 -- Factory
 -- ============================================================
 
-function F.Indicators.Color.Create(parent, config)
+function F.Indicators.Rectangle.Create(parent, config)
 	config = config or {}
 	local color   = config.color or { 1, 1, 1, 1 }
 	local rectW   = config.rectWidth or 10
@@ -112,9 +108,9 @@ function F.Indicators.Color.Create(parent, config)
 	texture:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -1, 1)
 	texture:SetColorTexture(color[1], color[2], color[3], color[4] or 1)
 
-	-- Stack text (optional)
+	-- Stack text (optional, default off — opposite of ICON/ICONS)
 	local stackText
-	if(config.showStacks ~= false) then
+	if(config.showStacks == true) then
 		local sf = config.stackFont or {}
 		stackText = Widgets.CreateFontString(frame, sf.size or 10, { 1, 1, 1, 1 })
 		stackText:SetPoint('CENTER', frame, 'CENTER', 0, 0)
