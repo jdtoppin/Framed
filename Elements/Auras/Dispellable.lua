@@ -217,7 +217,13 @@ local function isTypedDispelAura(unit, auraInstanceID)
 	if(not color) then return false end
 
 	local _, _, _, a = color:GetRGBA()
-	return F.IsValueNonSecret(a) and a > 0
+	if(F.IsValueNonSecret(a)) then
+		return a > 0
+	end
+
+	-- Classified combat can make the curve result secret. Treat unknown
+	-- alpha as a possible typed dispel so the C-level render path can decide.
+	return true
 end
 
 -- ============================================================
