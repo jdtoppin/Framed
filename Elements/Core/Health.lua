@@ -109,6 +109,96 @@ end
 F.Elements.Health.NpcUpdateColor = NpcUpdateColor
 
 -- ============================================================
+-- Update override
+-- Mirrors oUF/elements/health.lua's Update with one change:
+-- UnitGetDetailedHealPrediction is called with casterFilter=nil
+-- (not 'player') so DamageAbsorb/HealAbsorb include absorbs cast
+-- by anyone — otherwise a priest's PW:Shield on the player wouldn't
+-- show because it wasn't cast by the player. HealingAll/Player/Other
+-- still split naturally via the calculator's own segmentation.
+--
+-- Wired via element.Override per oUF's documented public API rather
+-- than mutating Libs/oUF/. If oUF's upstream Update grows new
+-- features (new sub-elements, new callbacks), this override needs
+-- the same additions.
+-- ============================================================
+
+local function HealthUpdate(self, event, unit)
+	if(not unit or self.unit ~= unit) then return end
+	local element = self.Health
+
+	if(element.PreUpdate) then
+		element:PreUpdate(unit)
+	end
+
+	UnitGetDetailedHealPrediction(unit, nil, element.values)
+
+	local max = element.values:GetMaximumHealth()
+	element:SetMinMaxValues(0, max)
+
+	local cur = element.values:GetCurrentHealth()
+	if(UnitIsConnected(unit)) then
+		element:SetValue(cur, element.smoothing)
+	else
+		element:SetValue(max, element.smoothing)
+	end
+
+	element.cur = cur -- DEPRECATED: use element.values
+	element.max = max -- DEPRECATED: use element.values
+
+	if(element.HealingAll or element.HealingPlayer or element.HealingOther or element.OverHealIndicator) then
+		local allHeal, playerHeal, otherHeal, healClamped = element.values:GetIncomingHeals()
+		if(element.HealingAll) then
+			element.HealingAll:SetMinMaxValues(0, max)
+			element.HealingAll:SetValue(allHeal)
+		end
+		if(element.HealingPlayer) then
+			element.HealingPlayer:SetMinMaxValues(0, max)
+			element.HealingPlayer:SetValue(playerHeal)
+		end
+		if(element.HealingOther) then
+			element.HealingOther:SetMinMaxValues(0, max)
+			element.HealingOther:SetValue(otherHeal)
+		end
+		if(element.OverHealIndicator) then
+			element.OverHealIndicator:SetAlphaFromBoolean(healClamped, 1, 0)
+		end
+	end
+
+	if(element.DamageAbsorb or element.OverDamageAbsorbIndicator) then
+		local damageAbsorbAmount, damageAbsorbClamped = element.values:GetDamageAbsorbs()
+		if(element.DamageAbsorb) then
+			element.DamageAbsorb:SetMinMaxValues(0, max)
+			element.DamageAbsorb:SetValue(damageAbsorbAmount)
+		end
+		if(element.OverDamageAbsorbIndicator) then
+			element.OverDamageAbsorbIndicator:SetAlphaFromBoolean(damageAbsorbClamped, 1, 0)
+		end
+	end
+
+	if(element.HealAbsorb or element.OverHealAbsorbIndicator) then
+		local healAbsorbAmount, healAbsorbClamped = element.values:GetHealAbsorbs()
+		if(element.HealAbsorb) then
+			element.HealAbsorb:SetMinMaxValues(0, max)
+			element.HealAbsorb:SetValue(healAbsorbAmount)
+		end
+		if(element.OverHealAbsorbIndicator) then
+			element.OverHealAbsorbIndicator:SetAlphaFromBoolean(healAbsorbClamped, 1, 0)
+		end
+	end
+
+	local lossPerc = 0
+	if(element.TempLoss) then
+		lossPerc = GetUnitTotalModifiedMaxHealthPercent(unit)
+		element.TempLoss:SetValue(lossPerc, element.smoothing)
+	end
+
+	if(element.PostUpdate) then
+		element:PostUpdate(unit, cur, max, lossPerc)
+	end
+end
+
+-- ============================================================
 -- Health Element Setup
 -- ============================================================
 
@@ -617,6 +707,13 @@ function F.Elements.Health.Setup(self, width, height, config)
 			health._overShieldCalc = CreateUnitHealPredictionCalculator()
 		end
 	end
+
+	-- --------------------------------------------------------
+	-- Override: include absorbs cast by anyone, not just the player.
+	-- See HealthUpdate above for rationale.
+	-- --------------------------------------------------------
+
+	health.Override = HealthUpdate
 
 	-- --------------------------------------------------------
 	-- Assign to oUF — activates the Health element
