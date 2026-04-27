@@ -358,8 +358,8 @@ function F.Elements.Health.Setup(self, width, height, config)
 
 		-- Health text formatting.
 		-- AbbreviateNumbers (C-level) handles secret values from UnitHealth.
-		-- UnitHealthPercent can return a secret curve result, so only
-		-- Lua-format it after confirming the value is inspectable.
+		-- UnitHealthPercent can return a secret curve result, so pass it
+		-- directly to C-level SetFormattedText instead of Lua-formatting it.
 		if(h.text and h.text:IsShown()) then
 			local fmt = h._textFormat or config.textFormat
 			local prefix = h._attachedToName and ' - ' or ''
@@ -367,11 +367,7 @@ function F.Elements.Health.Setup(self, width, height, config)
 				h.text:SetText('')
 			elseif(fmt == 'percent') then
 				local pct = UnitHealthPercent(unit, true, CurveConstants.ScaleTo100)
-				if(F.IsValueNonSecret(pct)) then
-					h.text:SetText(prefix .. string.format('%d', pct) .. '%')
-				else
-					h.text:SetText('')
-				end
+				h.text:SetFormattedText('%s%d%%', prefix, pct)
 			elseif(fmt == 'current') then
 				h.text:SetText(prefix .. F.AbbreviateNumber(UnitHealth(unit)))
 			elseif(fmt == 'deficit') then

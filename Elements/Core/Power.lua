@@ -138,8 +138,8 @@ function F.Elements.Power.Setup(self, width, height, config)
 
 		-- Power text formatting.
 		-- AbbreviateNumbers (C-level) handles secret values from UnitPower.
-		-- UnitPowerPercent can return a secret curve result, so only
-		-- Lua-format it after confirming the value is inspectable.
+		-- UnitPowerPercent can return a secret curve result, so pass it
+		-- directly to C-level SetFormattedText instead of Lua-formatting it.
 		if(p.text and p.text:IsShown()) then
 			local powerType = UnitPowerType(unit)
 			local fmt = p._textFormat or config.textFormat
@@ -147,11 +147,7 @@ function F.Elements.Power.Setup(self, width, height, config)
 				p.text:SetText('')
 			elseif(fmt == 'percent') then
 				local pct = UnitPowerPercent(unit, nil, true, CurveConstants.ScaleTo100)
-				if(F.IsValueNonSecret(pct)) then
-					p.text:SetText(string.format('%d', pct) .. '%')
-				else
-					p.text:SetText('')
-				end
+				p.text:SetFormattedText('%d%%', pct)
 			elseif(fmt == 'current') then
 				p.text:SetText(F.AbbreviateNumber(UnitPower(unit, powerType)))
 			elseif(fmt == 'deficit') then
