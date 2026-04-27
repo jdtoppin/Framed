@@ -220,12 +220,7 @@ local function Update(self, event, unit)
 		element:PreUpdate(unit)
 	end
 
-	-- Pass nil casterFilter (not 'player') so DamageAbsorb/HealAbsorb
-	-- include absorbs cast by anyone on the unit — otherwise a priest's
-	-- PW:Shield on the player wouldn't show because it wasn't cast by
-	-- the player. HealingAll/Player/Other still split naturally via
-	-- the calculator's own segmentation.
-	UnitGetDetailedHealPrediction(unit, nil, element.values)
+	UnitGetDetailedHealPrediction(unit, 'player', element.values)
 
 	local max = element.values:GetMaximumHealth()
 	element:SetMinMaxValues(0, max)
