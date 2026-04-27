@@ -149,12 +149,24 @@ local function BuildPanel(frameKey, targetFrame)
 	local setCfg = function(path, value) F.EditCache.Set(unitType, path, value) end
 	local onResize = function() end  -- Preview auto-updates via EDIT_CACHE_VALUE_CHANGED
 
+	-- Title: shows which frame the panel is editing. Once a frame is
+	-- selected its highlight is suppressed during drag, so without this
+	-- the user has no on-screen confirmation of what they're moving.
+	local titleText = (F.Settings and F.Settings.GetFrameUnitLabel and F.Settings.GetFrameUnitLabel(unitType))
+		or unitType
+	local title = Widgets.CreateFontString(panel, C.Font.sizeTitle, C.Colors.textActive)
+	title:SetPoint('TOPLEFT', panel, 'TOPLEFT', C.Spacing.normal, -C.Spacing.normal)
+	title:SetJustifyH('LEFT')
+	title:SetText(titleText)
+
+	local titleH = title:GetStringHeight()
+
 	local card = F.SettingsCards.PositionAndLayout(panel, widgetW, unitType, getCfg, setCfg, onResize)
 	card:ClearAllPoints()
-	card:SetPoint('TOPLEFT', panel, 'TOPLEFT', C.Spacing.normal, -C.Spacing.normal)
+	card:SetPoint('TOPLEFT', panel, 'TOPLEFT', C.Spacing.normal, -(C.Spacing.normal + titleH + C.Spacing.tight))
 
-	-- Fit panel height to card, then sync shield to the final rect
-	panel:SetHeight(card:GetHeight() + C.Spacing.normal * 2)
+	-- Fit panel height to card + title, then sync shield to the final rect
+	panel:SetHeight(card:GetHeight() + titleH + C.Spacing.tight + C.Spacing.normal * 2)
 	shield:SetHeight(panel:GetHeight())
 	shield:ClearAllPoints()
 	shield:SetAllPoints(panel)
