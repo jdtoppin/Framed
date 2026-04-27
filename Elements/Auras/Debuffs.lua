@@ -71,7 +71,8 @@ local function displayAura(self, unit, pool, displayed, runOffset, cfg, auraData
 		auraData.icon,
 		auraData.duration,
 		auraData.expirationTime,
-		auraData.applications
+		auraData.applications,
+		true
 	)
 	bi:Show()
 

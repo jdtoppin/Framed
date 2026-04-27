@@ -44,7 +44,7 @@ local BorderIconMethods = {}
 
 --- Set the displayed aura data on this border icon.
 --- Supports two calling conventions:
----   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count)
+---   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, useDispelColor)
 ---   Legacy:            SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
 --- When unit + auraInstanceID are provided, C-level APIs are used for
 --- cooldown (DurationObject), stacks, and dispel color (secret-safe).
@@ -52,15 +52,15 @@ local BorderIconMethods = {}
 --- via SetCooldownFromDurationObject — secret-safe, no Lua math needed.
 --- Without unit + auraInstanceID, falls back to legacy behavior.
 function BorderIconMethods:SetAura(...)
-	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType
+	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, useDispelColor
 
 	local arg1, arg2 = ...
 	-- Detect new vs legacy signature: if first arg is a string (unit token)
 	-- and second arg is a number (auraInstanceID), it's the new signature.
 	if(type(arg1) == 'string' and type(arg2) == 'number') then
-		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, useDispelColor = ...
 	else
-		spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+		spellId, iconTexture, duration, expirationTime, count, useDispelColor = ...
 	end
 
 	-- Store for OnUpdate and other deferred lookups
@@ -82,10 +82,10 @@ function BorderIconMethods:SetAura(...)
 		self.icon:SetTexture(tex)
 	end
 
-	-- Border color from dispel type. In the unit/auraInstanceID path, do not
-	-- inspect aura.dispelName in Lua. Ask the C API to map the aura's dispel
-	-- type through the oUF-shaped curve; no-type auras evaluate to None/red.
-	if(unit and auraInstanceID) then
+	-- Border color from dispel type. Debuffs opt in with useDispelColor=true.
+	-- Helpful-aura consumers (Defensives/Externals) paint their own custom
+	-- borders before SetAura and should not be overwritten by None/red.
+	if(unit and auraInstanceID and useDispelColor == true) then
 		local curve = getDispelColorCurve()
 		if(curve) then
 			local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
@@ -96,8 +96,8 @@ function BorderIconMethods:SetAura(...)
 				self:SetBorderColor(color:GetRGBA())
 			end
 		end
-	elseif(F.IsValueNonSecret(dispelType) and dispelType) then
-		local color = C.Colors.dispel[dispelType]
+	elseif(F.IsValueNonSecret(useDispelColor) and useDispelColor) then
+		local color = C.Colors.dispel[useDispelColor]
 		if(color) then
 			self:SetBorderColor(color[1], color[2], color[3], 1)
 		end
