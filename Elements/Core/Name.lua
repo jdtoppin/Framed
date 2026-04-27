@@ -7,38 +7,6 @@ F.Elements = F.Elements or {}
 F.Elements.Name = {}
 
 -- ============================================================
--- Name Truncation Helper
--- ============================================================
-
---- Truncate a UTF-8 string to maxChars codepoints, appending '...' if cut.
---- @param str string
---- @param maxChars number
---- @return string
-local function TruncateUTF8(str, maxChars)
-	if(not str) then return '' end
-	local chars = 0
-	local bytePos = 1
-	local len = #str
-	while(bytePos <= len and chars < maxChars) do
-		local byte = str:byte(bytePos)
-		if(byte < 128) then
-			bytePos = bytePos + 1
-		elseif(byte < 224) then
-			bytePos = bytePos + 2
-		elseif(byte < 240) then
-			bytePos = bytePos + 3
-		else
-			bytePos = bytePos + 4
-		end
-		chars = chars + 1
-	end
-	if(bytePos <= len) then
-		return str:sub(1, bytePos - 1) .. '...'
-	end
-	return str
-end
-
--- ============================================================
 -- Name Element Setup
 -- ============================================================
 
@@ -91,13 +59,9 @@ function F.Elements.Name.Setup(self, config)
 	nameText._anchorX     = anchor[4] or 0
 	nameText._anchorY     = anchor[5] or 0
 
-	-- Native C-level auto-ellipsis on overflow. Our Lua-side TruncateUTF8
-	-- in ApplyNameUpdate runs inside a HookScript('OnAttributeChanged'),
-	-- which fires BEFORE oUF's [name] tag writes the new unit's name —
-	-- it truncates stale text that the tag then overwrites with an
-	-- untruncated long name (visibly spilling past the frame, especially
-	-- on narrow pinned frames). SetWordWrap(false) + a bounded width makes
-	-- the renderer append '...' on every SetText regardless of caller.
+	-- Native C-level auto-ellipsis on overflow. Avoid Lua-side string
+	-- truncation here: UnitName can be identity-restricted, and native
+	-- bounded FontString rendering keeps restricted text out of Lua logic.
 	--
 	-- Bounded width is skipped in attach-to-name mode: StyleBuilder anchors
 	-- Health.text to Name's RIGHT edge and Health.PostUpdate shifts the
@@ -142,7 +106,7 @@ function F.Elements.Name.Setup(self, config)
 	self:Tag(nameText, '[name]')
 
 	-- --------------------------------------------------------
-	-- PostUpdate: apply class color and truncation.
+	-- PostUpdate: apply class color.
 	-- oUF calls this whenever the unit's info refreshes.
 	-- --------------------------------------------------------
 
@@ -155,21 +119,6 @@ function F.Elements.Name.Setup(self, config)
 
 	local function ApplyNameUpdate(unit)
 		if(not unit) then return end
-
-		-- Auto-truncate: fit name to available frame width
-		local raw = nameText:GetText() or ''
-		local availableWidth = (self:GetWidth() or 0) - 8  -- 4px padding each side
-		nameText:SetText(raw)
-		if(availableWidth > 0 and nameText:GetStringWidth() > availableWidth) then
-			local len = #raw
-			for i = len, 1, -1 do
-				local truncated = TruncateUTF8(raw, i)
-				nameText:SetText(truncated)
-				if(nameText:GetStringWidth() <= availableWidth) then
-					break
-				end
-			end
-		end
 
 		-- Class coloring
 		if(config.colorMode == 'class') then
