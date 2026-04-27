@@ -14,21 +14,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: BigWigsMods/packager@v2
-        with:
-          args: -g retail
-        env:
-          CF_API_KEY: ${{ secrets.CF_API_KEY }}
-          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
-
-      # Packager embeds the entire CHANGELOG.md as the release body, which
-      # pulls in previous version blocks too. Replace the body with just the
-      # top version block so the GitHub release page and the Discord post
-      # show only the current release.
-      - name: Trim release notes to current version
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # Trim CHANGELOG.md to just the top version block before the packager
+      # runs. The packager uses CHANGELOG.md verbatim per .pkgmeta's
+      # `manual-changelog`, so trimming in place ensures both CurseForge AND
+      # the GitHub release body get only the current release's notes — not
+      # the entire cumulative history. Original is restored after upload.
+      - name: Trim CHANGELOG.md to current version
         run: |
+          cp CHANGELOG.md /tmp/full-changelog.md
           awk '
             /^## v/ {
               count++
@@ -36,10 +29,23 @@ jobs:
               next
             }
             count == 1 { print }
-          ' CHANGELOG.md > /tmp/release-notes.md
-          echo '--- trimmed release notes ---'
-          cat /tmp/release-notes.md
-          gh release edit "${GITHUB_REF_NAME}" --notes-file /tmp/release-notes.md
+          ' /tmp/full-changelog.md > CHANGELOG.md
+          echo '--- trimmed CHANGELOG.md ---'
+          cat CHANGELOG.md
+
+      - uses: BigWigsMods/packager@v2
+        with:
+          args: -g retail
+        env:
+          CF_API_KEY: ${{ secrets.CF_API_KEY }}
+          GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore CHANGELOG.md
+        if: always()
+        run: |
+          if [ -f /tmp/full-changelog.md ]; then
+            mv /tmp/full-changelog.md CHANGELOG.md
+          fi
 
       # Packager creates the GitHub release under the default token, which
       # means the `release: [published]` event is suppressed (GitHub's
