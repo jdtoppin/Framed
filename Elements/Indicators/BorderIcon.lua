@@ -12,27 +12,24 @@ F.Indicators.BorderIcon = {}
 
 local dispelColorCurve
 
---- Build a dispel color curve from C.Colors.dispel using oUF's
---- DispelType enum indices. Lazy-initialized on first use.
+--- Build a dispel color curve using oUF's own dispel color table.
+--- This mirrors oUF/elements/auras.lua so the x-values match
+--- C_UnitAuras.GetAuraDispelTypeColor's dispel type IDs.
 local function getDispelColorCurve()
 	if(dispelColorCurve) then return dispelColorCurve end
 	if(not C_CurveUtil or not C_CurveUtil.CreateColorCurve) then return nil end
 
 	local oUF = F.oUF
-	if(not oUF or not oUF.Enum or not oUF.Enum.DispelType) then return nil end
+	if(not oUF or not oUF.Enum or not oUF.Enum.DispelType or not oUF.colors or not oUF.colors.dispel) then return nil end
+	local dispelTypes = oUF.Enum.DispelType
 
 	dispelColorCurve = C_CurveUtil.CreateColorCurve()
 	dispelColorCurve:SetType(Enum.LuaCurveType.Step)
 
-	-- Map oUF DispelType enum indices to C.Colors.dispel color keys.
-	-- oUF uses 'Bleed' but C.Colors.dispel uses 'Physical' for that type.
-	local COLOR_KEY = { Bleed = 'Physical' }
-	local dispelTypes = oUF.Enum.DispelType
-	for name, index in next, dispelTypes do
-		local colorKey = COLOR_KEY[name] or name
-		local rgb = C.Colors.dispel[colorKey]
-		if(rgb) then
-			dispelColorCurve:AddPoint(index, CreateColor(rgb[1], rgb[2], rgb[3], 1))
+	for _, index in next, dispelTypes do
+		local color = oUF.colors.dispel[index]
+		if(color) then
+			dispelColorCurve:AddPoint(index, color)
 		end
 	end
 
@@ -47,7 +44,7 @@ local BorderIconMethods = {}
 
 --- Set the displayed aura data on this border icon.
 --- Supports two calling conventions:
----   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType)
+---   New (secret-safe): SetAura(unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, useDispelColor)
 ---   Legacy:            SetAura(spellId, iconTexture, duration, expirationTime, count, dispelType)
 --- When unit + auraInstanceID are provided, C-level APIs are used for
 --- cooldown (DurationObject), stacks, and dispel color (secret-safe).
@@ -55,15 +52,15 @@ local BorderIconMethods = {}
 --- via SetCooldownFromDurationObject — secret-safe, no Lua math needed.
 --- Without unit + auraInstanceID, falls back to legacy behavior.
 function BorderIconMethods:SetAura(...)
-	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType
+	local unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, useDispelColor
 
 	local arg1, arg2 = ...
 	-- Detect new vs legacy signature: if first arg is a string (unit token)
 	-- and second arg is a number (auraInstanceID), it's the new signature.
 	if(type(arg1) == 'string' and type(arg2) == 'number') then
-		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+		unit, auraInstanceID, spellId, iconTexture, duration, expirationTime, count, useDispelColor = ...
 	else
-		spellId, iconTexture, duration, expirationTime, count, dispelType = ...
+		spellId, iconTexture, duration, expirationTime, count, useDispelColor = ...
 	end
 
 	-- Store for OnUpdate and other deferred lookups
@@ -85,26 +82,24 @@ function BorderIconMethods:SetAura(...)
 		self.icon:SetTexture(tex)
 	end
 
-	-- Border color from dispel type (only when dispelType is non-nil).
-	-- Non-dispellable auras have dispelName = nil (not secret-nil), so
-	-- the truthiness check safely skips them — callers set their own
-	-- default border color before SetAura.
-	if(dispelType) then
-		if(unit and auraInstanceID) then
-			-- New path: C-level dispel color via curve (handles secret dispelType)
-			local curve = getDispelColorCurve()
-			if(curve) then
-				local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
-				if(color and F.IsValueNonSecret(color)) then
-					self:SetBorderColor(color:GetRGBA())
-				end
+	-- Border color from dispel type. Debuffs opt in with useDispelColor=true.
+	-- Helpful-aura consumers (Defensives/Externals) paint their own custom
+	-- borders before SetAura and should not be overwritten by None/red.
+	if(unit and auraInstanceID and useDispelColor == true) then
+		local curve = getDispelColorCurve()
+		if(curve) then
+			local color = C_UnitAuras.GetAuraDispelTypeColor(unit, auraInstanceID, curve)
+			if(color == nil) then
+				color = curve:Evaluate(0)
 			end
-		elseif(F.IsValueNonSecret(dispelType)) then
-			-- Legacy path: manual color lookup
-			local color = C.Colors.dispel[dispelType]
 			if(color) then
-				self:SetBorderColor(color[1], color[2], color[3], 1)
+				self:SetBorderColor(color:GetRGBA())
 			end
+		end
+	elseif(F.IsValueNonSecret(useDispelColor) and useDispelColor) then
+		local color = C.Colors.dispel[useDispelColor]
+		if(color) then
+			self:SetBorderColor(color[1], color[2], color[3], 1)
 		end
 	end
 
@@ -116,11 +111,11 @@ function BorderIconMethods:SetAura(...)
 		local durationObj = C_UnitAuras.GetAuraDuration(unit, auraInstanceID)
 		if(durationObj) then
 			if(self.cooldown) then
-				self.cooldown:SetCooldownFromDurationObject(durationObj)
+				self.cooldown:SetCooldownFromDurationObject(durationObj, true)
 				self.cooldown:SetReverse(true)
 			end
 		elseif(self.cooldown) then
-			self.cooldown:Clear()
+			F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 		end
 	elseif(self.cooldown) then
 		-- Legacy path: raw SetCooldown (works in untainted contexts only)
@@ -131,7 +126,7 @@ function BorderIconMethods:SetAura(...)
 			self.cooldown:SetCooldown(startTime, duration)
 			self.cooldown:SetReverse(true)
 		else
-			self.cooldown:Clear()
+			F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 		end
 	end
 
@@ -156,36 +151,19 @@ function BorderIconMethods:SetAura(...)
 			end
 			-- Re-apply position after every cooldown set (Blizzard resets to CENTER)
 			cdText:ClearAllPoints()
-			local df = self._durationFont
-			cdText:SetPoint(df.anchor, self._iconFrame, df.anchor, df.xOffset, df.yOffset)
+			local df = self._durationFont or {}
+			local anchor = df.anchor or 'CENTER'
+			cdText:SetPoint(anchor, self._iconFrame, anchor, df.xOffset or 0, df.yOffset or 0)
+			self._cdText = cdText
 		end
 	end
 
 	-- Stacks
 	if(self.stacks) then
 		if(unit and auraInstanceID) then
-			-- New path: C-level formatted display count.
-			-- SetText is a C-level API that accepts secret values, so we
-			-- pass the result directly without IsValueNonSecret. Always
-			-- show when non-nil — an empty secret string is invisible.
-			local displayCount = C_UnitAuras.GetAuraApplicationDisplayCount(
-				unit, auraInstanceID, 2, 99)
-			if(displayCount) then
-				self.stacks:SetText(displayCount)
-				self.stacks:Show()
-			else
-				self.stacks:SetText('')
-				self.stacks:Hide()
-			end
+			F.Indicators.SetAuraStackText(self.stacks, unit, auraInstanceID, count)
 		else
-			-- Legacy path
-			if(count and count > 1) then
-				self.stacks:SetText(count)
-				self.stacks:Show()
-			else
-				self.stacks:SetText('')
-				self.stacks:Hide()
-			end
+			F.Indicators.SetAuraStackText(self.stacks, nil, nil, count)
 		end
 	end
 
@@ -210,7 +188,7 @@ function BorderIconMethods:Clear()
 	self._unit = nil
 	self._auraInstanceID = nil
 	if(self.cooldown) then
-		self.cooldown:Clear()
+		F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 	end
 	if(self.stacks) then
 		self.stacks:SetText('')
@@ -254,6 +232,7 @@ function BorderIconMethods:Destroy()
 	self._frame._biRef = nil
 	self._unit = nil
 	self._auraInstanceID = nil
+	F.Indicators.ClearCooldownCountdown(self.cooldown, self._cdText)
 	self._frame:Hide()
 	self._frame:SetParent(nil)
 end
@@ -350,6 +329,7 @@ function F.Indicators.BorderIcon.Create(parent, size, config)
 		_countdownReparented = false,
 		_unit            = nil,
 		_auraInstanceID  = nil,
+		_cdText          = nil,
 
 		icon          = icon,
 		cooldown      = cooldown,

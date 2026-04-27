@@ -208,14 +208,8 @@ function BarMethods:GetStatusBar()
 	return self._statusBar
 end
 
-function BarMethods:SetStacks(count)
-	if(not self._stackText) then return end
-	if(count and count > 1) then
-		self._stackText:SetText(count)
-		self._stackText:Show()
-	else
-		self._stackText:Hide()
-	end
+function BarMethods:SetStacks(count, unit, auraInstanceID)
+	F.Indicators.SetAuraStackText(self._stackText, unit, auraInstanceID, count)
 end
 
 --- Format duration as seconds (with tenths below 10s).
@@ -253,7 +247,9 @@ function F.Indicators.Bar.Create(parent, config)
 	frame:SetFrameLevel(parent:GetFrameLevel() + 5)
 	frame:Hide()
 
-	-- Dark background
+	-- Dark background on the container. The StatusBar also gets its own
+	-- background below so the depleted portion remains visible even when the
+	-- StatusBar frame covers the container texture.
 	local bg = frame:CreateTexture(nil, 'BACKGROUND')
 	bg:SetAllPoints(frame)
 	bg:SetColorTexture(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 0.5)
@@ -267,6 +263,10 @@ function F.Indicators.Bar.Create(parent, config)
 	statusBar:SetStatusBarColor(0, 0, 0, 0)
 	statusBar:SetMinMaxValues(0, 1)
 	statusBar:SetValue(0)
+
+	local statusBg = statusBar:CreateTexture(nil, 'BACKGROUND')
+	statusBg:SetAllPoints(statusBar)
+	statusBg:SetColorTexture(bgColor[1], bgColor[2], bgColor[3], bgColor[4] or 0.5)
 
 	-- 0.5px border overlay
 	local border = CreateFrame('Frame', nil, frame, 'BackdropTemplate')
@@ -285,9 +285,9 @@ function F.Indicators.Bar.Create(parent, config)
 		statusBar:SetOrientation('VERTICAL')
 	end
 
-	-- Stack text (optional)
+	-- Stack text (optional, default off — opposite of ICON/ICONS)
 	local stackText
-	if(config.showStacks ~= false) then
+	if(config.showStacks == true) then
 		local sf = config.stackFont or {}
 		stackText = Widgets.CreateFontString(frame, sf.size or 10, { 1, 1, 1, 1 })
 		stackText:SetPoint('BOTTOMRIGHT', frame, 'BOTTOMRIGHT', -1, 1)
@@ -308,6 +308,7 @@ function F.Indicators.Bar.Create(parent, config)
 	local bar = {
 		_frame        = frame,
 		_statusBar    = statusBar,
+		_bg           = statusBg,
 		_stackText    = stackText,
 		_durationText = durationText,
 		_lowTimeColor = config.lowTimeColor,   -- { enabled, threshold, color }
